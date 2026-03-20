@@ -566,6 +566,158 @@ interface StationAlert {
 - Offline countdown working underground with cached data.
 - Commute journal logging trips and surfacing anomalies after 2 weeks of data.
 
+### Phase 6: Awareness -- Accessibility, Walking Intelligence, Live Visualization
+
+**Goal:** Make the app aware of the physical world — elevator outages, weather, walking alternatives, and train positions — so it gives smarter, more humane recommendations.
+
+**Features:**
+
+1. **Elevator and escalator status with accessible rerouting** -- Integrate the MTA Equipment API to show real-time elevator and escalator outages on station detail views. A red badge on stations with broken elevators: "Elevator out of service since 6:14 AM." In an "Accessible mode" toggle (persisted in settings), the transfer engine excludes stations where elevators are currently broken and reroutes through accessible alternatives. The station search also shows an ADA badge and flags stations with current equipment outages.
+
+   Implementation:
+   - Poll the MTA Equipment API every 5 minutes (equipment status changes slowly).
+   - Parse outage data and index by station.
+   - New backend route: `GET /api/equipment/:stationId` and bulk `GET /api/equipment`.
+   - Inject equipment status into the `StationArrivals` response as a new `equipment` field.
+   - In the transfer engine, when accessible mode is on, set the weight of stations with broken elevators to `Infinity` (effectively removing them from the graph).
+   - Frontend: ADA badge on station cards, equipment outage banner on station detail, accessible mode toggle in settings.
+
+   Data model addition:
+   ```typescript
+   interface EquipmentStatus {
+     stationId: string;
+     type: "elevator" | "escalator";
+     description: string;         // "Elevator to mezzanine"
+     isActive: boolean;           // true = working, false = out of service
+     outOfServiceSince?: number;  // POSIX timestamp
+     estimatedReturn?: string;    // MTA's estimate, often vague
+     ada: boolean;                // Is this the station's only ADA-accessible path?
+   }
+
+   // Added to Settings
+   accessibleMode: boolean;       // Default: false
+   ```
+
+2. **"Should I just walk?" -- walking vs transit for short trips** -- For commutes of 1-3 stops, show a persistent walking comparison alongside transit options. Compute walking time from station coordinates using Haversine distance at 4.5 km/h walking speed. Display as a card on the commute view: "Walk 11 min vs wait 6 min + ride 2 min (arrive same time)."
+
+   During delays, this comparison becomes decisive. When the wait time at the origin exceeds the walking time to the destination, automatically promote the walking option: "F running 10 min late. Walk to Church Av in 12 min instead of waiting 14 min."
+
+   Implementation:
+   - Compute walking distance between origin and destination station coordinates (already in GTFS static data).
+   - Walking time = distance / 4.5 km/h, rounded up.
+   - Show comparison when walking time < 20 minutes AND the transit trip is 3 or fewer stops.
+   - During delays (wait time > walking time), surface prominently with a walking icon.
+   - No new API calls — purely derived from existing station coordinates and real-time arrival data.
+
+3. **OMNY fare cap tracker** -- Track rides toward OMNY's 12-ride weekly free cap (Monday to Sunday). Auto-logged from trip tracking: each time the commute journal records a trip departure (from trip tracker or inferred trip detection), increment the weekly tap count. No manual button needed.
+
+   Display: a persistent subtle indicator in the header or settings: "9/12 rides this week — 3 more until free rides." When close to the cap (10+ rides), nudge: "Take one more round trip and tomorrow's commute is free." Weekly reset every Monday at midnight.
+
+   Track monthly spend: rides × $2.90 (or current fare), compared against the old 30-day unlimited pass ($132) to show whether OMNY or a pass would have been cheaper for the user's actual usage pattern.
+
+   Implementation — entirely client-side:
+   ```typescript
+   interface FareTracking {
+     weeklyRides: number;
+     weekStartDate: string;        // ISO date of Monday
+     monthlyRides: number;
+     monthStartDate: string;       // ISO date of 1st
+     rideLog: RideLogEntry[];      // Last 90 days
+     currentFare: number;          // Default $2.90, user-configurable
+   }
+
+   interface RideLogEntry {
+     date: string;                 // ISO date
+     time: number;                 // POSIX timestamp
+     stationId: string;
+     source: "tracked" | "inferred";
+   }
+   ```
+   - Auto-log: when the commute journal records a trip with `source: "tracked"` or `source: "inferred"`, also append a `RideLogEntry`.
+   - Weekly count resets when current date's Monday differs from `weekStartDate`.
+   - No backend, no OMNY API integration — just counting from trip data already being collected.
+
+4. **Live train position diagram** -- A schematic line diagram (not a geographic map) showing actual train positions as dots on a linear station-to-station representation. Derived from `VehiclePosition` data already being polled by the backend.
+
+   The diagram shows:
+   - All trains on a selected line as colored dots on a horizontal/vertical line of station nodes.
+   - Dot position interpolated between stations using `current_stop_sequence` and `current_status` (INCOMING_AT, STOPPED_AT, IN_TRANSIT_TO).
+   - Train spacing at a glance: evenly spaced = healthy, clustered = bunching, gap = missing train.
+   - The user's next train highlighted (pulsing dot).
+   - Tap a dot to see its trip details (destination, assigned status, delay).
+
+   Implementation:
+   - New backend route: `GET /api/positions/:lineId` returning all `VehiclePosition` entries for a given route.
+   - Frontend: SVG rendering of a line diagram. Station nodes as circles, train positions as colored dots interpolated along the path segments between stations.
+   - Station ordering from GTFS static `stop_times.txt` (stop sequence per route).
+   - Update every 30 seconds (matching feed poll cycle).
+   - Accessible: screen reader announces train count and spacing summary ("8 trains on the F line, evenly spaced, next train 2 stops away").
+
+5. **System-wide health dashboard** -- A single screen showing all subway lines with a status indicator, derived from existing alert data and the Phase 5 predictive delay detector.
+
+   ```
+   +------------------------------------------+
+   |  System Health          NYC Subway: 88%   |
+   |------------------------------------------|
+   |                                           |
+   |  NORMAL                                   |
+   |  (1) (4) (5) (6) (7) (A) (C) (E)        |
+   |  (G) (J) (L) (N) (Q) (R) (W) (Z)        |
+   |                                           |
+   |  MINOR DELAYS                             |
+   |  (2)  Slow north of 14th St               |
+   |  (B)  Running local in Manhattan           |
+   |                                           |
+   |  SIGNIFICANT DELAYS                       |
+   |  (F)  8-12 min delays, signal problems    |
+   |                                           |
+   |  SUSPENDED                                |
+   |  (D)  No svc btwn 36 St and Stillwell Av  |
+   |                                           |
+   |  Updated 8s ago                           |
+   |                                           |
+   |  [Home]  [Search]  [Commute]  [Alerts]   |
+   +------------------------------------------+
+   ```
+
+   Implementation:
+   - Aggregate per-line status from: official MTA alerts (severity mapping), Phase 5 predictive delay alerts, and the absence of alerts (= normal).
+   - Status tiers: Normal (green), Minor Delays (yellow), Significant Delays (orange), Suspended (red).
+   - Overall health percentage: `(lines at normal / total lines) * 100`.
+   - One-line summary per affected line, derived from the simplified alert text (Phase 3).
+   - Tap any line bullet to jump to that line's detail view (arrivals + position diagram).
+   - No new API calls or backend changes — purely an aggregation view of existing alert data served by `GET /api/alerts`.
+
+6. **"Your Subway Year" annual summary** -- A personalized year-in-review generated from the commute journal (Phase 5) and fare tracker data. Renders as a shareable card.
+
+   Statistics computed:
+   - Total trips taken
+   - Total hours underground
+   - Total distance traveled (sum of inter-station distances from GTFS static data)
+   - Most-used station, most-used line
+   - Most-delayed line (from anomaly data)
+   - Longest single commute, shortest single commute
+   - Best day of the week (fastest average), worst day
+   - Longest on-time streak
+   - OMNY spend (from fare tracker)
+   - Carbon saved vs driving: `(total_miles × 374g CO2 saved per passenger-mile) / 1000 = kg CO2 saved` (EPA: avg car emits 404g/mi, subway emits ~30g/passenger-mi, delta = 374g/mi)
+   - Rides after fare cap (free rides taken)
+
+   Implementation:
+   - Entirely client-side — computed from `journalStore` (TripRecord[]) and `fareTracking` (RideLogEntry[]) in localStorage.
+   - Render as a styled HTML component, export to PNG via `html2canvas` or canvas API for sharing.
+   - Available year-round via a "My Stats" screen (not just at year-end), with configurable time window (this month, this quarter, this year, all time).
+   - Share button uses the Web Share API (`navigator.share()`) to post the image natively on mobile.
+   - No backend involvement.
+
+**Milestones:**
+- Elevator/escalator outages displayed on station views; accessible rerouting avoids broken stations.
+- Walking comparison surfaces automatically for short trips and during delays.
+- OMNY fare cap tracker counting rides from auto-logged trip data.
+- Live train position diagram rendering for all lines from VehiclePosition data.
+- System health dashboard showing all-line status at a glance.
+- Annual summary generating shareable cards from journal data.
+
 ---
 
 ## 5. UI/UX Design
@@ -981,6 +1133,7 @@ The API research documents a critical accuracy difference:
 | **E2E testing** | Playwright | latest | Cross-browser, mobile viewport testing |
 | **Linting** | ESLint + Biome | latest | Fast formatting (Biome), thorough linting (ESLint) |
 | **Type checking** | TypeScript | 5.x | End-to-end type safety, shared types between frontend/backend |
+| **Share card rendering** | html2canvas | 1.x | Render annual summary as shareable PNG image |
 | **Containerization** | Docker | latest | Consistent builds, deployment portability |
 
 ---
@@ -1008,6 +1161,9 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |   |-- stations.ts         # Station, Route, TransferConnection
 |   |   |   |   |-- alerts.ts           # StationAlert (including synthetic predicted alerts)
 |   |   |   |   |-- trips.ts            # TripRecord, CommuteStats (Phase 5)
+|   |   |   |   |-- equipment.ts       # Phase 6: EquipmentStatus
+|   |   |   |   |-- fare.ts            # Phase 6: FareTracking, RideLogEntry
+|   |   |   |   |-- positions.ts       # Phase 6: TrainPosition for live diagram
 |   |   |   |   |-- index.ts
 |   |   |   |-- constants/
 |   |   |   |   |-- feeds.ts            # Feed URLs, polling intervals
@@ -1015,6 +1171,8 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |-- utils/
 |   |   |       |-- time.ts             # Time formatting, minutes-away calc
 |   |   |       |-- confidence.ts       # Confidence scoring logic
+|   |   |       |-- walking.ts          # Phase 6: Haversine distance, walking time calc
+|   |   |       |-- carbon.ts           # Phase 6: CO2 savings computation
 |   |   |-- package.json
 |   |   |-- tsconfig.json
 |   |
@@ -1029,6 +1187,7 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |   |-- alerts-parser.ts    # Alert parsing and simplification
 |   |   |   |   |-- cache.ts            # In-memory cache with TTL
 |   |   |   |   |-- delay-detector.ts   # Phase 5: predictive delay detection from position diffs
+|   |   |   |   |-- equipment-poller.ts # Phase 6: MTA Equipment API polling
 |   |   |   |-- routes/
 |   |   |   |   |-- arrivals.ts         # GET /api/arrivals/:stationId
 |   |   |   |   |-- stations.ts         # GET /api/stations, GET /api/stations/:id
@@ -1036,6 +1195,8 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |   |-- commute.ts          # POST /api/commute/analyze
 |   |   |   |   |-- push.ts             # POST /api/push/subscribe, DELETE /api/push/unsubscribe
 |   |   |   |   |-- trip.ts             # Phase 5: GET /api/trip/:tripId (live trip tracking)
+|   |   |   |   |-- equipment.ts        # Phase 6: GET /api/equipment/:stationId
+|   |   |   |   |-- positions.ts        # Phase 6: GET /api/positions/:lineId
 |   |   |   |   |-- health.ts           # GET /api/health
 |   |   |   |-- transfer/
 |   |   |   |   |-- engine.ts           # Transfer route computation
@@ -1098,6 +1259,21 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |   |-- CommuteJournal.tsx    # Trip history list and stats
 |       |   |   |   |-- TripChart.tsx         # Duration-over-time sparkline
 |       |   |   |   |-- AnomalyBanner.tsx     # "This trip is running longer than usual"
+|       |   |   |-- equipment/                # Phase 6
+|       |   |   |   |-- EquipmentBadge.tsx    # Elevator/escalator status indicator
+|       |   |   |   |-- EquipmentBanner.tsx   # Outage banner on station detail
+|       |   |   |-- positions/                # Phase 6
+|       |   |   |   |-- TrainDiagram.tsx      # SVG line diagram with train dots
+|       |   |   |   |-- TrainDot.tsx          # Individual train position marker
+|       |   |   |-- health/                   # Phase 6
+|       |   |   |   |-- SystemHealth.tsx      # All-line status grid
+|       |   |   |   |-- LineStatus.tsx        # Per-line status row
+|       |   |   |-- stats/                    # Phase 6
+|       |   |   |   |-- SubwayYear.tsx        # Annual summary card
+|       |   |   |   |-- ShareCard.tsx         # Canvas-rendered shareable image
+|       |   |   |   |-- FareTracker.tsx       # OMNY cap progress display
+|       |   |   |-- walking/                  # Phase 6
+|       |   |   |   |-- WalkComparison.tsx    # Walk vs transit side-by-side
 |       |   |   |-- alerts/
 |       |   |   |   |-- AlertBanner.tsx
 |       |   |   |   |-- AlertCard.tsx
@@ -1118,6 +1294,8 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |-- SettingsScreen.tsx
 |       |   |   |-- TripScreen.tsx      # Phase 5: live trip tracking view
 |       |   |   |-- JournalScreen.tsx   # Phase 5: commute history and stats
+|       |   |   |-- HealthScreen.tsx    # Phase 6: system-wide health dashboard
+|       |   |   |-- StatsScreen.tsx     # Phase 6: annual summary + fare tracking
 |       |   |-- hooks/
 |       |   |   |-- useArrivals.ts      # Fetch and auto-refresh arrivals
 |       |   |   |-- useFavorites.ts     # Read/write favorites from store
@@ -1128,17 +1306,22 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |-- useTripTracker.ts   # Phase 5: lock onto tripId, poll progress
 |       |   |   |-- useGeofence.ts      # Phase 5: station proximity detection
 |       |   |   |-- useContextSort.ts   # Phase 5: time-aware favorite re-sorting
+|       |   |   |-- useEquipment.ts     # Phase 6: fetch equipment status
+|       |   |   |-- usePositions.ts     # Phase 6: fetch train positions for diagram
+|       |   |   |-- useWalkComparison.ts # Phase 6: walk vs transit math
 |       |   |-- stores/
 |       |   |   |-- favoritesStore.ts   # Zustand store for favorites (+ tapHistory)
 |       |   |   |-- settingsStore.ts    # Zustand store for settings
 |       |   |   |-- arrivalsStore.ts    # Zustand store for cached arrivals
 |       |   |   |-- journalStore.ts     # Phase 5: trip records + commute stats
+|       |   |   |-- fareStore.ts        # Phase 6: OMNY ride tracking + fare cap
 |       |   |-- lib/
 |       |   |   |-- api.ts              # API client (fetch wrapper)
 |       |   |   |-- push.ts            # Push subscription management
 |       |   |   |-- offline.ts          # Offline data management
 |       |   |   |-- prefetch.ts        # Phase 5: aggressive cache on station approach
 |       |   |   |-- context.ts         # Phase 5: time-aware scoring for favorites
+|       |   |   |-- share.ts           # Phase 6: html2canvas card export + Web Share API
 |       |   |-- styles/
 |       |       |-- globals.css         # Tailwind imports, base styles
 |       |-- index.html
