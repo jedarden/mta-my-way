@@ -718,6 +718,80 @@ interface StationAlert {
 - System health dashboard showing all-line status at a glance.
 - Annual summary generating shareable cards from journal data.
 
+### Phase 7: Trust & Resilience -- Shuttle Info, Data Transparency
+
+**Goal:** Build user trust through data transparency and provide critical fallback information when the system breaks down.
+
+**Features:**
+
+1. **Shuttle bus replacement info** -- When subway service is suspended and replaced by shuttle buses, the app shows where to catch the shuttle. The MTA alert says "use shuttle bus" but never tells you WHERE the bus stops.
+
+   When an alert with `effect: NO_SERVICE` matches a known suspension segment, inject shuttle bus information into the alert display:
+
+   ```
+   +--------------------------------------+
+   |  [RED] Service Suspended             |
+   |  F suspended Church Av to Jay St     |
+   |                                      |
+   |  SHUTTLE BUS                         |
+   |  Stops at:                           |
+   |  · Church Av (SW corner McDonald Av) |
+   |  · Fort Hamilton Pkwy (E side)       |
+   |  · Jay St-MetroTech (Willoughby St)  |
+   |  Runs every 8-12 min                 |
+   +--------------------------------------+
+   ```
+
+   Implementation:
+   - A curated static JSON lookup keyed by `{lineId, fromStopId, toStopId}` mapping to shuttle bus stop descriptions and approximate locations.
+   - The MTA tends to suspend the same segments repeatedly — there are roughly 30-40 common suspension patterns across the system (overnight planned work, weekend construction, recurring problem areas).
+   - Start with the 10 most frequently suspended segments and grow incrementally.
+   - When an alert with `effect: NO_SERVICE` is parsed, check the affected stop range against the lookup. If matched, attach shuttle info to the `StationAlert` response.
+   - Community contribution: a "Report shuttle stop" feature could let users add or correct shuttle bus locations, stored in the SQLite DB and reviewed before promotion to the static lookup.
+
+   Data model:
+   ```typescript
+   interface ShuttleBusInfo {
+     lineId: string;
+     fromStopId: string;
+     toStopId: string;
+     stops: ShuttleStop[];
+     frequencyMinutes: string;     // e.g., "8-12"
+     lastVerified: string;         // ISO date
+   }
+
+   interface ShuttleStop {
+     nearStationId: string;
+     description: string;          // "SW corner of McDonald Ave & Church Ave"
+     lat?: number;
+     lon?: number;
+   }
+   ```
+
+2. **Data freshness indicator per line** -- Show exactly how old each line's data is, building user trust through transparency.
+
+   Display on station detail views as a subtle footer: "1/2/3: 8s ago · B/D/F/M: 43s ago". When data for a specific feed is getting stale (>45s since last successful poll), show a warning tint on affected arrivals. When a feed is fully stale (>90s), gray out those arrivals and show "(data may be outdated)".
+
+   This is especially important given the A Division vs B Division accuracy gap — A Division feeds (numbered lines, ATS-tracked) update more reliably than B Division feeds (lettered lines, Bluetooth beacons). Making this visible helps users calibrate their own trust in the numbers.
+
+   Implementation:
+   - The backend already tracks per-feed poll timestamps. The `StationArrivals` interface already has a `feedAge` field.
+   - Add a per-arrival `feedName` field so the frontend knows which feed each arrival came from.
+   - Frontend renders feed age as a compact footer. Color-code: green (<15s), neutral (15-45s), amber (45-90s), red (>90s).
+   - On the station detail view, a tap on the freshness indicator expands to show per-feed details: which feed, when last polled, current status.
+   - On the system health dashboard (Phase 6), include a "Data Health" section showing all 8 feed statuses with age and error counts.
+
+   Data model addition (to ArrivalTime):
+   ```typescript
+   // Added to ArrivalTime
+   feedName: string;              // e.g., "gtfs-bdfm", "gtfs-ace"
+   feedAge: number;               // Seconds since this feed was last successfully polled
+   ```
+
+**Milestones:**
+- Shuttle bus info displayed for the 10 most common service suspension segments.
+- Data freshness visible on all station detail views with color-coded staleness.
+
 ---
 
 ## 5. UI/UX Design
@@ -1188,6 +1262,7 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |   |-- cache.ts            # In-memory cache with TTL
 |   |   |   |   |-- delay-detector.ts   # Phase 5: predictive delay detection from position diffs
 |   |   |   |   |-- equipment-poller.ts # Phase 6: MTA Equipment API polling
+|   |   |   |   |-- shuttle-matcher.ts  # Phase 7: match NO_SERVICE alerts to shuttle lookup
 |   |   |   |-- routes/
 |   |   |   |   |-- arrivals.ts         # GET /api/arrivals/:stationId
 |   |   |   |   |-- stations.ts         # GET /api/stations, GET /api/stations/:id
@@ -1220,6 +1295,7 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |-- routes.json             # Pre-processed route index
 |   |   |   |-- transfers.json          # Pre-processed transfer graph
 |   |   |   |-- travel-times.json       # Inter-station travel times
+|   |   |   |-- shuttle-stops.json      # Phase 7: curated shuttle bus stop lookup
 |   |   |-- package.json
 |   |   |-- tsconfig.json
 |   |
@@ -1274,6 +1350,11 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |   |-- FareTracker.tsx       # OMNY cap progress display
 |       |   |   |-- walking/                  # Phase 6
 |       |   |   |   |-- WalkComparison.tsx    # Walk vs transit side-by-side
+|       |   |   |-- shuttle/                  # Phase 7
+|       |   |   |   |-- ShuttleInfo.tsx       # Shuttle bus stops and frequency
+|       |   |   |-- freshness/                # Phase 7
+|       |   |   |   |-- FreshnessFooter.tsx   # Per-feed data age indicator
+|       |   |   |   |-- FreshnessDetail.tsx   # Expanded feed status panel
 |       |   |   |-- alerts/
 |       |   |   |   |-- AlertBanner.tsx
 |       |   |   |   |-- AlertCard.tsx
