@@ -377,9 +377,15 @@ interface StationAlert {
 
 7. **GTFS static data pipeline** -- Script to download, parse, and pre-process `stops.txt`, `routes.txt`, and `transfers.txt` into optimized JSON. Run periodically (weekly cron) or manually when MTA updates schedules.
 
+8. **Station complex mapping** -- The GTFS processing script also builds `complexes.json` by combining the MTA's published "Station Complexes" CSV (from the MTA open data portal) with the `parent_station` field in `stops.txt`. Output: `{complexId, stations[], name, allLines[], allStopIds[]}`. A `complex-overrides.json` handles ~5 edge cases where MTA data is incomplete (e.g., Fulton St / Broadway-Nassau). In the app, searching or favoriting any station in a complex shows all lines across the entire complex. This is foundational — it affects search, favorites, transfers, and every station-level display.
+
+9. **GPS-powered onboarding** -- First-time users see a "60-second setup" flow instead of an empty dashboard. Request location via `navigator.geolocation`, find the 3 nearest stations, present as pre-filled favorite cards: "We found these stations near you. Keep the ones you use." Swipe to remove. Then one follow-up: "Where do you commute to?" with type-ahead. Auto-creates the first commute. If GPS is denied, falls back to station search with a prominent "Add your first station" card. Stores an `onboardingComplete` flag in localStorage; subsequent opens skip to the dashboard.
+
 **Milestones:**
 - Backend serves arrival data for all stations via REST endpoint.
 - Frontend displays arrivals with search, favorites, and auto-refresh.
+- Station complex mapping resolves all multi-parent-station complexes.
+- First-time onboarding flow produces a usable dashboard in under 60 seconds.
 - PWA installable on iOS and Android.
 
 ### Phase 2: Smart Commute -- Transfer Analysis, Trip Planning, Commute Presets
@@ -416,7 +422,19 @@ interface StationAlert {
 
 **Features:**
 
-1. **Alert ingestion and simplification** -- Parse the MTA subway alerts GTFS-RT feed. Simplify the notoriously confusing MTA alert language into plain English (e.g., "Northbound F trains are skipping Bergen St due to signal problems" instead of "Due to signal problems, northbound [F] trains are running express from Jay St-MetroTech to 7 Av"). Tag each alert with severity (info/warning/severe), affected lines, affected stations, and affected directions.
+1. **Alert ingestion and simplification** -- Parse the MTA subway alerts GTFS-RT feed. Simplify the notoriously confusing MTA alert language into plain English. Tag each alert with severity (info/warning/severe), affected lines, affected stations, and affected directions.
+
+   **Simplification strategy — template-based rewriter:** MTA alert text follows ~15 recurring formulaic patterns. A pattern library (`alert-patterns.json`) maps each pattern to a regex with named capture groups and a plain-English template:
+
+   | MTA Pattern | Regex captures | Plain English template |
+   |---|---|---|
+   | "Due to {cause}, {dir} [{lines}] trains are running express from {A} to {B}" | cause, dir, lines, A, B | "{Dir} {lines} trains skipping {skipped stations} due to {cause}" |
+   | "[{lines}] service has been suspended between {A} and {B}" | lines, A, B | "{Lines} suspended {A} to {B}" |
+   | "{dir} [{lines}] trains are running with delays" | dir, lines | "{Dir} {lines} trains delayed" |
+   | "Service is resumed" | — | "{Lines} service restored" |
+   | "[{lines}] trains are running on the {track} track from {A} to {B}" | lines, track, A, B | "{Lines} rerouted to {track} track {A} to {B}" |
+
+   The extracted structured data (affected lines, stations, direction, cause) is also used to filter alerts to the user's favorites. When no pattern matches, fall back to the raw MTA text with a "raw alert" visual indicator. The pattern library is a standalone testable JSON file, growable over time — add a new pattern when an unmatched format appears in production logs. Start with the 10 most common patterns; the long tail can be added incrementally.
 
 2. **Filtered alert feed** -- Show only alerts relevant to the user's favorites and commutes. Badge count on the alerts tab. Alerts sorted by severity then recency. Full text expandable.
 
@@ -1207,6 +1225,7 @@ The API research documents a critical accuracy difference:
 | **E2E testing** | Playwright | latest | Cross-browser, mobile viewport testing |
 | **Linting** | ESLint + Biome | latest | Fast formatting (Biome), thorough linting (ESLint) |
 | **Type checking** | TypeScript | 5.x | End-to-end type safety, shared types between frontend/backend |
+| **Input validation** | Zod | 3.x | Schema validation for API inputs and store migration safety |
 | **Share card rendering** | html2canvas | 1.x | Render annual summary as shareable PNG image |
 | **Containerization** | Docker | latest | Consistent builds, deployment portability |
 
@@ -1288,13 +1307,26 @@ mta-my-way/                              # Application source (this repo)
 |   |   |       |-- nyct-subway.proto
 |   |   |       |-- compiled.js         # protobufjs compiled output
 |   |   |-- scripts/
-|   |   |   |-- process-gtfs.ts         # Download and process GTFS static data
+|   |   |   |-- process-gtfs.ts         # Download and process GTFS static data (incl. complexes)
 |   |   |   |-- compile-proto.ts        # Compile .proto files to JS
+|   |   |-- test/
+|   |   |   |-- fixtures/
+|   |   |   |   |-- feeds/              # Recorded binary GTFS-RT feed snapshots
+|   |   |   |   |-- alerts/             # Sample alert text for simplification tests
+|   |   |   |-- parser.test.ts
+|   |   |   |-- transformer.test.ts
+|   |   |   |-- alert-simplifier.test.ts
+|   |   |   |-- transfer-engine.test.ts
+|   |   |   |-- delay-detector.test.ts
+|   |   |   |-- api-routes.test.ts      # Integration tests against in-memory Hono
 |   |   |-- data/
 |   |   |   |-- stations.json           # Pre-processed station index
+|   |   |   |-- complexes.json          # Station complex groupings (Phase 1)
+|   |   |   |-- complex-overrides.json  # Manual fixes for ~5 edge-case complexes
 |   |   |   |-- routes.json             # Pre-processed route index
 |   |   |   |-- transfers.json          # Pre-processed transfer graph
 |   |   |   |-- travel-times.json       # Inter-station travel times
+|   |   |   |-- alert-patterns.json     # Phase 3: regex patterns for alert simplification
 |   |   |   |-- shuttle-stops.json      # Phase 7: curated shuttle bus stop lookup
 |   |   |-- package.json
 |   |   |-- tsconfig.json
@@ -1364,9 +1396,14 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |   |-- SearchResults.tsx
 |       |   |   |-- common/
 |       |   |       |-- PullToRefresh.tsx
+|       |   |       |-- DataState.tsx         # Universal state wrapper (loading/empty/error/stale/offline)
+|       |   |       |-- SkeletonCard.tsx      # Animated skeleton placeholder
 |       |   |       |-- OfflineBanner.tsx
-|       |   |       |-- LoadingSpinner.tsx
 |       |   |       |-- ErrorBoundary.tsx
+|       |   |   |-- onboarding/              # Phase 1
+|       |   |       |-- OnboardingFlow.tsx    # GPS-powered 60-second setup
+|       |   |       |-- NearbyStations.tsx    # Location-detected station suggestions
+|       |   |       |-- CommuteSetup.tsx      # "Where do you commute to?" step
 |       |   |-- screens/
 |       |   |   |-- HomeScreen.tsx
 |       |   |   |-- StationScreen.tsx
@@ -1396,6 +1433,10 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |-- arrivalsStore.ts    # Zustand store for cached arrivals
 |       |   |   |-- journalStore.ts     # Phase 5: trip records + commute stats
 |       |   |   |-- fareStore.ts        # Phase 6: OMNY ride tracking + fare cap
+|       |   |   |-- migrations/         # Versioned migration functions per store
+|       |   |   |   |-- favorites.ts
+|       |   |   |   |-- journal.ts
+|       |   |   |   |-- fare.ts
 |       |   |-- lib/
 |       |   |   |-- api.ts              # API client (fetch wrapper)
 |       |   |   |-- push.ts            # Push subscription management
@@ -1502,21 +1543,208 @@ ArgoCD handles the actual deployment -- no kubectl apply from CI. The GitHub Act
 | CORS issues with MTA feeds | N/A | N/A | Non-issue: frontend and API are same-origin (single container). Backend proxies all MTA requests |
 | Protobuf parsing of NYCT extensions | Medium | Medium | Use protobufjs with pre-compiled proto files; fall back to base GTFS-RT fields if extension parsing fails |
 | Push notification delivery | Medium | Medium | Web Push is best-effort; critical alerts also shown in-app; do not rely on push as the sole notification channel |
-| Station complex mapping (multi-stop_id stations) | Medium | Medium | Pre-process `stops.txt` to map all stop_ids within a complex; use parent_station field |
+| Station complex mapping (multi-stop_id stations) | Resolved | — | Phase 1 feature #8: MTA Station Complexes CSV + GTFS parent_station + manual overrides → `complexes.json` |
+| localStorage schema corruption between deploys | Medium | High | Zustand versioned migrations with backup snapshots; failed migration restores from backup, never blank slate (Section 14) |
+| API abuse / DDoS on public endpoint | Medium | High | Defense in depth: Cloudflare WAF rate limiting + Hono token bucket + Zod input validation (Section 12) |
+| Alert simplification misses unknown patterns | Medium | Low | Graceful fallback: unmatched alerts shown as raw text with "raw alert" indicator; pattern library grows over time (Phase 3) |
 | Feed rate limiting | Low | High | No known rate limits on GTFS-RT feeds, but implement backoff; 30-second polling is well within reasonable usage |
 | Safari PWA limitations | Medium | Low | Safari supports Service Workers and Web App Manifest; push notifications on iOS require iOS 16.4+; test on Safari specifically |
 
 ---
 
-## 11. Open Questions for Implementation
+## 11. Testing Strategy
 
-1. **Station complex mapping:** Some large stations (Times Square, Atlantic Ave-Barclays Center) have multiple parent station IDs serving different line groups. The pre-processing script needs to build a complex-level grouping. The MTA provides some complex data but it is not in GTFS format -- this may require a manually curated mapping file for the ~20 largest complexes.
+### 11.1 Feed Snapshot Testing
 
-2. **Transfer walking times:** The `transfers.txt` file provides `min_transfer_time` for some transfers, but not all. For missing values, a default of 3 minutes (180 seconds) is reasonable. A future enhancement could use crowdsourced or manually measured times.
+Record actual MTA GTFS-RT binary responses as test fixtures (one per feed, capturing edge cases: empty feeds, unassigned trips, stale VehiclePositions, NYCT extensions, cancelled trips within replacement periods). All feed parsing and transformation tests run against these recorded snapshots — never against live MTA feeds.
 
-3. **Alert simplification:** Rewriting MTA alert text into plain language is a non-trivial NLP task. Phase 3 can start with regex-based pattern matching for common alert formats (e.g., extracting affected stations from "running express from X to Y" patterns). A more sophisticated approach using an LLM API could be a future enhancement.
+Fixture location: `packages/server/test/fixtures/feeds/`
 
-4. **Push notification opt-in UX:** Browsers require explicit user permission for push notifications. The app should not request permission on first visit -- instead, show the notification option in settings and prompt only when the user actively enables it. This avoids the "notification permission fatigue" that causes users to deny permission reflexively.
+### 11.2 Test Layers
+
+**Unit tests (Vitest):**
+- Feed parser: protobuf → structured objects against snapshot fixtures.
+- Transformer: structured objects → `StationArrivals` model.
+- Alert simplifier: raw MTA text → pattern match → plain English. Test every pattern in `alert-patterns.json` with fixture inputs.
+- Transfer engine: route computation with known station graph inputs.
+- Confidence scoring: division + assigned status → confidence level.
+- Delay detector: position diffs across mock poll sequences.
+- Zustand stores: migration functions tested with fixtures of each old schema shape. FIFO capping on tapHistory and TripRecord arrays.
+- Utility functions: walking time, carbon calculation, time formatting.
+
+**Integration tests (Vitest):**
+- API routes tested against an in-memory Hono instance with the poller replaced by fixture data.
+- Validate response shapes against shared TypeScript interfaces using Zod schemas.
+- Push subscription lifecycle: subscribe, match alert, verify notification payload.
+
+**E2E tests (Playwright):**
+- Critical user flows on mobile viewports (iPhone SE 375px, Pixel 5 393px):
+  1. Onboarding → add favorite → view arrivals.
+  2. Search station → see detail → configure commute.
+  3. View alert → verify simplification matches expected text.
+  4. Offline mode: disconnect network → verify cached data displayed with banner.
+  5. PWA install prompt fires on supported browsers.
+- Mock backend serves fixture data via a lightweight Hono instance in the test harness.
+
+### 11.3 CI Integration
+
+All three layers run in the GitHub Actions CI pipeline. E2E tests run against a preview build (not production). Tests must pass before image build proceeds.
+
+---
+
+## 12. Security
+
+### 12.1 Network Layer (Cloudflare)
+
+- Cloudflare Tunnel provides TLS termination and DDoS protection automatically.
+- Cloudflare WAF rate-limiting rule on the tunnel: 100 requests/minute per IP for `/api/*` paths. Returns 429 with a `Retry-After` header.
+- Cloudflare Bot Management (free tier) filters automated abuse.
+
+### 12.2 Application Layer (Hono)
+
+- **Rate limiting:** Hono middleware with an in-memory token bucket as a second defense layer. 60 requests/minute per IP for API routes. Single-container deployment means single-process state suffices — no Redis needed.
+- **Input validation:** Zod schemas on all API inputs. Push subscription payloads, commute analysis requests, and report submissions are validated before processing. Invalid payloads return 400 with a structured error.
+- **CSP headers:** Strict Content-Security-Policy on all HTML responses: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'`. Prevents XSS.
+- **Security headers:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`.
+
+### 12.3 Data Privacy
+
+- **No PII stored server-side.** Favorites, commute journal, fare tracking, tap history — all localStorage, never sent to the backend.
+- **Push subscriptions** are keyed by a SHA-256 hash of the subscription endpoint. No user identity, email, or device ID is stored.
+- **Trip share links** expire when the `tripId` disappears from the GTFS-RT feed (trip completes). Explicit TTL of 24 hours enforced server-side.
+- **Geolocation** is only used client-side for onboarding, nearest station, and pre-fetch. Coordinates are never sent to the backend.
+
+---
+
+## 13. Error and Empty States
+
+Every data-displaying component wraps its content in a `<DataState>` wrapper that handles all possible states. No component is allowed to render only the happy path.
+
+### 13.1 State Machine
+
+Each data source (arrivals, alerts, commute analysis, equipment, positions) tracks its state as one of:
+
+| State | UI Treatment |
+|-------|-------------|
+| `loading` | Skeleton placeholders (animated shimmer, shaped like the expected content). Never a spinner. |
+| `loaded` | Normal content display. |
+| `empty` | Contextual guidance. E.g., no arrivals: "No trains scheduled at this hour — overnight service resumes at 5 AM." No favorites: "Add your first station" with search shortcut. |
+| `error` | Plain-language explanation + retry button. "Couldn't load arrivals. Check your connection." Never shows stack traces or error codes. |
+| `stale` | Cached data displayed normally, with an amber banner: "Updated 4 min ago — refreshing..." Data items fade visually after 2 min, gray out after 5 min. |
+| `offline` | Cached data displayed with a persistent "You're offline" chip at the top. Search and favorites work fully (static data cached by Service Worker). |
+
+### 13.2 Shared Component
+
+```typescript
+<DataState
+  state={arrivalsQuery.state}
+  loadingSkeleton={<ArrivalsSkeleton />}
+  emptyMessage="No trains scheduled right now"
+  emptyAction={{ label: "View schedule", href: "/schedule" }}
+  errorRetry={() => arrivalsQuery.refetch()}
+>
+  <ArrivalsList arrivals={arrivalsQuery.data} />
+</DataState>
+```
+
+This is enforced by convention — every screen-level data component uses `<DataState>`. PR reviews flag direct data rendering without it.
+
+---
+
+## 14. Data Migration Strategy
+
+### 14.1 Versioned Migrations via Zustand Persist
+
+Each Zustand store that persists to localStorage uses the built-in `version` and `migrate` options:
+
+```typescript
+persist(storeCreator, {
+  name: 'mta-favorites',
+  version: 3,
+  migrate: (persisted, version) => {
+    let state = persisted;
+    if (version < 2) state = migrateV1toV2(state);
+    if (version < 3) state = migrateV2toV3(state);
+    return state;
+  },
+})
+```
+
+Each migration is a pure function: `(oldState) → newState`. Migrations are colocated with their stores in a `migrations/` subdirectory and unit-tested with fixtures of the old schema shape.
+
+### 14.2 Safety Net
+
+Before running any migration, the persist middleware snapshots the current store to a backup key: `localStorage.setItem('_mta_backup_favorites_v2', ...)`. If the migration throws:
+1. Restore from backup — user keeps their old data with old behavior.
+2. Log the failure to Sentry.
+3. Set a `migrationFailed` flag that surfaces a non-blocking banner: "Some settings may need to be reconfigured."
+
+The user never sees a blank slate from a failed migration.
+
+### 14.3 Stores and Versions
+
+| Store | Key | Current Version | Contains |
+|-------|-----|----------------|----------|
+| `favoritesStore` | `mta-favorites` | 1 | Favorites, commutes, settings, tapHistory |
+| `arrivalsStore` | `mta-arrivals` | 1 | Cached arrivals per station |
+| `journalStore` | `mta-journal` | 1 | TripRecord[], CommuteStats |
+| `fareStore` | `mta-fare` | 1 | FareTracking, RideLogEntry[] |
+| `settingsStore` | `mta-settings` | 1 | Theme, refresh interval, accessible mode, etc. |
+
+---
+
+## 15. Observability
+
+### 15.1 Structured Feed Pipeline Logging
+
+Every feed poll logs a single structured JSON line to stdout (captured by Kubernetes logging):
+
+```json
+{"ts":"2026-03-20T12:00:30Z","feed":"gtfs-bdfm","status":"ok","latencyMs":45,"entities":312,"parseErrors":0}
+```
+
+Failed polls log the error:
+
+```json
+{"ts":"2026-03-20T12:00:30Z","feed":"gtfs-ace","status":"error","error":"ETIMEDOUT","consecutiveFailures":2}
+```
+
+### 15.2 Rich Health Endpoint
+
+`GET /api/health` returns a comprehensive observability payload:
+
+```json
+{
+  "status": "healthy",
+  "uptime": 86400,
+  "feeds": {
+    "gtfs": {"lastPoll": "8s ago", "latencyMs": 32, "entities": 485, "errors24h": 0, "status": "ok"},
+    "gtfs-bdfm": {"lastPoll": "12s ago", "latencyMs": 45, "entities": 312, "errors24h": 0, "status": "ok"},
+    "gtfs-ace": {"lastPoll": "28s ago", "latencyMs": 62, "entities": 198, "errors24h": 3, "status": "degraded"}
+  },
+  "alerts": {"active": 4, "predicted": 1, "simplificationMatchRate": 0.87},
+  "pushSubscriptions": 847,
+  "cacheHitRate": 0.94,
+  "memoryMb": 128
+}
+```
+
+### 15.3 Alerting
+
+- **Kubernetes readiness probe** calls `GET /api/health`. Returns 503 when 3+ feeds have been failing for >5 minutes, triggering pod restart.
+- **Liveness probe** is a simple TCP check on port 3000.
+- The `/status` page (Phase 4) renders the health endpoint as a human-readable dashboard.
+- Sentry captures both backend errors (parsing failures, unhandled exceptions) and frontend errors (rendering crashes, API call failures).
+
+---
+
+## 16. Open Questions for Implementation
+
+*Note: Station complex mapping (resolved in Phase 1, feature #8) and alert simplification (resolved in Phase 3, feature #1) have been moved from open questions into their respective phases.*
+
+1. **Transfer walking times:** The `transfers.txt` file provides `min_transfer_time` for some transfers, but not all. For missing values, a default of 3 minutes (180 seconds) is reasonable. A future enhancement could use crowdsourced or manually measured times.
+
+2. **Push notification opt-in UX:** Browsers require explicit user permission for push notifications. The app should not request permission on first visit -- instead, show the notification option in settings and prompt only when the user actively enables it. This avoids the "notification permission fatigue" that causes users to deny permission reflexively.
 
 5. **Historical travel times vs scheduled:** The transfer engine needs inter-station travel times. The scheduled times from `stop_times.txt` are a starting point, but actual travel times vary by time of day and direction. Phase 2 can use scheduled times; a future enhancement could track actual observed travel times and use historical averages.
 
