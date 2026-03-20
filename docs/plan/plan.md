@@ -459,6 +459,113 @@ interface StationAlert {
 - Full offline functionality with cached data.
 - Screen reader tested (VoiceOver on iOS, TalkBack on Android).
 
+### Phase 5: Intelligence -- Predictive Detection, Trip Tracking, Commute Learning
+
+**Goal:** Transform the app from a data display into a predictive, context-aware commute companion that learns and anticipates.
+
+**Features:**
+
+1. **Predictive delay detection** -- Detect delays before the MTA announces them by analyzing `VehiclePosition` data across successive 30-second polls. When a train is stopped between stations for longer than its historical inter-station time, or when multiple trains on a line are moving significantly slower than normal, trigger a synthetic early-warning alert: "Trains on the 2/3 are moving 40% slower than normal south of 14th St." This gives users a 5-10 minute early-warning advantage over official MTA alerts.
+
+   Backend implementation:
+   - Track each `tripId`'s position across consecutive polls.
+   - Compute actual inter-station traversal times and compare against baselines from GTFS static `stop_times.txt`.
+   - When a train's actual traversal time exceeds 1.5x the scheduled time, flag the segment.
+   - When 2+ trains on the same line show slowdowns, escalate to a line-level early warning.
+   - Expose synthetic alerts via the same `/api/alerts` endpoint with a `source: "predicted"` tag so the frontend can display them distinctly (e.g., amber dotted border vs solid for official MTA alerts).
+
+2. **Live trip tracker with ETA sharing** -- Tap "I'm on this train" from a station detail or arrival row. The app locks onto that specific `tripId` in the GTFS-RT feed and enters trip tracking mode:
+   - Shows a stop-by-stop progress view with the current position highlighted.
+   - Counts down stops and minutes to the user's destination.
+   - Updates in real-time as the backend polls new feed data.
+   - Generates a shareable URL (e.g., `mtamyway.com/trip/abc123`) that anyone can open to see the user's live position and ETA on a simple read-only page.
+
+   Implementation:
+   - Frontend sends `tripId` + destination `stopId` to `GET /api/trip/:tripId`.
+   - Backend returns the trip's current `stop_time_update` entries, filtered from destination onward.
+   - The share page is a lightweight static page that polls the same endpoint.
+   - Trip data is ephemeral (in-memory, no persistence needed) -- it only exists while the trip is in the GTFS-RT feed.
+
+3. **Time-aware context switching** -- The app learns which favorites the user taps at which times and auto-surfaces the most relevant ones. Entirely client-side using localStorage.
+
+   Implementation:
+   - On each favorite tap, append `{favoriteId, dayOfWeek, hour}` to a localStorage array (capped at 500 entries, FIFO).
+   - On app open, compute a frequency score for each favorite at the current `dayOfWeek + hour` (±1 hour window).
+   - Re-sort the favorites list by score, with manual sort order as tiebreaker.
+   - After 2 weeks of usage data, the sorting becomes meaningful.
+   - A "pinned" flag on favorites overrides the auto-sort for stations the user always wants first.
+
+   Data model addition (in `UserPreferences`):
+   ```typescript
+   interface FavoriteTapEvent {
+     favoriteId: string;
+     dayOfWeek: number;   // 0-6
+     hour: number;        // 0-23
+   }
+
+   // Added to UserPreferences
+   tapHistory: FavoriteTapEvent[];  // Max 500, FIFO
+   ```
+
+   Paired with a morning briefing push notification (Phase 3 push infrastructure):
+   - At a configurable time (default 7:00 AM weekdays), send a push summarizing the status of the user's most-used morning favorites: "Your usual F train is running normally" or "Heads up: delays on the F this morning, consider the G to the A."
+
+4. **Smart underground pre-fetch** -- When the app detects the user is approaching a station (via `navigator.geolocation.watchPosition`), it aggressively pre-fetches and caches arrival data for every station along the user's configured commute routes.
+
+   Implementation:
+   - Build a geofence of ~200m radius around each station using coordinates from GTFS static data.
+   - When the user's position enters a geofence, trigger a batch fetch of arrivals for all stations on their commute routes and cache via the Service Worker Cache API.
+   - While offline underground, the app serves cached data with a "Last updated X min ago" indicator.
+   - Timer-based countdown: using cached arrival times + scheduled inter-station travel times from `stop_times.txt`, compute estimated countdowns that update locally without network access. These are labeled "estimated" and refresh to live data when connectivity returns.
+   - Geolocation is only active when the app is in the foreground (standard browser behavior for PWAs). This aligns with the natural usage pattern: the user opens the app as they approach the station.
+   - Battery-conscious: use `watchPosition` with `{ enableHighAccuracy: false }` and stop watching once underground (no GPS signal = API returns error, stop polling).
+
+5. **Commute journal with anomaly detection** -- Automatically log every commute and build a personal travel history. Does not require the app to be always on.
+
+   Trip detection strategy (no background process needed):
+   - **Primary:** When the user uses "I'm on this train" (feature #2), the trip is explicitly tracked. Log `{origin, destination, departureTime, arrivalTime, line, actualDuration}` when the trip ends.
+   - **Inferred:** When the app is opened at station A at time T1 and later opened at station B at time T2 (where B is a downstream station on the same line), infer a trip occurred. Log it with `source: "inferred"`.
+   - **Manual:** "Start commute" / "Arrived" buttons in the commute view for explicit logging without full trip tracking.
+
+   Data model (localStorage):
+   ```typescript
+   interface TripRecord {
+     id: string;
+     date: string;               // ISO date
+     origin: StationRef;
+     destination: StationRef;
+     line: string;
+     departureTime: number;      // POSIX
+     arrivalTime: number;        // POSIX
+     actualDurationMinutes: number;
+     source: "tracked" | "inferred" | "manual";
+   }
+
+   interface CommuteStats {
+     commuteId: string;
+     averageDurationMinutes: number;
+     medianDurationMinutes: number;
+     stdDevMinutes: number;
+     totalTrips: number;
+     tripsThisWeek: number;
+     trend: number;              // % change vs prior 4-week average
+     records: TripRecord[];      // Last 90 days, capped at 500
+   }
+   ```
+
+   Anomaly detection:
+   - Compare current trip duration against the rolling average for that commute + day-of-week + time window.
+   - If current duration exceeds `mean + 1.5 * stdDev`, show an inline banner: "This trip is running 6 minutes longer than usual."
+   - Weekly digest (push notification): "Your average commute this week was 36 min (up 8% from last week). Tuesday was the slowest day."
+   - Monthly trend graph in a "My Commute" screen showing duration over time, with delay events overlaid.
+
+**Milestones:**
+- Predictive delay warnings firing 5-10 minutes before official MTA alerts for detectable slowdowns.
+- Live trip tracking with shareable ETA link.
+- Context-aware favorite sorting active after 2 weeks of usage.
+- Offline countdown working underground with cached data.
+- Commute journal logging trips and surfacing anomalies after 2 weeks of data.
+
 ---
 
 ## 5. UI/UX Design
@@ -622,6 +729,78 @@ For configuring and viewing commute analysis.
 +------------------------------------------+
 ```
 
+**Screen 5: Live Trip Tracker** (Phase 5)
+
+Entered by tapping "I'm on this train" from a station detail arrival row.
+
+```
++------------------------------------------+
+|  Live Trip            [Share ETA]        |
+|------------------------------------------|
+|                                           |
+|  ON THE (F) TO Coney Island              |
+|                                           |
+|  * Bergen St            BOARDED  8:02    |
+|  |                                       |
+|  * Carroll St           PASSED   8:04    |
+|  |                                       |
+|  O Smith-9 Sts          NEXT     ~1 min  |
+|  |                                       |
+|  o 4 Av-9 St                     ~3 min  |
+|  o 7 Av                          ~5 min  |
+|  o 15 St-Prospect Park           ~7 min  |
+|  o Fort Hamilton Pkwy            ~9 min  |
+|  > Church Av            DEST    ~11 min  |
+|                                           |
+|  ETA: 8:13 AM                            |
+|  Avg for this commute: 11 min            |
+|                                           |
+|  [Stop tracking]                          |
+|                                           |
+|  [Home]  [Search]  [Commute]  [Alerts]   |
++------------------------------------------+
+```
+
+Design notes:
+- Stop-by-stop vertical timeline with clear status markers (* = passed, O = next, o = upcoming, > = destination).
+- "Share ETA" generates a URL for a lightweight read-only page.
+- Destination ETA is the hero number, large and bold.
+- If underground with cached data, show "Estimated" label on times.
+
+**Screen 6: My Commute Journal** (Phase 5)
+
+Accessible from the Commute tab.
+
+```
++------------------------------------------+
+|  My Commute                               |
+|------------------------------------------|
+|                                           |
+|  THIS WEEK                                |
+|  Avg: 34 min | Trips: 8 | Trend: -3%    |
+|                                           |
+|  +---------+---------+---------+          |
+|  |         .  *      |         |          |
+|  |    *  .      *    |  Duration (min)    |
+|  |  .              * |         |          |
+|  +---------+---------+---------+          |
+|  Mon  Tue  Wed  Thu  Fri                  |
+|                                           |
+|  RECENT TRIPS                             |
+|                                           |
+|  Today 8:02 AM  Bergen -> Church Av       |
+|    F  |  11 min  |  normal                |
+|                                           |
+|  Today 6:14 PM  Church Av -> Bergen       |
+|    F  |  12 min  |  +1 min vs avg         |
+|                                           |
+|  Yesterday 8:11 AM  Bergen -> Church Av   |
+|    F  |  18 min  |  +7 min !! delay       |
+|                                           |
+|  [Home]  [Search]  [Commute]  [Alerts]   |
++------------------------------------------+
+```
+
 ### 5.2 Mobile Interaction Patterns
 
 - **Pull-to-refresh**: On home dashboard and station detail. Triggers immediate API fetch. Optional haptic feedback on iOS.
@@ -629,6 +808,7 @@ For configuring and viewing commute analysis.
 - **Swipe on favorites**: Swipe left to delete, swipe right to edit (lines/direction). Follows iOS/Android conventions.
 - **Tap-to-expand**: Favorites on the home screen show condensed (2-3 arrivals). Tap to expand to full station detail.
 - **Long-press on line bullet**: Shows line info tooltip (line name, division, express/local).
+- **"I'm on this train" tap**: On any arrival row, tap to enter live trip tracking mode (Phase 5).
 - **Shake to refresh** (optional, Phase 4): For the true power user.
 
 ### 5.3 Accessibility
@@ -824,9 +1004,10 @@ mta-my-way/                              # Application source (this repo)
 |   |   |-- src/
 |   |   |   |-- types/
 |   |   |   |   |-- arrivals.ts         # StationArrivals, ArrivalTime, etc.
-|   |   |   |   |-- favorites.ts        # Favorite, Commute, Settings
+|   |   |   |   |-- favorites.ts        # Favorite, Commute, Settings, FavoriteTapEvent
 |   |   |   |   |-- stations.ts         # Station, Route, TransferConnection
-|   |   |   |   |-- alerts.ts           # StationAlert
+|   |   |   |   |-- alerts.ts           # StationAlert (including synthetic predicted alerts)
+|   |   |   |   |-- trips.ts            # TripRecord, CommuteStats (Phase 5)
 |   |   |   |   |-- index.ts
 |   |   |   |-- constants/
 |   |   |   |   |-- feeds.ts            # Feed URLs, polling intervals
@@ -847,12 +1028,14 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |   |-- transformer.ts      # Raw parsed data -> StationArrivals
 |   |   |   |   |-- alerts-parser.ts    # Alert parsing and simplification
 |   |   |   |   |-- cache.ts            # In-memory cache with TTL
+|   |   |   |   |-- delay-detector.ts   # Phase 5: predictive delay detection from position diffs
 |   |   |   |-- routes/
 |   |   |   |   |-- arrivals.ts         # GET /api/arrivals/:stationId
 |   |   |   |   |-- stations.ts         # GET /api/stations, GET /api/stations/:id
 |   |   |   |   |-- alerts.ts           # GET /api/alerts, GET /api/alerts/:lineId
 |   |   |   |   |-- commute.ts          # POST /api/commute/analyze
 |   |   |   |   |-- push.ts             # POST /api/push/subscribe, DELETE /api/push/unsubscribe
+|   |   |   |   |-- trip.ts             # Phase 5: GET /api/trip/:tripId (live trip tracking)
 |   |   |   |   |-- health.ts           # GET /api/health
 |   |   |   |-- transfer/
 |   |   |   |   |-- engine.ts           # Transfer route computation
@@ -907,6 +1090,14 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |   |-- CommuteEditor.tsx
 |       |   |   |   |-- TransferDetail.tsx
 |       |   |   |   |-- RouteComparison.tsx
+|       |   |   |-- trip/                     # Phase 5
+|       |   |   |   |-- TripTracker.tsx       # Live stop-by-stop progress view
+|       |   |   |   |-- TripSharePage.tsx     # Lightweight read-only shared ETA page
+|       |   |   |   |-- StopProgress.tsx      # Individual stop row in trip timeline
+|       |   |   |-- journal/                  # Phase 5
+|       |   |   |   |-- CommuteJournal.tsx    # Trip history list and stats
+|       |   |   |   |-- TripChart.tsx         # Duration-over-time sparkline
+|       |   |   |   |-- AnomalyBanner.tsx     # "This trip is running longer than usual"
 |       |   |   |-- alerts/
 |       |   |   |   |-- AlertBanner.tsx
 |       |   |   |   |-- AlertCard.tsx
@@ -925,6 +1116,8 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |-- CommuteScreen.tsx
 |       |   |   |-- AlertsScreen.tsx
 |       |   |   |-- SettingsScreen.tsx
+|       |   |   |-- TripScreen.tsx      # Phase 5: live trip tracking view
+|       |   |   |-- JournalScreen.tsx   # Phase 5: commute history and stats
 |       |   |-- hooks/
 |       |   |   |-- useArrivals.ts      # Fetch and auto-refresh arrivals
 |       |   |   |-- useFavorites.ts     # Read/write favorites from store
@@ -932,14 +1125,20 @@ mta-my-way/                              # Application source (this repo)
 |       |   |   |-- useCommute.ts       # Commute analysis fetch
 |       |   |   |-- useOnlineStatus.ts  # Navigator.onLine monitoring
 |       |   |   |-- usePushNotifications.ts
+|       |   |   |-- useTripTracker.ts   # Phase 5: lock onto tripId, poll progress
+|       |   |   |-- useGeofence.ts      # Phase 5: station proximity detection
+|       |   |   |-- useContextSort.ts   # Phase 5: time-aware favorite re-sorting
 |       |   |-- stores/
-|       |   |   |-- favoritesStore.ts   # Zustand store for favorites
+|       |   |   |-- favoritesStore.ts   # Zustand store for favorites (+ tapHistory)
 |       |   |   |-- settingsStore.ts    # Zustand store for settings
 |       |   |   |-- arrivalsStore.ts    # Zustand store for cached arrivals
+|       |   |   |-- journalStore.ts     # Phase 5: trip records + commute stats
 |       |   |-- lib/
 |       |   |   |-- api.ts              # API client (fetch wrapper)
 |       |   |   |-- push.ts            # Push subscription management
 |       |   |   |-- offline.ts          # Offline data management
+|       |   |   |-- prefetch.ts        # Phase 5: aggressive cache on station approach
+|       |   |   |-- context.ts         # Phase 5: time-aware scoring for favorites
 |       |   |-- styles/
 |       |       |-- globals.css         # Tailwind imports, base styles
 |       |-- index.html
