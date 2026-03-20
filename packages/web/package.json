@@ -1,0 +1,14 @@
+{
+  "name": "@mta-my-way/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b && echo 'Web build placeholder - Vite will handle this'",
+    "typecheck": "tsc --noEmit",
+    "dev": "echo 'Web dev placeholder - Vite will handle this'"
+  },
+  "dependencies": {
+    "@mta-my-way/shared": "*"
+  }
+}

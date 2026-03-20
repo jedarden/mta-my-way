@@ -1,0 +1,19 @@
+{
+  "name": "@mta-my-way/server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "dev": "node --watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@mta-my-way/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  }
+}

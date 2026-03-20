@@ -1,0 +1,27 @@
+{
+  "name": "mta-my-way",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Mobile-first PWA for NYC subway commuters",
+  "workspaces": ["packages/shared", "packages/server", "packages/web"],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "lint": "biome check . && eslint .",
+    "lint:fix": "biome check --write . && eslint . --fix",
+    "format": "biome format --write .",
+    "typecheck": "tsc --build",
+    "test": "npm run test --workspaces",
+    "clean": "rm -rf packages/*/dist packages/*/.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@eslint/js": "^9.22.0",
+    "eslint": "^9.22.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
