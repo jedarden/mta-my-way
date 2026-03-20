@@ -30,44 +30,63 @@ Based on the competitive analysis, the existing landscape has specific gaps that
 
 ### 2.1 High-Level Architecture
 
+A single container runs on the `apexalgo-iad` Kubernetes cluster (us-east-1), serving both the API and the static PWA assets. Public access is through the existing Cloudflare Tunnel. Deployment follows the established GitOps pattern via ArgoCD.
+
 ```
-                     +-------------------+
-                     |   MTA GTFS-RT     |
-                     |   Feed Endpoints  |
-                     |   (8 subway feeds |
-                     |    + alerts feed) |
-                     +--------+----------+
-                              |
-                              | Protobuf (binary)
-                              v
-                     +-------------------+
-                     |   Backend API     |
-                     |   (Node.js)       |
-                     |                   |
-                     |  - Feed polling   |
-                     |  - Protobuf parse |
-                     |  - JSON transform |
-                     |  - Cache layer    |
-                     |  - Alert filter   |
-                     |  - Transfer calc  |
-                     |  - Web Push       |
-                     +--------+----------+
-                              |
-                              | JSON over HTTPS
-                              | (+ WebSocket for push)
-                              v
-                     +-------------------+
-                     |   Frontend PWA    |
-                     |   (React + Vite)  |
-                     |                   |
-                     |  - Favorites UI   |
-                     |  - Arrivals view  |
-                     |  - Transfer view  |
-                     |  - Alert display  |
-                     |  - Service Worker |
-                     |  - localStorage   |
-                     +-------------------+
+     +-------------------+
+     |   MTA GTFS-RT     |
+     |   Feed Endpoints  |
+     |   (8 subway feeds |
+     |    + alerts feed) |
+     +--------+----------+
+              |
+              | Protobuf (binary)
+              | (~sub-10ms from us-east-1)
+              v
++----------------------------------------------+
+|   apexalgo-iad cluster (us-east-1)           |
+|                                              |
+|   +----------------------------------------+|
+|   |  mta-my-way container (Hono + Node.js) ||
+|   |                                        ||
+|   |  /api/*    Backend API                 ||
+|   |    - Feed polling (30s interval)       ||
+|   |    - Protobuf parse + NYCT extensions  ||
+|   |    - JSON transform + cache            ||
+|   |    - Alert filter + simplification     ||
+|   |    - Transfer computation              ||
+|   |    - Web Push sender                   ||
+|   |                                        ||
+|   |  /*        Static PWA assets           ||
+|   |    - Built React app (vite build)      ||
+|   |    - Service Worker                    ||
+|   |    - Web App Manifest                  ||
+|   +----------------------------------------+|
+|                                              |
++---------------------+------------------------+
+                      |
+                      | Cloudflare Tunnel
+                      | (already configured)
+                      v
+              +----------------+
+              |  Cloudflare    |
+              |  (TLS, CDN,    |
+              |   caching)     |
+              +-------+--------+
+                      |
+                      | HTTPS
+                      v
+              +----------------+
+              |  Mobile PWA    |
+              |  (browser)     |
+              +----------------+
 ```
+
+**Key architectural decisions:**
+- **Single origin:** Frontend and API are served from the same container, eliminating CORS entirely.
+- **us-east-1 proximity:** MTA feeds are NYC-hosted. Fetching from IAD gives sub-10ms latency vs 60-80ms from west coast.
+- **Cloudflare Tunnel:** The cluster already has an active tunnel. No new ingress infrastructure needed -- just add a DNS route for the mta-my-way service.
+- **Cloudflare caching:** Static assets cached at the edge aggressively. API responses cached with short TTL (15s) for global users.
 
 ### 2.2 Frontend
 
@@ -103,23 +122,25 @@ Rationale:
 
 ### 2.3 Backend
 
-**Runtime: Node.js 22 LTS with Hono framework**
+**Runtime: Node.js 22 LTS with Hono framework, deployed as a single container on apexalgo-iad**
 
 Rationale:
-- Hono is a lightweight, edge-ready web framework (14kB). It runs on Node, Deno, Bun, and Cloudflare Workers -- giving deployment flexibility.
+- Hono is a lightweight web framework (14kB) that can serve both the API and static PWA assets from a single process.
 - The `gtfs-realtime-bindings` npm package provides native protobuf parsing for GTFS-RT feeds.
 - Node.js has the best protobuf.js ecosystem for working with NYCT extensions.
 - TypeScript end-to-end (shared types between frontend and backend).
+- Single container simplifies deployment -- one Dockerfile, one Kubernetes Deployment, one ArgoCD Application.
 
 **Responsibilities:**
-1. Poll MTA GTFS-RT feeds on a 30-second interval (matching MTA's update frequency).
-2. Parse protobuf responses including NYCT extensions (direction, is_assigned, track info).
-3. Transform into a clean JSON API organized by station.
-4. Maintain an in-memory cache with 30-second TTL, falling back to last-good-response if MTA feeds are down.
-5. Serve the GTFS static data (stops, routes, transfers) as pre-processed JSON.
-6. Compute transfer recommendations by comparing arrival times across lines at transfer stations.
-7. Filter and simplify service alerts, matching them to affected stations/lines.
-8. Send Web Push notifications for subscribed alert conditions.
+1. Serve the built PWA static assets (`/*`) -- the Vite production build is copied into the container image.
+2. Poll MTA GTFS-RT feeds on a 30-second interval (matching MTA's update frequency).
+3. Parse protobuf responses including NYCT extensions (direction, is_assigned, track info).
+4. Transform into a clean JSON API (`/api/*`) organized by station.
+5. Maintain an in-memory cache with 30-second TTL, falling back to last-good-response if MTA feeds are down.
+6. Serve the GTFS static data (stops, routes, transfers) as pre-processed JSON.
+7. Compute transfer recommendations by comparing arrival times across lines at transfer stations.
+8. Filter and simplify service alerts, matching them to affected stations/lines.
+9. Send Web Push notifications for subscribed alert conditions.
 
 ### 2.4 Data Flow
 
@@ -350,7 +371,7 @@ interface StationAlert {
 
 4. **Home dashboard** -- The app opens to the favorites dashboard. Each favorite shows the next 2-3 arrivals inline, no tap required. Tap a favorite to expand to full station detail. "Last updated X seconds ago" indicator.
 
-5. **Backend API** -- Feed polling, protobuf parsing, JSON API for arrivals by station. Health endpoint. CORS for frontend.
+5. **Backend API** -- Feed polling, protobuf parsing, JSON API for arrivals by station. Health endpoint. Same-origin serving of PWA assets (no CORS needed).
 
 6. **PWA shell** -- Installable via manifest. Offline fallback showing last-known data. Service Worker caching of static assets.
 
@@ -770,7 +791,7 @@ The API research documents a critical accuracy difference:
 | **State management** | Zustand | 5.x | Minimal boilerplate, localStorage persistence middleware, 1.1kB |
 | **Styling** | Tailwind CSS | 4.x | Utility-first, small bundle, design token enforcement |
 | **Routing** | React Router | 7.x | Standard, supports lazy loading for code splitting |
-| **Backend framework** | Hono | 4.x | Lightweight (14kB), TypeScript-native, runs on Node/edge |
+| **Backend framework** | Hono | 4.x | Lightweight (14kB), TypeScript-native, serves both API and static assets |
 | **Backend runtime** | Node.js | 22 LTS | Long-term support, best protobuf ecosystem |
 | **Protobuf parsing** | protobufjs | 7.x | Compiles .proto files to JS, handles extensions |
 | **GTFS-RT bindings** | gtfs-realtime-bindings | latest | Official MobilityData protobuf definitions |
@@ -786,8 +807,10 @@ The API research documents a critical accuracy difference:
 
 ## 8. Project Structure
 
+Follows the established pattern for apexalgo-iad services: application source in the repo root, container build in `containers/`, Kubernetes manifests in `cluster-configuration/`.
+
 ```
-mta-my-way/
+mta-my-way/                              # Application source (this repo)
 |-- docs/
 |   |-- plan/
 |   |   |-- plan.md                     # This document
@@ -814,9 +837,9 @@ mta-my-way/
 |   |   |-- package.json
 |   |   |-- tsconfig.json
 |   |
-|   |-- server/                         # Backend API
+|   |-- server/                         # Backend API (Hono)
 |   |   |-- src/
-|   |   |   |-- app.ts                  # Hono app setup, routes, middleware
+|   |   |   |-- app.ts                  # Hono app setup, routes, middleware, static asset serving
 |   |   |   |-- index.ts               # Entry point
 |   |   |   |-- feeds/
 |   |   |   |   |-- poller.ts           # Timed parallel fetch of MTA feeds
@@ -853,7 +876,6 @@ mta-my-way/
 |   |   |   |-- routes.json             # Pre-processed route index
 |   |   |   |-- transfers.json          # Pre-processed transfer graph
 |   |   |   |-- travel-times.json       # Inter-station travel times
-|   |   |-- Dockerfile
 |   |   |-- package.json
 |   |   |-- tsconfig.json
 |   |
@@ -926,15 +948,33 @@ mta-my-way/
 |       |-- package.json
 |       |-- tsconfig.json
 |
+|-- Dockerfile                           # Multi-stage: build web + server, single runtime image
 |-- .github/
 |   |-- workflows/
 |       |-- ci.yml                      # Lint, type-check, test, build
-|       |-- deploy.yml                  # Build and deploy to hosting
+|       |-- build-push.yml             # Build container image, push to registry
 |
 |-- package.json                        # Workspace root (npm workspaces)
 |-- tsconfig.base.json                  # Shared TypeScript config
 |-- .gitignore
 |-- README.md
+
+# In the ardenone-cluster repo (GitOps manifests):
+cluster-configuration/apexalgo-iad/mta-my-way/
+|-- namespace.yaml                      # Namespace definition
+|-- deployment.yaml                     # Single-container Deployment
+|-- service.yaml                        # ClusterIP Service (port 3000)
+|-- ingress.yaml                        # Cloudflare Tunnel route config
+|-- pvc.yaml                            # PersistentVolumeClaim for SQLite push subscription DB
+|-- kustomization.yaml                  # Kustomize overlay
+```
+
+**Dockerfile strategy (multi-stage):**
+```
+Stage 1 (build-web):    Install deps, run `vite build` -> produces /app/packages/web/dist/
+Stage 2 (build-server): Install deps, compile TypeScript -> produces /app/packages/server/dist/
+Stage 3 (runtime):      Copy web dist + server dist into slim Node.js 22 image
+                         Hono serves /api/* from server code, /* from web dist
 ```
 
 ---
@@ -943,13 +983,16 @@ mta-my-way/
 
 ### 9.1 Hosting
 
-**Frontend (PWA):**
-- **Cloudflare Pages** -- Free tier is generous (500 builds/month, unlimited bandwidth). Global CDN with edge caching. Automatic HTTPS. Preview deployments for PRs.
-- Alternative: Vercel or Netlify. Cloudflare Pages is preferred for the superior CDN and zero cold-start for static assets.
+**Single container on apexalgo-iad (us-east-1):**
+- The container runs as a Kubernetes Deployment in the `mta-my-way` namespace on the existing apexalgo-iad cluster.
+- Hono serves both the API (`/api/*`) and static PWA assets (`/*`) from a single process on port 3000.
+- A PersistentVolumeClaim provides durable storage for the SQLite push subscription database.
+- No additional hosting services needed -- the cluster infrastructure already exists.
 
-**Backend (API):**
-- **Fly.io** -- Deploy the Docker container to 1-2 machines in `ewr` (Newark) region for minimum latency to MTA feeds and NYC users. Fly.io provides persistent volumes (for the SQLite push subscription database), health checks, and auto-restart.
-- Alternative: Railway, Render, or a single VPS. Fly.io is preferred for its simplicity and the ability to scale to multiple regions later if needed.
+**Public access via Cloudflare Tunnel:**
+- The apexalgo-iad cluster already has an active Cloudflare Tunnel.
+- Add a DNS route (e.g., `mtamyway.com` or a subdomain) pointing to the mta-my-way Service through the tunnel.
+- Cloudflare handles TLS termination, DDoS protection, and edge caching automatically.
 
 ### 9.2 CI/CD
 
@@ -960,33 +1003,30 @@ On push to main:
   1. Lint (ESLint + Biome)
   2. Type check (tsc --noEmit)
   3. Unit tests (Vitest)
-  4. E2E tests (Playwright against preview build)
-  5. Build frontend (vite build)
-  6. Build backend Docker image
-  7. Deploy frontend to Cloudflare Pages
-  8. Deploy backend to Fly.io
-
-On pull request:
-  1-4 (same as above)
-  5. Deploy preview to Cloudflare Pages preview URL
+  4. Build container image (multi-stage Dockerfile)
+  5. Push image to container registry (GHCR)
+  6. ArgoCD detects new image tag and syncs the Deployment
 ```
 
-### 9.3 CDN and Caching
+ArgoCD handles the actual deployment -- no kubectl apply from CI. The GitHub Actions pipeline only builds and pushes the image. ArgoCD watches the image tag (or the manifests repo) and rolls out the update automatically.
 
-- Cloudflare Pages automatically serves static assets from its global CDN.
-- The backend API sits behind Cloudflare (proxied via DNS). Cache API responses at the edge with 15-second TTL (`Cache-Control: public, max-age=15`).
-- Static GTFS data (stations.json, routes.json) cached aggressively (`Cache-Control: public, max-age=86400, stale-while-revalidate=604800`) since it changes only a few times per year.
+### 9.3 Caching
+
+- **Static PWA assets:** Hono serves with long-lived cache headers (`Cache-Control: public, max-age=31536000, immutable`) since Vite produces content-hashed filenames. Cloudflare Tunnel caches these at the edge.
+- **API responses:** Short TTL (`Cache-Control: public, max-age=15`) to allow edge caching while keeping data fresh. ETag based on MTA feed timestamp for conditional requests.
+- **GTFS static data:** Aggressive caching (`Cache-Control: public, max-age=86400, stale-while-revalidate=604800`) since station/route data changes only a few times per year.
 
 ### 9.4 Domain
 
-- `mtamyway.com` or similar. Custom domain configured on Cloudflare.
-- API served from `api.mtamyway.com` (Cloudflare proxy to Fly.io).
+- Custom domain (e.g., `mtamyway.com`) configured in Cloudflare, routed through the existing tunnel to the mta-my-way Service.
+- Single origin -- no separate API subdomain needed since frontend and backend are the same container.
 
 ### 9.5 Monitoring
 
-- **Uptime:** Fly.io built-in health checks on `/api/health`. External monitor (e.g., UptimeRobot free tier) pinging the health endpoint.
+- **Health checks:** Kubernetes liveness and readiness probes on `GET /api/health`. The health endpoint reports per-feed status (last successful fetch, age, error count).
 - **Error tracking:** Sentry (free tier, 5,000 events/month). Integrated into both frontend and backend.
-- **Feed health:** The `/api/health` endpoint reports per-feed status (last successful fetch, age, error count). A simple dashboard page at `/status` (Phase 4) shows this publicly.
+- **Feed health:** A simple status page at `/status` (Phase 4) shows MTA feed health publicly.
+- **Cluster-level:** Existing apexalgo-iad monitoring infrastructure (if any) covers pod restarts, resource usage, etc.
 
 ---
 
@@ -996,7 +1036,7 @@ On pull request:
 |------|-----------|--------|------------|
 | MTA feed outage | Medium | High | Cache last-good response per feed; serve stale data with indicator; independent feed polling means partial outage only affects some lines |
 | B Division prediction inaccuracy | Certain | Medium | Confidence indicator; +2 min buffer in transfer calculations; user education via tooltip |
-| CORS issues with MTA feeds | High | High | Backend proxies all MTA requests; frontend never calls MTA directly |
+| CORS issues with MTA feeds | N/A | N/A | Non-issue: frontend and API are same-origin (single container). Backend proxies all MTA requests |
 | Protobuf parsing of NYCT extensions | Medium | Medium | Use protobufjs with pre-compiled proto files; fall back to base GTFS-RT fields if extension parsing fails |
 | Push notification delivery | Medium | Medium | Web Push is best-effort; critical alerts also shown in-app; do not rely on push as the sole notification channel |
 | Station complex mapping (multi-stop_id stations) | Medium | Medium | Pre-process `stops.txt` to map all stop_ids within a complex; use parent_station field |
@@ -1021,7 +1061,9 @@ On pull request:
 
 ### Critical Files for Implementation
 
-- `/home/coding/mta-my-way/docs/research/mta-api-research.md` - Definitive reference for all MTA feed endpoints, protobuf structures, NYCT extensions, and known limitations that the backend must handle
-- `/home/coding/mta-my-way/docs/research/mta-app-competitive-analysis.md` - Competitive gaps and user pain points that drive every UX decision in the plan
-- `/home/coding/mta-my-way/docs/plan/` - Target directory for this plan document (currently contains only `.gitkeep`)
-- `/home/coding/mta-my-way/docs/notes/` - Target directory for implementation notes, decisions, and open question resolutions during development
+- `docs/research/mta-api-research.md` - Definitive reference for all MTA feed endpoints, protobuf structures, NYCT extensions, and known limitations that the backend must handle
+- `docs/research/mta-app-competitive-analysis.md` - Competitive gaps and user pain points that drive every UX decision in the plan
+- `docs/plan/plan.md` - This document
+- `docs/notes/` - Implementation notes, decisions, and open question resolutions during development
+- `Dockerfile` - Multi-stage build producing the single container image
+- `cluster-configuration/apexalgo-iad/mta-my-way/` (in ardenone-cluster repo) - Kubernetes manifests for ArgoCD deployment
