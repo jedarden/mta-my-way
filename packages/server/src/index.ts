@@ -4,8 +4,9 @@
  * Startup sequence:
  *   1. Load GTFS static data (stations, routes, complexes, transfers, travel times)
  *   2. Create Hono app (also builds TransferEngine internally)
- *   3. Initialise and start the feed poller (first poll fires immediately)
- *   4. Start the HTTP server
+ *   3. Initialise push notification subsystem (SQLite DB, VAPID keys, pipeline)
+ *   4. Initialise and start the feed poller (first poll fires immediately)
+ *   5. Start the HTTP server
  */
 
 import { readFile } from "node:fs/promises";

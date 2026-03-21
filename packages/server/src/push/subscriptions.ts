@@ -158,8 +158,8 @@ export function getAllSubscriptions(): PushSubscriptionRecord[] {
  * Get the total number of active subscriptions (for health endpoint).
  */
 export function getSubscriptionCount(): number {
-  const database = getDb();
-  const stmt = database.prepare("SELECT COUNT(*) as count FROM push_subscriptions");
+  if (!db) return 0;
+  const stmt = db.prepare("SELECT COUNT(*) as count FROM push_subscriptions");
   const row = stmt.get() as { count: number };
   return row.count;
 }
