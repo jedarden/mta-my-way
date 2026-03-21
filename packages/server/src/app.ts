@@ -9,6 +9,7 @@
  *   GET /api/stations/search       — type-ahead search by name, line, or cross-street
  *   GET /api/routes                — full route index
  *   GET /api/static/complexes      — station complexes index
+ *   POST /api/commute/analyze      — analyze routes between origin and destination
  *   GET /*                         — serve React PWA from packages/web/dist
  */
 
@@ -22,9 +23,11 @@ import type {
   Station,
   StationComplex,
   StationIndex,
+  TransferConnection,
 } from "@mta-my-way/shared";
 import { Hono } from "hono";
 import { getArrivals, getFeedStates } from "./cache.js";
+import { createTransferEngine } from "./transfer/index.js";
 
 /** Cache header for static GTFS data */
 const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-while-revalidate=${CACHE_TTLS.gtfsStaticStale}`;
@@ -167,18 +170,34 @@ function buildStationToComplexMap(complexes: ComplexIndex): Map<string, StationC
  * @param stations         Pre-loaded GTFS static station index
  * @param routes           Pre-loaded GTFS static route index
  * @param complexes        Pre-loaded station complexes index
+ * @param transfers        Pre-loaded transfer connections
  * @param webDistPath      Absolute path to the built React PWA (packages/web/dist)
  */
 export function createApp(
   stations: StationIndex,
   routes: RouteIndex,
   complexes: ComplexIndex,
+  transfers: Record<string, TransferConnection[]>,
   webDistPath: string
 ): Hono {
   const app = new Hono();
 
   // Build station-to-complex lookup for efficient complex expansion
   const stationToComplex = buildStationToComplexMap(complexes);
+
+  // Create transfer engine for commute analysis
+  const transferEngine = createTransferEngine({
+    stations,
+    routes,
+    transfers,
+    complexes,
+    getArrivals: (stationId: string) => {
+      const stationArrivals = getArrivals(stationId);
+      if (!stationArrivals) return null;
+      // Combine northbound and southbound arrivals
+      return [...stationArrivals.northbound, ...stationArrivals.southbound];
+    },
+  });
 
   // -------------------------------------------------------------------------
   // Health endpoint
@@ -339,6 +358,52 @@ export function createApp(
 
     c.header("Cache-Control", STATIC_CACHE_HEADER);
     return c.json(complex);
+  });
+
+  // -------------------------------------------------------------------------
+  // Commute analysis
+  // -------------------------------------------------------------------------
+  app.post("/api/commute/analyze", async (c) => {
+    try {
+      const body = await c.req.json<{
+        originId: string;
+        destinationId: string;
+        preferredLines?: string[];
+        commuteId?: string;
+      }>();
+
+      const { originId, destinationId, preferredLines = [], commuteId = "default" } = body;
+
+      // Validate inputs
+      if (!originId || !destinationId) {
+        return c.json({ error: "originId and destinationId are required" }, 400);
+      }
+
+      // Validate station IDs
+      if (!stations[originId]) {
+        return c.json({ error: `Origin station not found: ${originId}` }, 404);
+      }
+      if (!stations[destinationId]) {
+        return c.json({ error: `Destination station not found: ${destinationId}` }, 404);
+      }
+
+      // Analyze commute
+      const analysis = transferEngine.analyzeCommute(
+        originId,
+        destinationId,
+        preferredLines,
+        commuteId
+      );
+
+      c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+      return c.json(analysis);
+    } catch (error) {
+      console.error("Commute analysis error:", error);
+      return c.json(
+        { error: "Failed to analyze commute", message: error instanceof Error ? error.message : "Unknown error" },
+        500
+      );
+    }
   });
 
   // -------------------------------------------------------------------------

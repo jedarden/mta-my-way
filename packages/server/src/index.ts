@@ -2,8 +2,8 @@
  * MTA My Way server entry point.
  *
  * Startup sequence:
- *   1. Load GTFS static data (stations, routes, complexes)
- *   2. Create Hono app
+ *   1. Load GTFS static data (stations, routes, complexes, transfers, travel times)
+ *   2. Create Hono app (also builds TransferEngine internally)
  *   3. Initialise and start the feed poller (first poll fires immediately)
  *   4. Start the HTTP server
  */
@@ -13,9 +13,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { PACKAGE_VERSION } from "@mta-my-way/shared";
-import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
+import type { ComplexIndex, RouteIndex, StationIndex, TransferConnection } from "@mta-my-way/shared";
 import { createApp } from "./app.js";
 import { initPoller, startPoller } from "./poller.js";
+import { loadTravelTimes } from "./transfer/travel-times.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -52,13 +53,18 @@ async function main(): Promise<void> {
   let stations: StationIndex;
   let routes: RouteIndex;
   let complexes: ComplexIndex;
+  let transfers: Record<string, TransferConnection[]>;
 
   try {
-    [stations, routes, complexes] = await Promise.all([
+    [stations, routes, complexes, transfers] = await Promise.all([
       loadJsonFile<StationIndex>("stations.json"),
       loadJsonFile<RouteIndex>("routes.json"),
       loadJsonFile<ComplexIndex>("complexes.json"),
+      loadJsonFile<Record<string, TransferConnection[]>>("transfers.json"),
     ]);
+
+    // Load travel times into module cache before createApp builds the TransferEngine
+    await loadTravelTimes(join(DATA_DIR, "travel-times.json"));
 
     console.log(
       JSON.stringify({
@@ -67,6 +73,7 @@ async function main(): Promise<void> {
         stations: Object.keys(stations).length,
         routes: Object.keys(routes).length,
         complexes: Object.keys(complexes).length,
+        transfers: Object.keys(transfers).length,
       })
     );
   } catch (err) {
@@ -81,8 +88,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Hono app
-  const app = createApp(stations, routes, complexes, WEB_DIST);
+  // Hono app (builds TransferEngine internally from loaded data)
+  const app = createApp(stations, routes, complexes, transfers, WEB_DIST);
 
   // Feed poller (also triggers immediate first poll)
   initPoller(stations);
