@@ -3,10 +3,10 @@
  * Provides type-safe fetch wrapper with error handling
  */
 
-import type {
-  ArrivalTime,
-  StationArrivals,
-} from "@mta-my-way/shared";
+import type { ArrivalTime, StationArrivals, StationComplex } from "@mta-my-way/shared";
+
+// Re-export for use across the frontend
+export type { StationComplex };
 
 // Re-export shared arrival types so callers can import from one place
 export type { ArrivalTime, StationArrivals };
@@ -28,10 +28,7 @@ class ApiClientError extends Error {
   }
 }
 
-async function fetchJson<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
 
   try {
@@ -60,10 +57,7 @@ async function fetchJson<T>(
       throw error;
     }
     // Network error
-    throw new ApiClientError(
-      "Network error - please check your connection",
-      0
-    );
+    throw new ApiClientError("Network error - please check your connection", 0);
   }
 }
 
@@ -108,6 +102,11 @@ export const api = {
   async searchStations(query: string): Promise<Station[]> {
     const params = new URLSearchParams({ q: query });
     return fetchJson<Station[]>(`/api/stations/search?${params}`);
+  },
+
+  // Station complexes (static data, cached by Service Worker)
+  async getComplexes(): Promise<StationComplex[]> {
+    return fetchJson<StationComplex[]>("/api/static/complexes");
   },
 
   // Alerts
