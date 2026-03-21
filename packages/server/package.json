@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && mkdir -p dist/proto && cp src/proto/compiled.js dist/proto/compiled.js",
     "typecheck": "tsc --noEmit",
     "compile-proto": "pbjs -t static-module -w es6 -o src/proto/compiled.js src/proto/gtfs-realtime.proto src/proto/nyct-subway.proto && node scripts/fix-esm-import.mjs && pbts -o src/proto/compiled.d.ts src/proto/compiled.js",
     "dev": "node --watch src/index.ts",
@@ -14,7 +14,9 @@
     "process-gtfs:verbose": "node scripts/process-gtfs.mjs --verbose"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.11",
     "@mta-my-way/shared": "*",
+    "hono": "^4.12.8",
     "protobufjs": "^7.5.4"
   },
   "devDependencies": {
