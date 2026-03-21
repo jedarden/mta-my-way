@@ -1,8 +1,10 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-// Lazy load screens for code splitting
-const HomeScreen = lazy(() => import("./screens/HomeScreen"));
+// HomeScreen is eagerly loaded (initial route, critical for FCP)
+import HomeScreen from "./screens/HomeScreen";
+
+// Other screens are lazy-loaded for code splitting
 const SearchScreen = lazy(() => import("./screens/SearchScreen"));
 const CommuteScreen = lazy(() => import("./screens/CommuteScreen"));
 const AlertsScreen = lazy(() => import("./screens/AlertsScreen"));
@@ -30,8 +32,14 @@ function App() {
 
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-dvh">
-      <div className="skeleton w-16 h-16 rounded-full" />
+    <div
+      className="flex items-center justify-center h-dvh"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading"
+    >
+      <div className="skeleton w-16 h-16 rounded-full" aria-hidden="true" />
+      <span className="sr-only">Loading...</span>
     </div>
   );
 }
