@@ -10,6 +10,9 @@
  *   GET /api/routes                — full route index
  *   GET /api/static/complexes      — station complexes index
  *   POST /api/commute/analyze      — analyze routes between origin and destination
+ *   GET /api/push/vapid-public-key — VAPID public key for push subscription
+ *   POST /api/push/subscribe       — register a push subscription
+ *   DELETE /api/push/unsubscribe   — remove a push subscription
  *   GET /*                         — serve React PWA from packages/web/dist
  */
 
@@ -29,6 +32,9 @@ import { Hono } from "hono";
 import { getArrivals, getFeedStates } from "./cache.js";
 import { getAllAlerts, getAlertsForLine, getAlertsStatus } from "./alerts-poller.js";
 import { createTransferEngine } from "./transfer/index.js";
+import { upsertSubscription, removeSubscription, getSubscriptionCount } from "./push/subscriptions.js";
+import { getVapidPublicKey } from "./push/vapid.js";
+import type { PushSubscribeRequest, PushUnsubscribeRequest } from "@mta-my-way/shared";
 
 /** Cache header for static GTFS data */
 const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-while-revalidate=${CACHE_TTLS.gtfsStaticStale}`;
@@ -412,6 +418,87 @@ export function createApp(
 
     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
     return c.json({ alerts, lineId });
+  });
+
+  // -------------------------------------------------------------------------
+  // Push notification API
+  // -------------------------------------------------------------------------
+
+  /** Return the VAPID public key so the browser can create a push subscription */
+  app.get("/api/push/vapid-public-key", (c) => {
+    const publicKey = getVapidPublicKey();
+    if (!publicKey) {
+      return c.json({ error: "Push notifications not configured" }, 503);
+    }
+    // Short cache: browsers need a fresh key if we ever rotate
+    c.header("Cache-Control", "public, max-age=3600");
+    return c.json({ publicKey });
+  });
+
+  /** Register a push subscription */
+  app.post("/api/push/subscribe", async (c) => {
+    try {
+      const body = await c.req.json<PushSubscribeRequest>();
+
+      if (!body.subscription?.endpoint || !body.subscription?.keys?.p256dh || !body.subscription?.keys?.auth) {
+        return c.json({ error: "Invalid subscription object" }, 400);
+      }
+
+      upsertSubscription(body);
+
+      console.log(
+        JSON.stringify({
+          event: "push_subscribe",
+          timestamp: new Date().toISOString(),
+          lines: body.favorites?.map((f) => f.lines).flat() ?? [],
+          total_subscriptions: getSubscriptionCount(),
+        })
+      );
+
+      return c.json({ success: true });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "push_subscribe_error",
+          timestamp: new Date().toISOString(),
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      return c.json({ error: "Failed to register subscription" }, 500);
+    }
+  });
+
+  /** Remove a push subscription */
+  app.delete("/api/push/unsubscribe", async (c) => {
+    try {
+      const body = await c.req.json<PushUnsubscribeRequest>();
+
+      if (!body.endpoint) {
+        return c.json({ error: "endpoint is required" }, 400);
+      }
+
+      const removed = removeSubscription(body.endpoint);
+
+      console.log(
+        JSON.stringify({
+          event: "push_unsubscribe",
+          timestamp: new Date().toISOString(),
+          removed,
+          total_subscriptions: getSubscriptionCount(),
+        })
+      );
+
+      return c.json({ success: true });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "push_unsubscribe_error",
+          timestamp: new Date().toISOString(),
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      return c.json({ error: "Failed to remove subscription" }, 500);
+    }
   });
 
   // -------------------------------------------------------------------------

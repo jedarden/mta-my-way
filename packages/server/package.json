@@ -17,11 +17,15 @@
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "@mta-my-way/shared": "*",
+    "better-sqlite3": "^12.8.0",
     "hono": "^4.12.8",
-    "protobufjs": "^7.5.4"
+    "protobufjs": "^7.5.4",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.0",
+    "@types/web-push": "^3.6.3",
     "csv-parse": "^6.2.1",
     "protobufjs-cli": "^2.0.0"
   }

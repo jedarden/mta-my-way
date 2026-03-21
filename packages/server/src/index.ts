@@ -23,6 +23,9 @@ import { createApp } from "./app.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
+import { initPushDatabase } from "./push/subscriptions.js";
+import { loadOrGenerateVapidKeys, configureWebPush } from "./push/vapid.js";
+import { startPushPipeline } from "./push/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -96,6 +99,13 @@ async function main(): Promise<void> {
 
   // Hono app (builds TransferEngine internally from loaded data)
   const app = createApp(stations, routes, complexes, transfers, WEB_DIST);
+
+  // Push notification subsystem
+  const pushDbPath = process.env["PUSH_DB_PATH"] ?? join(DATA_DIR, "subscriptions.db");
+  initPushDatabase(pushDbPath);
+  const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
+  configureWebPush(vapidKeys);
+  startPushPipeline();
 
   // Feed poller (also triggers immediate first poll)
   initPoller(stations, routes);
