@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { SearchResults } from "../components/search/SearchResults";
 import { StationSearch } from "../components/search/StationSearch";
+import Screen from "../components/layout/Screen";
 import { useStationIndex } from "../hooks/useStationIndex";
 import { searchStations } from "../lib/stationSearch";
 
@@ -61,8 +62,9 @@ export default function SearchScreen() {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div className="p-4">
-      <StationSearch value={query} onChange={setQuery} autoFocus />
+    <Screen>
+      <div className="px-4 pt-2 pb-4">
+        <StationSearch value={query} onChange={setQuery} autoFocus />
 
       <div className="mt-4">
         {error && !hasQuery && (
@@ -81,7 +83,7 @@ export default function SearchScreen() {
           <PopularStations />
         )}
       </div>
-    </div>
+    </Screen>
   );
 }
 
