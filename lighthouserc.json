@@ -4,18 +4,23 @@
       "url": ["http://localhost:3001"],
       "numberOfRuns": 3,
       "settings": {
-        "preset": "desktop",
+        "throttlingMethod": "simulate",
         "throttling": {
           "rttMs": 150,
           "throughputKbps": 1638,
-          "cpuSlowdownMultiplier": 4
+          "cpuSlowdownMultiplier": 4,
+          "requestLatencyMs": 150,
+          "downloadThroughputKbps": 1638,
+          "uploadThroughputKbps": 675
         },
         "screenEmulation": {
           "mobile": true,
           "width": 390,
           "height": 844,
-          "deviceScaleFactor": 3
-        }
+          "deviceScaleFactor": 3,
+          "disabled": false
+        },
+        "emulatedFormFactor": "mobile"
       }
     },
     "assert": {
