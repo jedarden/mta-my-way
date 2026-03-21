@@ -80,9 +80,11 @@ function normalizeForSearch(str: string): string {
 function stationMatchesQuery(station: Station, normalizedQuery: string, originalQuery: string): boolean {
   const normalizedName = normalizeForSearch(station.name);
   const expandedQuery = normalizeForSearch(expandAbbreviations(originalQuery));
+  // Also expand on the normalized query to handle punctuation like B'way -> bway -> broadway
+  const expandedNormalizedQuery = normalizeForSearch(expandAbbreviations(normalizedQuery));
 
   // Match against station name (original or expanded query)
-  if (normalizedName.includes(normalizedQuery) || normalizedName.includes(expandedQuery)) {
+  if (normalizedName.includes(normalizedQuery) || normalizedName.includes(expandedQuery) || normalizedName.includes(expandedNormalizedQuery)) {
     return true;
   }
 
@@ -94,7 +96,7 @@ function stationMatchesQuery(station: Station, normalizedQuery: string, original
 
   // Match expanded station name against expanded query
   const expandedName = normalizeForSearch(expandAbbreviations(station.name));
-  if (expandedName.includes(expandedQuery)) {
+  if (expandedName.includes(expandedQuery) || expandedName.includes(expandedNormalizedQuery)) {
     return true;
   }
 
