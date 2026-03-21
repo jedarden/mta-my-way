@@ -8,10 +8,10 @@
  * For production, set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables.
  */
 
-import webpush from "web-push";
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { existsSync } from "node:fs";
+import webpush from "web-push";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -149,10 +149,7 @@ let vapidKeys: VapidKeys | null = null;
 export function configureWebPush(keys: VapidKeys, subject?: string): void {
   vapidKeys = keys;
 
-  const vapidSubject =
-    subject ||
-    process.env["VAPID_SUBJECT"] ||
-    "mailto:mta-my-way@example.com";
+  const vapidSubject = subject || process.env["VAPID_SUBJECT"] || "mailto:mta-my-way@example.com";
 
   webpush.setVapidDetails(vapidSubject, keys.publicKey, keys.privateKey);
 

@@ -28,13 +28,17 @@ import type {
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
-import { Hono } from "hono";
-import { getArrivals, getFeedStates } from "./cache.js";
-import { getAllAlerts, getAlertsForLine, getAlertsStatus } from "./alerts-poller.js";
-import { createTransferEngine } from "./transfer/index.js";
-import { upsertSubscription, removeSubscription, getSubscriptionCount } from "./push/subscriptions.js";
-import { getVapidPublicKey } from "./push/vapid.js";
 import type { PushSubscribeRequest, PushUnsubscribeRequest } from "@mta-my-way/shared";
+import { Hono } from "hono";
+import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
+import { getArrivals, getFeedStates } from "./cache.js";
+import {
+  getSubscriptionCount,
+  removeSubscription,
+  upsertSubscription,
+} from "./push/subscriptions.js";
+import { getVapidPublicKey } from "./push/vapid.js";
+import { createTransferEngine } from "./transfer/index.js";
 
 /** Cache header for static GTFS data */
 const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-while-revalidate=${CACHE_TTLS.gtfsStaticStale}`;
@@ -441,7 +445,11 @@ export function createApp(
     try {
       const body = await c.req.json<PushSubscribeRequest>();
 
-      if (!body.subscription?.endpoint || !body.subscription?.keys?.p256dh || !body.subscription?.keys?.auth) {
+      if (
+        !body.subscription?.endpoint ||
+        !body.subscription?.keys?.p256dh ||
+        !body.subscription?.keys?.auth
+      ) {
         return c.json({ error: "Invalid subscription object" }, 400);
       }
 

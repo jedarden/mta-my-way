@@ -5,12 +5,12 @@
  * subscriptions, and sends push notifications.
  */
 
-import type { AlertChange } from "../alerts-poller.js";
 import type { PushNotificationPayload, PushSubscriptionRecord } from "@mta-my-way/shared";
+import type { AlertChange } from "../alerts-poller.js";
 import { onAlertChange } from "../alerts-poller.js";
-import { getAllSubscriptions } from "./subscriptions.js";
 import { matchAlertToSubscriptions } from "./matcher.js";
 import { sendPushNotification } from "./sender.js";
+import { getAllSubscriptions } from "./subscriptions.js";
 
 /**
  * Start the push notification pipeline.
@@ -39,14 +39,10 @@ export function startPushPipeline(): void {
 
       // Send all matched notifications in parallel
       const results = await Promise.allSettled(
-        allMatches.map(({ subscription, payload }) =>
-          sendPushNotification(subscription, payload)
-        )
+        allMatches.map(({ subscription, payload }) => sendPushNotification(subscription, payload))
       );
 
-      const sent = results.filter(
-        (r) => r.status === "fulfilled" && r.value
-      ).length;
+      const sent = results.filter((r) => r.status === "fulfilled" && r.value).length;
       const failed = results.length - sent;
 
       if (sent > 0) {

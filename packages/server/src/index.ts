@@ -20,13 +20,13 @@ import type {
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
+import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
 import { initPoller, startPoller } from "./poller.js";
-import { startAlertsPoller } from "./alerts-poller.js";
-import { loadTravelTimes } from "./transfer/travel-times.js";
-import { initPushDatabase } from "./push/subscriptions.js";
-import { loadOrGenerateVapidKeys, configureWebPush } from "./push/vapid.js";
 import { startPushPipeline } from "./push/index.js";
+import { initPushDatabase } from "./push/subscriptions.js";
+import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
+import { loadTravelTimes } from "./transfer/travel-times.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

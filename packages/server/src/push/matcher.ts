@@ -5,13 +5,13 @@
  * whose favorite tuples overlap with the alert's affected lines.
  */
 
-import type { AlertChange } from "../alerts-poller.js";
 import type {
-  StationAlert,
   PushFavoriteTuple,
-  PushSubscriptionRecord,
   PushNotificationPayload,
+  PushSubscriptionRecord,
+  StationAlert,
 } from "@mta-my-way/shared";
+import type { AlertChange } from "../alerts-poller.js";
 
 // ---------------------------------------------------------------------------
 // Matching logic
@@ -45,10 +45,7 @@ function isQuietHours(config: QuietHoursConfig): boolean {
 /**
  * Check if a subscription's favorite tuples overlap with the alert's lines.
  */
-function subscriptionMatchesAlert(
-  favorites: PushFavoriteTuple[],
-  alert: StationAlert
-): boolean {
+function subscriptionMatchesAlert(favorites: PushFavoriteTuple[], alert: StationAlert): boolean {
   const alertLines = new Set(alert.affectedLines.map((l) => l.toUpperCase()));
 
   for (const fav of favorites) {
@@ -82,7 +79,8 @@ export function matchAlertToSubscriptions(
     return [];
   }
 
-  const results: Array<{ subscription: PushSubscriptionRecord; payload: PushNotificationPayload }> = [];
+  const results: Array<{ subscription: PushSubscriptionRecord; payload: PushNotificationPayload }> =
+    [];
 
   for (const sub of subscriptions) {
     // Parse stored JSON
@@ -112,19 +110,19 @@ export function matchAlertToSubscriptions(
     }
 
     // Build notification payload
-    const linesLabel = change.alert.affectedLines
-      .map((l) => `(${l})`)
-      .join(" ");
+    const linesLabel = change.alert.affectedLines.map((l) => `(${l})`).join(" ");
 
-    const title = change.type === "resolved"
-      ? `Service restored: ${linesLabel}`
-      : change.alert.severity === "severe"
-        ? `Service alert: ${linesLabel}`
-        : `Delays: ${linesLabel}`;
+    const title =
+      change.type === "resolved"
+        ? `Service restored: ${linesLabel}`
+        : change.alert.severity === "severe"
+          ? `Service alert: ${linesLabel}`
+          : `Delays: ${linesLabel}`;
 
-    const body = change.type === "resolved"
-      ? `${linesLabel} service has been restored.`
-      : change.alert.headline;
+    const body =
+      change.type === "resolved"
+        ? `${linesLabel} service has been restored.`
+        : change.alert.headline;
 
     const payload: PushNotificationPayload = {
       alertId: change.alert.id,

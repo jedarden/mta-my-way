@@ -80,9 +80,7 @@ export default function SettingsScreen() {
                 "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
                 "focus-visible:outline-mta-primary disabled:opacity-50",
-                isSubscribed
-                  ? "bg-mta-primary"
-                  : "bg-gray-300 dark:bg-gray-600",
+                isSubscribed ? "bg-mta-primary" : "bg-gray-300 dark:bg-gray-600",
               ].join(" ")}
             >
               <span
@@ -103,9 +101,7 @@ export default function SettingsScreen() {
                 type="button"
                 role="switch"
                 aria-checked={quietHours.enabled}
-                onClick={() =>
-                  setQuietHours({ ...quietHours, enabled: !quietHours.enabled })
-                }
+                onClick={() => setQuietHours({ ...quietHours, enabled: !quietHours.enabled })}
                 className={[
                   "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
                   quietHours.enabled ? "bg-mta-primary" : "bg-gray-300 dark:bg-gray-600",
@@ -244,9 +240,7 @@ export default function SettingsScreen() {
           >
             Notifications
           </h2>
-          <div className="bg-surface dark:bg-dark-surface rounded-lg">
-            {renderPushSection()}
-          </div>
+          <div className="bg-surface dark:bg-dark-surface rounded-lg">{renderPushSection()}</div>
         </section>
 
         <section aria-labelledby="about-heading">

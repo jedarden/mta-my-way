@@ -9,8 +9,8 @@
  * removed from the database.
  */
 
-import webpush from "web-push";
 import type { PushNotificationPayload, PushSubscriptionRecord } from "@mta-my-way/shared";
+import webpush from "web-push";
 import { removeSubscription } from "./subscriptions.js";
 import { isWebPushConfigured } from "./vapid.js";
 

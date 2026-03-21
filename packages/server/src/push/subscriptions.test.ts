@@ -5,8 +5,8 @@
  * and leave no files on disk.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PushFavoriteTuple, PushSubscribeRequest } from "@mta-my-way/shared";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   closePushDatabase,
   getAllSubscriptions,
@@ -123,7 +123,9 @@ describe("upsertSubscription", () => {
   });
 
   it("uses default quietHours when none provided in request", () => {
-    upsertSubscription(makeRequest("https://push.example.com/sub/no-qh", { quietHours: undefined }));
+    upsertSubscription(
+      makeRequest("https://push.example.com/sub/no-qh", { quietHours: undefined })
+    );
     const subs = getAllSubscriptions();
     const qh = JSON.parse(subs[0]?.quietHours ?? "{}") as { enabled: boolean };
     expect(qh.enabled).toBe(false); // default quiet hours
@@ -191,9 +193,7 @@ describe("updateSubscriptionFavorites", () => {
     const req = makeRequest();
     upsertSubscription(req);
 
-    const newFavorites: PushFavoriteTuple[] = [
-      { stationId: "999", lines: ["7"], direction: "S" },
-    ];
+    const newFavorites: PushFavoriteTuple[] = [{ stationId: "999", lines: ["7"], direction: "S" }];
     const updated = updateSubscriptionFavorites(req.subscription.endpoint, newFavorites);
     expect(updated).toBe(true);
 
@@ -217,10 +217,11 @@ describe("updateSubscriptionQuietHours", () => {
   it("updates quiet hours for an existing subscription", () => {
     upsertSubscription(makeRequest());
 
-    const updated = updateSubscriptionQuietHours(
-      "https://push.example.com/sub/test-endpoint",
-      { enabled: true, startHour: 22, endHour: 7 }
-    );
+    const updated = updateSubscriptionQuietHours("https://push.example.com/sub/test-endpoint", {
+      enabled: true,
+      startHour: 22,
+      endHour: 7,
+    });
     expect(updated).toBe(true);
 
     const subs = getAllSubscriptions();
@@ -235,10 +236,11 @@ describe("updateSubscriptionQuietHours", () => {
   });
 
   it("returns false when subscription does not exist", () => {
-    const updated = updateSubscriptionQuietHours(
-      "https://unknown.example.com/sub",
-      { enabled: true, startHour: 0, endHour: 5 }
-    );
+    const updated = updateSubscriptionQuietHours("https://unknown.example.com/sub", {
+      enabled: true,
+      startHour: 0,
+      endHour: 5,
+    });
     expect(updated).toBe(false);
   });
 });

@@ -8,10 +8,10 @@
  *   - builds correct push notification payloads
  */
 
+import type { PushSubscriptionRecord, StationAlert } from "@mta-my-way/shared";
 import { describe, expect, it } from "vitest";
 import type { AlertChange } from "../alerts-poller.js";
 import { matchAlertToSubscriptions } from "./matcher.js";
-import type { PushSubscriptionRecord, StationAlert } from "@mta-my-way/shared";
 
 // ---------------------------------------------------------------------------
 // Fixtures

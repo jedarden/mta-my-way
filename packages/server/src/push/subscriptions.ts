@@ -7,12 +7,12 @@
  */
 
 import { createHash } from "node:crypto";
-import Database from "better-sqlite3";
 import type {
   PushFavoriteTuple,
   PushSubscribeRequest,
   PushSubscriptionRecord,
 } from "@mta-my-way/shared";
+import Database from "better-sqlite3";
 
 // ---------------------------------------------------------------------------
 // Database singleton
@@ -93,9 +93,10 @@ function getDb(): Database.Database {
  * Upsert a push subscription. If a subscription with the same endpoint hash
  * exists, it is updated (favorites and keys may change).
  */
-export function upsertSubscription(
-  request: PushSubscribeRequest
-): { success: boolean; endpointHash: string } {
+export function upsertSubscription(request: PushSubscribeRequest): {
+  success: boolean;
+  endpointHash: string;
+} {
   const database = getDb();
   const { subscription, favorites, quietHours } = request;
   const endpointHash = hashEndpoint(subscription.endpoint);
@@ -133,9 +134,7 @@ export function removeSubscription(endpoint: string): boolean {
   const database = getDb();
   const endpointHash = hashEndpoint(endpoint);
 
-  const stmt = database.prepare(
-    "DELETE FROM push_subscriptions WHERE endpoint_hash = ?"
-  );
+  const stmt = database.prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ?");
   const result = stmt.run(endpointHash);
 
   return result.changes > 0;
