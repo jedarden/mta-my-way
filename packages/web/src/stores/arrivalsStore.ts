@@ -25,6 +25,8 @@ interface ArrivalsState {
   // Actions
   setCachedArrivals: (stationId: string, data: StationArrivals) => void;
   getCachedArrivals: (stationId: string) => CachedArrival | null;
+  /** Get cached arrivals even if stale (for offline mode with staleness indicator) */
+  getStaleArrivals: (stationId: string) => CachedArrival | null;
   clearCache: () => void;
   setLastFetch: (timestamp: number) => void;
 }
@@ -82,6 +84,10 @@ export const useArrivalsStore = create<ArrivalsState>()(
         }
 
         return cached;
+      },
+
+      getStaleArrivals: (stationId) => {
+        return get().cache[stationId] ?? null;
       },
 
       clearCache: () => {
