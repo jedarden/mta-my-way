@@ -1,34 +1,9 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, type PersistOptions } from "zustand/middleware";
+import { createSafeMigration, setMigrationFailed } from "./migration";
+import type { Favorite, Commute, FavoriteTapEvent, DirectionPreference } from "@mta-my-way/shared";
 
-/** Favorite station configuration */
-export interface Favorite {
-  id: string;
-  stationId: string;
-  stationName: string;
-  lines: string[];
-  direction: "N" | "S" | "both";
-  sortOrder: number;
-  label?: string;
-}
-
-/** Commute route configuration */
-export interface Commute {
-  id: string;
-  name: string;
-  origin: { stationId: string; stationName: string };
-  destination: { stationId: string; stationName: string };
-  preferredLines: string[];
-  enableTransferSuggestions: boolean;
-}
-
-/** Tap event for time-aware context sorting */
-export interface FavoriteTapEvent {
-  favoriteId: string;
-  dayOfWeek: number; // 0-6
-  hour: number; // 0-23
-}
-
+/** Internal state shape (excludes schema version which is handled by persist middleware) */
 interface FavoritesState {
   favorites: Favorite[];
   commutes: Commute[];
@@ -40,6 +15,7 @@ interface FavoritesState {
   updateFavorite: (id: string, updates: Partial<Favorite>) => void;
   removeFavorite: (id: string) => void;
   reorderFavorites: (fromIndex: number, toIndex: number) => void;
+  togglePin: (id: string) => void;
 
   addCommute: (commute: Omit<Commute, "id">) => string;
   updateCommute: (id: string, updates: Partial<Commute>) => void;
@@ -49,10 +25,41 @@ interface FavoritesState {
   completeOnboarding: () => void;
 }
 
+/** Maximum tap history entries (FIFO cap) */
+const MAX_TAP_HISTORY = 500;
+
+/** Current schema version for this store */
+const STORE_VERSION = 1;
+
 /** Generate a UUID */
 function generateId(): string {
   return crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 11);
 }
+
+/** Migration functions keyed by target version */
+const migrations = new Map<number, (state: unknown) => unknown>([
+  // Version 1: Initial schema - no migration needed
+  // Future versions would add migration functions here, e.g.:
+  // [2]: (state) => ({ ...state, newField: defaultValue }),
+]);
+
+/** Persist configuration with safe migrations */
+const persistConfig: PersistOptions<FavoritesState> = {
+  name: "mta-favorites",
+  storage: createJSONStorage(() => localStorage),
+  version: STORE_VERSION,
+  migrate: createSafeMigration<FavoritesState>("favorites", STORE_VERSION, migrations),
+  onRehydrateStorage: () => (state, error) => {
+    if (error) {
+      console.error("[favoritesStore] Rehydration failed:", error);
+      setMigrationFailed();
+    }
+    // Enforce FIFO cap on tapHistory after rehydration
+    if (state && state.tapHistory.length > MAX_TAP_HISTORY) {
+      state.tapHistory = state.tapHistory.slice(-MAX_TAP_HISTORY);
+    }
+  },
+};
 
 export const useFavoritesStore = create<FavoritesState>()(
   persist(
@@ -66,7 +73,15 @@ export const useFavoritesStore = create<FavoritesState>()(
         const id = generateId();
         const sortOrder = get().favorites.length;
         set((state) => ({
-          favorites: [...state.favorites, { ...favorite, id, sortOrder }],
+          favorites: [
+            ...state.favorites,
+            {
+              ...favorite,
+              id,
+              sortOrder,
+              pinned: favorite.pinned ?? false,
+            },
+          ],
         }));
         return id;
       },
@@ -103,6 +118,14 @@ export const useFavoritesStore = create<FavoritesState>()(
         });
       },
 
+      togglePin: (id) => {
+        set((state) => ({
+          favorites: state.favorites.map((f) =>
+            f.id === id ? { ...f, pinned: !f.pinned } : f
+          ),
+        }));
+      },
+
       addCommute: (commute) => {
         const id = generateId();
         set((state) => ({
@@ -135,7 +158,7 @@ export const useFavoritesStore = create<FavoritesState>()(
         set((state) => {
           // Keep max 500 entries, FIFO
           const newHistory = [...state.tapHistory, tapEvent];
-          if (newHistory.length > 500) {
+          if (newHistory.length > MAX_TAP_HISTORY) {
             newHistory.shift();
           }
           return { tapHistory: newHistory };
@@ -146,10 +169,9 @@ export const useFavoritesStore = create<FavoritesState>()(
         set({ onboardingComplete: true });
       },
     }),
-    {
-      name: "mta-favorites",
-      storage: createJSONStorage(() => localStorage),
-      version: 1,
-    }
+    persistConfig
   )
 );
+
+// Re-export types for convenience
+export type { Favorite, Commute, FavoriteTapEvent, DirectionPreference };
