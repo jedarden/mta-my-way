@@ -19,6 +19,7 @@ import { useFavorites } from "../hooks/useFavorites";
 import { useSettingsStore } from "../stores/settingsStore";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
+import Screen from "../components/layout/Screen";
 import type { Favorite } from "@mta-my-way/shared";
 
 /** How often to tick the "Updated X ago" counter (ms) */
@@ -110,72 +111,74 @@ export default function HomeScreen() {
   }, [editingFavorite, removeFavorite]);
 
   return (
-    <div
-      ref={containerRef}
-      className="px-4 pt-2 pb-4"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Pull-to-refresh indicator */}
-      {isPullActive && pullY > 8 && (
-        <div
-          className="flex items-center justify-center text-13 text-text-secondary dark:text-dark-text-secondary overflow-hidden transition-all"
-          style={{ height: pullY }}
-          aria-live="polite"
-        >
-          {pullY >= PULL_THRESHOLD ? "Release to refresh" : "Pull to refresh"}
-        </div>
-      )}
-
-      {/* Favorites section */}
-      <section aria-labelledby="favorites-heading">
-        <div className="flex items-center justify-between mb-3">
-          <h2
-            id="favorites-heading"
-            className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+    <Screen>
+      <div
+        ref={containerRef}
+        className="px-4 pt-2 pb-4"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        {isPullActive && pullY > 8 && (
+          <div
+            className="flex items-center justify-center text-13 text-text-secondary dark:text-dark-text-secondary overflow-hidden transition-all"
+            style={{ height: pullY }}
+            aria-live="polite"
           >
-            Your Stations
-          </h2>
-          {hasFavorites && (
-            <Link
-              to="/search"
-              className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
-            >
-              + Add
-            </Link>
-          )}
-        </div>
-
-        {hasFavorites ? (
-          <FavoritesList
-            favorites={favorites}
-            forceRefreshId={forceRefreshId}
-            onEdit={setEditingFavorite}
-            onReorder={reorderFavorites}
-          />
-        ) : (
-          <EmptyState />
+            {pullY >= PULL_THRESHOLD ? "Release to refresh" : "Pull to refresh"}
+          </div>
         )}
-      </section>
 
-      {/* Updated X ago */}
-      {hasFavorites && (
-        <p className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary">
-          Updated {timeAgoText}
-        </p>
-      )}
+        {/* Favorites section */}
+        <section aria-labelledby="favorites-heading">
+          <div className="flex items-center justify-between mb-3">
+            <h2
+              id="favorites-heading"
+              className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+            >
+              Your Stations
+            </h2>
+            {hasFavorites && (
+              <Link
+                to="/search"
+                className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
+              >
+                + Add
+              </Link>
+            )}
+          </div>
 
-      {/* FavoriteEditor modal */}
-      {editingFavorite && (
-        <FavoriteEditor
-          favorite={editingFavorite}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onClose={() => setEditingFavorite(null)}
-        />
-      )}
-    </div>
+          {hasFavorites ? (
+            <FavoritesList
+              favorites={favorites}
+              forceRefreshId={forceRefreshId}
+              onEdit={setEditingFavorite}
+              onReorder={reorderFavorites}
+            />
+          ) : (
+            <EmptyState />
+          )}
+        </section>
+
+        {/* Updated X ago */}
+        {hasFavorites && (
+          <p className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary">
+            Updated {timeAgoText}
+          </p>
+        )}
+
+        {/* FavoriteEditor modal */}
+        {editingFavorite && (
+          <FavoriteEditor
+            favorite={editingFavorite}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            onClose={() => setEditingFavorite(null)}
+          />
+        )}
+      </div>
+    </Screen>
   );
 }
 
