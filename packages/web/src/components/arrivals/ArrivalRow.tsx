@@ -49,7 +49,7 @@ export function ArrivalRow({
         <span className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums">
           {timeDisplay}
         </span>
-        <ConfidenceBar confidence={confidence} className="ml-auto" />
+        <ConfidenceBar confidence={confidence} lineId={line} className="ml-auto" />
       </div>
     );
   }
@@ -93,7 +93,7 @@ export function ArrivalRow({
         <span className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums">
           {timeDisplay}
         </span>
-        <ConfidenceBar confidence={confidence} />
+        <ConfidenceBar confidence={confidence} lineId={line} />
       </div>
     </div>
   );
