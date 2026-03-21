@@ -75,13 +75,16 @@ export function DataState<T>({
     return () => clearInterval(interval);
   }, [status, staleTimestamp]);
 
-  // Pure loading: no data yet
-  if ((status === "loading" || status === "idle") && !data) {
+  // True when we have no meaningful data to show (null or empty array)
+  const isDataEmpty = !data || (Array.isArray(data) && (data as unknown[]).length === 0);
+
+  // Pure loading: no data yet (null) or initial empty array before first fetch
+  if ((status === "loading" || status === "idle") && isDataEmpty) {
     return <>{skeleton ?? <DefaultSkeleton />}</>;
   }
 
   // Error with no fallback data
-  if (status === "error" && !data) {
+  if (status === "error" && isDataEmpty) {
     return (
       <div className="rounded-lg bg-surface dark:bg-dark-surface p-4 text-center">
         <p className="text-base text-text-primary dark:text-dark-text-primary mb-1">
@@ -103,7 +106,7 @@ export function DataState<T>({
   }
 
   // Offline with no fallback data
-  if (status === "offline" && !data) {
+  if (status === "offline" && isDataEmpty) {
     return (
       <div className="rounded-lg bg-surface dark:bg-dark-surface p-4 text-center">
         <p className="text-base text-text-primary dark:text-dark-text-primary mb-1">
@@ -117,8 +120,8 @@ export function DataState<T>({
   }
 
   // We have data (possibly stale or with an offline/error overlay)
-  const hasData = data !== null;
-  const isEmptyArray = hasData && Array.isArray(data) && (data as unknown[]).length === 0;
+  const hasData = !isDataEmpty;
+  const isEmptyArray = data !== null && Array.isArray(data) && (data as unknown[]).length === 0;
 
   return (
     <div className="relative">
@@ -139,7 +142,7 @@ export function DataState<T>({
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          <span>Updated {staleTimeText} — refreshing...</span>
+          <span>Updated {staleTimeText}</span>
         </div>
       )}
 

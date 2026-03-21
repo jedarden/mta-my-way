@@ -14,8 +14,16 @@ import Screen from "../components/layout/Screen";
 import { useAlerts } from "../hooks/useAlerts";
 
 export default function AlertsScreen() {
-  const { alerts, myAlerts, myAlertsCount, status, refresh, filterMode, setFilterMode } =
-    useAlerts();
+  const {
+    alerts,
+    myAlerts,
+    myAlertsCount,
+    status,
+    updatedAt,
+    refresh,
+    filterMode,
+    setFilterMode,
+  } = useAlerts();
 
   const isMineMode = filterMode === "mine";
   const displayAlerts = isMineMode ? myAlerts : alerts;
@@ -45,8 +53,10 @@ export default function AlertsScreen() {
           <AlertList
             alerts={displayAlerts}
             status={status}
+            updatedAt={updatedAt}
             onRetry={refresh}
             emptyMessage={isMineMode ? "No alerts affecting your lines" : "No active alerts"}
+            emptySubtext={isMineMode ? "Add favorites to see relevant alerts" : undefined}
           />
         </section>
 
@@ -64,6 +74,7 @@ export default function AlertsScreen() {
                 (a) => a.cause === "PLANNED_WORK" || a.cause === "MAINTENANCE"
               )}
               status={status}
+              updatedAt={updatedAt}
               emptyMessage="No planned work"
             />
           </section>

@@ -1,29 +1,37 @@
 /**
- * AlertList - Reusable list of alerts.
+ * AlertList - Reusable list of alerts using DataState wrapper.
  *
  * Used in:
  *   - AlertsScreen (main alerts list)
  *   - Embedded in other screens (filtered to relevant alerts)
  *
  * Features:
+ *   - Uses DataState wrapper for consistent loading/error/empty/stale handling
  *   - Grouped by severity (severe, warning, info)
- *   - Empty state when no alerts
- *   - Loading skeleton
+ *   - Shaped skeleton during loading
+ *   - Contextual empty state with retry
  */
 
 import type { AlertSeverity, StationAlert } from "@mta-my-way/shared";
 import type { AlertDataStatus } from "../../hooks/useAlerts";
+import { DataState } from "../common/DataState";
+import { EmptyAlerts } from "../common/EmptyState";
+import { AlertListSkeleton } from "../common/Skeleton";
 import { AlertCard } from "./AlertCard";
 
 interface AlertListProps {
   alerts: StationAlert[];
   status: AlertDataStatus;
+  /** Timestamp (ms) for stale data age calculation */
+  updatedAt?: number | null;
   /** Called when retry is clicked on error */
   onRetry?: () => void;
   /** Show in compact mode */
   compact?: boolean;
   /** Custom empty message */
   emptyMessage?: string;
+  /** Custom empty subtext */
+  emptySubtext?: string;
   /** Maximum alerts to show (for embedded use) */
   maxAlerts?: number;
 }
@@ -65,45 +73,41 @@ const SEVERITY_LABELS: Record<AlertSeverity, { label: string; className: string 
 export function AlertList({
   alerts,
   status,
+  updatedAt,
   onRetry,
   compact = false,
   emptyMessage = "No active alerts",
+  emptySubtext,
   maxAlerts,
 }: AlertListProps) {
-  // Loading state
-  if (status === "loading" || status === "idle") {
-    return <AlertListSkeleton count={3} />;
-  }
+  // Derive error message for DataState
+  const errorMessage = status === "error" ? "Couldn't load alerts" : null;
 
-  // Error state
-  if (status === "error" && alerts.length === 0) {
-    return (
-      <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
-        <p className="text-text-secondary dark:text-dark-text-secondary mb-3">
-          Couldn't load alerts
-        </p>
-        {onRetry && (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="px-4 py-2 bg-mta-primary text-white rounded font-medium text-13 min-h-touch"
-          >
-            Try again
-          </button>
-        )}
-      </div>
-    );
-  }
+  return (
+    <DataState
+      status={status}
+      data={alerts}
+      error={errorMessage}
+      skeleton={<AlertListSkeleton count={3} />}
+      empty={<EmptyAlerts message={emptyMessage} subtext={emptySubtext} />}
+      staleTimestamp={updatedAt}
+      onRetry={onRetry}
+    >
+      {(data) => <AlertListContent alerts={data} compact={compact} maxAlerts={maxAlerts} />}
+    </DataState>
+  );
+}
 
-  // Empty state
-  if (alerts.length === 0) {
-    return (
-      <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
-        <p className="text-text-secondary dark:text-dark-text-secondary">{emptyMessage}</p>
-      </div>
-    );
-  }
-
+/** Inner content component for alerts list */
+function AlertListContent({
+  alerts,
+  compact,
+  maxAlerts,
+}: {
+  alerts: StationAlert[];
+  compact: boolean;
+  maxAlerts?: number;
+}) {
   // Apply max alerts limit
   const displayedAlerts = maxAlerts ? alerts.slice(0, maxAlerts) : alerts;
 
@@ -153,17 +157,6 @@ export function AlertList({
           +{alerts.length - maxAlerts} more alerts
         </p>
       )}
-    </div>
-  );
-}
-
-/** Loading skeleton for alert list */
-export function AlertListSkeleton({ count = 3 }: { count?: number }) {
-  return (
-    <div className="space-y-3" aria-busy="true" aria-label="Loading alerts">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="h-20 rounded-lg animate-pulse bg-surface dark:bg-dark-surface" />
-      ))}
     </div>
   );
 }

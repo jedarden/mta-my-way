@@ -22,6 +22,7 @@ import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
+import { EmptyFavorites } from "../components/common/EmptyState";
 import { useFavorites } from "../hooks/useFavorites";
 import { useFavoritesStore, useSettingsStore } from "../stores";
 
@@ -168,7 +169,7 @@ export default function HomeScreen() {
               onReorder={reorderFavorites}
             />
           ) : (
-            <EmptyState />
+            <EmptyFavorites />
           )}
         </section>
 
@@ -219,24 +220,5 @@ export default function HomeScreen() {
         )}
       </div>
     </Screen>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
-      <p className="text-text-secondary dark:text-dark-text-secondary mb-1 text-base">
-        No favorites yet
-      </p>
-      <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4">
-        Search for a station to add it here
-      </p>
-      <Link
-        to="/search"
-        className="inline-flex items-center justify-center px-5 py-3 bg-mta-primary text-white rounded-lg font-medium min-h-touch hover:opacity-90 transition-opacity"
-      >
-        Add your first station
-      </Link>
-    </div>
   );
 }

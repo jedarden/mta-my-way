@@ -17,13 +17,15 @@ import { Link, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
-import { OfflineBanner } from "../components/common";
+import { DataState } from "../components/common/DataState";
+import { EmptyArrivals } from "../components/common/EmptyState";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import BottomNav from "../components/layout/BottomNav";
+import { ArrivalListSkeleton } from "../components/common/Skeleton";
+import OfflineBanner from "../components/common/OfflineBanner";
 import { useAlertsForStation } from "../hooks/useAlerts";
 import { useArrivals } from "../hooks/useArrivals";
 import { useFavorites } from "../hooks/useFavorites";
-import { useStaleness } from "../hooks/useStaleness";
 import { type Station, api } from "../lib/api";
 
 export default function StationScreen() {
@@ -43,7 +45,6 @@ export default function StationScreen() {
   }, [stationId]);
 
   const { data: arrivals, status, refresh, updatedAt } = useArrivals(stationId ?? null);
-  const staleness = useStaleness(updatedAt);
 
   // Fetch alerts for this station's lines
   const stationLines = station?.lines ?? [];
@@ -219,58 +220,24 @@ export default function StationScreen() {
             </button>
           </div>
 
-          {/* Loading state (first load) */}
-          {(status === "loading" || status === "idle") && !arrivals && <ArrivalsSkeleton />}
-
-          {/* Error with no data */}
-          {arrivalsError && !arrivals && (
-            <div className="bg-surface dark:bg-dark-surface rounded-lg p-4 text-center">
-              <p className="text-text-secondary dark:text-dark-text-secondary mb-3">
-                {arrivalsError}
-              </p>
-              <button
-                type="button"
-                onClick={refresh}
-                className="px-4 py-2 bg-mta-primary text-white rounded font-medium text-13 min-h-touch"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-
-          {/* Offline banner with stale data */}
-          {status === "offline" && arrivals && (
-            <div className="mb-3 px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg text-13 text-text-secondary dark:text-dark-text-secondary">
-              Offline — showing last known data
-            </div>
-          )}
-
-          {/* Error banner with stale data */}
-          {status === "error" && arrivals && (
-            <div className="mb-3 flex items-center justify-between px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg">
-              <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
-                Could not refresh
-              </span>
-              <button
-                type="button"
-                onClick={refresh}
-                className="text-13 text-mta-primary font-medium min-h-touch px-2"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Actual arrivals */}
-          {arrivals && (
-            <div aria-live="polite" aria-atomic="false">
-              <ArrivalList
-                northbound={arrivals.northbound}
-                southbound={arrivals.southbound}
-                staleness={staleness.level}
-              />
-            </div>
-          )}
+          <DataState
+            status={status}
+            data={arrivals}
+            error={arrivalsError}
+            skeleton={<ArrivalListSkeleton />}
+            empty={<EmptyArrivals />}
+            staleTimestamp={updatedAt}
+            onRetry={refresh}
+          >
+            {(data) => (
+              <div aria-live="polite" aria-atomic="false">
+                <ArrivalList
+                  northbound={data.northbound}
+                  southbound={data.southbound}
+                />
+              </div>
+            )}
+          </DataState>
         </section>
 
         {/* Footer: freshness */}
@@ -302,37 +269,6 @@ export default function StationScreen() {
           onClose={() => setEditingFavorite(null)}
         />
       )}
-    </div>
-  );
-}
-
-function ArrivalsSkeleton() {
-  return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading arrivals">
-      {/* Northbound skeleton */}
-      <div>
-        <div className="h-4 w-32 bg-surface dark:bg-dark-surface rounded animate-pulse mb-2" />
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-14 bg-surface dark:bg-dark-surface rounded-lg animate-pulse"
-            />
-          ))}
-        </div>
-      </div>
-      {/* Southbound skeleton */}
-      <div>
-        <div className="h-4 w-36 bg-surface dark:bg-dark-surface rounded animate-pulse mb-2" />
-        <div className="space-y-2">
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-14 bg-surface dark:bg-dark-surface rounded-lg animate-pulse"
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

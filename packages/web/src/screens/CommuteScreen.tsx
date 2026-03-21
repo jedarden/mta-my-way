@@ -17,6 +17,9 @@ import type { Commute } from "@mta-my-way/shared";
 import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
+import { DataState } from "../components/common/DataState";
+import { EmptyCommutes } from "../components/common/EmptyState";
+import { CommuteCardSkeleton } from "../components/common/Skeleton";
 import { CommuteCard } from "../components/commute/CommuteCard";
 import { CommuteEditor } from "../components/commute/CommuteEditor";
 import { RouteComparison } from "../components/commute/RouteComparison";
@@ -140,7 +143,7 @@ function CommuteList() {
               )}
             </div>
           ) : (
-            <EmptyCommutesState onAdd={() => setShowNewEditor(true)} />
+            <EmptyCommutes onAdd={() => setShowNewEditor(true)} />
           )}
         </section>
 
@@ -182,7 +185,7 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
   const navigate = useNavigate();
   const commute = useFavoritesStore((s) => s.commutes.find((c) => c.id === commuteId));
 
-  const { data, status, refresh } = useCommute({
+  const { data, status, error, updatedAt, refresh } = useCommute({
     originId: commute?.origin.stationId ?? null,
     destinationId: commute?.destination.stationId ?? null,
     preferredLines: commute?.preferredLines,
@@ -195,8 +198,6 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
     commute?.origin.stationId ?? null,
     commuteLines
   );
-
-  const isLoading = status === "loading" && !data;
 
   if (!commute) {
     return (
@@ -284,67 +285,28 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
         )}
 
         {/* Analysis */}
-        {isLoading ? (
-          <DetailSkeleton />
-        ) : data ? (
-          <div className="space-y-4">
-            {/* Route comparison (if both types exist) */}
-            {data.directRoutes.length > 0 && data.transferRoutes.length > 0 && (
-              <RouteComparison analysis={data} />
-            )}
+        <DataState
+          status={status}
+          data={data}
+          error={error ?? "Couldn't load commute analysis"}
+          skeleton={<CommuteCardSkeleton count={2} />}
+          staleTimestamp={updatedAt}
+          onRetry={refresh}
+        >
+          {(commuteData) => (
+            <div className="space-y-4">
+              {/* Route comparison (if both types exist) */}
+              {commuteData.directRoutes.length > 0 && commuteData.transferRoutes.length > 0 && (
+                <RouteComparison analysis={commuteData} />
+              )}
 
-            {/* Full detail breakdown */}
-            <TransferDetail analysis={data} />
-          </div>
-        ) : status === "error" ? (
-          <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
-            <p className="text-text-secondary dark:text-dark-text-secondary mb-3">
-              Couldn't load commute analysis
-            </p>
-            <button
-              type="button"
-              onClick={refresh}
-              className="inline-flex items-center justify-center px-5 py-3 bg-mta-primary text-white rounded-lg font-medium min-h-touch"
-            >
-              Retry
-            </button>
-          </div>
-        ) : null}
+              {/* Full detail breakdown */}
+              <TransferDetail analysis={commuteData} />
+            </div>
+          )}
+        </DataState>
       </div>
     </Screen>
   );
 }
 
-// ─── Empty state ─────────────────────────────────────────────────────────
-
-function EmptyCommutesState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
-      <p className="text-text-secondary dark:text-dark-text-secondary mb-1 text-base">
-        No commutes configured
-      </p>
-      <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4">
-        Add a commute to see transfer analysis and route comparisons
-      </p>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="inline-flex items-center justify-center px-4 py-3 bg-mta-primary text-white rounded-lg font-medium min-h-touch hover:opacity-90 transition-opacity"
-      >
-        Plan a commute
-      </button>
-    </div>
-  );
-}
-
-// ─── Skeleton ────────────────────────────────────────────────────────────
-
-function DetailSkeleton() {
-  return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading commute analysis">
-      <div className="h-20 rounded-lg animate-pulse bg-surface dark:bg-dark-surface" />
-      <div className="h-40 rounded-lg animate-pulse bg-surface dark:bg-dark-surface" />
-      <div className="h-16 rounded-lg animate-pulse bg-surface dark:bg-dark-surface" />
-    </div>
-  );
-}
