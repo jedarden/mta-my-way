@@ -163,7 +163,11 @@ export function FavoritesList({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <FavoriteCard favorite={favorite} forceRefreshId={forceRefreshId} onEdit={onEdit} />
+                  <FavoriteCard
+                    favorite={favorite}
+                    forceRefreshId={forceRefreshId}
+                    onEdit={onEdit}
+                  />
                 </div>
               </div>
             </li>

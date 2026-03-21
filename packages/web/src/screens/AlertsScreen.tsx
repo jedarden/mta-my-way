@@ -14,16 +14,8 @@ import Screen from "../components/layout/Screen";
 import { useAlerts } from "../hooks/useAlerts";
 
 export default function AlertsScreen() {
-  const {
-    alerts,
-    myAlerts,
-    myAlertsCount,
-    status,
-    updatedAt,
-    refresh,
-    filterMode,
-    setFilterMode,
-  } = useAlerts();
+  const { alerts, myAlerts, myAlertsCount, status, updatedAt, refresh, filterMode, setFilterMode } =
+    useAlerts();
 
   const isMineMode = filterMode === "mine";
   const displayAlerts = isMineMode ? myAlerts : alerts;

@@ -19,10 +19,10 @@ import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { DataState } from "../components/common/DataState";
 import { EmptyArrivals } from "../components/common/EmptyState";
+import OfflineBanner from "../components/common/OfflineBanner";
+import { ArrivalListSkeleton } from "../components/common/Skeleton";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import BottomNav from "../components/layout/BottomNav";
-import { ArrivalListSkeleton } from "../components/common/Skeleton";
-import OfflineBanner from "../components/common/OfflineBanner";
 import { useAlertsForStation } from "../hooks/useAlerts";
 import { useArrivals } from "../hooks/useArrivals";
 import { useFavorites } from "../hooks/useFavorites";
@@ -231,10 +231,7 @@ export default function StationScreen() {
           >
             {(data) => (
               <div aria-live="polite" aria-atomic="false">
-                <ArrivalList
-                  northbound={data.northbound}
-                  southbound={data.southbound}
-                />
+                <ArrivalList northbound={data.northbound} southbound={data.southbound} />
               </div>
             )}
           </DataState>

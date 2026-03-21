@@ -242,6 +242,35 @@ export function FavoritesListSkeleton({ count = 3 }: { count?: number }) {
 }
 
 /**
+ * SearchResultsSkeleton - Matches the shape of SearchResults
+ *
+ * Structure:
+ *   - Station name + borough
+ *   - Row of line bullets
+ */
+export function SearchResultsSkeleton({ count = 5 }: { count?: number }) {
+  return (
+    <div className="space-y-2" aria-busy="true" aria-label="Loading search results">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="p-4 bg-surface dark:bg-dark-surface rounded-lg">
+          {/* Station name */}
+          <ShimmerBlock className="h-5 w-3/5 mb-1.5" />
+          {/* Borough */}
+          <ShimmerBlock className="h-3.5 w-1/4 mb-3" />
+          {/* Line bullets */}
+          <div className="flex gap-1.5">
+            <ShimmerBlock className="h-5 w-5 rounded-full" />
+            <ShimmerBlock className="h-5 w-5 rounded-full" />
+            <ShimmerBlock className="h-5 w-5 rounded-full" />
+            <ShimmerBlock className="h-5 w-5 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Generic skeleton for simple loading states
  */
 export function Skeleton({ className = "" }: SkeletonBaseProps) {

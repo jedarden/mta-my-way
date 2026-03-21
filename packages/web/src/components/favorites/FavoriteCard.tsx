@@ -15,6 +15,7 @@ import { useStaleness } from "../../hooks/useStaleness";
 import { useFavoritesStore } from "../../stores/favoritesStore";
 import { ArrivalRow } from "../arrivals/ArrivalRow";
 import { LineBullet } from "../arrivals/LineBullet";
+import { ArrivalRowSkeleton } from "../common/Skeleton";
 
 interface FavoriteCardProps {
   favorite: Favorite;
@@ -113,7 +114,11 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
       >
         <div aria-live="polite" aria-atomic="false">
           {isLoading ? (
-            <ArrivalSkeleton />
+            <div className="space-y-2" aria-busy="true" aria-label="Loading arrivals">
+              {[1, 2, 3].map((i) => (
+                <ArrivalRowSkeleton key={i} />
+              ))}
+            </div>
           ) : arrivals.length === 0 ? (
             <p className="text-13 text-text-secondary dark:text-dark-text-secondary py-2">
               No upcoming arrivals
@@ -133,20 +138,6 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
         </div>
       </button>
     </article>
-  );
-}
-
-function ArrivalSkeleton() {
-  return (
-    <div className="space-y-2 py-1" aria-busy="true" aria-label="Loading arrivals">
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="h-8 rounded animate-pulse bg-background dark:bg-dark-background"
-          style={{ width: `${70 + i * 8}%` }}
-        />
-      ))}
-    </div>
   );
 }
 

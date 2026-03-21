@@ -17,12 +17,12 @@ import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
 import { useCallback, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { EmptyFavorites } from "../components/common/EmptyState";
 import { CommuteCard } from "../components/commute/CommuteCard";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
-import { EmptyFavorites } from "../components/common/EmptyState";
 import { useFavorites } from "../hooks/useFavorites";
 import { useFavoritesStore, useSettingsStore } from "../stores";
 

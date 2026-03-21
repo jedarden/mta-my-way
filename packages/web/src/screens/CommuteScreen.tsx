@@ -309,4 +309,3 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
     </Screen>
   );
 }
-
