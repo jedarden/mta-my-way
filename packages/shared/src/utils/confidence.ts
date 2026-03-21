@@ -3,9 +3,9 @@
  * Based on MTA division and train assignment status
  */
 
+import { isADivision, isBDivision } from "../constants/lines.js";
 import type { ConfidenceLevel } from "../types/arrivals.js";
 import type { Division } from "../types/stations.js";
-import { isADivision, isBDivision } from "../constants/lines.js";
 
 /**
  * Calculate confidence level based on division and assignment status
@@ -18,10 +18,7 @@ import { isADivision, isBDivision } from "../constants/lines.js";
  * @param isAssigned - Whether a train is physically assigned to the trip
  * @returns Confidence level: "high", "medium", or "low"
  */
-export function calculateConfidence(
-  lineId: string,
-  isAssigned: boolean
-): ConfidenceLevel {
+export function calculateConfidence(lineId: string, isAssigned: boolean): ConfidenceLevel {
   const isADiv = isADivision(lineId);
   const isLLine = lineId === "L"; // L has CBTC, best accuracy
 
@@ -57,10 +54,7 @@ export function calculateConfidenceWithReroute(
 /**
  * Get a human-readable description of confidence level
  */
-export function getConfidenceDescription(
-  confidence: ConfidenceLevel,
-  lineId?: string
-): string {
+export function getConfidenceDescription(confidence: ConfidenceLevel, lineId?: string): string {
   const lineInfo = lineId ? ` for the ${lineId} train` : "";
 
   switch (confidence) {
@@ -118,9 +112,7 @@ export function getConfidenceStyleClass(confidence: ConfidenceLevel): string {
  * Calculate the overall confidence for a multi-leg journey
  * Takes the lowest confidence of any leg
  */
-export function calculateJourneyConfidence(
-  legConfidences: ConfidenceLevel[]
-): ConfidenceLevel {
+export function calculateJourneyConfidence(legConfidences: ConfidenceLevel[]): ConfidenceLevel {
   if (legConfidences.length === 0) {
     return "low";
   }

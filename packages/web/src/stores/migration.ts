@@ -36,7 +36,13 @@ function logMigrationError(
 
   // Send to Sentry if available
   if (typeof window !== "undefined" && "Sentry" in window) {
-    const Sentry = (window as unknown as { Sentry: { captureException: (e: unknown, context?: { extra: Record<string, unknown> }) => void } }).Sentry;
+    const Sentry = (
+      window as unknown as {
+        Sentry: {
+          captureException: (e: unknown, context?: { extra: Record<string, unknown> }) => void;
+        };
+      }
+    ).Sentry;
     Sentry.captureException(new Error(`Migration failed for ${storeName}`), { extra: errorInfo });
   }
 }
@@ -44,11 +50,7 @@ function logMigrationError(
 /**
  * Backup current persisted state before migration.
  */
-export function backupState<T>(
-  storeName: string,
-  version: number,
-  state: T
-): void {
+export function backupState<T>(storeName: string, version: number, state: T): void {
   try {
     const backupKey = getBackupKey(storeName, version);
     localStorage.setItem(backupKey, JSON.stringify(state));
@@ -61,10 +63,7 @@ export function backupState<T>(
 /**
  * Restore state from backup.
  */
-export function restoreFromBackup<T>(
-  storeName: string,
-  version: number
-): T | null {
+export function restoreFromBackup<T>(storeName: string, version: number): T | null {
   try {
     const backupKey = getBackupKey(storeName, version);
     const backup = localStorage.getItem(backupKey);

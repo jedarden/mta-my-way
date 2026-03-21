@@ -9,18 +9,18 @@
  * - MTA_API_KEY env var forwarded in x-api-key header if set
  */
 
-import { SUBWAY_FEEDS, POLLING_INTERVALS, type FeedConfig } from "@mta-my-way/shared";
+import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS } from "@mta-my-way/shared";
 import type { StationIndex } from "@mta-my-way/shared";
-import { parseFeed } from "./parser.js";
-import { buildStopToStationMap, transformFeeds } from "./transformer.js";
 import {
-  isCircuitOpen,
-  recordFeedSuccess,
-  recordFeedFailure,
-  getAllParsedFeeds,
   getAllFeedAges,
+  getAllParsedFeeds,
+  isCircuitOpen,
+  recordFeedFailure,
+  recordFeedSuccess,
   updateArrivals,
 } from "./cache.js";
+import { parseFeed } from "./parser.js";
+import { buildStopToStationMap, transformFeeds } from "./transformer.js";
 
 const POLL_INTERVAL_MS = POLLING_INTERVALS.arrivals * 1000; // 30 000 ms
 const FETCH_TIMEOUT_MS = 15_000; // 15s per feed
@@ -60,9 +60,7 @@ async function runPoll(): Promise<void> {
   const cycleStart = Date.now();
 
   // Fetch all feeds in parallel; never let one failure abort the others
-  const results = await Promise.allSettled(
-    SUBWAY_FEEDS.map((feed) => fetchFeed(feed))
-  );
+  const results = await Promise.allSettled(SUBWAY_FEEDS.map((feed) => fetchFeed(feed)));
 
   let feedsOk = 0;
   let feedsFailed = 0;

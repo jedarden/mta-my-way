@@ -13,19 +13,13 @@
  * Provides a manual `refresh()` that optionally triggers haptic feedback.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
 import type { StationArrivals } from "@mta-my-way/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useArrivalsStore } from "../stores/arrivalsStore";
 import { useSettingsStore } from "../stores/settingsStore";
 
-export type DataStatus =
-  | "idle"
-  | "loading"
-  | "success"
-  | "stale"
-  | "error"
-  | "offline";
+export type DataStatus = "idle" | "loading" | "success" | "stale" | "error" | "offline";
 
 export interface ArrivalsState {
   status: DataStatus;
@@ -91,13 +85,7 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
         });
       }
     },
-    [
-      stationId,
-      hapticFeedback,
-      getStaleArrivals,
-      setCachedArrivals,
-      setLastFetch,
-    ]
+    [stationId, hapticFeedback, getStaleArrivals, setCachedArrivals, setLastFetch]
   );
 
   useEffect(() => {
@@ -120,9 +108,16 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
     }
 
     // Auto-refresh on interval
-    const interval = setInterval(() => { void fetchArrivals(); }, refreshInterval * 1000);
+    const interval = setInterval(() => {
+      void fetchArrivals();
+    }, refreshInterval * 1000);
     return () => clearInterval(interval);
   }, [stationId, refreshInterval]);
 
-  return { ...state, refresh: () => { void fetchArrivals(true); } };
+  return {
+    ...state,
+    refresh: () => {
+      void fetchArrivals(true);
+    },
+  };
 }

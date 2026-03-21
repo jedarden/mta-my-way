@@ -115,12 +115,7 @@ export function findNearbyStations(
  * @returns Whether coordinates are in NYC area
  */
 export function isInNYCArea(lat: number, lon: number): boolean {
-  return (
-    lat >= 40.49 &&
-    lat <= 40.92 &&
-    lon >= -74.26 &&
-    lon <= -73.70
-  );
+  return lat >= 40.49 && lat <= 40.92 && lon >= -74.26 && lon <= -73.7;
 }
 
 /**

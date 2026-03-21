@@ -4,10 +4,7 @@
  */
 
 /** Vehicle status from GTFS-RT */
-export type VehicleStatus =
-  | "INCOMING_AT"
-  | "STOPPED_AT"
-  | "IN_TRANSIT_TO";
+export type VehicleStatus = "INCOMING_AT" | "STOPPED_AT" | "IN_TRANSIT_TO";
 
 /**
  * Position of a single train on a line

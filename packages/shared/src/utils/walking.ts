@@ -31,21 +31,13 @@ function toRadians(degrees: number): number {
  * @param lon2 - Longitude of second point
  * @returns Distance in kilometers
  */
-export function haversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const dLat = toRadians(lat2 - lat1);
   const dLon = toRadians(lon2 - lon1);
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -62,12 +54,7 @@ export function haversineDistance(
  * @param lon2 - Longitude of second point
  * @returns Walking time in minutes
  */
-export function walkingTime(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+export function walkingTime(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const distance = haversineDistance(lat1, lon1, lat2, lon2);
   const hours = distance / WALKING_SPEED_KMH;
   return Math.ceil(hours * 60);
@@ -109,12 +96,7 @@ export function walkingDistanceBetweenStations(
   station1: StationWithCoords,
   station2: StationWithCoords
 ): number {
-  return haversineDistance(
-    station1.lat,
-    station1.lon,
-    station2.lat,
-    station2.lon
-  );
+  return haversineDistance(station1.lat, station1.lon, station2.lat, station2.lon);
 }
 
 /**
@@ -125,10 +107,7 @@ export function walkingDistanceBetweenStations(
  * @param stopCount - Number of stops between origin and destination
  * @returns Whether walking should be suggested
  */
-export function isWalkingViable(
-  walkingMinutes: number,
-  stopCount: number
-): boolean {
+export function isWalkingViable(walkingMinutes: number, stopCount: number): boolean {
   return walkingMinutes < 20 && stopCount <= 3;
 }
 

@@ -4,12 +4,7 @@
  */
 
 /** NYC borough identifier */
-export type Borough =
-  | "manhattan"
-  | "brooklyn"
-  | "queens"
-  | "bronx"
-  | "statenisland";
+export type Borough = "manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland";
 
 /** MTA division (A = numbered lines, B = lettered lines) */
 export type Division = "A" | "B";

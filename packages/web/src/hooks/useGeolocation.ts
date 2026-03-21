@@ -8,7 +8,7 @@
  * - Function to request permission
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type GeolocationPermissionState = "prompt" | "granted" | "denied" | "unavailable";
 

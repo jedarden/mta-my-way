@@ -62,17 +62,28 @@ for (const entity of feed.entity) {
   const trip = entity.tripUpdate.trip;
   console.log(`\n=== Sample Trip ${++shown} ===`);
   console.log("Route:", trip.routeId, "| Trip:", trip.tripId);
-  console.log("Train ID:", nyctTrip.trainId, "| Assigned:", nyctTrip.isAssigned, "| Dir:", nyctTrip.direction);
+  console.log(
+    "Train ID:",
+    nyctTrip.trainId,
+    "| Assigned:",
+    nyctTrip.isAssigned,
+    "| Dir:",
+    nyctTrip.direction
+  );
 
   for (const stu of entity.tripUpdate.stopTimeUpdate) {
     const nyctStu = stu[NYCT_STU_KEY];
     if (nyctStu?.scheduledTrack || nyctStu?.actualTrack) {
-      console.log(`  Stop ${stu.stopId}: scheduled=${nyctStu.scheduledTrack}, actual=${nyctStu.actualTrack}`);
+      console.log(
+        `  Stop ${stu.stopId}: scheduled=${nyctStu.scheduledTrack}, actual=${nyctStu.actualTrack}`
+      );
       break;
     }
   }
 }
 
 const ok = feed.entity.length > 0 && tripUpdates > 0 && feed.header.gtfsRealtimeVersion === "1.0";
-console.log(`\n${ok ? "PASS" : "FAIL"}: ${feed.entity.length} entities, ${nyctTrips} NYCT trips, ${nyctTracks} track updates`);
+console.log(
+  `\n${ok ? "PASS" : "FAIL"}: ${feed.entity.length} entities, ${nyctTrips} NYCT trips, ${nyctTracks} track updates`
+);
 process.exit(ok ? 0 : 1);

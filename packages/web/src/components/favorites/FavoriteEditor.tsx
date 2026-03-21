@@ -11,8 +11,8 @@
  * Falls back to favorite.lines if the station can't be loaded.
  */
 
-import { useState, useEffect, useCallback } from "react";
-import type { Favorite, DirectionPreference } from "@mta-my-way/shared";
+import type { DirectionPreference, Favorite } from "@mta-my-way/shared";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { LineBullet } from "../arrivals/LineBullet";
 
@@ -23,19 +23,10 @@ interface FavoriteEditorProps {
   onClose: () => void;
 }
 
-export function FavoriteEditor({
-  favorite,
-  onSave,
-  onDelete,
-  onClose,
-}: FavoriteEditorProps) {
+export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: FavoriteEditorProps) {
   const [label, setLabel] = useState(favorite.label ?? "");
-  const [selectedLines, setSelectedLines] = useState<Set<string>>(
-    new Set(favorite.lines)
-  );
-  const [direction, setDirection] = useState<DirectionPreference>(
-    favorite.direction
-  );
+  const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set(favorite.lines));
+  const [direction, setDirection] = useState<DirectionPreference>(favorite.direction);
   const [allLines, setAllLines] = useState<string[]>(favorite.lines);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -85,11 +76,7 @@ export function FavoriteEditor({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/50"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} aria-hidden="true" />
 
       {/* Bottom sheet */}
       <div
@@ -165,10 +152,7 @@ export function FavoriteEditor({
                     key={line}
                     type="button"
                     onClick={() => toggleLine(line)}
-                    className={[
-                      "relative transition-all",
-                      !selected ? "opacity-40 scale-90" : "",
-                    ]
+                    className={["relative transition-all", !selected ? "opacity-40 scale-90" : ""]
                       .filter(Boolean)
                       .join(" ")}
                     aria-pressed={selected}
@@ -180,12 +164,7 @@ export function FavoriteEditor({
                         className="absolute -top-1 -right-1 w-4 h-4 bg-background dark:bg-dark-background rounded-full flex items-center justify-center"
                         aria-hidden="true"
                       >
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 12 12"
-                          fill="none"
-                        >
+                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                           <path
                             d="M2 6l3 3 5-5"
                             stroke="#00933C"

@@ -817,12 +817,7 @@
     "textColor": "#FFFFFF",
     "feedId": "gtfs-ace",
     "division": "B",
-    "stops": [
-      "D26",
-      "S04",
-      "S03",
-      "S01"
-    ]
+    "stops": ["D26", "S04", "S03", "S01"]
   },
   "FX": {
     "id": "FX",
@@ -918,10 +913,7 @@
     "textColor": "#FFFFFF",
     "feedId": "gtfs",
     "division": "A",
-    "stops": [
-      "901",
-      "902"
-    ]
+    "stops": ["901", "902"]
   },
   "H": {
     "id": "H",
@@ -931,13 +923,7 @@
     "textColor": "#FFFFFF",
     "feedId": "gtfs-ace",
     "division": "B",
-    "stops": [
-      "H15",
-      "H14",
-      "H13",
-      "H12",
-      "H04"
-    ]
+    "stops": ["H15", "H14", "H13", "H12", "H04"]
   },
   "J": {
     "id": "J",

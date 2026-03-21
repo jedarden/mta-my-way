@@ -12,12 +12,18 @@
  *   GET /*                         — serve React PWA from packages/web/dist
  */
 
-import { Hono } from "hono";
-import { serveStatic } from "@hono/node-server/serve-static";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { CACHE_TTLS } from "@mta-my-way/shared";
-import type { StationIndex, RouteIndex, ComplexIndex, Station, StationComplex } from "@mta-my-way/shared";
+import type {
+  ComplexIndex,
+  RouteIndex,
+  Station,
+  StationComplex,
+  StationIndex,
+} from "@mta-my-way/shared";
+import { Hono } from "hono";
 import { getArrivals, getFeedStates } from "./cache.js";
 
 /** Cache header for static GTFS data */
@@ -27,20 +33,20 @@ const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-whi
  * Common abbreviation mappings for station search
  */
 const ABBREVIATIONS: Record<string, string> = {
-  "sq": "square",
-  "st": "street",
-  "ave": "avenue",
-  "av": "avenue",
-  "blvd": "boulevard",
-  "pkwy": "parkway",
-  "rd": "road",
-  "dr": "drive",
-  "ln": "lane",
-  "ct": "court",
-  "pl": "place",
-  "hwy": "highway",
-  "expwy": "expressway",
-  "bway": "broadway",
+  sq: "square",
+  st: "street",
+  ave: "avenue",
+  av: "avenue",
+  blvd: "boulevard",
+  pkwy: "parkway",
+  rd: "road",
+  dr: "drive",
+  ln: "lane",
+  ct: "court",
+  pl: "place",
+  hwy: "highway",
+  expwy: "expressway",
+  bway: "broadway",
   "'way": "way",
 };
 
@@ -69,7 +75,7 @@ function normalizeForSearch(str: string): string {
   return str
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, "") // Remove punctuation
-    .replace(/\s+/g, " ")        // Normalize whitespace
+    .replace(/\s+/g, " ") // Normalize whitespace
     .trim();
 }
 
@@ -77,20 +83,28 @@ function normalizeForSearch(str: string): string {
  * Check if a station matches a search query
  * Matches against: name, lines, and expanded abbreviations
  */
-function stationMatchesQuery(station: Station, normalizedQuery: string, originalQuery: string): boolean {
+function stationMatchesQuery(
+  station: Station,
+  normalizedQuery: string,
+  originalQuery: string
+): boolean {
   const normalizedName = normalizeForSearch(station.name);
   const expandedQuery = normalizeForSearch(expandAbbreviations(originalQuery));
   // Also expand on the normalized query to handle punctuation like B'way -> bway -> broadway
   const expandedNormalizedQuery = normalizeForSearch(expandAbbreviations(normalizedQuery));
 
   // Match against station name (original or expanded query)
-  if (normalizedName.includes(normalizedQuery) || normalizedName.includes(expandedQuery) || normalizedName.includes(expandedNormalizedQuery)) {
+  if (
+    normalizedName.includes(normalizedQuery) ||
+    normalizedName.includes(expandedQuery) ||
+    normalizedName.includes(expandedNormalizedQuery)
+  ) {
     return true;
   }
 
   // Match against lines (e.g., searching "1" or "A")
   const upperQuery = originalQuery.toUpperCase();
-  if (station.lines.some(line => line === upperQuery)) {
+  if (station.lines.some((line) => line === upperQuery)) {
     return true;
   }
 
@@ -113,7 +127,7 @@ function scoreSearchResult(station: Station, query: string): number {
   const upperQuery = query.toUpperCase();
 
   // Exact line match gets highest priority
-  if (station.lines.some(line => line === upperQuery)) {
+  if (station.lines.some((line) => line === upperQuery)) {
     return 1000;
   }
 
@@ -124,7 +138,7 @@ function scoreSearchResult(station: Station, query: string): number {
 
   // Name contains query as a word
   const words = normalizedName.split(/\s+/);
-  if (words.some(word => word.startsWith(normalizedQuery))) {
+  if (words.some((word) => word.startsWith(normalizedQuery))) {
     return 50;
   }
 
@@ -189,12 +203,8 @@ export function createApp(
               : f.isStale
                 ? "stale"
                 : "ok",
-        lastSuccessAt: f.lastSuccessAt
-          ? new Date(f.lastSuccessAt).toISOString()
-          : null,
-        lastPollAt: f.lastPollAt
-          ? new Date(f.lastPollAt).toISOString()
-          : null,
+        lastSuccessAt: f.lastSuccessAt ? new Date(f.lastSuccessAt).toISOString() : null,
+        lastPollAt: f.lastPollAt ? new Date(f.lastPollAt).toISOString() : null,
         consecutiveFailures: f.consecutiveFailures,
         entityCount: f.entityCount,
         lastError: f.lastErrorMessage,
@@ -237,8 +247,8 @@ export function createApp(
 
     // Filter and score matching stations
     const results = Object.values(stations)
-      .filter(station => stationMatchesQuery(station, normalizedQuery, trimmedQuery))
-      .map(station => ({
+      .filter((station) => stationMatchesQuery(station, normalizedQuery, trimmedQuery))
+      .map((station) => ({
         station,
         score: scoreSearchResult(station, trimmedQuery),
       }))
@@ -270,7 +280,7 @@ export function createApp(
     if (complex) {
       // Get all stations in this complex
       const complexStations = complex.stations
-        .map(sid => stations[sid])
+        .map((sid) => stations[sid])
         .filter((s): s is Station => s !== undefined);
 
       // Collect all unique lines across the complex
@@ -344,9 +354,7 @@ export function createApp(
   // SPA fallback: serve index.html for any non-API route that didn't match a
   // static file (so React Router can handle client-side routing)
   app.get("*", async (c) => {
-    const html = await readFile(join(webDistPath, "index.html"), "utf8").catch(
-      () => null
-    );
+    const html = await readFile(join(webDistPath, "index.html"), "utf8").catch(() => null);
     if (!html) return c.notFound();
     return c.html(html);
   });

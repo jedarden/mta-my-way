@@ -7,8 +7,8 @@
 
 import type { ArrivalTime } from "@mta-my-way/shared";
 import { formatMinutesAway } from "@mta-my-way/shared";
-import { LineBullet } from "./LineBullet";
 import { ConfidenceBar } from "./ConfidenceBar";
+import { LineBullet } from "./LineBullet";
 
 interface ArrivalRowProps {
   /** Arrival data */
@@ -80,9 +80,7 @@ export function ArrivalRow({
           {destination}
         </p>
         {!isAssigned && (
-          <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-            Scheduled
-          </p>
+          <p className="text-13 text-text-secondary dark:text-dark-text-secondary">Scheduled</p>
         )}
       </div>
 

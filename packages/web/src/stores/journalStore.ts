@@ -1,3 +1,4 @@
+import type { CommuteStats, TripRecord } from "@mta-my-way/shared";
 /**
  * journalStore — Phase 5 skeleton
  *
@@ -7,9 +8,8 @@
  * Persisted key: "mta-journal"
  */
 import { create } from "zustand";
-import { persist, createJSONStorage, type PersistOptions } from "zustand/middleware";
+import { type PersistOptions, createJSONStorage, persist } from "zustand/middleware";
 import { createSafeMigration, setMigrationFailed } from "./migration";
-import type { TripRecord, CommuteStats } from "@mta-my-way/shared";
 
 interface JournalState {
   /**

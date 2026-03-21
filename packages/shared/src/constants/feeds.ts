@@ -7,7 +7,8 @@
 export const MTA_FEED_BASE_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct";
 
 /** Base URL for MTA alerts feed */
-export const MTA_ALERTS_FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys/subway-alerts";
+export const MTA_ALERTS_FEED_URL =
+  "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys/subway-alerts";
 
 /** Base URL for GTFS static data */
 export const GTFS_STATIC_BASE_URL = "https://rrgtfsfeeds.s3.amazonaws.com";

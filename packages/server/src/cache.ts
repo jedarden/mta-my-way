@@ -93,11 +93,7 @@ export function isCircuitOpen(feedId: string): boolean {
 // Feed state mutations
 // ---------------------------------------------------------------------------
 
-export function recordFeedSuccess(
-  feedId: string,
-  parsed: ParsedFeed,
-  entityCount: number
-): void {
+export function recordFeedSuccess(feedId: string, parsed: ParsedFeed, entityCount: number): void {
   const state = feedStates.get(feedId);
   if (!state) return;
   const now = Date.now();
@@ -116,10 +112,7 @@ export function recordFeedFailure(feedId: string, error: string): void {
   state.lastPollAt = Date.now();
   state.consecutiveFailures++;
   state.lastErrorMessage = error;
-  if (
-    state.consecutiveFailures >= CIRCUIT_OPEN_AFTER &&
-    state.circuitOpenAt === null
-  ) {
+  if (state.consecutiveFailures >= CIRCUIT_OPEN_AFTER && state.circuitOpenAt === null) {
     state.circuitOpenAt = Date.now();
   }
 }
@@ -164,9 +157,7 @@ export function getFeedStates(): (FeedState & { isStale: boolean })[] {
   const now = Date.now();
   return Array.from(feedStates.values()).map((state) => ({
     ...state,
-    isStale:
-      state.lastSuccessAt !== null &&
-      now - state.lastSuccessAt > STALE_MS,
+    isStale: state.lastSuccessAt !== null && now - state.lastSuccessAt > STALE_MS,
   }));
 }
 

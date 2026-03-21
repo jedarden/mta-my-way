@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import Header from "./Header";
 import BottomNav from "./BottomNav";
+import Header from "./Header";
 
 interface ScreenProps {
   children: ReactNode;

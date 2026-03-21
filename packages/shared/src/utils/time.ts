@@ -167,10 +167,7 @@ export function isRecent(timestamp: number, maxAgeSeconds: number): boolean {
 /**
  * Check if data is stale (older than threshold)
  */
-export function isStale(
-  timestamp: number,
-  staleThresholdSeconds: number
-): boolean {
+export function isStale(timestamp: number, staleThresholdSeconds: number): boolean {
   const ageSeconds = (Date.now() - timestamp) / 1000;
   return ageSeconds > staleThresholdSeconds;
 }

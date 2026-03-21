@@ -18,9 +18,7 @@ export default function Header() {
       role="banner"
     >
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">
-          {title}
-        </h1>
+        <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">{title}</h1>
         <div className="flex items-center gap-2">
           {/* Alert badge - will be populated from store */}
           <button

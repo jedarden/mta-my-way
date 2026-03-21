@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage, type PersistOptions } from "zustand/middleware";
+import { type PersistOptions, createJSONStorage, persist } from "zustand/middleware";
 import { createSafeMigration, setMigrationFailed } from "./migration";
 
 interface QuietHours {

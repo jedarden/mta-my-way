@@ -11,9 +11,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
+import Screen from "../components/layout/Screen";
 import { SearchResults } from "../components/search/SearchResults";
 import { StationSearch } from "../components/search/StationSearch";
-import Screen from "../components/layout/Screen";
 import { useStationIndex } from "../hooks/useStationIndex";
 import { searchStations } from "../lib/stationSearch";
 
@@ -66,22 +66,22 @@ export default function SearchScreen() {
       <div className="px-4 pt-2 pb-4">
         <StationSearch value={query} onChange={setQuery} autoFocus />
 
-      <div className="mt-4">
-        {error && !hasQuery && (
-          <p className="text-13 text-text-secondary dark:text-dark-text-secondary text-center py-4">
-            Could not load station data. Check your connection and try again.
-          </p>
-        )}
+        <div className="mt-4">
+          {error && !hasQuery && (
+            <p className="text-13 text-text-secondary dark:text-dark-text-secondary text-center py-4">
+              Could not load station data. Check your connection and try again.
+            </p>
+          )}
 
-        {hasQuery ? (
-          <SearchResults
-            results={results}
-            query={query}
-            loading={loading && stations.length === 0}
-          />
-        ) : (
-          <PopularStations />
-        )}
+          {hasQuery ? (
+            <SearchResults
+              results={results}
+              query={query}
+              loading={loading && stations.length === 0}
+            />
+          ) : (
+            <PopularStations />
+          )}
         </div>
       </div>
     </Screen>

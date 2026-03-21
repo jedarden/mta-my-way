@@ -78,9 +78,7 @@ export interface CarbonSavingsSummary {
  * @param totalDistanceKm - Total distance traveled by subway in km
  * @returns Complete carbon savings summary
  */
-export function calculateCarbonSavingsSummary(
-  totalDistanceKm: number
-): CarbonSavingsSummary {
+export function calculateCarbonSavingsSummary(totalDistanceKm: number): CarbonSavingsSummary {
   const totalDistanceMiles = kmToMiles(totalDistanceKm);
   const savingsGrams = calculateCO2SavingsGrams(totalDistanceKm);
   const savingsKg = savingsGrams / 1000;
@@ -142,7 +140,7 @@ export function getEnvironmentalEquivalents(savingsKg: number): {
   const trees = Math.round(savingsKg / 21);
 
   // Car miles: 404g per mile
-  const carMiles = Math.round(savingsKg * 1000 / CAR_EMISSIONS_GRAMS_PER_MILE);
+  const carMiles = Math.round((savingsKg * 1000) / CAR_EMISSIONS_GRAMS_PER_MILE);
 
   // Flights: NYC to LA ~700kg CO2 per passenger
   const flights = (savingsKg / 700).toFixed(1);

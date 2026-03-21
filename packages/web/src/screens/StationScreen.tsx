@@ -9,17 +9,17 @@
  * - Links to related station complexes (multi-complex stations like Times Square)
  */
 
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
 import { formatTimeAgo } from "@mta-my-way/shared";
-import { api, type Station } from "../lib/api";
-import { useArrivals } from "../hooks/useArrivals";
-import { useFavorites } from "../hooks/useFavorites";
+import type { Favorite } from "@mta-my-way/shared";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import BottomNav from "../components/layout/BottomNav";
-import type { Favorite } from "@mta-my-way/shared";
+import { useArrivals } from "../hooks/useArrivals";
+import { useFavorites } from "../hooks/useFavorites";
+import { type Station, api } from "../lib/api";
 
 export default function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
@@ -33,15 +33,11 @@ export default function StationScreen() {
     if (!stationId) return;
     setStationError(null);
     api.getStation(stationId).then(setStation, (err) => {
-      setStationError(
-        err instanceof Error ? err.message : "Failed to load station"
-      );
+      setStationError(err instanceof Error ? err.message : "Failed to load station");
     });
   }, [stationId]);
 
-  const { data: arrivals, status, refresh, updatedAt } = useArrivals(
-    stationId ?? null
-  );
+  const { data: arrivals, status, refresh, updatedAt } = useArrivals(stationId ?? null);
 
   // "Updated X ago" display
   const [timeAgoText, setTimeAgoText] = useState("just now");
@@ -57,9 +53,7 @@ export default function StationScreen() {
   }, [updatedAt]);
 
   // Favorites management
-  const existingFavorite = stationId
-    ? favorites.find((f) => f.stationId === stationId)
-    : undefined;
+  const existingFavorite = stationId ? favorites.find((f) => f.stationId === stationId) : undefined;
   const [editingFavorite, setEditingFavorite] = useState<Favorite | null>(null);
 
   const handleAddFavorite = () => {
@@ -86,9 +80,7 @@ export default function StationScreen() {
 
   // Derive error state for arrivals
   const arrivalsError =
-    status === "error" || status === "offline"
-      ? "Could not load arrivals"
-      : null;
+    status === "error" || status === "offline" ? "Could not load arrivals" : null;
 
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
@@ -148,9 +140,7 @@ export default function StationScreen() {
 
       <main className="flex-1 overflow-y-auto pb-14 p-4" role="main">
         {/* Station error */}
-        {stationError ? (
-          <p className="text-severe font-medium mb-4">{stationError}</p>
-        ) : null}
+        {stationError ? <p className="text-severe font-medium mb-4">{stationError}</p> : null}
 
         {/* Line bullets */}
         {!stationError && stationLines.length > 0 && (
@@ -161,99 +151,94 @@ export default function StationScreen() {
           </div>
         )}
 
-      {/* Arrivals section */}
-      <section aria-labelledby="arrivals-heading" className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2
-            id="arrivals-heading"
-            className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
-          >
-            Arrivals
-          </h2>
-          <button
-            type="button"
-            onClick={refresh}
-            className="text-13 text-mta-primary min-h-touch px-2 flex items-center gap-1"
-            aria-label="Refresh arrivals"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={status === "stale" || status === "loading" ? "animate-spin" : ""}
-              aria-hidden="true"
+        {/* Arrivals section */}
+        <section aria-labelledby="arrivals-heading" className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2
+              id="arrivals-heading"
+              className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
             >
-              <polyline points="23 4 23 10 17 10" />
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-            </svg>
-            Refresh
-          </button>
-        </div>
-
-        {/* Loading state (first load) */}
-        {(status === "loading" || status === "idle") && !arrivals && (
-          <ArrivalsSkeleton />
-        )}
-
-        {/* Error with no data */}
-        {arrivalsError && !arrivals && (
-          <div className="bg-surface dark:bg-dark-surface rounded-lg p-4 text-center">
-            <p className="text-text-secondary dark:text-dark-text-secondary mb-3">
-              {arrivalsError}
-            </p>
+              Arrivals
+            </h2>
             <button
               type="button"
               onClick={refresh}
-              className="px-4 py-2 bg-mta-primary text-white rounded font-medium text-13 min-h-touch"
+              className="text-13 text-mta-primary min-h-touch px-2 flex items-center gap-1"
+              aria-label="Refresh arrivals"
             >
-              Try again
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={status === "stale" || status === "loading" ? "animate-spin" : ""}
+                aria-hidden="true"
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+              Refresh
             </button>
           </div>
-        )}
 
-        {/* Offline banner with stale data */}
-        {status === "offline" && arrivals && (
-          <div className="mb-3 px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg text-13 text-text-secondary dark:text-dark-text-secondary">
-            Offline — showing last known data
-          </div>
-        )}
+          {/* Loading state (first load) */}
+          {(status === "loading" || status === "idle") && !arrivals && <ArrivalsSkeleton />}
 
-        {/* Error banner with stale data */}
-        {status === "error" && arrivals && (
-          <div className="mb-3 flex items-center justify-between px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg">
-            <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
-              Could not refresh
-            </span>
-            <button
-              type="button"
-              onClick={refresh}
-              className="text-13 text-mta-primary font-medium min-h-touch px-2"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+          {/* Error with no data */}
+          {arrivalsError && !arrivals && (
+            <div className="bg-surface dark:bg-dark-surface rounded-lg p-4 text-center">
+              <p className="text-text-secondary dark:text-dark-text-secondary mb-3">
+                {arrivalsError}
+              </p>
+              <button
+                type="button"
+                onClick={refresh}
+                className="px-4 py-2 bg-mta-primary text-white rounded font-medium text-13 min-h-touch"
+              >
+                Try again
+              </button>
+            </div>
+          )}
 
-        {/* Actual arrivals */}
-        {arrivals && (
-          <ArrivalList
-            northbound={arrivals.northbound}
-            southbound={arrivals.southbound}
-          />
-        )}
-      </section>
+          {/* Offline banner with stale data */}
+          {status === "offline" && arrivals && (
+            <div className="mb-3 px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg text-13 text-text-secondary dark:text-dark-text-secondary">
+              Offline — showing last known data
+            </div>
+          )}
 
-      {/* Footer: freshness */}
-      {updatedAt && (
-        <p className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary">
-          Updated {timeAgoText}
-        </p>
-      )}
+          {/* Error banner with stale data */}
+          {status === "error" && arrivals && (
+            <div className="mb-3 flex items-center justify-between px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg">
+              <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                Could not refresh
+              </span>
+              <button
+                type="button"
+                onClick={refresh}
+                className="text-13 text-mta-primary font-medium min-h-touch px-2"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Actual arrivals */}
+          {arrivals && (
+            <ArrivalList northbound={arrivals.northbound} southbound={arrivals.southbound} />
+          )}
+        </section>
+
+        {/* Footer: freshness */}
+        {updatedAt && (
+          <p className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary">
+            Updated {timeAgoText}
+          </p>
+        )}
       </main>
 
       <BottomNav />

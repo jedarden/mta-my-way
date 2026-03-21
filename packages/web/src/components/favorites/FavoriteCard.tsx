@@ -7,13 +7,13 @@
  * Tapping navigates to the full StationScreen; edit button opens FavoriteEditor.
  */
 
-import { useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import type { Favorite } from "@mta-my-way/shared";
-import { useFavoritesStore } from "../../stores/favoritesStore";
+import { useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useArrivals } from "../../hooks/useArrivals";
-import { LineBullet } from "../arrivals/LineBullet";
+import { useFavoritesStore } from "../../stores/favoritesStore";
 import { ArrivalRow } from "../arrivals/ArrivalRow";
+import { LineBullet } from "../arrivals/LineBullet";
 
 interface FavoriteCardProps {
   favorite: Favorite;
@@ -23,11 +23,7 @@ interface FavoriteCardProps {
   onEdit: (favorite: Favorite) => void;
 }
 
-export function FavoriteCard({
-  favorite,
-  forceRefreshId,
-  onEdit,
-}: FavoriteCardProps) {
+export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardProps) {
   const navigate = useNavigate();
   const recordTap = useFavoritesStore((s) => s.recordTap);
   const { data, status, refresh } = useArrivals(favorite.stationId);
@@ -45,20 +41,12 @@ export function FavoriteCard({
   const arrivals = useMemo(() => {
     if (!data) return [];
     const all = [
-      ...(favorite.direction === "both" || favorite.direction === "N"
-        ? data.northbound
-        : []),
-      ...(favorite.direction === "both" || favorite.direction === "S"
-        ? data.southbound
-        : []),
+      ...(favorite.direction === "both" || favorite.direction === "N" ? data.northbound : []),
+      ...(favorite.direction === "both" || favorite.direction === "S" ? data.southbound : []),
     ];
     const filtered =
-      favorite.lines.length > 0
-        ? all.filter((a) => favorite.lines.includes(a.line))
-        : all;
-    return filtered
-      .sort((a, b) => a.minutesAway - b.minutesAway)
-      .slice(0, 3);
+      favorite.lines.length > 0 ? all.filter((a) => favorite.lines.includes(a.line)) : all;
+    return filtered.sort((a, b) => a.minutesAway - b.minutesAway).slice(0, 3);
   }, [data, favorite]);
 
   const handleCardTap = () => {

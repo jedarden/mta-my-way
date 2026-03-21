@@ -24,12 +24,7 @@ const sizeClasses = {
   lg: "w-10 h-10 text-lg min-w-touch min-h-touch", // 40px visible
 };
 
-export function LineBullet({
-  line,
-  onClick,
-  className = "",
-  size = "md",
-}: LineBulletProps) {
+export function LineBullet({ line, onClick, className = "", size = "md" }: LineBulletProps) {
   const bgColor = getLineColor(line);
   const textColor = getLineTextColor(line);
 

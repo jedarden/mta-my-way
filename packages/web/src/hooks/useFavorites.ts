@@ -5,8 +5,8 @@
  * Also exposes recordTap for Phase 5 context-aware sorting.
  */
 
-import { useFavoritesStore } from "../stores/favoritesStore";
 import type { Favorite } from "@mta-my-way/shared";
+import { useFavoritesStore } from "../stores/favoritesStore";
 
 export type { Favorite };
 

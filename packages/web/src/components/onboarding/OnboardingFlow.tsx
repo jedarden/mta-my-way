@@ -10,15 +10,15 @@
  * not a separate "suggested" state.
  */
 
-import { useState, useCallback, useEffect } from "react";
-import { useFavoritesStore } from "../../stores";
+import { getLineColor, getLineTextColor } from "@mta-my-way/shared";
+import { useCallback, useEffect, useState } from "react";
 import { useGeolocation } from "../../hooks/useGeolocation";
 import { useStationIndex } from "../../hooks/useStationIndex";
-import { findNearbyStations, isInNYCArea, formatDistance } from "../../lib/nearbyStations";
-import { getLineColor, getLineTextColor } from "@mta-my-way/shared";
-import { StationSearch } from "../search/StationSearch";
-import type { NearbyStation } from "../../lib/nearbyStations";
 import type { Station } from "../../lib/api";
+import { findNearbyStations, formatDistance, isInNYCArea } from "../../lib/nearbyStations";
+import type { NearbyStation } from "../../lib/nearbyStations";
+import { useFavoritesStore } from "../../stores";
+import { StationSearch } from "../search/StationSearch";
 
 type OnboardingStep = "location" | "nearby" | "commute" | "search-fallback";
 
@@ -35,13 +35,20 @@ export default function OnboardingFlow() {
   const [commuteName, setCommuteName] = useState("Work");
 
   const { addFavorite, addCommute, completeOnboarding } = useFavoritesStore();
-  const { coordinates, permission, loading: geoLoading, error: geoError, requestLocation } = useGeolocation();
+  const {
+    coordinates,
+    permission,
+    loading: geoLoading,
+    error: geoError,
+    requestLocation,
+  } = useGeolocation();
   const { stations, complexes, loading: stationsLoading } = useStationIndex();
 
   // When we get coordinates, find nearby stations
-  const nearbyStations: NearbyStation[] = coordinates && !stationsLoading
-    ? findNearbyStations(coordinates.lat, coordinates.lon, stations, complexes)
-    : [];
+  const nearbyStations: NearbyStation[] =
+    coordinates && !stationsLoading
+      ? findNearbyStations(coordinates.lat, coordinates.lon, stations, complexes)
+      : [];
 
   // If user is not in NYC area, fall back to search
   const userInNYC = coordinates ? isInNYCArea(coordinates.lat, coordinates.lon) : true;
@@ -82,19 +89,29 @@ export default function OnboardingFlow() {
     setStep("search-fallback");
   }, []);
 
-  const toggleStation = useCallback((stationId: string) => {
-    setSelectedStations((prev) => {
-      const exists = prev.find((s) => s.stationId === stationId);
-      if (exists) {
-        return prev.filter((s) => s.stationId !== stationId);
-      }
-      const station = nearbyStations.find((s) => s.stationId === stationId);
-      if (station) {
-        return [...prev, { stationId: station.stationId, stationName: station.stationName, lines: station.lines }];
-      }
-      return prev;
-    });
-  }, [nearbyStations]);
+  const toggleStation = useCallback(
+    (stationId: string) => {
+      setSelectedStations((prev) => {
+        const exists = prev.find((s) => s.stationId === stationId);
+        if (exists) {
+          return prev.filter((s) => s.stationId !== stationId);
+        }
+        const station = nearbyStations.find((s) => s.stationId === stationId);
+        if (station) {
+          return [
+            ...prev,
+            {
+              stationId: station.stationId,
+              stationName: station.stationName,
+              lines: station.lines,
+            },
+          ];
+        }
+        return prev;
+      });
+    },
+    [nearbyStations]
+  );
 
   const handleNearbyContinue = useCallback(() => {
     // Add selected stations as favorites
@@ -129,17 +146,20 @@ export default function OnboardingFlow() {
     completeOnboarding();
   }, [commuteDestination, selectedStations, commuteName, addCommute, completeOnboarding]);
 
-  const handleSearchFallbackSelect = useCallback((station: Station) => {
-    addFavorite({
-      stationId: station.id,
-      stationName: station.name,
-      lines: station.lines,
-      direction: "both",
-      label: undefined,
-    });
-    setCommuteDestination(station);
-    setStep("commute");
-  }, [addFavorite]);
+  const handleSearchFallbackSelect = useCallback(
+    (station: Station) => {
+      addFavorite({
+        stationId: station.id,
+        stationName: station.name,
+        lines: station.lines,
+        direction: "both",
+        label: undefined,
+      });
+      setCommuteDestination(station);
+      setStep("commute");
+    },
+    [addFavorite]
+  );
 
   const handleSearchFallbackSkip = useCallback(() => {
     completeOnboarding();
@@ -173,10 +193,7 @@ export default function OnboardingFlow() {
 
   if (step === "search-fallback") {
     return (
-      <SearchFallbackStep
-        onSelect={handleSearchFallbackSelect}
-        onSkip={handleSearchFallbackSkip}
-      />
+      <SearchFallbackStep onSelect={handleSearchFallbackSelect} onSkip={handleSearchFallbackSkip} />
     );
   }
 
@@ -237,11 +254,7 @@ function LocationStep({ permission, loading, error, onAllow, onDeny, onSkip }: L
         We'll find the 3 closest subway stations to get you started in under 60 seconds.
       </p>
 
-      {error && (
-        <p className="text-red-500 text-sm mb-4 max-w-xs">
-          {error}
-        </p>
-      )}
+      {error && <p className="text-red-500 text-sm mb-4 max-w-xs">{error}</p>}
 
       {isDenied ? (
         <>
@@ -293,7 +306,13 @@ interface NearbyStationsStepProps {
   onSkip: () => void;
 }
 
-function NearbyStationsStep({ stations, selected, onToggle, onContinue, onSkip }: NearbyStationsStepProps) {
+function NearbyStationsStep({
+  stations,
+  selected,
+  onToggle,
+  onContinue,
+  onSkip,
+}: NearbyStationsStepProps) {
   const selectedSet = new Set(selected.map((s) => s.stationId));
 
   return (
@@ -324,8 +343,11 @@ function NearbyStationsStep({ stations, selected, onToggle, onContinue, onSkip }
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold truncate">{station.stationName}</div>
-                  <div className={`text-sm ${isSelected ? "text-white/80" : "text-text-secondary dark:text-dark-text-secondary"}`}>
-                    {station.borough} • {formatDistance(station.distanceKm)} • {station.walkingMinutes} min walk
+                  <div
+                    className={`text-sm ${isSelected ? "text-white/80" : "text-text-secondary dark:text-dark-text-secondary"}`}
+                  >
+                    {station.borough} • {formatDistance(station.distanceKm)} •{" "}
+                    {station.walkingMinutes} min walk
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1 justify-end">
@@ -342,7 +364,9 @@ function NearbyStationsStep({ stations, selected, onToggle, onContinue, onSkip }
                     </span>
                   ))}
                   {station.lines.length > 5 && (
-                    <span className={`text-xs ${isSelected ? "text-white/80" : "text-text-secondary"}`}>
+                    <span
+                      className={`text-xs ${isSelected ? "text-white/80" : "text-text-secondary"}`}
+                    >
                       +{station.lines.length - 5}
                     </span>
                   )}
@@ -392,9 +416,9 @@ function SearchFallbackStep({ onSelect, onSkip }: SearchFallbackStepProps) {
     }
     const query = searchQuery.toLowerCase();
     const filtered = stations
-      .filter((s) =>
-        s.name.toLowerCase().includes(query) ||
-        s.lines.some((l) => l.toLowerCase() === query)
+      .filter(
+        (s) =>
+          s.name.toLowerCase().includes(query) || s.lines.some((l) => l.toLowerCase() === query)
       )
       .slice(0, 10);
     setResults(filtered);
@@ -411,11 +435,7 @@ function SearchFallbackStep({ onSelect, onSkip }: SearchFallbackStepProps) {
         </p>
       </div>
 
-      <StationSearch
-        value={searchQuery}
-        onChange={setSearchQuery}
-        autoFocus
-      />
+      <StationSearch value={searchQuery} onChange={setSearchQuery} autoFocus />
 
       <div className="flex-1 mt-4 overflow-y-auto">
         {results.length > 0 ? (
@@ -516,9 +536,9 @@ function CommuteSetupStep({
     }
     const query = searchQuery.toLowerCase();
     const filtered = stations
-      .filter((s) =>
-        s.name.toLowerCase().includes(query) ||
-        s.lines.some((l) => l.toLowerCase() === query)
+      .filter(
+        (s) =>
+          s.name.toLowerCase().includes(query) || s.lines.some((l) => l.toLowerCase() === query)
       )
       .slice(0, 8);
     setResults(filtered);
@@ -602,17 +622,21 @@ function CommuteSetupStep({
                 className="text-text-secondary hover:text-text-primary min-h-touch min-w-touch flex items-center justify-center"
                 aria-label="Clear destination"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M18 6 6 18M6 6l12 12" />
                 </svg>
               </button>
             </div>
           ) : (
             <>
-              <StationSearch
-                value={searchQuery}
-                onChange={setSearchQuery}
-              />
+              <StationSearch value={searchQuery} onChange={setSearchQuery} />
               {results.length > 0 && (
                 <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
                   {results.map((station) => (

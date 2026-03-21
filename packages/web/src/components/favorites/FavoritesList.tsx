@@ -6,8 +6,8 @@
  * Pinned favorites appear at the top with a visual indicator.
  */
 
-import { useState } from "react";
 import type { Favorite } from "@mta-my-way/shared";
+import { useState } from "react";
 import { FavoriteCard } from "./FavoriteCard";
 
 interface FavoritesListProps {
@@ -68,9 +68,7 @@ export function FavoritesList({
             className={[
               "relative transition-all duration-150",
               isDragging ? "opacity-40 scale-[0.98]" : "",
-              isDragTarget
-                ? "ring-2 ring-mta-primary rounded-lg translate-y-[-2px]"
-                : "",
+              isDragTarget ? "ring-2 ring-mta-primary rounded-lg translate-y-[-2px]" : "",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -108,11 +106,7 @@ export function FavoritesList({
               </div>
 
               <div className="flex-1 min-w-0">
-                <FavoriteCard
-                  favorite={favorite}
-                  forceRefreshId={forceRefreshId}
-                  onEdit={onEdit}
-                />
+                <FavoriteCard favorite={favorite} forceRefreshId={forceRefreshId} onEdit={onEdit} />
               </div>
             </div>
           </li>

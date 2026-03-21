@@ -16,11 +16,18 @@
  * Idempotent: safe to re-run when MTA updates data.
  */
 
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "fs";
-import { pipeline } from "stream/promises";
-import { fileURLToPath } from "url";
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "fs";
 import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import { parse } from "csv-parse/sync";
+import { pipeline } from "stream/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -55,36 +62,36 @@ function ensureDir(dir) {
  * The GTFS route_color field has shifted over time; these are the canonical values.
  */
 const MTA_ROUTE_COLORS = {
-  "1": { color: "#EE352E", textColor: "#FFFFFF" },
-  "2": { color: "#EE352E", textColor: "#FFFFFF" },
-  "3": { color: "#EE352E", textColor: "#FFFFFF" },
-  "4": { color: "#00933C", textColor: "#FFFFFF" },
-  "5": { color: "#00933C", textColor: "#FFFFFF" },
-  "6": { color: "#00933C", textColor: "#FFFFFF" },
+  1: { color: "#EE352E", textColor: "#FFFFFF" },
+  2: { color: "#EE352E", textColor: "#FFFFFF" },
+  3: { color: "#EE352E", textColor: "#FFFFFF" },
+  4: { color: "#00933C", textColor: "#FFFFFF" },
+  5: { color: "#00933C", textColor: "#FFFFFF" },
+  6: { color: "#00933C", textColor: "#FFFFFF" },
   "6X": { color: "#00933C", textColor: "#FFFFFF" },
-  "7": { color: "#B933AD", textColor: "#FFFFFF" },
+  7: { color: "#B933AD", textColor: "#FFFFFF" },
   "7X": { color: "#B933AD", textColor: "#FFFFFF" },
-  "S": { color: "#808183", textColor: "#FFFFFF" },
-  "GS": { color: "#808183", textColor: "#FFFFFF" },
-  "A": { color: "#0039A6", textColor: "#FFFFFF" },
-  "C": { color: "#0039A6", textColor: "#FFFFFF" },
-  "E": { color: "#0039A6", textColor: "#FFFFFF" },
-  "H": { color: "#808183", textColor: "#FFFFFF" },
-  "FS": { color: "#808183", textColor: "#FFFFFF" },
-  "B": { color: "#FF6319", textColor: "#FFFFFF" },
-  "D": { color: "#FF6319", textColor: "#FFFFFF" },
-  "F": { color: "#FF6319", textColor: "#FFFFFF" },
-  "FX": { color: "#FF6319", textColor: "#FFFFFF" },
-  "M": { color: "#FF6319", textColor: "#FFFFFF" },
-  "G": { color: "#6CBE45", textColor: "#FFFFFF" },
-  "J": { color: "#996633", textColor: "#FFFFFF" },
-  "Z": { color: "#996633", textColor: "#FFFFFF" },
-  "L": { color: "#A7A9AC", textColor: "#FFFFFF" },
-  "N": { color: "#FCCC0A", textColor: "#000000" },
-  "Q": { color: "#FCCC0A", textColor: "#000000" },
-  "R": { color: "#FCCC0A", textColor: "#000000" },
-  "W": { color: "#FCCC0A", textColor: "#000000" },
-  "SIR": { color: "#1D2F6F", textColor: "#FFFFFF" },
+  S: { color: "#808183", textColor: "#FFFFFF" },
+  GS: { color: "#808183", textColor: "#FFFFFF" },
+  A: { color: "#0039A6", textColor: "#FFFFFF" },
+  C: { color: "#0039A6", textColor: "#FFFFFF" },
+  E: { color: "#0039A6", textColor: "#FFFFFF" },
+  H: { color: "#808183", textColor: "#FFFFFF" },
+  FS: { color: "#808183", textColor: "#FFFFFF" },
+  B: { color: "#FF6319", textColor: "#FFFFFF" },
+  D: { color: "#FF6319", textColor: "#FFFFFF" },
+  F: { color: "#FF6319", textColor: "#FFFFFF" },
+  FX: { color: "#FF6319", textColor: "#FFFFFF" },
+  M: { color: "#FF6319", textColor: "#FFFFFF" },
+  G: { color: "#6CBE45", textColor: "#FFFFFF" },
+  J: { color: "#996633", textColor: "#FFFFFF" },
+  Z: { color: "#996633", textColor: "#FFFFFF" },
+  L: { color: "#A7A9AC", textColor: "#FFFFFF" },
+  N: { color: "#FCCC0A", textColor: "#000000" },
+  Q: { color: "#FCCC0A", textColor: "#000000" },
+  R: { color: "#FCCC0A", textColor: "#000000" },
+  W: { color: "#FCCC0A", textColor: "#000000" },
+  SIR: { color: "#1D2F6F", textColor: "#FFFFFF" },
 };
 
 /**
@@ -92,28 +99,47 @@ const MTA_ROUTE_COLORS = {
  */
 const FEED_MAP = {
   // A Division (numbered lines)
-  "1": "gtfs", "2": "gtfs", "3": "gtfs", "4": "gtfs", "5": "gtfs",
-  "6": "gtfs", "6X": "gtfs", "7": "gtfs", "7X": "gtfs", "S": "gtfs", "GS": "gtfs",
+  1: "gtfs",
+  2: "gtfs",
+  3: "gtfs",
+  4: "gtfs",
+  5: "gtfs",
+  6: "gtfs",
+  "6X": "gtfs",
+  7: "gtfs",
+  "7X": "gtfs",
+  S: "gtfs",
+  GS: "gtfs",
   // ACE feed
-  "A": "gtfs-ace", "C": "gtfs-ace", "E": "gtfs-ace", "H": "gtfs-ace", "FS": "gtfs-ace",
+  A: "gtfs-ace",
+  C: "gtfs-ace",
+  E: "gtfs-ace",
+  H: "gtfs-ace",
+  FS: "gtfs-ace",
   // BDFM feed
-  "B": "gtfs-bdfm", "D": "gtfs-bdfm", "F": "gtfs-bdfm", "FX": "gtfs-bdfm", "M": "gtfs-bdfm",
+  B: "gtfs-bdfm",
+  D: "gtfs-bdfm",
+  F: "gtfs-bdfm",
+  FX: "gtfs-bdfm",
+  M: "gtfs-bdfm",
   // G feed
-  "G": "gtfs-g",
+  G: "gtfs-g",
   // JZ feed
-  "J": "gtfs-jz", "Z": "gtfs-jz",
+  J: "gtfs-jz",
+  Z: "gtfs-jz",
   // L feed
-  "L": "gtfs-l",
+  L: "gtfs-l",
   // NQRW feed
-  "N": "gtfs-nqrw", "Q": "gtfs-nqrw", "R": "gtfs-nqrw", "W": "gtfs-nqrw",
+  N: "gtfs-nqrw",
+  Q: "gtfs-nqrw",
+  R: "gtfs-nqrw",
+  W: "gtfs-nqrw",
   // Staten Island
-  "SIR": "gtfs-si",
+  SIR: "gtfs-si",
 };
 
 /** A Division routes (numbered lines + shuttles) */
-const A_DIVISION_ROUTES = new Set([
-  "1", "2", "3", "4", "5", "6", "6X", "7", "7X", "S", "GS",
-]);
+const A_DIVISION_ROUTES = new Set(["1", "2", "3", "4", "5", "6", "6X", "7", "7X", "S", "GS"]);
 
 /** Routes to exclude from station line lists (internal/shuttle variants) */
 const EXCLUDED_LINE_VARIANTS = new Set(["FX", "BX", "CX", "EP", "ES"]);
@@ -186,76 +212,175 @@ function loadAdaOverrides(stations) {
 
   const adaNames = new Set([
     // Manhattan — 1/2/3 line
-    "South Ferry", "Whitehall St", "Rector St",
-    "Fulton St", "Park Place", "Chambers St",
-    "14 St", "18 St", "23 St",
-    "34 St-Penn Station", "42 St-Port Authority Bus Terminal",
-    "Times Sq-42 St", "50 St", "59 St-Columbus Circle",
-    "72 St", "86 St", "96 St",
-    "103 St", "110 St", "116 St-Columbia University",
-    "Cathedral Pkwy (110 St)", "125 St", "137 St-City College",
-    "145 St", "168 St-Washington Hts", "181 St",
-    "190 St", "Dyckman St", "Inwood-207 St",
+    "South Ferry",
+    "Whitehall St",
+    "Rector St",
+    "Fulton St",
+    "Park Place",
+    "Chambers St",
+    "14 St",
+    "18 St",
+    "23 St",
+    "34 St-Penn Station",
+    "42 St-Port Authority Bus Terminal",
+    "Times Sq-42 St",
+    "50 St",
+    "59 St-Columbus Circle",
+    "72 St",
+    "86 St",
+    "96 St",
+    "103 St",
+    "110 St",
+    "116 St-Columbia University",
+    "Cathedral Pkwy (110 St)",
+    "125 St",
+    "137 St-City College",
+    "145 St",
+    "168 St-Washington Hts",
+    "181 St",
+    "190 St",
+    "Dyckman St",
+    "Inwood-207 St",
     // Manhattan — 4/5/6 line
-    "Grand Central-42 St", "86 St-York St",
-    "125 St", "138 St-Grand Concourse",
+    "Grand Central-42 St",
+    "86 St-York St",
+    "125 St",
+    "138 St-Grand Concourse",
     // Manhattan — 7 line
-    "34 St-Hudson Yards", "Times Sq-42 St",
-    "Grand Central-42 St", "5 Av",
+    "34 St-Hudson Yards",
+    "Times Sq-42 St",
+    "Grand Central-42 St",
+    "5 Av",
     // Manhattan — A/C/E line
-    "Canal St", "Spring St", "W 4 St-Wash Sq",
-    "14 St", "34 St-Penn Station", "42 St-Port Authority Bus Terminal",
-    "125 St", "168 St-Washington Hts", "190 St",
-    "Dyckman St", "Inwood-207 St",
+    "Canal St",
+    "Spring St",
+    "W 4 St-Wash Sq",
+    "14 St",
+    "34 St-Penn Station",
+    "42 St-Port Authority Bus Terminal",
+    "125 St",
+    "168 St-Washington Hts",
+    "190 St",
+    "Dyckman St",
+    "Inwood-207 St",
     // Manhattan — B/D/F/M line
-    "47-50 Sts-Rockefeller Ctr", "34 St-Herald Sq",
-    "W 4 St-Wash Sq", "Broadway-Lafayette", "2 Av",
+    "47-50 Sts-Rockefeller Ctr",
+    "34 St-Herald Sq",
+    "W 4 St-Wash Sq",
+    "Broadway-Lafayette",
+    "2 Av",
     // Manhattan — N/Q/R/W line
-    "Canal St", "City Hall", "Rector St",
-    "Times Sq-42 St", "57 St-7 Av",
-    "Lexington Av/59 St", "86 St-York St",
+    "Canal St",
+    "City Hall",
+    "Rector St",
+    "Times Sq-42 St",
+    "57 St-7 Av",
+    "Lexington Av/59 St",
+    "86 St-York St",
     // Manhattan — L line
-    "8 Av", "6 Av", "14 St-Union Sq", "3 Av",
+    "8 Av",
+    "6 Av",
+    "14 St-Union Sq",
+    "3 Av",
     // Manhattan — cross-line
-    "Bowling Green", "34 St-Hudson Yards",
+    "Bowling Green",
+    "34 St-Hudson Yards",
     // Brooklyn
-    "Atlantic Av-Barclays Ctr", "Jay St-MetroTech", "Borough Hall",
-    "DeKalb Av", "Nevins St", "Hoyt-Schermerhorn Sts",
-    "Nostrand Av", "Kingston-Throop Av", "Utica Av",
-    "Sutter Av-Rutland Rd", "Ralph Av", "Rockaway Av",
-    "Junius St", "Pennsylvania Av", "Van Siclen Av", "New Lots Av",
-    "Prospect Park", "Botanic Garden", "Church Av",
-    "Beverley Rd", "Newkirk Av", "Flatbush Av-Bkln College",
-    "Avenue H", "Avenue J", "Avenue M", "Avenue U",
+    "Atlantic Av-Barclays Ctr",
+    "Jay St-MetroTech",
+    "Borough Hall",
+    "DeKalb Av",
+    "Nevins St",
+    "Hoyt-Schermerhorn Sts",
+    "Nostrand Av",
+    "Kingston-Throop Av",
+    "Utica Av",
+    "Sutter Av-Rutland Rd",
+    "Ralph Av",
+    "Rockaway Av",
+    "Junius St",
+    "Pennsylvania Av",
+    "Van Siclen Av",
+    "New Lots Av",
+    "Prospect Park",
+    "Botanic Garden",
+    "Church Av",
+    "Beverley Rd",
+    "Newkirk Av",
+    "Flatbush Av-Bkln College",
+    "Avenue H",
+    "Avenue J",
+    "Avenue M",
+    "Avenue U",
     "Bay Ridge-95 St",
-    "4 Av-9 St", "7 Av", "15 St-Prospect Park",
-    "Fort Hamilton Pkwy", "Smith-9 Sts",
-    "Church Av", "Beverley Rd", "Cortelyou Rd",
-    "Coney Island-Stillwell Av", "Broadway Junction",
+    "4 Av-9 St",
+    "7 Av",
+    "15 St-Prospect Park",
+    "Fort Hamilton Pkwy",
+    "Smith-9 Sts",
+    "Church Av",
+    "Beverley Rd",
+    "Cortelyou Rd",
+    "Coney Island-Stillwell Av",
+    "Broadway Junction",
     // Queens
-    "Flushing-Main St", "Mets-Willets Point",
-    "Jamaica-179 St", "169 St",
-    "Sutphin Blvd-Archer Av", "Jamaica Center-Parsons/Archer",
-    "Jackson Hts-Roosevelt Av", "74 St-Broadway",
-    "82 St-Jackson Hts", "90 St-Elmhurst Av",
-    "Woodside-61 St", "46 St", "52 St", "Northern Blvd",
-    "39 Av-Dutch Kills", "36 Av", "33 St-Rawson St",
-    "30 Av", "Broadway", "Astoria Blvd", "Astoria-Ditmars Blvd",
-    "Court Sq", "Queens Plaza",
-    "Hunters Point Av", "Long Island City",
-    "Howard Beach-JFK Airport", "Broad Channel",
-    "Rockaway Blvd", "Aqueduct Racetrack", "Ozone Park-Lefferts Blvd",
-    "Forest Hills-71 Av", "Kew Gardens-Union Tpke",
-    "67 Av", "63 Dr-Rego Park", "Woodhaven Blvd",
+    "Flushing-Main St",
+    "Mets-Willets Point",
+    "Jamaica-179 St",
+    "169 St",
+    "Sutphin Blvd-Archer Av",
+    "Jamaica Center-Parsons/Archer",
+    "Jackson Hts-Roosevelt Av",
+    "74 St-Broadway",
+    "82 St-Jackson Hts",
+    "90 St-Elmhurst Av",
+    "Woodside-61 St",
+    "46 St",
+    "52 St",
+    "Northern Blvd",
+    "39 Av-Dutch Kills",
+    "36 Av",
+    "33 St-Rawson St",
+    "30 Av",
+    "Broadway",
+    "Astoria Blvd",
+    "Astoria-Ditmars Blvd",
+    "Court Sq",
+    "Queens Plaza",
+    "Hunters Point Av",
+    "Long Island City",
+    "Howard Beach-JFK Airport",
+    "Broad Channel",
+    "Rockaway Blvd",
+    "Aqueduct Racetrack",
+    "Ozone Park-Lefferts Blvd",
+    "Forest Hills-71 Av",
+    "Kew Gardens-Union Tpke",
+    "67 Av",
+    "63 Dr-Rego Park",
+    "Woodhaven Blvd",
     // Bronx
-    "161 St-Yankee Stadium", "167 St",
-    "149 St-Grand Concourse", "3 Av-149 St",
-    "Fordham Rd", "Pelham Bay Park",
+    "161 St-Yankee Stadium",
+    "167 St",
+    "149 St-Grand Concourse",
+    "3 Av-149 St",
+    "Fordham Rd",
+    "Pelham Bay Park",
     // Staten Island (entire line is ADA accessible)
-    "St. George", "Tomkinsville", "Stapleton", "Clifton",
-    "Grasmere", "Old Town", "Dongan Hills", "Grant City",
-    "Great Kills", "Eltingville", "Annadale", "Huguenot",
-    "Pleasant Plains", "Tottenville",
+    "St. George",
+    "Tomkinsville",
+    "Stapleton",
+    "Clifton",
+    "Grasmere",
+    "Old Town",
+    "Dongan Hills",
+    "Grant City",
+    "Great Kills",
+    "Eltingville",
+    "Annadale",
+    "Huguenot",
+    "Pleasant Plains",
+    "Tottenville",
   ]);
 
   const adaIds = new Set();
@@ -269,10 +394,7 @@ function loadAdaOverrides(stations) {
 
   // Write initial file so it can be manually curated
   const sortedIds = [...adaIds].sort();
-  writeFileSync(
-    join(DATA_DIR, "ada-stations.json"),
-    JSON.stringify(sortedIds, null, 2) + "\n"
-  );
+  writeFileSync(join(DATA_DIR, "ada-stations.json"), JSON.stringify(sortedIds, null, 2) + "\n");
   log(`Wrote initial ada-stations.json (${sortedIds.length} stations)`);
   log("NOTE: Review and curate this list against the official MTA accessibility data:");
   log("      https://new.mta.info/accessibility/stations");
@@ -371,8 +493,8 @@ function inferBorough(name, lat, lon) {
     n.includes("182-183") ||
     // These names are ambiguous (also exist in Brooklyn/Queens)
     // but at lat > 40.80 they're Bronx
-    (n.includes("prospect av") && lat > 40.80) ||
-    (n.includes("jackson av") && lat > 40.80)
+    (n.includes("prospect av") && lat > 40.8) ||
+    (n.includes("jackson av") && lat > 40.8)
   ) {
     return "bronx";
   }
@@ -458,7 +580,7 @@ function inferBorough(name, lat, lon) {
     n.includes("nevins") ||
     n.includes("dekalb av") ||
     n.includes("Hoyt") ||
-    n.includes("fulton st") && !n.includes("broadway")
+    (n.includes("fulton st") && !n.includes("broadway"))
   ) {
     return "brooklyn";
   }
@@ -610,7 +732,7 @@ function processStops(stopsData, tripsData, stopTimesData) {
       northStopId: northStopId || `${stationId}N`,
       southStopId: southStopId || `${stationId}S`,
       transfers: [], // Will be populated from transfers.txt
-      ada: false,    // Will be set from ada-stations.json
+      ada: false, // Will be set from ada-stations.json
       borough: inferBorough(name, lat, lon),
     };
   }
@@ -631,7 +753,9 @@ function processStops(stopsData, tripsData, stopTimesData) {
           name: stop.stop_name,
           lat,
           lon,
-          lines: Array.from(routes).filter(r => !EXCLUDED_LINE_VARIANTS.has(r)).sort(),
+          lines: Array.from(routes)
+            .filter((r) => !EXCLUDED_LINE_VARIANTS.has(r))
+            .sort(),
           northStopId: direction === "N" ? stopId : `${baseId}N`,
           southStopId: direction === "S" ? stopId : `${baseId}S`,
           transfers: [],
@@ -693,15 +817,13 @@ function processRoutes(routesData, stopTimesData, tripsData) {
     const displayId = routeId === "SI" ? "SIR" : routeId;
 
     // Skip non-subway routes (buses, ferries)
-    if (["X", "SB"].some(prefix => routeId.startsWith(prefix))) {
+    if (["X", "SB"].some((prefix) => routeId.startsWith(prefix))) {
       continue;
     }
 
     // Use official MTA colors if available, otherwise fall back to GTFS
     const officialColor = MTA_ROUTE_COLORS[displayId];
-    const color = officialColor
-      ? officialColor.color
-      : normalizeColor(route.route_color);
+    const color = officialColor ? officialColor.color : normalizeColor(route.route_color);
     const textColor = officialColor
       ? officialColor.textColor
       : route.route_text_color
@@ -770,7 +892,7 @@ function processTransfers(transfersData, stations) {
     let walkingSeconds = parseInt(t.min_transfer_time || "180", 10);
     if (walkingSeconds < 60) walkingSeconds = DEFAULT_TRANSFER_SECONDS;
 
-    const existing = transferGraph[fromStation].find(e => e.toStationId === toStation);
+    const existing = transferGraph[fromStation].find((e) => e.toStationId === toStation);
     if (existing) {
       if (walkingSeconds < existing.walkingSeconds) {
         existing.walkingSeconds = walkingSeconds;
@@ -933,7 +1055,7 @@ function inferComplexesFromGtfs(stations) {
       const allStopIds = new Set();
 
       for (const sid of stationIds) {
-        stations[sid].lines.forEach(l => allLines.add(l));
+        stations[sid].lines.forEach((l) => allLines.add(l));
         allStopIds.add(stations[sid].northStopId);
         allStopIds.add(stations[sid].southStopId);
         stations[sid].complex = complexId;
@@ -991,7 +1113,7 @@ function applyComplexOverrides(stations, complexes) {
           }
           if (stations[sid]) {
             stations[sid].complex = targetComplexId;
-            stations[sid].lines.forEach(l => {
+            stations[sid].lines.forEach((l) => {
               if (!targetComplex.allLines.includes(l)) targetComplex.allLines.push(l);
             });
             if (!targetComplex.allStopIds.includes(stations[sid].northStopId)) {
@@ -1021,7 +1143,7 @@ function applyComplexOverrides(stations, complexes) {
       for (const sid of override.stations) {
         if (stations[sid]) {
           stations[sid].complex = complexId;
-          stations[sid].lines.forEach(l => allLines.add(l));
+          stations[sid].lines.forEach((l) => allLines.add(l));
           allStopIds.add(stations[sid].northStopId);
           allStopIds.add(stations[sid].southStopId);
         }
@@ -1030,7 +1152,7 @@ function applyComplexOverrides(stations, complexes) {
       complexes[complexId] = {
         complexId,
         name: override.name,
-        stations: override.stations.filter(sid => stations[sid]),
+        stations: override.stations.filter((sid) => stations[sid]),
         allLines: [...allLines].sort(),
         allStopIds: [...allStopIds].sort(),
       };
@@ -1051,12 +1173,12 @@ function writeComplexOverridesIfNeeded() {
   if (existsSync(overridesPath)) return;
 
   const overrides = {
-    "times_sq_42": {
+    times_sq_42: {
       name: "Times Sq-42 St",
       stations: ["725", "726", "901", "902", "903"],
       notes: "Combines 1/2/3, 7, N/Q/R/W, and S platforms",
     },
-    "fulton_broadway": {
+    fulton_broadway: {
       name: "Fulton St-Broadway/Nassau",
       stations: ["230", "231", "422", "423"],
       notes: "Combines A/C, J/Z, 2/3, 4/5 platforms",
@@ -1066,32 +1188,32 @@ function writeComplexOverridesIfNeeded() {
       stations: ["326", "346", "351", "635"],
       notes: "Combines L, N/Q/R/W, 4/5/6 platforms",
     },
-    "atlantic_ave": {
+    atlantic_ave: {
       name: "Atlantic Av-Barclays Ctr",
       stations: ["245", "246", "247", "248", "249", "250", "251", "421", "629"],
       notes: "Combines B/D/N/Q/R/2/3/4/5 and LIRR platforms",
     },
-    "lex_59": {
+    lex_59: {
       name: "Lexington Av/59 St",
       stations: ["322", "411", "412"],
       notes: "Combines 4/5/6 and N/Q/R platforms",
     },
-    "lex_53": {
+    lex_53: {
       name: "Lexington Av/53 St",
       stations: ["321", "625"],
       notes: "Combines 6 and E/M platforms",
     },
-    "jay_metrotech": {
+    jay_metrotech: {
       name: "Jay St-MetroTech",
       stations: ["243", "443"],
       notes: "Combines A/C/F and R platforms",
     },
-    "court_sq": {
+    court_sq: {
       name: "Court Sq",
       stations: ["464", "465", "745"],
       notes: "Combines 7, E/M, and G platforms",
     },
-    "roosevelt_74": {
+    roosevelt_74: {
       name: "Roosevelt Av/74 St",
       stations: ["701", "746"],
       notes: "Combines 7 and E/F/M/R platforms",
@@ -1190,13 +1312,15 @@ async function main() {
 
   // Validation summary
   const stationCount = Object.keys(stations).length;
-  const adaCount = Object.values(stations).filter(s => s.ada).length;
+  const adaCount = Object.values(stations).filter((s) => s.ada).length;
   const complexStations = Object.values(complexes)
-    .filter(c => c.stations.length > 1)
+    .filter((c) => c.stations.length > 1)
     .reduce((sum, c) => sum + c.stations.length, 0);
 
   console.log(`\nStation count: ${stationCount} parent stations`);
-  console.log(`  (${stationCount - complexStations} single-station + ${complexStations} in multi-station complexes)`);
+  console.log(
+    `  (${stationCount - complexStations} single-station + ${complexStations} in multi-station complexes)`
+  );
   console.log(`  Note: MTA's "472 stations" counts complexes as single stations.`);
   console.log(`ADA accessible: ${adaCount} stations`);
   console.log(`Complexes: ${Object.keys(complexes).length} multi-station groups`);
@@ -1206,7 +1330,11 @@ async function main() {
   for (const s of Object.values(stations)) {
     boroughs[s.borough] = (boroughs[s.borough] || 0) + 1;
   }
-  console.log(`Boroughs: ${Object.entries(boroughs).map(([b, c]) => `${b}: ${c}`).join(", ")}`);
+  console.log(
+    `Boroughs: ${Object.entries(boroughs)
+      .map(([b, c]) => `${b}: ${c}`)
+      .join(", ")}`
+  );
 }
 
 // Run

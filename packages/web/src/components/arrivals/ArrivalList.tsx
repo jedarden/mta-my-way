@@ -31,11 +31,7 @@ interface ArrivalListProps {
 /**
  * Filter arrivals by lines if specified
  */
-function filterArrivals(
-  arrivals: ArrivalTime[],
-  lines?: string[],
-  max?: number
-): ArrivalTime[] {
+function filterArrivals(arrivals: ArrivalTime[], lines?: string[], max?: number): ArrivalTime[] {
   let filtered = arrivals;
   if (lines && lines.length > 0) {
     filtered = arrivals.filter((a) => lines.includes(a.line));
@@ -58,12 +54,8 @@ export function ArrivalList({
   const showNorth = direction === "both" || direction === "N";
   const showSouth = direction === "both" || direction === "S";
 
-  const northToShow = showNorth
-    ? filterArrivals(northbound, lines, maxPerDirection)
-    : [];
-  const southToShow = showSouth
-    ? filterArrivals(southbound, lines, maxPerDirection)
-    : [];
+  const northToShow = showNorth ? filterArrivals(northbound, lines, maxPerDirection) : [];
+  const southToShow = showSouth ? filterArrivals(southbound, lines, maxPerDirection) : [];
 
   if (northToShow.length === 0 && southToShow.length === 0) {
     return (

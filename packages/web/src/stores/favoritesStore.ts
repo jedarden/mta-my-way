@@ -1,7 +1,7 @@
+import type { Commute, DirectionPreference, Favorite, FavoriteTapEvent } from "@mta-my-way/shared";
 import { create } from "zustand";
-import { persist, createJSONStorage, type PersistOptions } from "zustand/middleware";
+import { type PersistOptions, createJSONStorage, persist } from "zustand/middleware";
 import { createSafeMigration, setMigrationFailed } from "./migration";
-import type { Favorite, Commute, FavoriteTapEvent, DirectionPreference } from "@mta-my-way/shared";
 
 /** Internal state shape (excludes schema version which is handled by persist middleware) */
 interface FavoritesState {
@@ -88,9 +88,7 @@ export const useFavoritesStore = create<FavoritesState>()(
 
       updateFavorite: (id, updates) => {
         set((state) => ({
-          favorites: state.favorites.map((f) =>
-            f.id === id ? { ...f, ...updates } : f
-          ),
+          favorites: state.favorites.map((f) => (f.id === id ? { ...f, ...updates } : f)),
         }));
       },
 
@@ -120,9 +118,7 @@ export const useFavoritesStore = create<FavoritesState>()(
 
       togglePin: (id) => {
         set((state) => ({
-          favorites: state.favorites.map((f) =>
-            f.id === id ? { ...f, pinned: !f.pinned } : f
-          ),
+          favorites: state.favorites.map((f) => (f.id === id ? { ...f, pinned: !f.pinned } : f)),
         }));
       },
 
@@ -136,9 +132,7 @@ export const useFavoritesStore = create<FavoritesState>()(
 
       updateCommute: (id, updates) => {
         set((state) => ({
-          commutes: state.commutes.map((c) =>
-            c.id === id ? { ...c, ...updates } : c
-          ),
+          commutes: state.commutes.map((c) => (c.id === id ? { ...c, ...updates } : c)),
         }));
       },
 

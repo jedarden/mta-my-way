@@ -8,12 +8,12 @@
  *   4. Start the HTTP server
  */
 
-import { serve } from "@hono/node-server";
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { serve } from "@hono/node-server";
 import { PACKAGE_VERSION } from "@mta-my-way/shared";
-import type { StationIndex, RouteIndex, ComplexIndex } from "@mta-my-way/shared";
+import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
 import { createApp } from "./app.js";
 import { initPoller, startPoller } from "./poller.js";
 
@@ -89,19 +89,16 @@ async function main(): Promise<void> {
   startPoller();
 
   // HTTP server
-  serve(
-    { fetch: app.fetch, port: PORT },
-    (info) => {
-      console.log(
-        JSON.stringify({
-          event: "server_started",
-          timestamp: new Date().toISOString(),
-          port: info.port,
-          pid: process.pid,
-        })
-      );
-    }
-  );
+  serve({ fetch: app.fetch, port: PORT }, (info) => {
+    console.log(
+      JSON.stringify({
+        event: "server_started",
+        timestamp: new Date().toISOString(),
+        port: info.port,
+        pid: process.pid,
+      })
+    );
+  });
 }
 
 main().catch((err) => {

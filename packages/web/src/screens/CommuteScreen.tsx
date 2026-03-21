@@ -6,7 +6,10 @@ export default function CommuteScreen() {
     <Screen>
       <div className="px-4 pt-2 pb-4">
         <section aria-labelledby="commutes-heading">
-          <h2 id="commutes-heading" className="text-lg font-semibold mb-4 text-text-primary dark:text-dark-text-primary">
+          <h2
+            id="commutes-heading"
+            className="text-lg font-semibold mb-4 text-text-primary dark:text-dark-text-primary"
+          >
             Saved Commutes
           </h2>
           <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
@@ -23,7 +26,10 @@ export default function CommuteScreen() {
         </section>
 
         <section className="mt-6" aria-labelledby="journal-heading">
-          <h2 id="journal-heading" className="text-lg font-semibold mb-4 text-text-primary dark:text-dark-text-primary">
+          <h2
+            id="journal-heading"
+            className="text-lg font-semibold mb-4 text-text-primary dark:text-dark-text-primary"
+          >
             Trip Journal
           </h2>
           <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">

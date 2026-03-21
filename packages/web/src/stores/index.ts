@@ -1,4 +1,10 @@
-export { useFavoritesStore, type Favorite, type Commute, type FavoriteTapEvent, type DirectionPreference } from "./favoritesStore";
+export {
+  useFavoritesStore,
+  type Favorite,
+  type Commute,
+  type FavoriteTapEvent,
+  type DirectionPreference,
+} from "./favoritesStore";
 export { useSettingsStore } from "./settingsStore";
 export { useArrivalsStore } from "./arrivalsStore";
 export { useJournalStore } from "./journalStore";

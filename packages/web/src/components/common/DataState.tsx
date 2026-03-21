@@ -37,9 +37,7 @@ export function DataState<T>({
 }: DataStateProps<T>) {
   // Pure loading: no data yet
   if ((status === "loading" || status === "idle") && !data) {
-    return (
-      <>{skeleton ?? <DefaultSkeleton />}</>
-    );
+    return <>{skeleton ?? <DefaultSkeleton />}</>;
   }
 
   // Error with no fallback data
@@ -111,11 +109,13 @@ export function DataState<T>({
       )}
 
       {/* Actual content */}
-      {hasData
-        ? data !== null && (Array.isArray(data) && (data as unknown[]).length === 0 && empty)
-          ? <>{empty}</>
-          : <>{children(data as T)}</>
-        : null}
+      {hasData ? (
+        data !== null && Array.isArray(data) && (data as unknown[]).length === 0 && empty ? (
+          <>{empty}</>
+        ) : (
+          <>{children(data as T)}</>
+        )
+      ) : null}
     </div>
   );
 }
@@ -124,10 +124,7 @@ function DefaultSkeleton() {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Loading">
       {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="h-16 rounded-lg animate-pulse bg-surface dark:bg-dark-surface"
-        />
+        <div key={i} className="h-16 rounded-lg animate-pulse bg-surface dark:bg-dark-surface" />
       ))}
     </div>
   );

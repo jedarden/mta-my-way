@@ -13,16 +13,16 @@
  * - Empty state with CTA to search/add stations
  */
 
-import { useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
 import { formatTimeAgo } from "@mta-my-way/shared";
+import type { Favorite } from "@mta-my-way/shared";
+import { useCallback, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
+import { FavoritesList } from "../components/favorites/FavoritesList";
+import Screen from "../components/layout/Screen";
+import OnboardingFlow from "../components/onboarding/OnboardingFlow";
 import { useFavorites } from "../hooks/useFavorites";
 import { useFavoritesStore, useSettingsStore } from "../stores";
-import { FavoritesList } from "../components/favorites/FavoritesList";
-import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
-import OnboardingFlow from "../components/onboarding/OnboardingFlow";
-import Screen from "../components/layout/Screen";
-import type { Favorite } from "@mta-my-way/shared";
 
 /** How often to tick the "Updated X ago" counter (ms) */
 const TIME_AGO_INTERVAL = 15_000;

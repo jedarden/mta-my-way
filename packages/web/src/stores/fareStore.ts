@@ -1,3 +1,4 @@
+import type { FareTracking, RideLogEntry } from "@mta-my-way/shared";
 /**
  * fareStore — Phase 6 skeleton
  *
@@ -7,9 +8,8 @@
  * Persisted key: "mta-fare"
  */
 import { create } from "zustand";
-import { persist, createJSONStorage, type PersistOptions } from "zustand/middleware";
+import { type PersistOptions, createJSONStorage, persist } from "zustand/middleware";
 import { createSafeMigration, setMigrationFailed } from "./migration";
-import type { FareTracking, RideLogEntry } from "@mta-my-way/shared";
 
 /** Maximum ride log entries to retain (last 90 days worth) */
 const MAX_RIDE_LOG = 500;

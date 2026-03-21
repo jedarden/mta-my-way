@@ -1,6 +1,6 @@
-import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
@@ -13,7 +13,8 @@ export default defineConfig({
       manifest: {
         name: "MTA My Way",
         short_name: "MTA My Way",
-        description: "Mobile-first PWA for NYC subway commuters - real-time arrivals, transfer intelligence, and filtered alerts",
+        description:
+          "Mobile-first PWA for NYC subway commuters - real-time arrivals, transfer intelligence, and filtered alerts",
         theme_color: "#0039A6",
         background_color: "#FFFFFF",
         display: "standalone",

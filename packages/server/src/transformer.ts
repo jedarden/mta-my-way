@@ -10,12 +10,7 @@
  * The transformer is stateless — it produces a fresh Map on each call.
  */
 
-import type {
-  StationArrivals,
-  ArrivalTime,
-  Direction,
-  StationIndex,
-} from "@mta-my-way/shared";
+import type { ArrivalTime, Direction, StationArrivals, StationIndex } from "@mta-my-way/shared";
 import { calculateConfidence } from "@mta-my-way/shared";
 import type { ParsedFeed } from "./parser.js";
 
@@ -34,9 +29,7 @@ interface StopInfo {
  *
  * Must be called once at startup after loading stations.json.
  */
-export function buildStopToStationMap(
-  stations: StationIndex
-): Map<string, StopInfo> {
+export function buildStopToStationMap(stations: StationIndex): Map<string, StopInfo> {
   const map = new Map<string, StopInfo>();
   for (const station of Object.values(stations)) {
     map.set(station.northStopId, {
@@ -55,9 +48,7 @@ export function buildStopToStationMap(
  * Safely convert a protobufjs Long or number to a JavaScript number.
  * Returns null if the value is null, undefined, or zero (unset).
  */
-function toUnixSeconds(
-  v: number | { toNumber(): number } | null | undefined
-): number | null {
+function toUnixSeconds(v: number | { toNumber(): number } | null | undefined): number | null {
   if (v == null) return null;
   const n = typeof v === "number" ? v : v.toNumber();
   return n === 0 ? null : n;
@@ -108,12 +99,8 @@ export function transformFeeds(
 
       // Destination: name of the terminal stop (last in the update list)
       const lastStu = stopTimeUpdates[stopTimeUpdates.length - 1];
-      const lastStopInfo = lastStu?.stopId
-        ? stopToStation.get(lastStu.stopId)
-        : null;
-      const destination = lastStopInfo
-        ? (stations[lastStopInfo.stationId]?.name ?? "")
-        : "";
+      const lastStopInfo = lastStu?.stopId ? stopToStation.get(lastStu.stopId) : null;
+      const destination = lastStopInfo ? (stations[lastStopInfo.stationId]?.name ?? "") : "";
 
       for (const stu of stopTimeUpdates) {
         if (!stu.stopId) continue;
@@ -123,8 +110,7 @@ export function transformFeeds(
 
         // Prefer arrival time; fall back to departure time
         const arrivalSeconds =
-          toUnixSeconds(stu.arrival?.time) ??
-          toUnixSeconds(stu.departure?.time);
+          toUnixSeconds(stu.arrival?.time) ?? toUnixSeconds(stu.departure?.time);
         if (arrivalSeconds === null || arrivalSeconds < cutoffSeconds) continue;
 
         const minutesAway = Math.round((arrivalSeconds - nowSeconds) / 60);
@@ -179,9 +165,7 @@ export function transformFeeds(
     // Overall feedAge = oldest feed contributing arrivals to this station
     const allArrivals = [...dirs.N, ...dirs.S];
     const stationFeedAge =
-      allArrivals.length > 0
-        ? Math.max(...allArrivals.map((a) => a.feedAge))
-        : 0;
+      allArrivals.length > 0 ? Math.max(...allArrivals.map((a) => a.feedAge)) : 0;
 
     result.set(stationId, {
       stationId,

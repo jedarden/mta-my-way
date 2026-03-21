@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import { persist, createJSONStorage, type PersistOptions } from "zustand/middleware";
-import { createSafeMigration, setMigrationFailed } from "./migration";
 import type { StationArrivals } from "@mta-my-way/shared";
+import { create } from "zustand";
+import { type PersistOptions, createJSONStorage, persist } from "zustand/middleware";
+import { createSafeMigration, setMigrationFailed } from "./migration";
 
 /**
  * Cached arrival data for offline support.

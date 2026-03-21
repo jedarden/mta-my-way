@@ -123,7 +123,7 @@ export const LINE_METADATA: Record<string, LineMetadata> = {
     isExpress: true,
     similarLines: ["7"],
   },
-  "S": {
+  S: {
     id: "S",
     shortName: "S",
     longName: "42nd St Shuttle",
@@ -134,7 +134,7 @@ export const LINE_METADATA: Record<string, LineMetadata> = {
     isExpress: false,
     similarLines: [],
   },
-  "GS": {
+  GS: {
     id: "GS",
     shortName: "S",
     longName: "42nd St Shuttle",
