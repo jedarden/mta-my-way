@@ -153,6 +153,7 @@ export default function HomeScreen() {
               <Link
                 to="/search"
                 className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
+                aria-label="Add station to favorites"
               >
                 + Add
               </Link>
@@ -202,7 +203,11 @@ export default function HomeScreen() {
 
         {/* Updated X ago */}
         {hasFavorites && (
-          <p className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary">
+          <p
+            className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             Updated {timeAgoText}
           </p>
         )}

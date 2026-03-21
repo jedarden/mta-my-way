@@ -12,7 +12,7 @@
  */
 
 import type { DirectionPreference, Favorite } from "@mta-my-way/shared";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { LineBullet } from "../arrivals/LineBullet";
 
@@ -29,6 +29,58 @@ export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: Favorite
   const [direction, setDirection] = useState<DirectionPreference>(favorite.direction);
   const [allLines, setAllLines] = useState<string[]>(favorite.lines);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Focus management: save previous focus, focus dialog on open, restore on close
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement;
+    const dialog = dialogRef.current;
+    if (dialog) {
+      const firstFocusable = dialog.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      firstFocusable?.focus();
+    }
+    return () => {
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  // Focus trap: keep Tab/Shift+Tab inside the dialog; Escape closes
+  const handleDialogKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    },
+    [onClose]
+  );
 
   // Fetch full station data to show all available lines
   useEffect(() => {
@@ -80,9 +132,11 @@ export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: Favorite
 
       {/* Bottom sheet */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Edit ${favorite.stationName}`}
+        onKeyDown={handleDialogKeyDown}
         className="fixed bottom-0 left-0 right-0 z-50 bg-background dark:bg-dark-background rounded-t-2xl shadow-lg max-h-[85dvh] flex flex-col pb-[env(safe-area-inset-bottom)]"
       >
         {/* Handle bar */}

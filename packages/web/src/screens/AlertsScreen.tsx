@@ -30,27 +30,19 @@ export default function AlertsScreen() {
   return (
     <Screen>
       <div className="px-4 pt-2 pb-4">
-        {/* Header with toggle */}
-        <header className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">
-              Alerts
-            </h1>
-            {/* Badge count for my alerts */}
-            {myAlertsCount > 0 && (
-              <span className="px-2 py-0.5 bg-mta-red text-white text-13 font-semibold rounded-full">
-                {myAlertsCount}
-              </span>
-            )}
-          </div>
-
-          {/* Filter toggle */}
+        {/* Filter toggle header */}
+        <div className="mb-4">
+          {myAlertsCount > 0 && (
+            <p className="sr-only" aria-live="polite">
+              {myAlertsCount} alert{myAlertsCount === 1 ? "" : "s"} affecting your lines
+            </p>
+          )}
           <FilterToggle
             mode={filterMode}
             onChange={setFilterMode}
             myAlertsCount={myAlertsCount}
           />
-        </header>
+        </div>
 
         {/* Active alerts */}
         <section aria-labelledby="active-heading" className="mb-6">

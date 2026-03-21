@@ -123,6 +123,11 @@ export function AlertCard({ alert, initiallyExpanded = false, isRaw = false, com
         onClick={() => hasDescription && setExpanded(!expanded)}
         className={`w-full text-left p-3 ${hasDescription ? "cursor-pointer" : "cursor-default"}`}
         aria-expanded={hasDescription ? expanded : undefined}
+        aria-label={
+          hasDescription
+            ? `${expanded ? "Collapse" : "Expand"} details for: ${alert.headline}`
+            : alert.headline
+        }
       >
         <div className="flex items-start gap-2">
           {/* Severity icon */}

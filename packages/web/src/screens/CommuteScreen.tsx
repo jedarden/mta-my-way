@@ -93,6 +93,7 @@ function CommuteList() {
                 type="button"
                 onClick={() => setShowNewEditor(true)}
                 className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
+                aria-label="Add new commute"
               >
                 + Add
               </button>
@@ -210,6 +211,7 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
             type="button"
             onClick={() => void navigate("/commute")}
             className="flex items-center gap-1 text-mta-primary text-13 font-medium min-h-touch px-1 mb-4"
+            aria-label="Back to commutes list"
           >
             <svg
               width="16"
@@ -242,6 +244,7 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
           type="button"
           onClick={() => void navigate("/commute")}
           className="flex items-center gap-1 text-mta-primary text-13 font-medium min-h-touch px-1 mb-3"
+          aria-label="Back to commutes list"
         >
           <svg
             width="16"
@@ -261,9 +264,9 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
 
         {/* Header */}
         <div className="mb-4">
-          <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">
+          <h2 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">
             {commute.name}
-          </h1>
+          </h2>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
             {commute.origin.stationName} → {commute.destination.stationName}
           </p>

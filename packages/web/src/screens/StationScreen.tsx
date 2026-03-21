@@ -260,7 +260,11 @@ export default function StationScreen() {
 
         {/* Footer: freshness */}
         {updatedAt && (
-          <p className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary">
+          <p
+            className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             Updated {timeAgoText}
           </p>
         )}

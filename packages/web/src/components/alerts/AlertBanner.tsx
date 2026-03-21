@@ -55,6 +55,31 @@ function getCombinedSeverity(alerts: StationAlert[]): AlertSeverity {
   return "info";
 }
 
+/** Severity icon — same shapes as AlertCard.SeverityIcon */
+function SeverityIcon({ severity }: { severity: AlertSeverity }) {
+  const cls = "w-4 h-4 flex-shrink-0";
+  if (severity === "severe") {
+    return (
+      <svg className={cls} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2z" />
+      </svg>
+    );
+  }
+  if (severity === "warning") {
+    return (
+      <svg className={cls} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2L1 21h22L12 2zm0 3.5L19.5 19h-15L12 5.5z" />
+        <path d="M11 10h2v5h-2zm0 6h2v2h-2z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={cls} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+    </svg>
+  );
+}
+
 /** Get unique affected lines from alerts */
 function getAffectedLines(alerts: StationAlert[]): string[] {
   const lines = new Set<string>();
@@ -89,13 +114,17 @@ export function AlertBanner({
     <aside
       className={`${styles.bg} ${styles.border} rounded-lg overflow-hidden`}
       role="alert"
-      aria-live="polite"
+      aria-live={severity === "severe" ? "assertive" : "polite"}
     >
       {/* Header */}
       <div className="px-3 py-2.5">
         {/* Title row */}
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <div className="flex items-center gap-2 min-w-0">
+            {/* Severity icon — ensures severity is not conveyed by color alone */}
+            <span className={styles.text}>
+              <SeverityIcon severity={severity} />
+            </span>
             {/* Alert count badge */}
             <span className={`${styles.text} text-13 font-semibold`}>
               {alerts.length === 1 ? "1 Alert" : `${alerts.length} Alerts`}
@@ -175,9 +204,14 @@ export function SingleAlertBanner({ alert }: { alert: StationAlert }) {
     <div
       className={`${styles.bg} ${styles.border} rounded-lg px-3 py-2`}
       role="alert"
-      aria-live="polite"
+      aria-live={alert.severity === "severe" ? "assertive" : "polite"}
     >
       <div className="flex items-center gap-2">
+        {/* Severity icon — ensures severity is not conveyed by color alone */}
+        <span className={`${styles.text} flex-shrink-0`}>
+          <SeverityIcon severity={alert.severity} />
+        </span>
+
         {/* Affected lines */}
         {alert.affectedLines.length > 0 && (
           <div className="flex gap-0.5 flex-shrink-0">

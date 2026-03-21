@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const screenTitles: Record<string, string> = {
   "/": "MTA My Way",
@@ -10,6 +10,7 @@ const screenTitles: Record<string, string> = {
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const title = screenTitles[location.pathname] ?? "MTA My Way";
 
   return (
@@ -20,12 +21,14 @@ export default function Header() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">{title}</h1>
         <div className="flex items-center gap-2">
-          {/* Alert badge - will be populated from store */}
+          {/* Alert badge */}
           <button
+            type="button"
+            onClick={() => void navigate("/alerts")}
             className="p-2 rounded-full min-h-touch min-w-touch flex items-center justify-center hover:bg-surface dark:hover:bg-dark-surface"
             aria-label="View alerts"
           >
-            <span className="text-2xl">🔔</span>
+            <span className="text-2xl" role="img" aria-hidden="true">🔔</span>
           </button>
         </div>
       </div>
