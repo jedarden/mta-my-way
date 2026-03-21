@@ -118,11 +118,8 @@ export namespace transit_realtime {
         /** FeedHeader timestamp */
         timestamp?: (number|Long|null);
 
-        /** FeedHeader .transit_realtime.nyctFeedVersion */
-        ".transit_realtime.nyctFeedVersion"?: (string|null);
-
-        /** FeedHeader .transit_realtime.nyctTimestamp */
-        ".transit_realtime.nyctTimestamp"?: (number|Long|null);
+        /** FeedHeader .transit_realtime.nyctFeedHeader */
+        ".transit_realtime.nyctFeedHeader"?: (transit_realtime.INyctFeedHeader|null);
     }
 
     /** Represents a FeedHeader. */
@@ -610,11 +607,8 @@ export namespace transit_realtime {
             /** StopTimeUpdate stopTimeProperties */
             stopTimeProperties?: (transit_realtime.TripUpdate.StopTimeUpdate.IStopTimeProperties|null);
 
-            /** StopTimeUpdate .transit_realtime.scheduledTrack */
-            ".transit_realtime.scheduledTrack"?: (string|null);
-
-            /** StopTimeUpdate .transit_realtime.actualTrack */
-            ".transit_realtime.actualTrack"?: (string|null);
+            /** StopTimeUpdate .transit_realtime.nyctStopTimeUpdate */
+            ".transit_realtime.nyctStopTimeUpdate"?: (transit_realtime.INyctStopTimeUpdate|null);
         }
 
         /** Represents a StopTimeUpdate. */
@@ -1688,20 +1682,8 @@ export namespace transit_realtime {
         /** TripDescriptor scheduleRelationship */
         scheduleRelationship?: (transit_realtime.TripDescriptor.ScheduleRelationship|null);
 
-        /** TripDescriptor .transit_realtime.direction */
-        ".transit_realtime.direction"?: (number|null);
-
-        /** TripDescriptor .transit_realtime.isAssigned */
-        ".transit_realtime.isAssigned"?: (boolean|null);
-
-        /** TripDescriptor .transit_realtime.trainId */
-        ".transit_realtime.trainId"?: (string|null);
-
-        /** TripDescriptor .transit_realtime.tripReplacementPeriodStart */
-        ".transit_realtime.tripReplacementPeriodStart"?: (number|Long|null);
-
-        /** TripDescriptor .transit_realtime.tripReplacementPeriodEnd */
-        ".transit_realtime.tripReplacementPeriodEnd"?: (number|Long|null);
+        /** TripDescriptor .transit_realtime.nyctTripDescriptor */
+        ".transit_realtime.nyctTripDescriptor"?: (transit_realtime.INyctTripDescriptor|null);
     }
 
     /** Represents a TripDescriptor. */
@@ -2259,5 +2241,434 @@ export namespace transit_realtime {
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
+    }
+
+    /** Properties of a TripReplacementPeriod. */
+    interface ITripReplacementPeriod {
+
+        /** TripReplacementPeriod routeId */
+        routeId?: (string|null);
+
+        /** TripReplacementPeriod replacementPeriod */
+        replacementPeriod?: (transit_realtime.ITimeRange|null);
+    }
+
+    /** Represents a TripReplacementPeriod. */
+    class TripReplacementPeriod implements ITripReplacementPeriod {
+
+        /**
+         * Constructs a new TripReplacementPeriod.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: transit_realtime.ITripReplacementPeriod);
+
+        /** TripReplacementPeriod routeId. */
+        public routeId: string;
+
+        /** TripReplacementPeriod replacementPeriod. */
+        public replacementPeriod?: (transit_realtime.ITimeRange|null);
+
+        /**
+         * Creates a new TripReplacementPeriod instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns TripReplacementPeriod instance
+         */
+        public static create(properties?: transit_realtime.ITripReplacementPeriod): transit_realtime.TripReplacementPeriod;
+
+        /**
+         * Encodes the specified TripReplacementPeriod message. Does not implicitly {@link transit_realtime.TripReplacementPeriod.verify|verify} messages.
+         * @param message TripReplacementPeriod message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: transit_realtime.ITripReplacementPeriod, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified TripReplacementPeriod message, length delimited. Does not implicitly {@link transit_realtime.TripReplacementPeriod.verify|verify} messages.
+         * @param message TripReplacementPeriod message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encodeDelimited(message: transit_realtime.ITripReplacementPeriod, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a TripReplacementPeriod message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns TripReplacementPeriod
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): transit_realtime.TripReplacementPeriod;
+
+        /**
+         * Decodes a TripReplacementPeriod message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns TripReplacementPeriod
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): transit_realtime.TripReplacementPeriod;
+
+        /**
+         * Verifies a TripReplacementPeriod message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        public static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a TripReplacementPeriod message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns TripReplacementPeriod
+         */
+        public static fromObject(object: { [k: string]: any }): transit_realtime.TripReplacementPeriod;
+
+        /**
+         * Creates a plain object from a TripReplacementPeriod message. Also converts values to other types if specified.
+         * @param message TripReplacementPeriod
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: transit_realtime.TripReplacementPeriod, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this TripReplacementPeriod to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for TripReplacementPeriod
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
+    /** Properties of a NyctFeedHeader. */
+    interface INyctFeedHeader {
+
+        /** NyctFeedHeader nyctSubwayVersion */
+        nyctSubwayVersion: string;
+
+        /** NyctFeedHeader tripReplacementPeriod */
+        tripReplacementPeriod?: (transit_realtime.ITripReplacementPeriod[]|null);
+    }
+
+    /** Represents a NyctFeedHeader. */
+    class NyctFeedHeader implements INyctFeedHeader {
+
+        /**
+         * Constructs a new NyctFeedHeader.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: transit_realtime.INyctFeedHeader);
+
+        /** NyctFeedHeader nyctSubwayVersion. */
+        public nyctSubwayVersion: string;
+
+        /** NyctFeedHeader tripReplacementPeriod. */
+        public tripReplacementPeriod: transit_realtime.ITripReplacementPeriod[];
+
+        /**
+         * Creates a new NyctFeedHeader instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns NyctFeedHeader instance
+         */
+        public static create(properties?: transit_realtime.INyctFeedHeader): transit_realtime.NyctFeedHeader;
+
+        /**
+         * Encodes the specified NyctFeedHeader message. Does not implicitly {@link transit_realtime.NyctFeedHeader.verify|verify} messages.
+         * @param message NyctFeedHeader message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: transit_realtime.INyctFeedHeader, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified NyctFeedHeader message, length delimited. Does not implicitly {@link transit_realtime.NyctFeedHeader.verify|verify} messages.
+         * @param message NyctFeedHeader message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encodeDelimited(message: transit_realtime.INyctFeedHeader, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a NyctFeedHeader message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns NyctFeedHeader
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): transit_realtime.NyctFeedHeader;
+
+        /**
+         * Decodes a NyctFeedHeader message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns NyctFeedHeader
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): transit_realtime.NyctFeedHeader;
+
+        /**
+         * Verifies a NyctFeedHeader message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        public static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a NyctFeedHeader message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns NyctFeedHeader
+         */
+        public static fromObject(object: { [k: string]: any }): transit_realtime.NyctFeedHeader;
+
+        /**
+         * Creates a plain object from a NyctFeedHeader message. Also converts values to other types if specified.
+         * @param message NyctFeedHeader
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: transit_realtime.NyctFeedHeader, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this NyctFeedHeader to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for NyctFeedHeader
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
+    /** Properties of a NyctTripDescriptor. */
+    interface INyctTripDescriptor {
+
+        /** NyctTripDescriptor trainId */
+        trainId?: (string|null);
+
+        /** NyctTripDescriptor isAssigned */
+        isAssigned?: (boolean|null);
+
+        /** NyctTripDescriptor direction */
+        direction?: (transit_realtime.NyctTripDescriptor.Direction|null);
+    }
+
+    /** Represents a NyctTripDescriptor. */
+    class NyctTripDescriptor implements INyctTripDescriptor {
+
+        /**
+         * Constructs a new NyctTripDescriptor.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: transit_realtime.INyctTripDescriptor);
+
+        /** NyctTripDescriptor trainId. */
+        public trainId: string;
+
+        /** NyctTripDescriptor isAssigned. */
+        public isAssigned: boolean;
+
+        /** NyctTripDescriptor direction. */
+        public direction: transit_realtime.NyctTripDescriptor.Direction;
+
+        /**
+         * Creates a new NyctTripDescriptor instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns NyctTripDescriptor instance
+         */
+        public static create(properties?: transit_realtime.INyctTripDescriptor): transit_realtime.NyctTripDescriptor;
+
+        /**
+         * Encodes the specified NyctTripDescriptor message. Does not implicitly {@link transit_realtime.NyctTripDescriptor.verify|verify} messages.
+         * @param message NyctTripDescriptor message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: transit_realtime.INyctTripDescriptor, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified NyctTripDescriptor message, length delimited. Does not implicitly {@link transit_realtime.NyctTripDescriptor.verify|verify} messages.
+         * @param message NyctTripDescriptor message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encodeDelimited(message: transit_realtime.INyctTripDescriptor, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a NyctTripDescriptor message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns NyctTripDescriptor
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): transit_realtime.NyctTripDescriptor;
+
+        /**
+         * Decodes a NyctTripDescriptor message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns NyctTripDescriptor
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): transit_realtime.NyctTripDescriptor;
+
+        /**
+         * Verifies a NyctTripDescriptor message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        public static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a NyctTripDescriptor message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns NyctTripDescriptor
+         */
+        public static fromObject(object: { [k: string]: any }): transit_realtime.NyctTripDescriptor;
+
+        /**
+         * Creates a plain object from a NyctTripDescriptor message. Also converts values to other types if specified.
+         * @param message NyctTripDescriptor
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: transit_realtime.NyctTripDescriptor, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this NyctTripDescriptor to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for NyctTripDescriptor
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
+    namespace NyctTripDescriptor {
+
+        /** Direction enum. */
+        enum Direction {
+            NORTH = 1,
+            EAST = 2,
+            SOUTH = 3,
+            WEST = 4
+        }
+    }
+
+    /** Properties of a NyctStopTimeUpdate. */
+    interface INyctStopTimeUpdate {
+
+        /** NyctStopTimeUpdate scheduledTrack */
+        scheduledTrack?: (string|null);
+
+        /** NyctStopTimeUpdate actualTrack */
+        actualTrack?: (string|null);
+    }
+
+    /** Represents a NyctStopTimeUpdate. */
+    class NyctStopTimeUpdate implements INyctStopTimeUpdate {
+
+        /**
+         * Constructs a new NyctStopTimeUpdate.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: transit_realtime.INyctStopTimeUpdate);
+
+        /** NyctStopTimeUpdate scheduledTrack. */
+        public scheduledTrack: string;
+
+        /** NyctStopTimeUpdate actualTrack. */
+        public actualTrack: string;
+
+        /**
+         * Creates a new NyctStopTimeUpdate instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns NyctStopTimeUpdate instance
+         */
+        public static create(properties?: transit_realtime.INyctStopTimeUpdate): transit_realtime.NyctStopTimeUpdate;
+
+        /**
+         * Encodes the specified NyctStopTimeUpdate message. Does not implicitly {@link transit_realtime.NyctStopTimeUpdate.verify|verify} messages.
+         * @param message NyctStopTimeUpdate message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: transit_realtime.INyctStopTimeUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified NyctStopTimeUpdate message, length delimited. Does not implicitly {@link transit_realtime.NyctStopTimeUpdate.verify|verify} messages.
+         * @param message NyctStopTimeUpdate message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encodeDelimited(message: transit_realtime.INyctStopTimeUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a NyctStopTimeUpdate message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns NyctStopTimeUpdate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): transit_realtime.NyctStopTimeUpdate;
+
+        /**
+         * Decodes a NyctStopTimeUpdate message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns NyctStopTimeUpdate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): transit_realtime.NyctStopTimeUpdate;
+
+        /**
+         * Verifies a NyctStopTimeUpdate message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        public static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a NyctStopTimeUpdate message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns NyctStopTimeUpdate
+         */
+        public static fromObject(object: { [k: string]: any }): transit_realtime.NyctStopTimeUpdate;
+
+        /**
+         * Creates a plain object from a NyctStopTimeUpdate message. Also converts values to other types if specified.
+         * @param message NyctStopTimeUpdate
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: transit_realtime.NyctStopTimeUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this NyctStopTimeUpdate to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for NyctStopTimeUpdate
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
     }
 }

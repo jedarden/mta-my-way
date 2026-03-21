@@ -1,43 +1,68 @@
+// Copyright 2012 Metropolitan Transportation Authority
+//
+// Protocol definition NYCT-specific extensions to GTFS-realtime.
+//
+// Source: https://raw.githubusercontent.com/OneBusAway/onebusaway-gtfs-realtime-api/master/src/main/proto/com/google/transit/realtime/gtfs-realtime-NYCT.proto
+
 syntax = "proto2";
+
+import "gtfs-realtime.proto";
+
 option java_package = "com.google.transit.realtime";
 package transit_realtime;
 
-// Extension for NYCT Subway trips
-extend TripDescriptor {
-  // The direction the train is traveling. Note that this is NOT
-  // necessarily the same as the GTFS direction_id.
-  optional int32 direction = 1000 [default = 0];
-
-  // Is this train a "downtown" train? This field exists to provide
-  // additional context in cases where the GTFS direction_id is ambiguous.
-  optional bool is_assigned = 1001 [default = false];
-
-  // The MTA-assigned train ID. This is the ID used in the MTA's internal
-  // systems and may differ from the trip_id in GTFS.
-  optional string train_id = 1002;
-
-  // When this trip was added to the schedule, as a Unix timestamp.
-  // This can be used to determine if a trip is a new addition (e.g.,
-  // a train added to fill a gap) vs. a scheduled trip.
-  optional uint64 trip_replacement_period_start = 1003 [default = 0];
-  optional uint64 trip_replacement_period_end = 1004 [default = 0];
+message TripReplacementPeriod {
+  // The replacement period is for this route
+  optional string route_id = 1;
+  // The start time is omitted, the end time is currently now + 30 minutes for
+  // all routes of the A division
+  optional transit_realtime.TimeRange replacement_period = 2;
 }
 
-// Extension for NYCT Subway stop time updates
-extend TripUpdate.StopTimeUpdate {
-  // The track the train is scheduled to arrive at.
-  optional string scheduled_track = 1000;
-
-  // The actual track the train will arrive at. This may differ from
-  // the scheduled track due to operational changes.
-  optional string actual_track = 1001;
+// NYCT Subway extensions for the feed header
+message NyctFeedHeader {
+  // Version of the NYCT Subway extensions
+  required string nyct_subway_version = 1;
+  // For the NYCT Subway, the GTFS-realtime feed replaces any scheduled
+  // trip within the trip_replacement_period.
+  repeated TripReplacementPeriod trip_replacement_period = 2;
 }
 
-// Extension for the feed header
 extend FeedHeader {
-  // The NYCT-assigned feed version.
-  optional string nyct_feed_version = 1000;
+  optional NyctFeedHeader nyct_feed_header = 1001;
+}
 
-  // The timestamp of the feed.
-  optional uint64 nyct_timestamp = 1001;
+// NYCT Subway extensions for the trip descriptor
+message NyctTripDescriptor {
+  // Internal MTA train ID (e.g., "06 0123+ PEL/BBR").
+  optional string train_id = 1;
+
+  // True if this trip has been assigned to a physical train.
+  optional bool is_assigned = 2;
+
+  // The direction the train is moving.
+  enum Direction {
+    NORTH = 1;
+    EAST = 2;
+    SOUTH = 3;
+    WEST = 4;
+  }
+  optional Direction direction = 3;
+}
+
+extend TripDescriptor {
+  optional NyctTripDescriptor nyct_trip_descriptor = 1001;
+}
+
+// NYCT Subway extensions for the stop time update
+message NyctStopTimeUpdate {
+  // The planned station arrival track.
+  optional string scheduled_track = 1;
+
+  // The actual track the train is operating on.
+  optional string actual_track = 2;
+}
+
+extend TripUpdate.StopTimeUpdate {
+  optional NyctStopTimeUpdate nyct_stop_time_update = 1001;
 }
