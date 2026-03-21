@@ -17,6 +17,7 @@ function App() {
           <Route path="/" element={<HomeScreen />} />
           <Route path="/search" element={<SearchScreen />} />
           <Route path="/commute" element={<CommuteScreen />} />
+          <Route path="/commute/:commuteId" element={<CommuteScreen />} />
           <Route path="/alerts" element={<AlertsScreen />} />
           <Route path="/station/:stationId" element={<StationScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />

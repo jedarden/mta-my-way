@@ -535,3 +535,62 @@ export class TransferEngine {
 export function createTransferEngine(config: EngineConfig): TransferEngine {
   return new TransferEngine(config);
 }
+
+/**
+ * Express detection result
+ */
+export interface ExpressDetectionResult {
+  isExpress: boolean;
+  skippedStops: string[];
+}
+
+/**
+ * Detect if a trip is express by comparing its stop pattern to the route's full stops
+ *
+ * An express train skips stops that are normally served by the local.
+ * This is detected by comparing the trip's stop_time_updates against the route's
+ * full stop list - if stops are missing between origin and destination, it's express.
+ *
+ * @param tripStopIds - Stop IDs from the trip's stop_time_updates
+ * @param routeStops - Full stop list for the route
+ * @param originId - Origin station ID (to limit analysis to relevant segment)
+ * @param destinationId - Destination station ID (to limit analysis to relevant segment)
+ * @returns ExpressDetectionResult indicating express status and skipped stops
+ */
+export function detectExpressService(
+  tripStopIds: string[],
+  routeStops: string[],
+  originId: string,
+  destinationId: string
+): ExpressDetectionResult {
+  // Find the segment of the route between origin and destination
+  const originIndex = routeStops.indexOf(originId);
+  const destinationIndex = routeStops.indexOf(destinationId);
+
+  if (originIndex === -1 || destinationIndex === -1) {
+    return { isExpress: false, skippedStops: [] };
+  }
+
+  const startIdx = Math.min(originIndex, destinationIndex);
+  const endIdx = Math.max(originIndex, destinationIndex);
+
+  // Get the expected stops in this segment
+  const expectedStops = routeStops.slice(startIdx, endIdx + 1);
+  const tripStopSet = new Set(tripStopIds);
+
+  // Find skipped stops (stops in route but not in trip)
+  const skippedStops: string[] = [];
+  for (const stopId of expectedStops) {
+    if (!tripStopSet.has(stopId)) {
+      skippedStops.push(stopId);
+    }
+  }
+
+  // A trip is express if it skips at least 2 stops in the segment
+  const isExpress = skippedStops.length >= 2;
+
+  return {
+    isExpress,
+    skippedStops,
+  };
+}

@@ -17,6 +17,7 @@ import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
 import { useCallback, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { CommuteCard } from "../components/commute/CommuteCard";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
@@ -34,6 +35,7 @@ export default function HomeScreen() {
   const onboardingComplete = useFavoritesStore((s) => s.onboardingComplete);
   const { favorites, hasFavorites, updateFavorite, removeFavorite, reorderFavorites } =
     useFavorites();
+  const commutes = useFavoritesStore((s) => s.commutes);
   const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
 
   // Show onboarding flow for first-time users
@@ -168,6 +170,35 @@ export default function HomeScreen() {
             <EmptyState />
           )}
         </section>
+
+        {/* Commutes section */}
+        {commutes.length > 0 && (
+          <section aria-labelledby="commutes-heading" className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2
+                id="commutes-heading"
+                className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+              >
+                Your Commutes
+              </h2>
+              <Link
+                to="/commute"
+                className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
+              >
+                View all
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {commutes.slice(0, 3).map((commute) => (
+                <CommuteCard
+                  key={commute.id}
+                  commute={commute}
+                  forceRefreshId={forceRefreshId}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Updated X ago */}
         {hasFavorites && (

@@ -3,13 +3,18 @@
  * Provides type-safe fetch wrapper with error handling
  */
 
-import type { ArrivalTime, StationArrivals, StationComplex } from "@mta-my-way/shared";
+import type {
+  ArrivalTime,
+  CommuteAnalysis,
+  StationArrivals,
+  StationComplex,
+} from "@mta-my-way/shared";
 
 // Re-export for use across the frontend
 export type { StationComplex };
 
 // Re-export shared arrival types so callers can import from one place
-export type { ArrivalTime, StationArrivals };
+export type { ArrivalTime, CommuteAnalysis, StationArrivals };
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -117,6 +122,19 @@ export const api = {
   // Health
   async getHealth(): Promise<{ status: string; uptime: number }> {
     return fetchJson<{ status: string; uptime: number }>("/api/health");
+  },
+
+  // Commute analysis
+  async analyzeCommute(options: {
+    originId: string;
+    destinationId: string;
+    preferredLines?: string[];
+    commuteId?: string;
+  }): Promise<CommuteAnalysis> {
+    return fetchJson<CommuteAnalysis>("/api/commute/analyze", {
+      method: "POST",
+      body: JSON.stringify(options),
+    });
   },
 };
 
