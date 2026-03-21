@@ -100,6 +100,17 @@ export type {
   LineDiagramData,
 } from "./types/positions.js";
 
+// Web Push notification types
+export type {
+  PushFavoriteTuple,
+  PushSubscribeRequest,
+  PushUnsubscribeRequest,
+  PushNotificationPayload,
+  PushSubscribeResponse,
+  PushUnsubscribeResponse,
+  PushSubscriptionRecord,
+} from "./types/push.js";
+
 // =============================================================================
 // Constants
 // =============================================================================

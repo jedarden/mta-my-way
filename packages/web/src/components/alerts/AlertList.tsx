@@ -118,7 +118,7 @@ export function AlertList({
             key={alert.id}
             alert={alert}
             compact
-            isRaw={alert.source === "predicted"}
+            isRaw={alert.isRaw ?? false}
           />
         ))}
         {maxAlerts && alerts.length > maxAlerts && (
@@ -154,7 +154,7 @@ export function AlertList({
                 <AlertCard
                   key={alert.id}
                   alert={alert}
-                  isRaw={alert.source === "predicted"}
+                  isRaw={alert.isRaw ?? false}
                 />
               ))}
             </div>

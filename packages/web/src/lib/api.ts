@@ -6,6 +6,10 @@
 import type {
   ArrivalTime,
   CommuteAnalysis,
+  PushSubscribeRequest,
+  PushSubscribeResponse,
+  PushUnsubscribeRequest,
+  PushUnsubscribeResponse,
   StationAlert,
   StationArrivals,
   StationComplex,
@@ -15,7 +19,16 @@ import type {
 export type { StationComplex };
 
 // Re-export shared arrival types so callers can import from one place
-export type { ArrivalTime, CommuteAnalysis, StationAlert, StationArrivals };
+export type {
+  ArrivalTime,
+  CommuteAnalysis,
+  PushSubscribeRequest,
+  PushSubscribeResponse,
+  PushUnsubscribeRequest,
+  PushUnsubscribeResponse,
+  StationAlert,
+  StationArrivals,
+};
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -142,6 +155,25 @@ export const api = {
     return fetchJson<CommuteAnalysis>("/api/commute/analyze", {
       method: "POST",
       body: JSON.stringify(options),
+    });
+  },
+
+  // Push notifications
+  async getVapidPublicKey(): Promise<{ publicKey: string }> {
+    return fetchJson<{ publicKey: string }>("/api/push/vapid-public-key");
+  },
+
+  async subscribePush(request: PushSubscribeRequest): Promise<PushSubscribeResponse> {
+    return fetchJson<PushSubscribeResponse>("/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async unsubscribePush(request: PushUnsubscribeRequest): Promise<PushUnsubscribeResponse> {
+    return fetchJson<PushUnsubscribeResponse>("/api/push/unsubscribe", {
+      method: "DELETE",
+      body: JSON.stringify(request),
     });
   },
 };

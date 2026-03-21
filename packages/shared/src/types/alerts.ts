@@ -126,3 +126,22 @@ export interface SystemHealth {
   /** When this summary was computed */
   computedAt: number;
 }
+
+/**
+ * Alert change type for push notifications
+ * Tracks new, updated, and resolved alerts
+ */
+export type AlertChangeType = "new" | "updated" | "resolved";
+
+/**
+ * Represents a change to an alert (new, updated, or resolved)
+ * Used by the push notification pipeline to detect when to send notifications
+ */
+export interface AlertChange {
+  /** Type of change */
+  type: AlertChangeType;
+  /** The alert (for new/updated) or the alert that was resolved */
+  alert: StationAlert;
+  /** Timestamp when this change was detected */
+  detectedAt: number;
+}

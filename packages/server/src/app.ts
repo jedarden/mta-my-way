@@ -219,6 +219,7 @@ export function createApp(
         circuitOpen: alertsStatus.circuitOpen,
         unmatchedCount: alertsStatus.unmatchedCount,
       },
+      pushSubscriptions: getSubscriptionCount(),
     });
   });
 
