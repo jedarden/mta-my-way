@@ -111,24 +111,26 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
         onClick={handleCardTap}
         aria-label={`View all arrivals at ${favorite.stationName}`}
       >
-        {isLoading ? (
-          <ArrivalSkeleton />
-        ) : arrivals.length === 0 ? (
-          <p className="text-13 text-text-secondary dark:text-dark-text-secondary py-2">
-            No upcoming arrivals
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {arrivals.map((arrival) => (
-              <ArrivalRow
-                key={`${arrival.tripId}-${arrival.arrivalTime}`}
-                arrival={arrival}
-                compact
-                staleness={staleness.level}
-              />
-            ))}
-          </div>
-        )}
+        <div aria-live="polite" aria-atomic="false">
+          {isLoading ? (
+            <ArrivalSkeleton />
+          ) : arrivals.length === 0 ? (
+            <p className="text-13 text-text-secondary dark:text-dark-text-secondary py-2">
+              No upcoming arrivals
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {arrivals.map((arrival) => (
+                <ArrivalRow
+                  key={`${arrival.tripId}-${arrival.arrivalTime}`}
+                  arrival={arrival}
+                  compact
+                  staleness={staleness.level}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </button>
     </article>
   );

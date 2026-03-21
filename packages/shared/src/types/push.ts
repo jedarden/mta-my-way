@@ -81,6 +81,23 @@ export interface PushUnsubscribeResponse {
 }
 
 /**
+ * Payload sent from frontend to PATCH /api/push/subscription
+ * Used to update favorites or quiet hours without re-subscribing.
+ */
+export interface PushUpdateRequest {
+  /** The subscription endpoint to identify the subscription */
+  endpoint: string;
+  /** Updated favorites (optional) */
+  favorites?: PushFavoriteTuple[];
+  /** Updated quiet hours (optional) */
+  quietHours?: {
+    enabled: boolean;
+    startHour: number;
+    endHour: number;
+  };
+}
+
+/**
  * Subscription record stored in SQLite
  */
 export interface PushSubscriptionRecord {

@@ -42,7 +42,7 @@ export default {
       background: "#FFFFFF",
       surface: "#F5F5F5",
       "text-primary": "#1A1A1A",
-      "text-secondary": "#666666",
+      "text-secondary": "#555555",
       // Alert colors
       severe: "#EE352E",
       warning: "#FCCC0A",

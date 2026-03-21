@@ -12,7 +12,7 @@
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
@@ -87,12 +87,25 @@ export default function StationScreen() {
 
   const stationName = station?.name ?? arrivals?.stationName ?? `Station ${stationId}`;
 
+  // Focus management: move focus to heading on mount for screen reader users
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [stationId]);
+
   // Derive error state for arrivals
   const arrivalsError =
     status === "error" || status === "offline" ? "Could not load arrivals" : null;
 
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
+      {/* Skip link for keyboard users */}
+      <a
+        href="#station-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-mta-primary focus:text-white focus:rounded-lg focus:font-medium focus:outline-none"
+      >
+        Skip to main content
+      </a>
       {/* Custom header with back button */}
       <header className="sticky top-0 z-50 bg-background dark:bg-dark-background border-b border-surface dark:border-dark-surface px-4 py-3 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between">
@@ -116,7 +129,7 @@ export default function StationScreen() {
                 <polyline points="15,18 9,12 15,6" />
               </svg>
             </Link>
-            <h1 className="text-lg font-bold text-text-primary dark:text-dark-text-primary truncate">
+            <h1 ref={headingRef} tabIndex={-1} className="text-lg font-bold text-text-primary dark:text-dark-text-primary truncate outline-none">
               {stationName}
             </h1>
           </div>
@@ -148,7 +161,7 @@ export default function StationScreen() {
       </header>
 
       <OfflineBanner />
-      <main className="flex-1 overflow-y-auto pb-14 p-4" role="main">
+      <main id="station-main" className="flex-1 overflow-y-auto pb-14 p-4" role="main">
         {/* Station error */}
         {stationError ? <p className="text-severe font-medium mb-4">{stationError}</p> : null}
 
@@ -250,11 +263,13 @@ export default function StationScreen() {
 
           {/* Actual arrivals */}
           {arrivals && (
-            <ArrivalList
-              northbound={arrivals.northbound}
-              southbound={arrivals.southbound}
-              staleness={staleness.level}
-            />
+            <div aria-live="polite" aria-atomic="false">
+              <ArrivalList
+                northbound={arrivals.northbound}
+                southbound={arrivals.southbound}
+                staleness={staleness.level}
+              />
+            </div>
           )}
         </section>
 

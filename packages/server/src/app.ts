@@ -10,12 +10,16 @@
  *   GET /api/routes                — full route index
  *   GET /api/static/complexes      — station complexes index
  *   POST /api/commute/analyze      — analyze routes between origin and destination
+ *   GET /api/alerts                — all current alerts with status
+ *   GET /api/alerts/:lineId        — alerts filtered by line
  *   GET /api/push/vapid-public-key — VAPID public key for push subscription
  *   POST /api/push/subscribe       — register a push subscription
  *   DELETE /api/push/unsubscribe   — remove a push subscription
+ *   PATCH /api/push/subscription   — update favorites/quiet hours
  *   GET /*                         — serve React PWA from packages/web/dist
  */
 
+import { createDeflate, createGzip } from "node:zlib";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -28,13 +32,15 @@ import type {
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
-import type { PushSubscribeRequest, PushUnsubscribeRequest } from "@mta-my-way/shared";
+import type { PushSubscribeRequest, PushUnsubscribeRequest, PushUpdateRequest } from "@mta-my-way/shared";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { getArrivals, getFeedStates } from "./cache.js";
 import {
   getSubscriptionCount,
   removeSubscription,
+  updateSubscriptionFavorites,
+  updateSubscriptionQuietHours,
   upsertSubscription,
 } from "./push/subscriptions.js";
 import { getVapidPublicKey } from "./push/vapid.js";
@@ -157,6 +163,77 @@ function buildStationToComplexMap(complexes: ComplexIndex): Map<string, StationC
  * @param transfers        Pre-loaded transfer connections
  * @param webDistPath      Absolute path to the built React PWA (packages/web/dist)
  */
+/** Cache header for immutable assets (hashed filenames) */
+const IMMUTABLE_CACHE_HEADER = "public, max-age=31536000, immutable";
+
+/**
+ * Compression middleware for API responses.
+ * Supports gzip and deflate based on Accept-Encoding header.
+ */
+function compressionMiddleware(): import("hono").MiddlewareHandler {
+  return async (c, next) => {
+    await next();
+
+    const body = c.res.body;
+    if (!body || c.res.headers.get("Content-Encoding")) return;
+
+    const contentType = c.res.headers.get("Content-Type");
+    if (!contentType?.includes("json") && !contentType?.includes("text")) return;
+
+    const acceptEncoding = c.req.header("Accept-Encoding") || "";
+    const contentLength = c.res.headers.get("Content-Length");
+
+    // Skip small responses (not worth compressing)
+    if (contentLength && parseInt(contentLength, 10) < 500) return;
+
+    // Clone response to get the body as buffer
+    const buffer = Buffer.from(await c.res.clone().arrayBuffer());
+
+    if (acceptEncoding.includes("gzip")) {
+      const gzipped = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        const gzip = createGzip();
+        gzip.on("data", (chunk) => chunks.push(chunk));
+        gzip.on("end", () => resolve(Buffer.concat(chunks)));
+        gzip.on("error", reject);
+        gzip.end(buffer);
+      });
+
+      c.res = new Response(gzipped, {
+        status: c.res.status,
+        headers: c.res.headers,
+      });
+      c.res.headers.set("Content-Encoding", "gzip");
+      c.res.headers.delete("Content-Length");
+    } else if (acceptEncoding.includes("deflate")) {
+      const deflated = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        const deflate = createDeflate();
+        deflate.on("data", (chunk) => chunks.push(chunk));
+        deflate.on("end", () => resolve(Buffer.concat(chunks)));
+        deflate.on("error", reject);
+        deflate.end(buffer);
+      });
+
+      c.res = new Response(deflated, {
+        status: c.res.status,
+        headers: c.res.headers,
+      });
+      c.res.headers.set("Content-Encoding", "deflate");
+      c.res.headers.delete("Content-Length");
+    }
+  };
+}
+
+/**
+ * Check if a path has a content hash (for immutable caching).
+ * Vite produces files like: assets/index-a1b2c3d4.js
+ */
+function isHashedAsset(path: string): boolean {
+  // Match pattern: /assets/name-[hash].ext where hash is 8+ hex chars
+  return /\/assets\/[^/]+-[a-f0-9]{8,}\.(js|css|svg|png|jpg|ico|woff2?)$/i.test(path);
+}
+
 export function createApp(
   stations: StationIndex,
   routes: RouteIndex,
@@ -165,6 +242,9 @@ export function createApp(
   webDistPath: string
 ): Hono {
   const app = new Hono();
+
+  // Apply compression to all API routes
+  app.use("/api/*", compressionMiddleware());
 
   const stationToComplex = buildStationToComplexMap(complexes);
 
@@ -510,6 +590,40 @@ export function createApp(
     }
   });
 
+  /** Update favorites or quiet hours for an existing push subscription */
+  app.patch("/api/push/subscription", async (c) => {
+    try {
+      const body = await c.req.json<PushUpdateRequest>();
+
+      if (!body.endpoint) {
+        return c.json({ error: "endpoint is required" }, 400);
+      }
+
+      if (body.favorites) {
+        updateSubscriptionFavorites(body.endpoint, body.favorites);
+      }
+
+      if (body.quietHours) {
+        updateSubscriptionQuietHours(body.endpoint, body.quietHours);
+      }
+
+      if (!body.favorites && !body.quietHours) {
+        return c.json({ error: "favorites or quietHours is required" }, 400);
+      }
+
+      return c.json({ success: true });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "push_update_error",
+          timestamp: new Date().toISOString(),
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      return c.json({ error: "Failed to update subscription" }, 500);
+    }
+  });
+
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)
   // -------------------------------------------------------------------------
@@ -517,8 +631,20 @@ export function createApp(
     "/*",
     serveStatic({
       root: webDistPath,
+      onNotFound: (_path, c) => {
+        // Let SPA fallback handle this
+        return c.next();
+      },
     })
   );
+
+  // Add immutable caching header for hashed assets
+  app.use("/assets/*", async (c, next) => {
+    await next();
+    if (isHashedAsset(c.req.path)) {
+      c.res.headers.set("Cache-Control", IMMUTABLE_CACHE_HEADER);
+    }
+  });
 
   app.get("*", async (c) => {
     const html = await readFile(join(webDistPath, "index.html"), "utf8").catch(() => null);

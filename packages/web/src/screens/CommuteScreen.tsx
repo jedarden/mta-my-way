@@ -275,6 +275,7 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
               <span
                 key={line}
                 className="text-11 text-text-secondary dark:text-dark-text-secondary bg-surface dark:bg-dark-surface px-2 py-0.5 rounded-full"
+                aria-label={`${line} train`}
               >
                 {line}
               </span>

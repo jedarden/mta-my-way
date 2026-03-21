@@ -6,7 +6,7 @@
  */
 
 import type { StationRef } from "@mta-my-way/shared";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStationIndex } from "../../hooks/useStationIndex";
 import { searchStations } from "../../lib/stationSearch";
 import { LineBullet } from "../arrivals/LineBullet";
@@ -21,6 +21,64 @@ interface StationPickerProps {
 export function StationPicker({ title, onSelect, onClose }: StationPickerProps) {
   const [query, setQuery] = useState("");
   const { stations, complexes, loading } = useStationIndex();
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Focus management: save previous focus, focus dialog on open, restore on close
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement;
+    const dialog = dialogRef.current;
+    if (dialog) {
+      // Focus the search input if present, otherwise first focusable element
+      const searchInput = dialog.querySelector<HTMLInputElement>('input[type="search"]');
+      if (searchInput) {
+        searchInput.focus();
+      } else {
+        const firstFocusable = dialog.querySelector<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        firstFocusable?.focus();
+      }
+    }
+    return () => {
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  // Focus trap: keep Tab/Shift+Tab inside the dialog; Escape closes
+  const handleDialogKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    },
+    [onClose]
+  );
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
@@ -38,9 +96,11 @@ export function StationPicker({ title, onSelect, onClose }: StationPickerProps) 
 
       {/* Panel */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        onKeyDown={handleDialogKeyDown}
         className="fixed bottom-0 left-0 right-0 z-[70] bg-background dark:bg-dark-background rounded-t-2xl shadow-lg h-[85dvh] flex flex-col pb-[env(safe-area-inset-bottom)]"
       >
         {/* Handle bar */}

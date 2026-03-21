@@ -377,6 +377,42 @@ export function usePushNotifications(): PushNotificationsState {
     return () => navigator.serviceWorker.removeEventListener("message", handle);
   }, [isSupported, retryPendingOp]);
 
+  // ---------------------------------------------------------------------------
+  // Sync updated favorites / quiet hours to the backend when subscribed
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!isSubscribed || !isSupported) return;
+
+    const sync = async () => {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const pushSub = await reg.pushManager.getSubscription();
+        if (!pushSub) return;
+
+        const favoriteTuples: PushFavoriteTuple[] = favorites.map((fav) => ({
+          stationId: fav.stationId,
+          lines: fav.lines,
+          direction: fav.direction,
+        }));
+
+        await fetch("/api/push/subscription", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint: pushSub.endpoint,
+            favorites: favoriteTuples,
+            quietHours: quietHours ?? { enabled: false, startHour: 0, endHour: 5 },
+          }),
+        });
+      } catch {
+        // Best-effort sync — will retry on next change
+      }
+    };
+
+    void sync();
+  }, [isSubscribed, isSupported, favorites, quietHours]);
+
   return {
     isSupported,
     isOldIOS,

@@ -31,6 +31,19 @@ interface SelectedStation {
 export default function OnboardingFlow() {
   const [step, setStep] = useState<OnboardingStep>("location");
   const [selectedStations, setSelectedStations] = useState<SelectedStation[]>([]);
+  const [announcement, setAnnouncement] = useState("");
+
+  // Announce step transitions to screen readers
+  const stepLabels: Record<OnboardingStep, string> = {
+    location: "Step 1 of 3: Find nearby stations",
+    nearby: "Step 2 of 3: Select your nearby stations",
+    commute: "Step 3 of 3: Set up your commute",
+    "search-fallback": "Step 1 of 3: Search for a station",
+  };
+
+  useEffect(() => {
+    setAnnouncement(stepLabels[step]);
+  }, [step]);
   const [commuteDestination, setCommuteDestination] = useState<Station | null>(null);
   const [commuteName, setCommuteName] = useState("Work");
 
@@ -166,52 +179,50 @@ export default function OnboardingFlow() {
   }, [completeOnboarding]);
 
   // Render based on step
-  if (step === "location") {
-    return (
-      <LocationStep
-        permission={permission}
-        loading={geoLoading}
-        error={geoError}
-        onAllow={handleAllowLocation}
-        onDeny={handleDenyLocation}
-        onSkip={handleSkip}
-      />
-    );
-  }
+  return (
+    <div>
+      {/* Screen reader announcements for step transitions */}
+      <div className="sr-only" aria-live="assertive" aria-atomic="true">
+        {announcement}
+      </div>
+      {step === "location" && (
+        <LocationStep
+          permission={permission}
+          loading={geoLoading}
+          error={geoError}
+          onAllow={handleAllowLocation}
+          onDeny={handleDenyLocation}
+          onSkip={handleSkip}
+        />
+      )}
 
-  if (step === "nearby") {
-    return (
-      <NearbyStationsStep
-        stations={nearbyStations}
-        selected={selectedStations}
-        onToggle={toggleStation}
-        onContinue={handleNearbyContinue}
-        onSkip={handleSkip}
-      />
-    );
-  }
+      {step === "nearby" && (
+        <NearbyStationsStep
+          stations={nearbyStations}
+          selected={selectedStations}
+          onToggle={toggleStation}
+          onContinue={handleNearbyContinue}
+          onSkip={handleSkip}
+        />
+      )}
 
-  if (step === "search-fallback") {
-    return (
-      <SearchFallbackStep onSelect={handleSearchFallbackSelect} onSkip={handleSearchFallbackSkip} />
-    );
-  }
+      {step === "search-fallback" && (
+        <SearchFallbackStep onSelect={handleSearchFallbackSelect} onSkip={handleSearchFallbackSkip} />
+      )}
 
-  if (step === "commute") {
-    return (
-      <CommuteSetupStep
-        originName={selectedStations[0]?.stationName ?? "your station"}
-        destination={commuteDestination}
-        commuteName={commuteName}
-        onCommuteNameChange={setCommuteName}
-        onDestinationChange={setCommuteDestination}
-        onAddCommute={handleAddCommute}
-        onSkip={handleSkipCommute}
-      />
-    );
-  }
-
-  return null;
+      {step === "commute" && (
+        <CommuteSetupStep
+          originName={selectedStations[0]?.stationName ?? "your station"}
+          destination={commuteDestination}
+          commuteName={commuteName}
+          onCommuteNameChange={setCommuteName}
+          onDestinationChange={setCommuteDestination}
+          onAddCommute={handleAddCommute}
+          onSkip={handleSkipCommute}
+        />
+      )}
+    </div>
+  );
 }
 
 // =============================================================================

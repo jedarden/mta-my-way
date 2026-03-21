@@ -109,6 +109,7 @@ export type {
   PushSubscribeResponse,
   PushUnsubscribeResponse,
   PushSubscriptionRecord,
+  PushUpdateRequest,
 } from "./types/push.js";
 
 // =============================================================================
