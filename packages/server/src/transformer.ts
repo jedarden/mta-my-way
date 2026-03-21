@@ -19,6 +19,7 @@ import type {
   StationIndex,
 } from "@mta-my-way/shared";
 import { calculateConfidence } from "@mta-my-way/shared";
+import { detectExpressService } from "./transfer/engine.js";
 import type { ParsedFeed } from "./parser.js";
 
 // NYCT extension keys as used in protobufjs decoded objects
@@ -73,7 +74,7 @@ function toUnixSeconds(v: number | { toNumber(): number } | null | undefined): n
 export function transformFeeds(
   parsedFeeds: Map<string, ParsedFeed>,
   stations: StationIndex,
-  _routes: RouteIndex,
+  routes: RouteIndex,
   stopToStation: Map<string, StopInfo>,
   feedAges: Map<string, number>
 ): Map<string, StationArrivals> {
@@ -111,6 +112,22 @@ export function transformFeeds(
       const lastStopInfo = lastStu?.stopId ? stopToStation.get(lastStu.stopId) : null;
       const destination = lastStopInfo ? (stations[lastStopInfo.stationId]?.name ?? "") : "";
 
+      // Detect express service: compare trip stops vs route's full stop list
+      const route = routes[routeId];
+      let tripIsExpress = false;
+      if (route && stopTimeUpdates.length >= 2 && lastStopInfo) {
+        const tripStopIds = stopTimeUpdates
+          .map((stu) => {
+            const info = stu.stopId ? stopToStation.get(stu.stopId) : null;
+            return info?.stationId ?? null;
+          })
+          .filter((id): id is string => id !== null);
+        const firstStop = tripStopIds[0] ?? "";
+        const lastStop = tripStopIds[tripStopIds.length - 1] ?? "";
+        const result = detectExpressService(tripStopIds, route.stops, firstStop, lastStop);
+        tripIsExpress = result.isExpress;
+      }
+
       for (const stu of stopTimeUpdates) {
         if (!stu.stopId) continue;
 
@@ -146,7 +163,7 @@ export function transformFeeds(
           minutesAway,
           isAssigned: isAssigned ?? false,
           isRerouted: isRerouted ?? false,
-          isExpress: false,
+          isExpress: tripIsExpress,
           tripId: trip.tripId ?? "",
           destination,
           confidence: calculateConfidence(routeId, isAssigned ?? false),
