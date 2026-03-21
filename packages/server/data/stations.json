@@ -11,7 +11,7 @@
     "southStopId": "101S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "bronx"
   },
   "103": {
     "id": "103",
@@ -67,7 +67,7 @@
     "southStopId": "107S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "108": {
     "id": "108",
@@ -81,7 +81,7 @@
     "southStopId": "108S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "109": {
     "id": "109",
@@ -94,8 +94,8 @@
     "northStopId": "109N",
     "southStopId": "109S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C001"
   },
   "110": {
@@ -110,7 +110,7 @@
     "southStopId": "110S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "111": {
     "id": "111",
@@ -123,8 +123,8 @@
     "northStopId": "111N",
     "southStopId": "111S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C002"
   },
   "112": {
@@ -148,8 +148,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "bronx"
+    "ada": true,
+    "borough": "manhattan"
   },
   "113": {
     "id": "113",
@@ -163,7 +163,7 @@
     "southStopId": "113S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "114": {
     "id": "114",
@@ -176,8 +176,8 @@
     "northStopId": "114N",
     "southStopId": "114S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C003"
   },
   "115": {
@@ -191,8 +191,8 @@
     "northStopId": "115N",
     "southStopId": "115S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx"
+    "ada": true,
+    "borough": "manhattan"
   },
   "116": {
     "id": "116",
@@ -205,7 +205,7 @@
     "northStopId": "116N",
     "southStopId": "116S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C004"
   },
@@ -220,8 +220,8 @@
     "northStopId": "117N",
     "southStopId": "117S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx"
+    "ada": true,
+    "borough": "manhattan"
   },
   "118": {
     "id": "118",
@@ -234,8 +234,8 @@
     "northStopId": "118N",
     "southStopId": "118S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C005"
   },
   "119": {
@@ -249,7 +249,7 @@
     "northStopId": "119N",
     "southStopId": "119S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C006"
   },
@@ -266,7 +266,7 @@
     "northStopId": "120N",
     "southStopId": "120S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C007"
   },
@@ -282,7 +282,7 @@
     "northStopId": "121N",
     "southStopId": "121S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C008"
   },
@@ -315,7 +315,7 @@
     "northStopId": "123N",
     "southStopId": "123S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C010"
   },
@@ -358,7 +358,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C011"
   },
@@ -374,7 +374,7 @@
     "northStopId": "126N",
     "southStopId": "126S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C012"
   },
@@ -430,7 +430,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C013"
   },
@@ -447,7 +447,7 @@
     "northStopId": "128N",
     "southStopId": "128S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C014"
   },
@@ -479,7 +479,7 @@
     "northStopId": "130N",
     "southStopId": "130S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C016"
   },
@@ -495,7 +495,7 @@
     "northStopId": "131N",
     "southStopId": "131S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "132": {
@@ -530,7 +530,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C017"
   },
@@ -576,7 +576,7 @@
     "northStopId": "135N",
     "southStopId": "135S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C018"
   },
@@ -593,7 +593,7 @@
     "southStopId": "136S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "137": {
     "id": "137",
@@ -608,7 +608,7 @@
     "northStopId": "137N",
     "southStopId": "137S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C019"
   },
@@ -624,7 +624,7 @@
     "southStopId": "138S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "139": {
     "id": "139",
@@ -637,8 +637,8 @@
     "northStopId": "139N",
     "southStopId": "139S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C020"
   },
   "142": {
@@ -652,8 +652,8 @@
     "northStopId": "142N",
     "southStopId": "142S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn"
+    "ada": true,
+    "borough": "manhattan"
   },
   "201": {
     "id": "201",
@@ -849,7 +849,7 @@
     "southStopId": "215S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "216": {
     "id": "216",
@@ -939,7 +939,7 @@
     "northStopId": "221N",
     "southStopId": "221S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "bronx"
   },
   "222": {
@@ -964,7 +964,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "bronx",
     "complex": "C024"
   },
@@ -981,7 +981,7 @@
     "southStopId": "224S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C025"
   },
   "225": {
@@ -996,7 +996,7 @@
     "northStopId": "225N",
     "southStopId": "225S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C004"
   },
@@ -1013,7 +1013,7 @@
     "southStopId": "226S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C026"
   },
   "227": {
@@ -1071,8 +1071,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "brooklyn"
+    "ada": true,
+    "borough": "manhattan"
   },
   "229": {
     "id": "229",
@@ -1114,8 +1114,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "brooklyn",
     "complex": "C027"
   },
   "230": {
@@ -1181,7 +1181,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C029"
   },
@@ -1214,7 +1214,7 @@
     "northStopId": "234N",
     "southStopId": "234S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "235": {
@@ -1253,7 +1253,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C030"
   },
@@ -1389,7 +1389,7 @@
     "northStopId": "244N",
     "southStopId": "244S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C032"
   },
@@ -1452,7 +1452,7 @@
     "northStopId": "248N",
     "southStopId": "248S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C033"
   },
@@ -1504,7 +1504,7 @@
     "northStopId": "251N",
     "southStopId": "251S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "252": {
@@ -1522,7 +1522,7 @@
     "southStopId": "252S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "253": {
     "id": "253",
@@ -1538,7 +1538,7 @@
     "northStopId": "253N",
     "southStopId": "253S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens",
     "complex": "C034"
   },
@@ -1565,7 +1565,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "255": {
@@ -1582,7 +1582,7 @@
     "northStopId": "255N",
     "southStopId": "255S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "256": {
@@ -1599,7 +1599,7 @@
     "northStopId": "256N",
     "southStopId": "256S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C035"
   },
@@ -1617,7 +1617,7 @@
     "northStopId": "257N",
     "southStopId": "257S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C036"
   },
@@ -1633,7 +1633,7 @@
     "southStopId": "301S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "302": {
     "id": "302",
@@ -1646,8 +1646,8 @@
     "northStopId": "302N",
     "southStopId": "302S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C003"
   },
   "401": {
@@ -1718,7 +1718,7 @@
     "northStopId": "407N",
     "southStopId": "407S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "bronx",
     "complex": "C038"
   },
@@ -1762,7 +1762,7 @@
     "southStopId": "410S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "411": {
     "id": "411",
@@ -1790,7 +1790,7 @@
     "southStopId": "412S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C039"
   },
   "413": {
@@ -1804,8 +1804,8 @@
     "northStopId": "413N",
     "southStopId": "413S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C040"
   },
   "414": {
@@ -1829,7 +1829,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "bronx",
     "complex": "C041"
   },
@@ -1855,7 +1855,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "bronx",
     "complex": "C024"
   },
@@ -1871,7 +1871,7 @@
     "northStopId": "416N",
     "southStopId": "416S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "bronx"
   },
   "418": {
@@ -1914,8 +1914,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "brooklyn",
     "complex": "C027"
   },
   "419": {
@@ -1946,8 +1946,8 @@
     "northStopId": "420N",
     "southStopId": "420S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn"
+    "ada": true,
+    "borough": "manhattan"
   },
   "423": {
     "id": "423",
@@ -1981,7 +1981,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C029"
   },
@@ -2069,7 +2069,7 @@
     "northStopId": "601N",
     "southStopId": "601S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "bronx"
   },
   "602": {
@@ -2332,7 +2332,7 @@
     "northStopId": "621N",
     "southStopId": "621S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C004"
   },
@@ -2366,7 +2366,7 @@
     "northStopId": "623N",
     "southStopId": "623S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "624": {
@@ -2382,7 +2382,7 @@
     "northStopId": "624N",
     "southStopId": "624S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C006"
   },
@@ -2399,7 +2399,7 @@
     "northStopId": "625N",
     "southStopId": "625S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C007"
   },
@@ -2417,7 +2417,7 @@
     "northStopId": "626N",
     "southStopId": "626S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C008"
   },
@@ -2520,7 +2520,8 @@
       }
     ],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "manhattan",
+    "complex": "lexington_53"
   },
   "631": {
     "id": "631",
@@ -2554,9 +2555,9 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
-    "complex": "C044"
+    "complex": "C013"
   },
   "632": {
     "id": "632",
@@ -2641,7 +2642,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C045"
   },
@@ -2703,7 +2704,7 @@
     "northStopId": "638N",
     "southStopId": "638S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C046"
   },
@@ -2749,8 +2750,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C018"
   },
   "640": {
@@ -2792,7 +2793,7 @@
     "northStopId": "701N",
     "southStopId": "701S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "702": {
@@ -2807,8 +2808,8 @@
     "northStopId": "702N",
     "southStopId": "702S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "705": {
     "id": "705",
@@ -2822,7 +2823,7 @@
     "southStopId": "705S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan",
+    "borough": "queens",
     "complex": "C047"
   },
   "706": {
@@ -2852,7 +2853,7 @@
     "southStopId": "707S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "708": {
     "id": "708",
@@ -2865,7 +2866,7 @@
     "northStopId": "708N",
     "southStopId": "708S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "709": {
@@ -2879,8 +2880,8 @@
     "northStopId": "709N",
     "southStopId": "709S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "710": {
     "id": "710",
@@ -2906,8 +2907,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "711": {
     "id": "711",
@@ -2922,7 +2923,7 @@
     "southStopId": "711S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "712": {
     "id": "712",
@@ -2951,8 +2952,8 @@
     "northStopId": "713N",
     "southStopId": "713S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "714": {
     "id": "714",
@@ -2967,7 +2968,7 @@
     "southStopId": "714S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "715": {
     "id": "715",
@@ -2982,7 +2983,7 @@
     "southStopId": "715S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "716": {
     "id": "716",
@@ -2996,7 +2997,7 @@
     "northStopId": "716N",
     "southStopId": "716S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "718": {
@@ -3017,7 +3018,7 @@
           "N",
           "W"
         ],
-        "walkingSeconds": 0,
+        "walkingSeconds": 180,
         "accessible": false
       }
     ],
@@ -3056,8 +3057,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "queens",
     "complex": "C049"
   },
   "720": {
@@ -3072,8 +3073,8 @@
     "northStopId": "720N",
     "southStopId": "720S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "721": {
     "id": "721",
@@ -3122,9 +3123,9 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
-    "complex": "C044"
+    "complex": "C013"
   },
   "724": {
     "id": "724",
@@ -3151,7 +3152,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "725": {
@@ -3206,7 +3207,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C013"
   },
@@ -3222,7 +3223,7 @@
     "northStopId": "726N",
     "southStopId": "726S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "901": {
@@ -3257,9 +3258,9 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
-    "complex": "C044"
+    "complex": "C013"
   },
   "902": {
     "id": "902",
@@ -3313,7 +3314,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C013"
   },
@@ -3328,8 +3329,8 @@
     "northStopId": "A02N",
     "southStopId": "A02S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx"
+    "ada": true,
+    "borough": "manhattan"
   },
   "A03": {
     "id": "A03",
@@ -3342,8 +3343,8 @@
     "northStopId": "A03N",
     "southStopId": "A03S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C001"
   },
   "A05": {
@@ -3357,8 +3358,8 @@
     "northStopId": "A05N",
     "southStopId": "A05S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx"
+    "ada": true,
+    "borough": "manhattan"
   },
   "A06": {
     "id": "A06",
@@ -3371,8 +3372,8 @@
     "northStopId": "A06N",
     "southStopId": "A06S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C002"
   },
   "A07": {
@@ -3387,7 +3388,7 @@
     "southStopId": "A07S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "A09": {
     "id": "A09",
@@ -3411,7 +3412,7 @@
       }
     ],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "A10": {
     "id": "A10",
@@ -3426,7 +3427,7 @@
     "southStopId": "A10S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "A11": {
     "id": "A11",
@@ -3441,7 +3442,7 @@
     "southStopId": "A11S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C050"
   },
   "A12": {
@@ -3466,8 +3467,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C003"
   },
   "A14": {
@@ -3484,7 +3485,7 @@
     "southStopId": "A14S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C025"
   },
   "A15": {
@@ -3501,7 +3502,7 @@
     "northStopId": "A15N",
     "southStopId": "A15S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C004"
   },
@@ -3519,7 +3520,7 @@
     "southStopId": "A16S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C026"
   },
   "A17": {
@@ -3535,8 +3536,8 @@
     "northStopId": "A17N",
     "southStopId": "A17S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C005"
   },
   "A18": {
@@ -3552,7 +3553,7 @@
     "northStopId": "A18N",
     "southStopId": "A18S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C006"
   },
@@ -3569,7 +3570,7 @@
     "northStopId": "A19N",
     "southStopId": "A19S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C007"
   },
@@ -3586,7 +3587,7 @@
     "northStopId": "A20N",
     "southStopId": "A20S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C008"
   },
@@ -3619,7 +3620,7 @@
     "northStopId": "A22N",
     "southStopId": "A22S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C010"
   },
@@ -3647,7 +3648,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C011"
   },
@@ -3664,7 +3665,7 @@
     "northStopId": "A25N",
     "southStopId": "A25S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C012"
   },
@@ -3720,8 +3721,9 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "manhattan",
+    "complex": "C013"
   },
   "A28": {
     "id": "A28",
@@ -3736,7 +3738,7 @@
     "northStopId": "A28N",
     "southStopId": "A28S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C014"
   },
@@ -3753,7 +3755,7 @@
     "northStopId": "A30N",
     "southStopId": "A30S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C016"
   },
@@ -3779,7 +3781,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C017"
   },
@@ -3809,7 +3811,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C051"
   },
@@ -3826,7 +3828,7 @@
     "northStopId": "A33N",
     "southStopId": "A33S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C046"
   },
@@ -3843,7 +3845,7 @@
     "northStopId": "A34N",
     "southStopId": "A34S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C018"
   },
@@ -3887,7 +3889,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C019"
   },
@@ -3931,8 +3933,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "brooklyn",
     "complex": "C027"
   },
   "A40": {
@@ -3974,7 +3976,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C052"
   },
@@ -3991,7 +3993,7 @@
     "northStopId": "A42N",
     "southStopId": "A42S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "A43": {
@@ -4062,7 +4064,7 @@
     "northStopId": "A46N",
     "southStopId": "A46S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C033"
   },
@@ -4093,7 +4095,7 @@
     "northStopId": "A48N",
     "southStopId": "A48S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "A49": {
@@ -4108,7 +4110,7 @@
     "northStopId": "A49N",
     "southStopId": "A49S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "A50": {
@@ -4123,7 +4125,7 @@
     "northStopId": "A50N",
     "southStopId": "A50S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens",
     "complex": "C034"
   },
@@ -4157,7 +4159,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C055"
   },
@@ -4174,7 +4176,7 @@
     "southStopId": "A52S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "A53": {
     "id": "A53",
@@ -4188,7 +4190,7 @@
     "northStopId": "A53N",
     "southStopId": "A53S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C035"
   },
@@ -4205,7 +4207,7 @@
     "southStopId": "A54S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "A55": {
     "id": "A55",
@@ -4220,7 +4222,7 @@
     "southStopId": "A55S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "A57": {
     "id": "A57",
@@ -4234,7 +4236,7 @@
     "southStopId": "A57S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "A59": {
     "id": "A59",
@@ -4248,7 +4250,7 @@
     "southStopId": "A59S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "A60": {
     "id": "A60",
@@ -4262,7 +4264,7 @@
     "southStopId": "A60S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "A61": {
     "id": "A61",
@@ -4275,7 +4277,7 @@
     "northStopId": "A61N",
     "southStopId": "A61S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "A63": {
@@ -4290,7 +4292,7 @@
     "southStopId": "A63S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C056"
   },
   "A64": {
@@ -4305,7 +4307,7 @@
     "southStopId": "A64S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C047"
   },
   "A65": {
@@ -4319,7 +4321,7 @@
     "northStopId": "A65N",
     "southStopId": "A65S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "B04": {
@@ -4439,7 +4441,7 @@
     "northStopId": "B13N",
     "southStopId": "B13S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C057"
   },
@@ -4455,7 +4457,7 @@
     "northStopId": "B14N",
     "southStopId": "B14S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C012"
   },
@@ -4667,7 +4669,7 @@
     "northStopId": "D05N",
     "southStopId": "D05S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "bronx",
     "complex": "C038"
   },
@@ -4714,7 +4716,7 @@
     "southStopId": "D08S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx"
+    "borough": "manhattan"
   },
   "D09": {
     "id": "D09",
@@ -4729,7 +4731,7 @@
     "southStopId": "D09S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C039"
   },
   "D10": {
@@ -4744,8 +4746,8 @@
     "northStopId": "D10N",
     "southStopId": "D10S",
     "transfers": [],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C040"
   },
   "D11": {
@@ -4769,7 +4771,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "bronx",
     "complex": "C041"
   },
@@ -4786,7 +4788,7 @@
     "southStopId": "D12S",
     "transfers": [],
     "ada": false,
-    "borough": "bronx",
+    "borough": "manhattan",
     "complex": "C050"
   },
   "D13": {
@@ -4811,8 +4813,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "bronx",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C003"
   },
   "D14": {
@@ -4828,7 +4830,7 @@
     "northStopId": "D14N",
     "southStopId": "D14S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C061"
   },
@@ -4847,7 +4849,7 @@
     "northStopId": "D15N",
     "southStopId": "D15S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "D16": {
@@ -4876,7 +4878,8 @@
       }
     ],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "manhattan",
+    "complex": "C013"
   },
   "D17": {
     "id": "D17",
@@ -4905,7 +4908,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C062"
   },
@@ -4922,7 +4925,7 @@
     "northStopId": "D18N",
     "southStopId": "D18S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C016"
   },
@@ -4958,7 +4961,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C017"
   },
@@ -4988,7 +4991,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C051"
   },
@@ -5035,7 +5038,7 @@
     "southStopId": "D22S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "manhattan",
     "complex": "C063"
   },
   "D24": {
@@ -5074,7 +5077,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C030"
   },
@@ -5090,7 +5093,7 @@
     "northStopId": "D25N",
     "southStopId": "D25S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C061"
   },
@@ -5107,7 +5110,7 @@
     "northStopId": "D26N",
     "southStopId": "D26S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "D27": {
@@ -5137,7 +5140,7 @@
     "northStopId": "D28N",
     "southStopId": "D28S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C032"
   },
@@ -5153,7 +5156,7 @@
     "northStopId": "D29N",
     "southStopId": "D29S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "D30": {
@@ -5168,7 +5171,7 @@
     "northStopId": "D30N",
     "southStopId": "D30S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "D31": {
@@ -5198,7 +5201,7 @@
     "northStopId": "D32N",
     "southStopId": "D32S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "D33": {
@@ -5213,7 +5216,7 @@
     "northStopId": "D33N",
     "southStopId": "D33S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "D34": {
@@ -5228,7 +5231,7 @@
     "northStopId": "D34N",
     "southStopId": "D34S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "D35": {
@@ -5258,7 +5261,7 @@
     "northStopId": "D37N",
     "southStopId": "D37S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C065"
   },
@@ -5349,7 +5352,7 @@
     "northStopId": "D43N",
     "southStopId": "D43S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "E01": {
@@ -5407,7 +5410,7 @@
     "northStopId": "F01N",
     "southStopId": "F01S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "F02": {
@@ -5422,7 +5425,7 @@
     "northStopId": "F02N",
     "southStopId": "F02S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "F03": {
@@ -5438,7 +5441,7 @@
     "southStopId": "F03S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "F04": {
     "id": "F04",
@@ -5453,7 +5456,7 @@
     "southStopId": "F04S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "F05": {
     "id": "F05",
@@ -5468,7 +5471,7 @@
     "southStopId": "F05S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "F06": {
     "id": "F06",
@@ -5482,7 +5485,7 @@
     "northStopId": "F06N",
     "southStopId": "F06S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "F07": {
@@ -5498,7 +5501,7 @@
     "southStopId": "F07S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "F09": {
     "id": "F09",
@@ -5532,7 +5535,8 @@
       }
     ],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens",
+    "complex": "C049"
   },
   "F11": {
     "id": "F11",
@@ -5559,7 +5563,8 @@
       }
     ],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "manhattan",
+    "complex": "lexington_53"
   },
   "F12": {
     "id": "F12",
@@ -5588,7 +5593,7 @@
     "northStopId": "F14N",
     "southStopId": "F14S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "F15": {
@@ -5614,7 +5619,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "manhattan",
     "complex": "C066"
   },
   "F16": {
@@ -5629,7 +5634,7 @@
     "southStopId": "F16S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "F18": {
     "id": "F18",
@@ -5643,7 +5648,7 @@
     "southStopId": "F18S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "F20": {
     "id": "F20",
@@ -5688,7 +5693,7 @@
     "northStopId": "F22N",
     "southStopId": "F22S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "F23": {
@@ -5716,7 +5721,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C067"
   },
@@ -5732,7 +5737,7 @@
     "northStopId": "F24N",
     "southStopId": "F24S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C061"
   },
@@ -5748,7 +5753,7 @@
     "northStopId": "F25N",
     "southStopId": "F25S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "F26": {
@@ -5763,7 +5768,7 @@
     "northStopId": "F26N",
     "southStopId": "F26S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C057"
   },
@@ -5779,7 +5784,7 @@
     "northStopId": "F27N",
     "southStopId": "F27S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C032"
   },
@@ -5895,7 +5900,7 @@
     "northStopId": "F36N",
     "southStopId": "F36S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C065"
   },
@@ -5940,7 +5945,7 @@
     "northStopId": "G05N",
     "southStopId": "G05S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "G06": {
@@ -5957,7 +5962,7 @@
     "southStopId": "G06S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "G07": {
     "id": "G07",
@@ -5987,7 +5992,7 @@
     "northStopId": "G08N",
     "southStopId": "G08S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "G09": {
@@ -6004,8 +6009,8 @@
     "northStopId": "G09N",
     "southStopId": "G09S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "G10": {
     "id": "G10",
@@ -6021,8 +6026,8 @@
     "northStopId": "G10N",
     "southStopId": "G10S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "G11": {
     "id": "G11",
@@ -6038,8 +6043,8 @@
     "northStopId": "G11N",
     "southStopId": "G11S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "queens",
     "complex": "C068"
   },
   "G12": {
@@ -6057,7 +6062,7 @@
     "southStopId": "G12S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "G13": {
     "id": "G13",
@@ -6100,8 +6105,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "G15": {
     "id": "G15",
@@ -6118,7 +6123,7 @@
     "southStopId": "G15S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "G16": {
     "id": "G16",
@@ -6134,8 +6139,8 @@
     "northStopId": "G16N",
     "southStopId": "G16S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "G18": {
     "id": "G18",
@@ -6151,8 +6156,8 @@
     "northStopId": "G18N",
     "southStopId": "G18S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "G19": {
     "id": "G19",
@@ -6169,7 +6174,7 @@
     "southStopId": "G19S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "G20": {
     "id": "G20",
@@ -6186,7 +6191,7 @@
     "southStopId": "G20S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan",
+    "borough": "queens",
     "complex": "C069"
   },
   "G21": {
@@ -6203,8 +6208,8 @@
     "northStopId": "G21N",
     "southStopId": "G21S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "G22": {
     "id": "G22",
@@ -6237,8 +6242,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "queens",
     "complex": "C049"
   },
   "G24": {
@@ -6304,7 +6309,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "G30": {
     "id": "G30",
@@ -6317,8 +6322,8 @@
     "northStopId": "G30N",
     "southStopId": "G30S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C070"
   },
   "G31": {
@@ -6404,8 +6409,8 @@
     "northStopId": "G36N",
     "southStopId": "G36S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "brooklyn",
     "complex": "C027"
   },
   "H01": {
@@ -6419,8 +6424,8 @@
     "northStopId": "H01N",
     "southStopId": "H01S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn"
+    "ada": true,
+    "borough": "queens"
   },
   "H02": {
     "id": "H02",
@@ -6434,7 +6439,7 @@
     "southStopId": "H02S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "H03": {
     "id": "H03",
@@ -6447,7 +6452,7 @@
     "northStopId": "H03N",
     "southStopId": "H03S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "H04": {
@@ -6456,13 +6461,14 @@
     "lat": 40.608382,
     "lon": -73.815925,
     "lines": [
-      "A"
+      "A",
+      "H"
     ],
     "northStopId": "H04N",
     "southStopId": "H04S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn"
+    "ada": true,
+    "borough": "queens"
   },
   "H06": {
     "id": "H06",
@@ -6554,13 +6560,14 @@
     "lat": 40.588034,
     "lon": -73.813641,
     "lines": [
-      "A"
+      "A",
+      "H"
     ],
     "northStopId": "H12N",
     "southStopId": "H12S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "H13": {
     "id": "H13",
@@ -6568,13 +6575,14 @@
     "lat": 40.585307,
     "lon": -73.820558,
     "lines": [
-      "A"
+      "A",
+      "H"
     ],
     "northStopId": "H13N",
     "southStopId": "H13S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "H14": {
     "id": "H14",
@@ -6582,13 +6590,14 @@
     "lat": 40.583209,
     "lon": -73.827559,
     "lines": [
-      "A"
+      "A",
+      "H"
     ],
     "northStopId": "H14N",
     "southStopId": "H14S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "H15": {
     "id": "H15",
@@ -6596,7 +6605,8 @@
     "lat": 40.580903,
     "lon": -73.835592,
     "lines": [
-      "A"
+      "A",
+      "H"
     ],
     "northStopId": "H15N",
     "southStopId": "H15S",
@@ -6617,7 +6627,7 @@
     "southStopId": "J12S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J13": {
     "id": "J13",
@@ -6631,7 +6641,7 @@
     "southStopId": "J13S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C047"
   },
   "J14": {
@@ -6647,7 +6657,7 @@
     "southStopId": "J14S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C056"
   },
   "J15": {
@@ -6662,8 +6672,8 @@
     "northStopId": "J15N",
     "southStopId": "J15S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "queens",
     "complex": "C068"
   },
   "J16": {
@@ -6678,7 +6688,7 @@
     "southStopId": "J16S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J17": {
     "id": "J17",
@@ -6693,7 +6703,7 @@
     "southStopId": "J17S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J19": {
     "id": "J19",
@@ -6707,7 +6717,7 @@
     "southStopId": "J19S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J20": {
     "id": "J20",
@@ -6722,7 +6732,7 @@
     "southStopId": "J20S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J21": {
     "id": "J21",
@@ -6737,7 +6747,7 @@
     "southStopId": "J21S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "bronx"
   },
   "J22": {
     "id": "J22",
@@ -6751,7 +6761,7 @@
     "southStopId": "J22S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J23": {
     "id": "J23",
@@ -6765,7 +6775,7 @@
     "northStopId": "J23N",
     "southStopId": "J23S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C035"
   },
@@ -6782,7 +6792,7 @@
     "southStopId": "J24S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J27": {
     "id": "J27",
@@ -6814,7 +6824,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C055"
   },
@@ -6831,7 +6841,7 @@
     "southStopId": "J28S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J29": {
     "id": "J29",
@@ -6845,7 +6855,7 @@
     "southStopId": "J29S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C072"
   },
   "J30": {
@@ -6861,7 +6871,7 @@
     "southStopId": "J30S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "J31": {
     "id": "J31",
@@ -6875,7 +6885,7 @@
     "southStopId": "J31S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "L01": {
     "id": "L01",
@@ -6899,7 +6909,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C073"
   },
@@ -6935,7 +6945,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "L03": {
@@ -6972,7 +6982,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C045"
   },
@@ -6987,7 +6997,7 @@
     "northStopId": "L05N",
     "southStopId": "L05S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "L06": {
@@ -7039,7 +7049,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "manhattan",
     "complex": "C074"
   },
   "L11": {
@@ -7054,7 +7064,7 @@
     "southStopId": "L11S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "L12": {
     "id": "L12",
@@ -7068,7 +7078,7 @@
     "southStopId": "L12S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "manhattan",
     "complex": "C063"
   },
   "L13": {
@@ -7083,7 +7093,7 @@
     "southStopId": "L13S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "L14": {
     "id": "L14",
@@ -7097,7 +7107,7 @@
     "southStopId": "L14S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "L15": {
     "id": "L15",
@@ -7111,7 +7121,7 @@
     "southStopId": "L15S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "L16": {
     "id": "L16",
@@ -7124,7 +7134,7 @@
     "northStopId": "L16N",
     "southStopId": "L16S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C075"
   },
@@ -7149,7 +7159,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C076"
   },
   "L19": {
@@ -7164,7 +7174,7 @@
     "southStopId": "L19S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C072"
   },
   "L20": {
@@ -7179,7 +7189,7 @@
     "southStopId": "L20S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "L21": {
     "id": "L21",
@@ -7225,7 +7235,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C055"
   },
@@ -7241,7 +7251,8 @@
     "southStopId": "L24S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens",
+    "complex": "C030"
   },
   "L25": {
     "id": "L25",
@@ -7281,7 +7292,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "L27": {
     "id": "L27",
@@ -7294,7 +7305,7 @@
     "northStopId": "L27N",
     "southStopId": "L27S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C036"
   },
@@ -7310,7 +7321,7 @@
     "southStopId": "L28S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "L29": {
     "id": "L29",
@@ -7338,7 +7349,7 @@
     "southStopId": "M01S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan"
+    "borough": "queens"
   },
   "M04": {
     "id": "M04",
@@ -7352,7 +7363,7 @@
     "southStopId": "M04S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "M05": {
     "id": "M05",
@@ -7366,7 +7377,7 @@
     "southStopId": "M05S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "M06": {
     "id": "M06",
@@ -7380,7 +7391,7 @@
     "southStopId": "M06S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "M08": {
     "id": "M08",
@@ -7403,7 +7414,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "queens",
     "complex": "C076"
   },
   "M09": {
@@ -7418,7 +7429,7 @@
     "southStopId": "M09S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "M10": {
     "id": "M10",
@@ -7432,7 +7443,7 @@
     "southStopId": "M10S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "queens"
   },
   "M11": {
     "id": "M11",
@@ -7479,7 +7490,7 @@
     "southStopId": "M13S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "manhattan",
     "complex": "C074"
   },
   "M14": {
@@ -7495,7 +7506,7 @@
     "southStopId": "M14S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "M16": {
     "id": "M16",
@@ -7511,7 +7522,7 @@
     "southStopId": "M16S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "M18": {
     "id": "M18",
@@ -7536,7 +7547,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn",
+    "borough": "manhattan",
     "complex": "C066"
   },
   "M19": {
@@ -7596,8 +7607,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C018"
   },
   "M21": {
@@ -7624,7 +7635,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C019"
   },
@@ -7668,8 +7679,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "brooklyn",
     "complex": "C027"
   },
   "M23": {
@@ -7685,7 +7696,7 @@
     "southStopId": "M23S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "N02": {
     "id": "N02",
@@ -7699,7 +7710,7 @@
     "northStopId": "N02N",
     "southStopId": "N02S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C073"
   },
@@ -7715,7 +7726,7 @@
     "northStopId": "N03N",
     "southStopId": "N03S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C057"
   },
@@ -7822,7 +7833,7 @@
     "northStopId": "N09N",
     "southStopId": "N09S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C065"
   },
@@ -7838,7 +7849,7 @@
     "northStopId": "N10N",
     "southStopId": "N10S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C008"
   },
@@ -7884,8 +7895,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C018"
   },
   "Q03": {
@@ -7901,7 +7912,7 @@
     "northStopId": "Q03N",
     "southStopId": "Q03S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C010"
   },
@@ -7918,7 +7929,7 @@
     "northStopId": "Q04N",
     "southStopId": "Q04S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C008"
   },
@@ -7935,7 +7946,7 @@
     "northStopId": "Q05N",
     "southStopId": "Q05S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C007"
   },
@@ -7951,7 +7962,7 @@
     "northStopId": "R01N",
     "southStopId": "R01S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "R03": {
@@ -7966,7 +7977,7 @@
     "northStopId": "R03N",
     "southStopId": "R03S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "queens"
   },
   "R04": {
@@ -7981,8 +7992,8 @@
     "northStopId": "R04N",
     "southStopId": "R04S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "R05": {
     "id": "R05",
@@ -7996,8 +8007,8 @@
     "northStopId": "R05N",
     "southStopId": "R05S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan",
+    "ada": true,
+    "borough": "queens",
     "complex": "C070"
   },
   "R06": {
@@ -8012,8 +8023,8 @@
     "northStopId": "R06N",
     "southStopId": "R06S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "R08": {
     "id": "R08",
@@ -8027,8 +8038,8 @@
     "northStopId": "R08N",
     "southStopId": "R08S",
     "transfers": [],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "queens"
   },
   "R09": {
     "id": "R09",
@@ -8048,7 +8059,7 @@
           "7",
           "7X"
         ],
-        "walkingSeconds": 0,
+        "walkingSeconds": 180,
         "accessible": false
       }
     ],
@@ -8093,8 +8104,9 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "manhattan"
+    "ada": true,
+    "borough": "manhattan",
+    "complex": "C043"
   },
   "R13": {
     "id": "R13",
@@ -8126,7 +8138,7 @@
     "northStopId": "R14N",
     "southStopId": "R14S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "R15": {
@@ -8198,7 +8210,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C013"
   },
@@ -8229,7 +8241,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C062"
   },
@@ -8265,7 +8277,7 @@
     "northStopId": "R19N",
     "southStopId": "R19S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C016"
   },
@@ -8303,7 +8315,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan",
     "complex": "C045"
   },
@@ -8383,8 +8395,8 @@
         "accessible": false
       }
     ],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C018"
   },
   "R24": {
@@ -8400,7 +8412,7 @@
     "northStopId": "R24N",
     "southStopId": "R24S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "manhattan"
   },
   "R25": {
@@ -8444,7 +8456,7 @@
       }
     ],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "R26": {
     "id": "R26",
@@ -8459,8 +8471,8 @@
     "northStopId": "R26N",
     "southStopId": "R26S",
     "transfers": [],
-    "ada": false,
-    "borough": "brooklyn",
+    "ada": true,
+    "borough": "manhattan",
     "complex": "C020"
   },
   "R27": {
@@ -8477,7 +8489,7 @@
     "southStopId": "R27S",
     "transfers": [],
     "ada": false,
-    "borough": "brooklyn"
+    "borough": "manhattan"
   },
   "R28": {
     "id": "R28",
@@ -8538,7 +8550,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C052"
   },
@@ -8558,7 +8570,7 @@
     "northStopId": "R30N",
     "southStopId": "R30S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C075"
   },
@@ -8598,7 +8610,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C030"
   },
@@ -8645,7 +8657,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C067"
   },
@@ -8751,7 +8763,7 @@
     "southStopId": "R41S",
     "transfers": [],
     "ada": false,
-    "borough": "manhattan",
+    "borough": "brooklyn",
     "complex": "C043"
   },
   "R42": {
@@ -8794,7 +8806,7 @@
     "northStopId": "R44N",
     "southStopId": "R44S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn",
     "complex": "C008"
   },
@@ -8809,7 +8821,7 @@
     "northStopId": "R45N",
     "southStopId": "R45S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "S01": {
@@ -8874,7 +8886,7 @@
         "accessible": false
       }
     ],
-    "ada": false,
+    "ada": true,
     "borough": "brooklyn"
   },
   "S09": {
@@ -8888,7 +8900,7 @@
     "northStopId": "S09N",
     "southStopId": "S09S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S11": {
@@ -8930,7 +8942,7 @@
     "northStopId": "S14N",
     "southStopId": "S14S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S15": {
@@ -8958,7 +8970,7 @@
     "northStopId": "S16N",
     "southStopId": "S16S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S17": {
@@ -8972,7 +8984,7 @@
     "northStopId": "S17N",
     "southStopId": "S17S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S18": {
@@ -8986,7 +8998,7 @@
     "northStopId": "S18N",
     "southStopId": "S18S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S19": {
@@ -9000,7 +9012,7 @@
     "northStopId": "S19N",
     "southStopId": "S19S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S20": {
@@ -9015,7 +9027,7 @@
     "southStopId": "S20S",
     "transfers": [],
     "ada": false,
-    "borough": "statenisland"
+    "borough": "queens"
   },
   "S21": {
     "id": "S21",
@@ -9056,7 +9068,7 @@
     "northStopId": "S23N",
     "southStopId": "S23S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S24": {
@@ -9084,7 +9096,7 @@
     "northStopId": "S25N",
     "southStopId": "S25S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S26": {
@@ -9098,7 +9110,7 @@
     "northStopId": "S26N",
     "southStopId": "S26S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S27": {
@@ -9112,7 +9124,7 @@
     "northStopId": "S27N",
     "southStopId": "S27S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S28": {
@@ -9126,7 +9138,7 @@
     "northStopId": "S28N",
     "southStopId": "S28S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S29": {
@@ -9140,7 +9152,7 @@
     "northStopId": "S29N",
     "southStopId": "S29S",
     "transfers": [],
-    "ada": false,
+    "ada": true,
     "borough": "statenisland"
   },
   "S30": {

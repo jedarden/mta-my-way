@@ -4,6 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
+    "moduleResolution": "node",
     "noEmit": false,
     "declaration": true,
     "declarationMap": true

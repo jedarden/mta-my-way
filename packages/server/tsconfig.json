@@ -4,8 +4,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
+    "moduleResolution": "node",
     "lib": ["ES2022"],
-    "types": ["node"],
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],

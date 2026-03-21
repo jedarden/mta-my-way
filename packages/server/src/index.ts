@@ -2,7 +2,7 @@
  * MTA My Way server entry point.
  *
  * Startup sequence:
- *   1. Load GTFS static stations.json
+ *   1. Load GTFS static data (stations, routes, complexes)
  *   2. Create Hono app
  *   3. Initialise and start the feed poller (first poll fires immediately)
  *   4. Start the HTTP server
@@ -13,7 +13,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { PACKAGE_VERSION } from "@mta-my-way/shared";
-import type { StationIndex } from "@mta-my-way/shared";
+import type { StationIndex, RouteIndex, ComplexIndex } from "@mta-my-way/shared";
 import { createApp } from "./app.js";
 import { initPoller, startPoller } from "./poller.js";
 
@@ -28,6 +28,14 @@ const WEB_DIST = resolve(__dirname, "..", "..", "web", "dist");
 
 const PORT = parseInt(process.env["PORT"] ?? "3001", 10);
 
+/**
+ * Load a JSON data file from the data directory
+ */
+async function loadJsonFile<T>(filename: string): Promise<T> {
+  const raw = await readFile(join(DATA_DIR, filename), "utf8");
+  return JSON.parse(raw) as T;
+}
+
 async function main(): Promise<void> {
   console.log(
     JSON.stringify({
@@ -40,22 +48,31 @@ async function main(): Promise<void> {
     })
   );
 
-  // Load GTFS static station data
+  // Load GTFS static data in parallel
   let stations: StationIndex;
+  let routes: RouteIndex;
+  let complexes: ComplexIndex;
+
   try {
-    const raw = await readFile(join(DATA_DIR, "stations.json"), "utf8");
-    stations = JSON.parse(raw) as StationIndex;
+    [stations, routes, complexes] = await Promise.all([
+      loadJsonFile<StationIndex>("stations.json"),
+      loadJsonFile<RouteIndex>("routes.json"),
+      loadJsonFile<ComplexIndex>("complexes.json"),
+    ]);
+
     console.log(
       JSON.stringify({
-        event: "stations_loaded",
+        event: "static_data_loaded",
         timestamp: new Date().toISOString(),
-        count: Object.keys(stations).length,
+        stations: Object.keys(stations).length,
+        routes: Object.keys(routes).length,
+        complexes: Object.keys(complexes).length,
       })
     );
   } catch (err) {
     console.error(
       JSON.stringify({
-        event: "stations_load_error",
+        event: "static_data_load_error",
         timestamp: new Date().toISOString(),
         error: err instanceof Error ? err.message : String(err),
         hint: "Run: npm run process-gtfs --workspace=packages/server",
@@ -65,7 +82,7 @@ async function main(): Promise<void> {
   }
 
   // Hono app
-  const app = createApp(stations, WEB_DIST);
+  const app = createApp(stations, routes, complexes, WEB_DIST);
 
   // Feed poller (also triggers immediate first poll)
   initPoller(stations);
