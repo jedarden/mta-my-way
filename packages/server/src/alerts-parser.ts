@@ -395,6 +395,7 @@ export function toStationAlert(parsed: ParsedAlert): StationAlert {
     activePeriod: parsed.activePeriod,
     cause: parsed.cause,
     effect: parsed.effect,
+    isRaw: !parsed.patternMatched,
   };
 }
 

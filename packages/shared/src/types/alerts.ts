@@ -36,6 +36,12 @@ export interface StationAlert {
   cause: string;
   /** Effect type (from GTFS-RT): DELAY, NO_SERVICE, etc. */
   effect: string;
+  /**
+   * Whether this is a "raw" alert that didn't match any simplification pattern.
+   * Raw alerts are displayed with a dashed border and muted style to indicate
+   * they contain the original MTA text rather than simplified language.
+   */
+  isRaw?: boolean;
   /** Shuttle bus info if service is replaced (Phase 7) */
   shuttleInfo?: ShuttleBusInfo;
 }
