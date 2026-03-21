@@ -1,0 +1,1770 @@
+{
+  "C001": {
+    "complexId": "C001",
+    "name": "Dyckman St",
+    "stations": [
+      "109",
+      "A03"
+    ],
+    "allLines": [
+      "1",
+      "A"
+    ],
+    "allStopIds": [
+      "109N",
+      "109S",
+      "A03N",
+      "A03S"
+    ]
+  },
+  "C002": {
+    "complexId": "C002",
+    "name": "181 St",
+    "stations": [
+      "111",
+      "A06"
+    ],
+    "allLines": [
+      "1",
+      "A"
+    ],
+    "allStopIds": [
+      "111N",
+      "111S",
+      "A06N",
+      "A06S"
+    ]
+  },
+  "C003": {
+    "complexId": "C003",
+    "name": "145 St",
+    "stations": [
+      "114",
+      "302",
+      "A12",
+      "D13"
+    ],
+    "allLines": [
+      "1",
+      "3",
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "allStopIds": [
+      "114N",
+      "114S",
+      "302N",
+      "302S",
+      "A12N",
+      "A12S",
+      "D13N",
+      "D13S"
+    ]
+  },
+  "C004": {
+    "complexId": "C004",
+    "name": "125 St",
+    "stations": [
+      "116",
+      "225",
+      "621",
+      "A15"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "6X",
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "allStopIds": [
+      "116N",
+      "116S",
+      "225N",
+      "225S",
+      "621N",
+      "621S",
+      "A15N",
+      "A15S"
+    ]
+  },
+  "C005": {
+    "complexId": "C005",
+    "name": "Cathedral Pkwy (110 St)",
+    "stations": [
+      "118",
+      "A17"
+    ],
+    "allLines": [
+      "1",
+      "A",
+      "B",
+      "C"
+    ],
+    "allStopIds": [
+      "118N",
+      "118S",
+      "A17N",
+      "A17S"
+    ]
+  },
+  "C006": {
+    "complexId": "C006",
+    "name": "103 St",
+    "stations": [
+      "119",
+      "624",
+      "A18"
+    ],
+    "allLines": [
+      "1",
+      "4",
+      "6",
+      "6X",
+      "A",
+      "B",
+      "C"
+    ],
+    "allStopIds": [
+      "119N",
+      "119S",
+      "624N",
+      "624S",
+      "A18N",
+      "A18S"
+    ]
+  },
+  "C007": {
+    "complexId": "C007",
+    "name": "96 St",
+    "stations": [
+      "120",
+      "625",
+      "A19",
+      "Q05"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "6",
+      "6X",
+      "A",
+      "B",
+      "C",
+      "N",
+      "Q",
+      "R"
+    ],
+    "allStopIds": [
+      "120N",
+      "120S",
+      "625N",
+      "625S",
+      "A19N",
+      "A19S",
+      "Q05N",
+      "Q05S"
+    ]
+  },
+  "C008": {
+    "complexId": "C008",
+    "name": "86 St",
+    "stations": [
+      "121",
+      "626",
+      "A20",
+      "N10",
+      "Q04",
+      "R44"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "4",
+      "5",
+      "6",
+      "6X",
+      "A",
+      "B",
+      "C",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "121N",
+      "121S",
+      "626N",
+      "626S",
+      "A20N",
+      "A20S",
+      "N10N",
+      "N10S",
+      "Q04N",
+      "Q04S",
+      "R44N",
+      "R44S"
+    ]
+  },
+  "C009": {
+    "complexId": "C009",
+    "name": "79 St",
+    "stations": [
+      "122",
+      "B18"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "D",
+      "Q"
+    ],
+    "allStopIds": [
+      "122N",
+      "122S",
+      "B18N",
+      "B18S"
+    ]
+  },
+  "C010": {
+    "complexId": "C010",
+    "name": "72 St",
+    "stations": [
+      "123",
+      "A22",
+      "Q03"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "3",
+      "A",
+      "B",
+      "C",
+      "N",
+      "Q",
+      "R"
+    ],
+    "allStopIds": [
+      "123N",
+      "123S",
+      "A22N",
+      "A22S",
+      "Q03N",
+      "Q03S"
+    ]
+  },
+  "C011": {
+    "complexId": "C011",
+    "name": "59 St-Columbus Circle",
+    "stations": [
+      "125",
+      "A24"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "allStopIds": [
+      "125N",
+      "125S",
+      "A24N",
+      "A24S"
+    ]
+  },
+  "C012": {
+    "complexId": "C012",
+    "name": "50 St",
+    "stations": [
+      "126",
+      "A25",
+      "B14"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "A",
+      "C",
+      "D",
+      "E",
+      "Q"
+    ],
+    "allStopIds": [
+      "126N",
+      "126S",
+      "A25N",
+      "A25S",
+      "B14N",
+      "B14S"
+    ]
+  },
+  "C013": {
+    "complexId": "C013",
+    "name": "Times Sq-42 St",
+    "stations": [
+      "127",
+      "725",
+      "902",
+      "R16"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "3",
+      "7",
+      "7X",
+      "GS",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "127N",
+      "127S",
+      "725N",
+      "725S",
+      "902N",
+      "902S",
+      "R16N",
+      "R16S"
+    ]
+  },
+  "C014": {
+    "complexId": "C014",
+    "name": "34 St-Penn Station",
+    "stations": [
+      "128",
+      "A28"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "3",
+      "A",
+      "C",
+      "E"
+    ],
+    "allStopIds": [
+      "128N",
+      "128S",
+      "A28N",
+      "A28S"
+    ]
+  },
+  "C015": {
+    "complexId": "C015",
+    "name": "28 St",
+    "stations": [
+      "129",
+      "633",
+      "R18"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "4",
+      "6",
+      "6X",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "129N",
+      "129S",
+      "633N",
+      "633S",
+      "R18N",
+      "R18S"
+    ]
+  },
+  "C016": {
+    "complexId": "C016",
+    "name": "23 St",
+    "stations": [
+      "130",
+      "A30",
+      "D18",
+      "R19"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "A",
+      "C",
+      "E",
+      "F",
+      "M",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "130N",
+      "130S",
+      "A30N",
+      "A30S",
+      "D18N",
+      "D18S",
+      "R19N",
+      "R19S"
+    ]
+  },
+  "C017": {
+    "complexId": "C017",
+    "name": "14 St",
+    "stations": [
+      "132",
+      "A31",
+      "D19"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "3",
+      "A",
+      "C",
+      "E",
+      "F",
+      "M",
+      "Q"
+    ],
+    "allStopIds": [
+      "132N",
+      "132S",
+      "A31N",
+      "A31S",
+      "D19N",
+      "D19S"
+    ]
+  },
+  "C018": {
+    "complexId": "C018",
+    "name": "Canal St",
+    "stations": [
+      "135",
+      "639",
+      "A34",
+      "M20",
+      "Q01",
+      "R23"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "4",
+      "6",
+      "6X",
+      "A",
+      "C",
+      "E",
+      "J",
+      "N",
+      "Q",
+      "R",
+      "W",
+      "Z"
+    ],
+    "allStopIds": [
+      "135N",
+      "135S",
+      "639N",
+      "639S",
+      "A34N",
+      "A34S",
+      "M20N",
+      "M20S",
+      "Q01N",
+      "Q01S",
+      "R23N",
+      "R23S"
+    ]
+  },
+  "C019": {
+    "complexId": "C019",
+    "name": "Chambers St",
+    "stations": [
+      "137",
+      "A36",
+      "M21"
+    ],
+    "allLines": [
+      "1",
+      "2",
+      "3",
+      "A",
+      "C",
+      "J",
+      "Z"
+    ],
+    "allStopIds": [
+      "137N",
+      "137S",
+      "A36N",
+      "A36S",
+      "M21N",
+      "M21S"
+    ]
+  },
+  "C020": {
+    "complexId": "C020",
+    "name": "Rector St",
+    "stations": [
+      "139",
+      "R26"
+    ],
+    "allLines": [
+      "1",
+      "N",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "139N",
+      "139S",
+      "R26N",
+      "R26S"
+    ]
+  },
+  "C021": {
+    "complexId": "C021",
+    "name": "Gun Hill Rd",
+    "stations": [
+      "208",
+      "503"
+    ],
+    "allLines": [
+      "2",
+      "5"
+    ],
+    "allStopIds": [
+      "208N",
+      "208S",
+      "503N",
+      "503S"
+    ]
+  },
+  "C022": {
+    "complexId": "C022",
+    "name": "Pelham Pkwy",
+    "stations": [
+      "211",
+      "504"
+    ],
+    "allLines": [
+      "2",
+      "5"
+    ],
+    "allStopIds": [
+      "211N",
+      "211S",
+      "504N",
+      "504S"
+    ]
+  },
+  "C023": {
+    "complexId": "C023",
+    "name": "Prospect Av",
+    "stations": [
+      "219",
+      "R34"
+    ],
+    "allLines": [
+      "2",
+      "5",
+      "D",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "219N",
+      "219S",
+      "R34N",
+      "R34S"
+    ]
+  },
+  "C024": {
+    "complexId": "C024",
+    "name": "149 St-Grand Concourse",
+    "stations": [
+      "222",
+      "415"
+    ],
+    "allLines": [
+      "2",
+      "4",
+      "5"
+    ],
+    "allStopIds": [
+      "222N",
+      "222S",
+      "415N",
+      "415S"
+    ]
+  },
+  "C025": {
+    "complexId": "C025",
+    "name": "135 St",
+    "stations": [
+      "224",
+      "A14"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "A",
+      "B",
+      "C"
+    ],
+    "allStopIds": [
+      "224N",
+      "224S",
+      "A14N",
+      "A14S"
+    ]
+  },
+  "C026": {
+    "complexId": "C026",
+    "name": "116 St",
+    "stations": [
+      "226",
+      "622",
+      "A16"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "6",
+      "6X",
+      "A",
+      "B",
+      "C"
+    ],
+    "allStopIds": [
+      "226N",
+      "226S",
+      "622N",
+      "622S",
+      "A16N",
+      "A16S"
+    ]
+  },
+  "C027": {
+    "complexId": "C027",
+    "name": "Fulton St",
+    "stations": [
+      "229",
+      "418",
+      "A38",
+      "G36",
+      "M22"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "A",
+      "C",
+      "G",
+      "J",
+      "Z"
+    ],
+    "allStopIds": [
+      "229N",
+      "229S",
+      "418N",
+      "418S",
+      "A38N",
+      "A38S",
+      "G36N",
+      "G36S",
+      "M22N",
+      "M22S"
+    ]
+  },
+  "C028": {
+    "complexId": "C028",
+    "name": "Wall St",
+    "stations": [
+      "230",
+      "419"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "allStopIds": [
+      "230N",
+      "230S",
+      "419N",
+      "419S"
+    ]
+  },
+  "C029": {
+    "complexId": "C029",
+    "name": "Borough Hall",
+    "stations": [
+      "232",
+      "423"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "allStopIds": [
+      "232N",
+      "232S",
+      "423N",
+      "423S"
+    ]
+  },
+  "C030": {
+    "complexId": "C030",
+    "name": "Atlantic Av-Barclays Ctr",
+    "stations": [
+      "235",
+      "D24",
+      "R31"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "B",
+      "D",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "235N",
+      "235S",
+      "D24N",
+      "D24S",
+      "R31N",
+      "R31S"
+    ]
+  },
+  "C031": {
+    "complexId": "C031",
+    "name": "Bergen St",
+    "stations": [
+      "236",
+      "F20"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "F",
+      "G"
+    ],
+    "allStopIds": [
+      "236N",
+      "236S",
+      "F20N",
+      "F20S"
+    ]
+  },
+  "C032": {
+    "complexId": "C032",
+    "name": "Church Av",
+    "stations": [
+      "244",
+      "D28",
+      "F27"
+    ],
+    "allLines": [
+      "2",
+      "5",
+      "B",
+      "F",
+      "G",
+      "Q"
+    ],
+    "allStopIds": [
+      "244N",
+      "244S",
+      "D28N",
+      "D28S",
+      "F27N",
+      "F27S"
+    ]
+  },
+  "C033": {
+    "complexId": "C033",
+    "name": "Nostrand Av",
+    "stations": [
+      "248",
+      "A46"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "A",
+      "C"
+    ],
+    "allStopIds": [
+      "248N",
+      "248S",
+      "A46N",
+      "A46S"
+    ]
+  },
+  "C034": {
+    "complexId": "C034",
+    "name": "Rockaway Av",
+    "stations": [
+      "253",
+      "A50"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "A",
+      "C"
+    ],
+    "allStopIds": [
+      "253N",
+      "253S",
+      "A50N",
+      "A50S"
+    ]
+  },
+  "C035": {
+    "complexId": "C035",
+    "name": "Van Siclen Av",
+    "stations": [
+      "256",
+      "A53",
+      "J23"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "A",
+      "C",
+      "J",
+      "Z"
+    ],
+    "allStopIds": [
+      "256N",
+      "256S",
+      "A53N",
+      "A53S",
+      "J23N",
+      "J23S"
+    ]
+  },
+  "C036": {
+    "complexId": "C036",
+    "name": "New Lots Av",
+    "stations": [
+      "257",
+      "L27"
+    ],
+    "allLines": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "L"
+    ],
+    "allStopIds": [
+      "257N",
+      "257S",
+      "L27N",
+      "L27S"
+    ]
+  },
+  "C037": {
+    "complexId": "C037",
+    "name": "Kingsbridge Rd",
+    "stations": [
+      "406",
+      "D04"
+    ],
+    "allLines": [
+      "4",
+      "B",
+      "D"
+    ],
+    "allStopIds": [
+      "406N",
+      "406S",
+      "D04N",
+      "D04S"
+    ]
+  },
+  "C038": {
+    "complexId": "C038",
+    "name": "Fordham Rd",
+    "stations": [
+      "407",
+      "D05"
+    ],
+    "allLines": [
+      "4",
+      "B",
+      "D"
+    ],
+    "allStopIds": [
+      "407N",
+      "407S",
+      "D05N",
+      "D05S"
+    ]
+  },
+  "C039": {
+    "complexId": "C039",
+    "name": "170 St",
+    "stations": [
+      "412",
+      "D09"
+    ],
+    "allLines": [
+      "4",
+      "B",
+      "D"
+    ],
+    "allStopIds": [
+      "412N",
+      "412S",
+      "D09N",
+      "D09S"
+    ]
+  },
+  "C040": {
+    "complexId": "C040",
+    "name": "167 St",
+    "stations": [
+      "413",
+      "D10"
+    ],
+    "allLines": [
+      "4",
+      "B",
+      "D"
+    ],
+    "allStopIds": [
+      "413N",
+      "413S",
+      "D10N",
+      "D10S"
+    ]
+  },
+  "C041": {
+    "complexId": "C041",
+    "name": "161 St-Yankee Stadium",
+    "stations": [
+      "414",
+      "D11"
+    ],
+    "allLines": [
+      "4",
+      "B",
+      "D"
+    ],
+    "allStopIds": [
+      "414N",
+      "414S",
+      "D11N",
+      "D11S"
+    ]
+  },
+  "C042": {
+    "complexId": "C042",
+    "name": "77 St",
+    "stations": [
+      "627",
+      "R43"
+    ],
+    "allLines": [
+      "4",
+      "6",
+      "6X",
+      "R"
+    ],
+    "allStopIds": [
+      "627N",
+      "627S",
+      "R43N",
+      "R43S"
+    ]
+  },
+  "C043": {
+    "complexId": "C043",
+    "name": "59 St",
+    "stations": [
+      "629",
+      "R41"
+    ],
+    "allLines": [
+      "4",
+      "5",
+      "6",
+      "6X",
+      "N",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "629N",
+      "629S",
+      "R41N",
+      "R41S"
+    ]
+  },
+  "C044": {
+    "complexId": "C044",
+    "name": "Grand Central-42 St",
+    "stations": [
+      "631",
+      "723",
+      "901"
+    ],
+    "allLines": [
+      "4",
+      "5",
+      "6",
+      "6X",
+      "7",
+      "7X",
+      "GS"
+    ],
+    "allStopIds": [
+      "631N",
+      "631S",
+      "723N",
+      "723S",
+      "901N",
+      "901S"
+    ]
+  },
+  "C045": {
+    "complexId": "C045",
+    "name": "14 St-Union Sq",
+    "stations": [
+      "635",
+      "L03",
+      "R20"
+    ],
+    "allLines": [
+      "4",
+      "5",
+      "6",
+      "6X",
+      "L",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "635N",
+      "635S",
+      "L03N",
+      "L03S",
+      "R20N",
+      "R20S"
+    ]
+  },
+  "C046": {
+    "complexId": "C046",
+    "name": "Spring St",
+    "stations": [
+      "638",
+      "A33"
+    ],
+    "allLines": [
+      "4",
+      "6",
+      "6X",
+      "A",
+      "C",
+      "E"
+    ],
+    "allStopIds": [
+      "638N",
+      "638S",
+      "A33N",
+      "A33S"
+    ]
+  },
+  "C047": {
+    "complexId": "C047",
+    "name": "111 St",
+    "stations": [
+      "705",
+      "A64",
+      "J13"
+    ],
+    "allLines": [
+      "7",
+      "A",
+      "J"
+    ],
+    "allStopIds": [
+      "705N",
+      "705S",
+      "A64N",
+      "A64S",
+      "J13N",
+      "J13S"
+    ]
+  },
+  "C048": {
+    "complexId": "C048",
+    "name": "Queensboro Plaza",
+    "stations": [
+      "718",
+      "R09"
+    ],
+    "allLines": [
+      "7",
+      "7X",
+      "N",
+      "W"
+    ],
+    "allStopIds": [
+      "718N",
+      "718S",
+      "R09N",
+      "R09S"
+    ]
+  },
+  "C049": {
+    "complexId": "C049",
+    "name": "Court Sq",
+    "stations": [
+      "719",
+      "G22"
+    ],
+    "allLines": [
+      "7",
+      "7X",
+      "G"
+    ],
+    "allStopIds": [
+      "719N",
+      "719S",
+      "G22N",
+      "G22S"
+    ]
+  },
+  "C050": {
+    "complexId": "C050",
+    "name": "155 St",
+    "stations": [
+      "A11",
+      "D12"
+    ],
+    "allLines": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "allStopIds": [
+      "A11N",
+      "A11S",
+      "D12N",
+      "D12S"
+    ]
+  },
+  "C051": {
+    "complexId": "C051",
+    "name": "W 4 St-Wash Sq",
+    "stations": [
+      "A32",
+      "D20"
+    ],
+    "allLines": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "M",
+      "Q"
+    ],
+    "allStopIds": [
+      "A32N",
+      "A32S",
+      "D20N",
+      "D20S"
+    ]
+  },
+  "C052": {
+    "complexId": "C052",
+    "name": "Jay St-MetroTech",
+    "stations": [
+      "A41",
+      "R29"
+    ],
+    "allLines": [
+      "A",
+      "C",
+      "F",
+      "N",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "A41N",
+      "A41S",
+      "R29N",
+      "R29S"
+    ]
+  },
+  "C053": {
+    "complexId": "C053",
+    "name": "Clinton-Washington Avs",
+    "stations": [
+      "A44",
+      "G35"
+    ],
+    "allLines": [
+      "A",
+      "C",
+      "G"
+    ],
+    "allStopIds": [
+      "A44N",
+      "A44S",
+      "G35N",
+      "G35S"
+    ]
+  },
+  "C054": {
+    "complexId": "C054",
+    "name": "Franklin Av",
+    "stations": [
+      "A45",
+      "S01"
+    ],
+    "allLines": [
+      "A",
+      "C",
+      "FS"
+    ],
+    "allStopIds": [
+      "A45N",
+      "A45S",
+      "S01N",
+      "S01S"
+    ]
+  },
+  "C055": {
+    "complexId": "C055",
+    "name": "Broadway Junction",
+    "stations": [
+      "A51",
+      "J27",
+      "L22"
+    ],
+    "allLines": [
+      "A",
+      "C",
+      "J",
+      "L",
+      "Z"
+    ],
+    "allStopIds": [
+      "A51N",
+      "A51S",
+      "J27N",
+      "J27S",
+      "L22N",
+      "L22S"
+    ]
+  },
+  "C056": {
+    "complexId": "C056",
+    "name": "104 St",
+    "stations": [
+      "A63",
+      "J14"
+    ],
+    "allLines": [
+      "A",
+      "J",
+      "Z"
+    ],
+    "allStopIds": [
+      "A63N",
+      "A63S",
+      "J14N",
+      "J14S"
+    ]
+  },
+  "C057": {
+    "complexId": "C057",
+    "name": "Fort Hamilton Pkwy",
+    "stations": [
+      "B13",
+      "F26",
+      "N03"
+    ],
+    "allLines": [
+      "D",
+      "F",
+      "G",
+      "N",
+      "Q",
+      "W"
+    ],
+    "allStopIds": [
+      "B13N",
+      "B13S",
+      "F26N",
+      "F26S",
+      "N03N",
+      "N03S"
+    ]
+  },
+  "C058": {
+    "complexId": "C058",
+    "name": "18 Av",
+    "stations": [
+      "B19",
+      "F30",
+      "N05"
+    ],
+    "allLines": [
+      "D",
+      "F",
+      "N",
+      "Q",
+      "W"
+    ],
+    "allStopIds": [
+      "B19N",
+      "B19S",
+      "F30N",
+      "F30S",
+      "N05N",
+      "N05S"
+    ]
+  },
+  "C059": {
+    "complexId": "C059",
+    "name": "20 Av",
+    "stations": [
+      "B20",
+      "N06"
+    ],
+    "allLines": [
+      "D",
+      "N",
+      "Q",
+      "W"
+    ],
+    "allStopIds": [
+      "B20N",
+      "B20S",
+      "N06N",
+      "N06S"
+    ]
+  },
+  "C060": {
+    "complexId": "C060",
+    "name": "Bay Pkwy",
+    "stations": [
+      "B21",
+      "F32",
+      "N07"
+    ],
+    "allLines": [
+      "D",
+      "F",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "B21N",
+      "B21S",
+      "F32N",
+      "F32S",
+      "N07N",
+      "N07S"
+    ]
+  },
+  "C061": {
+    "complexId": "C061",
+    "name": "7 Av",
+    "stations": [
+      "D14",
+      "D25",
+      "F24"
+    ],
+    "allLines": [
+      "B",
+      "D",
+      "E",
+      "F",
+      "G",
+      "Q"
+    ],
+    "allStopIds": [
+      "D14N",
+      "D14S",
+      "D25N",
+      "D25S",
+      "F24N",
+      "F24S"
+    ]
+  },
+  "C062": {
+    "complexId": "C062",
+    "name": "34 St-Herald Sq",
+    "stations": [
+      "D17",
+      "R17"
+    ],
+    "allLines": [
+      "B",
+      "D",
+      "F",
+      "M",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "D17N",
+      "D17S",
+      "R17N",
+      "R17S"
+    ]
+  },
+  "C063": {
+    "complexId": "C063",
+    "name": "Grand St",
+    "stations": [
+      "D22",
+      "L12"
+    ],
+    "allLines": [
+      "B",
+      "D",
+      "L",
+      "Q"
+    ],
+    "allStopIds": [
+      "D22N",
+      "D22S",
+      "L12N",
+      "L12S"
+    ]
+  },
+  "C064": {
+    "complexId": "C064",
+    "name": "Kings Hwy",
+    "stations": [
+      "D35",
+      "F35",
+      "N08"
+    ],
+    "allLines": [
+      "B",
+      "F",
+      "N",
+      "Q",
+      "W"
+    ],
+    "allStopIds": [
+      "D35N",
+      "D35S",
+      "F35N",
+      "F35S",
+      "N08N",
+      "N08S"
+    ]
+  },
+  "C065": {
+    "complexId": "C065",
+    "name": "Avenue U",
+    "stations": [
+      "D37",
+      "F36",
+      "N09"
+    ],
+    "allLines": [
+      "F",
+      "N",
+      "Q",
+      "W"
+    ],
+    "allStopIds": [
+      "D37N",
+      "D37S",
+      "F36N",
+      "F36S",
+      "N09N",
+      "N09S"
+    ]
+  },
+  "C066": {
+    "complexId": "C066",
+    "name": "Delancey St-Essex St",
+    "stations": [
+      "F15",
+      "M18"
+    ],
+    "allLines": [
+      "F",
+      "J",
+      "M",
+      "Z"
+    ],
+    "allStopIds": [
+      "F15N",
+      "F15S",
+      "M18N",
+      "M18S"
+    ]
+  },
+  "C067": {
+    "complexId": "C067",
+    "name": "4 Av-9 St",
+    "stations": [
+      "F23",
+      "R33"
+    ],
+    "allLines": [
+      "D",
+      "F",
+      "G",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "F23N",
+      "F23S",
+      "R33N",
+      "R33S"
+    ]
+  },
+  "C068": {
+    "complexId": "C068",
+    "name": "Woodhaven Blvd",
+    "stations": [
+      "G11",
+      "J15"
+    ],
+    "allLines": [
+      "E",
+      "F",
+      "J",
+      "M",
+      "R",
+      "Z"
+    ],
+    "allStopIds": [
+      "G11N",
+      "G11S",
+      "J15N",
+      "J15S"
+    ]
+  },
+  "C069": {
+    "complexId": "C069",
+    "name": "36 St",
+    "stations": [
+      "G20",
+      "R36"
+    ],
+    "allLines": [
+      "D",
+      "E",
+      "F",
+      "M",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "G20N",
+      "G20S",
+      "R36N",
+      "R36S"
+    ]
+  },
+  "C070": {
+    "complexId": "C070",
+    "name": "Broadway",
+    "stations": [
+      "G30",
+      "R05"
+    ],
+    "allLines": [
+      "G",
+      "N",
+      "W"
+    ],
+    "allStopIds": [
+      "G30N",
+      "G30S",
+      "R05N",
+      "R05S"
+    ]
+  },
+  "C071": {
+    "complexId": "C071",
+    "name": "Flushing Av",
+    "stations": [
+      "G31",
+      "M12"
+    ],
+    "allLines": [
+      "G",
+      "J",
+      "M"
+    ],
+    "allStopIds": [
+      "G31N",
+      "G31S",
+      "M12N",
+      "M12S"
+    ]
+  },
+  "C072": {
+    "complexId": "C072",
+    "name": "Halsey St",
+    "stations": [
+      "J29",
+      "L19"
+    ],
+    "allLines": [
+      "J",
+      "L"
+    ],
+    "allStopIds": [
+      "J29N",
+      "J29S",
+      "L19N",
+      "L19S"
+    ]
+  },
+  "C073": {
+    "complexId": "C073",
+    "name": "8 Av",
+    "stations": [
+      "L01",
+      "N02"
+    ],
+    "allLines": [
+      "L",
+      "N",
+      "W"
+    ],
+    "allStopIds": [
+      "L01N",
+      "L01S",
+      "N02N",
+      "N02S"
+    ]
+  },
+  "C074": {
+    "complexId": "C074",
+    "name": "Lorimer St",
+    "stations": [
+      "L10",
+      "M13"
+    ],
+    "allLines": [
+      "J",
+      "L",
+      "M"
+    ],
+    "allStopIds": [
+      "L10N",
+      "L10S",
+      "M13N",
+      "M13S"
+    ]
+  },
+  "C075": {
+    "complexId": "C075",
+    "name": "DeKalb Av",
+    "stations": [
+      "L16",
+      "R30"
+    ],
+    "allLines": [
+      "B",
+      "D",
+      "L",
+      "N",
+      "Q",
+      "R",
+      "W"
+    ],
+    "allStopIds": [
+      "L16N",
+      "L16S",
+      "R30N",
+      "R30S"
+    ]
+  },
+  "C076": {
+    "complexId": "C076",
+    "name": "Myrtle-Wyckoff Avs",
+    "stations": [
+      "L17",
+      "M08"
+    ],
+    "allLines": [
+      "L",
+      "M"
+    ],
+    "allStopIds": [
+      "L17N",
+      "L17S",
+      "M08N",
+      "M08S"
+    ]
+  }
+}

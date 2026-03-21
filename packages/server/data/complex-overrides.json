@@ -1,0 +1,90 @@
+{
+  "times_sq_42": {
+    "name": "Times Sq-42 St",
+    "stations": [
+      "725",
+      "726",
+      "901",
+      "902",
+      "903"
+    ],
+    "notes": "Combines 1/2/3, 7, N/Q/R/W, and S platforms"
+  },
+  "fulton_broadway": {
+    "name": "Fulton St-Broadway/Nassau",
+    "stations": [
+      "230",
+      "231",
+      "422",
+      "423"
+    ],
+    "notes": "Combines A/C, J/Z, 2/3, 4/5 platforms"
+  },
+  "14th_union_sq": {
+    "name": "14 St-Union Sq",
+    "stations": [
+      "326",
+      "346",
+      "351",
+      "635"
+    ],
+    "notes": "Combines L, N/Q/R/W, 4/5/6 platforms"
+  },
+  "atlantic_ave": {
+    "name": "Atlantic Av-Barclays Ctr",
+    "stations": [
+      "245",
+      "246",
+      "247",
+      "248",
+      "249",
+      "250",
+      "251",
+      "421",
+      "629"
+    ],
+    "notes": "Combines B/D/N/Q/R/2/3/4/5 and LIRR platforms"
+  },
+  "lex_59": {
+    "name": "Lexington Av/59 St",
+    "stations": [
+      "322",
+      "411",
+      "412"
+    ],
+    "notes": "Combines 4/5/6 and N/Q/R platforms"
+  },
+  "lex_53": {
+    "name": "Lexington Av/53 St",
+    "stations": [
+      "321",
+      "625"
+    ],
+    "notes": "Combines 6 and E/M platforms"
+  },
+  "jay_metrotech": {
+    "name": "Jay St-MetroTech",
+    "stations": [
+      "243",
+      "443"
+    ],
+    "notes": "Combines A/C/F and R platforms"
+  },
+  "court_sq": {
+    "name": "Court Sq",
+    "stations": [
+      "464",
+      "465",
+      "745"
+    ],
+    "notes": "Combines 7, E/M, and G platforms"
+  },
+  "roosevelt_74": {
+    "name": "Roosevelt Av/74 St",
+    "stations": [
+      "701",
+      "746"
+    ],
+    "notes": "Combines 7 and E/F/M/R platforms"
+  }
+}

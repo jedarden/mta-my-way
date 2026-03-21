@@ -4,11 +4,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b && echo 'Web build placeholder - Vite will handle this'",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "dev": "echo 'Web dev placeholder - Vite will handle this'"
+    "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
-    "@mta-my-way/shared": "*"
+    "@mta-my-way/shared": "*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.4.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.0.14",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "vite-plugin-pwa": "^0.21.1",
+    "workbox-window": "^7.3.0"
   }
 }
