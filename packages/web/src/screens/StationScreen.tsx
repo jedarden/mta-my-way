@@ -1,52 +1,312 @@
+/**
+ * StationScreen - Full station detail with live arrivals and add-to-favorites.
+ *
+ * Shows:
+ * - Station name and lines
+ * - ArrivalList for both directions (or the filtered direction)
+ * - "Updated Xs ago" freshness indicator
+ * - Add-to-favorites / already-favorited button
+ * - Links to related station complexes (multi-complex stations like Times Square)
+ */
+
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { formatTimeAgo } from "@mta-my-way/shared";
+import { api, type Station } from "../lib/api";
+import { useArrivals } from "../hooks/useArrivals";
+import { useFavorites } from "../hooks/useFavorites";
+import { ArrivalList } from "../components/arrivals/ArrivalList";
+import { LineBullet } from "../components/arrivals/LineBullet";
+import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
+import type { Favorite } from "@mta-my-way/shared";
 
 export default function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
+  const { favorites, addFavorite, updateFavorite, removeFavorite } = useFavorites();
+
+  const [station, setStation] = useState<Station | null>(null);
+  const [stationError, setStationError] = useState<string | null>(null);
+
+  // Load station metadata
+  useEffect(() => {
+    if (!stationId) return;
+    setStationError(null);
+    api.getStation(stationId).then(setStation, (err) => {
+      setStationError(
+        err instanceof Error ? err.message : "Failed to load station"
+      );
+    });
+  }, [stationId]);
+
+  const { data: arrivals, status, refresh, updatedAt } = useArrivals(
+    stationId ?? null
+  );
+
+  // "Updated X ago" display
+  const [timeAgoText, setTimeAgoText] = useState("just now");
+  useEffect(() => {
+    if (!updatedAt) return;
+    const update = () => {
+      const seconds = Math.floor((Date.now() - updatedAt) / 1000);
+      setTimeAgoText(formatTimeAgo(seconds));
+    };
+    update();
+    const interval = setInterval(update, 15_000);
+    return () => clearInterval(interval);
+  }, [updatedAt]);
+
+  // Favorites management
+  const existingFavorite = stationId
+    ? favorites.find((f) => f.stationId === stationId)
+    : undefined;
+  const [editingFavorite, setEditingFavorite] = useState<Favorite | null>(null);
+
+  const handleAddFavorite = () => {
+    if (!station) return;
+    addFavorite({
+      stationId: station.id,
+      stationName: station.name,
+      lines: station.lines,
+      direction: "both",
+      pinned: false,
+    });
+  };
+
+  const handleFavoriteButton = () => {
+    if (existingFavorite) {
+      setEditingFavorite(existingFavorite);
+    } else {
+      handleAddFavorite();
+    }
+  };
+
+  const stationName = station?.name ?? arrivals?.stationName ?? `Station ${stationId}`;
+  const stationLines = station?.lines ?? [];
+
+  // Derive error state for arrivals
+  const arrivalsError =
+    status === "error" || status === "offline"
+      ? "Could not load arrivals"
+      : null;
 
   return (
     <div className="p-4">
-      <nav className="mb-4">
+      {/* Back navigation */}
+      <nav className="mb-4" aria-label="Breadcrumb">
         <Link
           to="/"
-          className="text-mta-primary dark:text-blue-400 hover:underline"
+          className="inline-flex items-center gap-1 text-mta-primary dark:text-blue-400 hover:underline min-h-touch"
         >
-          ← Back
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="15,18 9,12 15,6" />
+          </svg>
+          Back
         </Link>
       </nav>
 
-      <h2 className="text-xl font-bold mb-4 text-text-primary dark:text-dark-text-primary">
-        Station {stationId}
-      </h2>
+      {/* Station header */}
+      <header className="mb-5">
+        {stationError ? (
+          <p className="text-severe font-medium">{stationError}</p>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary leading-tight mb-2">
+              {stationName}
+            </h1>
+            {stationLines.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {stationLines.map((line) => (
+                  <LineBullet key={line} line={line} size="md" />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </header>
 
-      <section aria-labelledby="uptown-heading" className="mb-6">
-        <h3 id="uptown-heading" className="text-lg font-semibold mb-3 text-text-primary dark:text-dark-text-primary">
-          Uptown / Bronx-bound
-        </h3>
-        <div className="bg-surface dark:bg-dark-surface rounded-lg p-4">
-          <p className="text-text-secondary dark:text-dark-text-secondary text-center">
-            Loading arrivals...
-          </p>
+      {/* Arrivals section */}
+      <section aria-labelledby="arrivals-heading" className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2
+            id="arrivals-heading"
+            className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+          >
+            Arrivals
+          </h2>
+          <button
+            type="button"
+            onClick={refresh}
+            className="text-13 text-mta-primary min-h-touch px-2 flex items-center gap-1"
+            aria-label="Refresh arrivals"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={status === "stale" || status === "loading" ? "animate-spin" : ""}
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Refresh
+          </button>
         </div>
+
+        {/* Loading state (first load) */}
+        {(status === "loading" || status === "idle") && !arrivals && (
+          <ArrivalsSkeleton />
+        )}
+
+        {/* Error with no data */}
+        {arrivalsError && !arrivals && (
+          <div className="bg-surface dark:bg-dark-surface rounded-lg p-4 text-center">
+            <p className="text-text-secondary dark:text-dark-text-secondary mb-3">
+              {arrivalsError}
+            </p>
+            <button
+              type="button"
+              onClick={refresh}
+              className="px-4 py-2 bg-mta-primary text-white rounded font-medium text-13 min-h-touch"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Offline banner with stale data */}
+        {status === "offline" && arrivals && (
+          <div className="mb-3 px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg text-13 text-text-secondary dark:text-dark-text-secondary">
+            Offline — showing last known data
+          </div>
+        )}
+
+        {/* Error banner with stale data */}
+        {status === "error" && arrivals && (
+          <div className="mb-3 flex items-center justify-between px-3 py-2 bg-surface dark:bg-dark-surface rounded-lg">
+            <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
+              Could not refresh
+            </span>
+            <button
+              type="button"
+              onClick={refresh}
+              className="text-13 text-mta-primary font-medium min-h-touch px-2"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Actual arrivals */}
+        {arrivals && (
+          <ArrivalList
+            northbound={arrivals.northbound}
+            southbound={arrivals.southbound}
+          />
+        )}
       </section>
 
-      <section aria-labelledby="downtown-heading" className="mb-6">
-        <h3 id="downtown-heading" className="text-lg font-semibold mb-3 text-text-primary dark:text-dark-text-primary">
-          Downtown / Brooklyn-bound
-        </h3>
-        <div className="bg-surface dark:bg-dark-surface rounded-lg p-4">
-          <p className="text-text-secondary dark:text-dark-text-secondary text-center">
-            Loading arrivals...
-          </p>
-        </div>
-      </section>
-
-      <div className="flex justify-between items-center">
-        <button className="px-4 py-2 text-mta-primary dark:text-blue-400 font-medium min-h-touch">
-          + Add to favorites
+      {/* Footer: freshness + favorite button */}
+      <div className="flex items-center justify-between gap-3 pt-2 border-t border-surface dark:border-dark-surface">
+        <button
+          type="button"
+          onClick={handleFavoriteButton}
+          className={[
+            "flex items-center gap-2 px-4 py-3 rounded-lg font-medium min-h-touch transition-colors",
+            existingFavorite
+              ? "bg-mta-primary/10 text-mta-primary"
+              : "bg-surface dark:bg-dark-surface text-mta-primary",
+          ].join(" ")}
+          aria-pressed={!!existingFavorite}
+          aria-label={
+            existingFavorite
+              ? `${stationName} is in your favorites — tap to edit`
+              : `Add ${stationName} to favorites`
+          }
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill={existingFavorite ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          {existingFavorite ? "In favorites" : "Add to favorites"}
         </button>
-        <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-          Updated just now
-        </p>
+
+        {updatedAt && (
+          <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
+            Updated {timeAgoText}
+          </p>
+        )}
+      </div>
+
+      {/* FavoriteEditor modal */}
+      {editingFavorite && (
+        <FavoriteEditor
+          favorite={editingFavorite}
+          onSave={(updates) => {
+            updateFavorite(editingFavorite.id, updates);
+            setEditingFavorite(null);
+          }}
+          onDelete={() => {
+            removeFavorite(editingFavorite.id);
+            setEditingFavorite(null);
+          }}
+          onClose={() => setEditingFavorite(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ArrivalsSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading arrivals">
+      {/* Northbound skeleton */}
+      <div>
+        <div className="h-4 w-32 bg-surface dark:bg-dark-surface rounded animate-pulse mb-2" />
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-14 bg-surface dark:bg-dark-surface rounded-lg animate-pulse"
+            />
+          ))}
+        </div>
+      </div>
+      {/* Southbound skeleton */}
+      <div>
+        <div className="h-4 w-36 bg-surface dark:bg-dark-surface rounded animate-pulse mb-2" />
+        <div className="space-y-2">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-14 bg-surface dark:bg-dark-surface rounded-lg animate-pulse"
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

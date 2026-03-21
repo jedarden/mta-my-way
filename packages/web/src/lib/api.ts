@@ -3,6 +3,14 @@
  * Provides type-safe fetch wrapper with error handling
  */
 
+import type {
+  ArrivalTime,
+  StationArrivals,
+} from "@mta-my-way/shared";
+
+// Re-export shared arrival types so callers can import from one place
+export type { ArrivalTime, StationArrivals };
+
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 interface ApiError {
@@ -59,7 +67,7 @@ async function fetchJson<T>(
   }
 }
 
-// API Types (will be moved to shared package later)
+// API Types
 export interface Station {
   id: string;
   name: string;
@@ -70,27 +78,6 @@ export interface Station {
   southStopId: string;
   borough: string;
   ada: boolean;
-}
-
-export interface ArrivalTime {
-  line: string;
-  direction: "N" | "S";
-  arrivalTime: number;
-  minutesAway: number;
-  isAssigned: boolean;
-  isRerouted: boolean;
-  tripId: string;
-  destination: string;
-  confidence: "high" | "medium" | "low";
-}
-
-export interface StationArrivals {
-  stationId: string;
-  stationName: string;
-  updatedAt: number;
-  feedAge: number;
-  northbound: ArrivalTime[];
-  southbound: ArrivalTime[];
 }
 
 export interface StationAlert {
@@ -114,7 +101,7 @@ export const api = {
 
   // Arrivals
   async getArrivals(stationId: string): Promise<StationArrivals> {
-    return fetchJson<StationArrivals>(`/api/arrivals/${stationId}`);
+    return fetchJson<StationArrivals>(`/api/arrivals/${stationId}`) as Promise<StationArrivals>;
   },
 
   // Search
