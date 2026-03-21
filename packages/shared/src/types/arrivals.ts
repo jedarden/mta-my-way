@@ -24,6 +24,8 @@ export interface ArrivalTime {
   isAssigned: boolean;
   /** Whether actual_track differs from scheduled_track (reroute detected) */
   isRerouted: boolean;
+  /** Whether this trip is running express (skipping stops the route normally serves) */
+  isExpress: boolean;
   /** GTFS trip ID for tracking the same train across refreshes */
   tripId: string;
   /** Terminal station name (headsign) */

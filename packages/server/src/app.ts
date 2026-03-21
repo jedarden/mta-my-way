@@ -53,16 +53,11 @@ const ABBREVIATIONS: Record<string, string> = {
   "'way": "way",
 };
 
-/**
- * Expand abbreviations in a search term
- */
 function expandAbbreviations(term: string): string {
   const lower = term.toLowerCase();
-  // Check for direct abbreviation match
   if (ABBREVIATIONS[lower]) {
     return ABBREVIATIONS[lower];
   }
-  // Replace abbreviations within the term
   let expanded = term;
   for (const [abbr, full] of Object.entries(ABBREVIATIONS)) {
     const regex = new RegExp(`\\b${abbr}\\b`, "gi");
@@ -71,21 +66,14 @@ function expandAbbreviations(term: string): string {
   return expanded;
 }
 
-/**
- * Normalize a string for search matching
- */
 function normalizeForSearch(str: string): string {
   return str
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "") // Remove punctuation
-    .replace(/\s+/g, " ") // Normalize whitespace
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
-/**
- * Check if a station matches a search query
- * Matches against: name, lines, and expanded abbreviations
- */
 function stationMatchesQuery(
   station: Station,
   normalizedQuery: string,
@@ -93,10 +81,8 @@ function stationMatchesQuery(
 ): boolean {
   const normalizedName = normalizeForSearch(station.name);
   const expandedQuery = normalizeForSearch(expandAbbreviations(originalQuery));
-  // Also expand on the normalized query to handle punctuation like B'way -> bway -> broadway
   const expandedNormalizedQuery = normalizeForSearch(expandAbbreviations(normalizedQuery));
 
-  // Match against station name (original or expanded query)
   if (
     normalizedName.includes(normalizedQuery) ||
     normalizedName.includes(expandedQuery) ||
@@ -105,13 +91,11 @@ function stationMatchesQuery(
     return true;
   }
 
-  // Match against lines (e.g., searching "1" or "A")
   const upperQuery = originalQuery.toUpperCase();
   if (station.lines.some((line) => line === upperQuery)) {
     return true;
   }
 
-  // Match expanded station name against expanded query
   const expandedName = normalizeForSearch(expandAbbreviations(station.name));
   if (expandedName.includes(expandedQuery) || expandedName.includes(expandedNormalizedQuery)) {
     return true;
@@ -120,32 +104,24 @@ function stationMatchesQuery(
   return false;
 }
 
-/**
- * Score a search result for ranking
- * Higher score = better match
- */
 function scoreSearchResult(station: Station, query: string): number {
   const normalizedQuery = normalizeForSearch(query);
   const normalizedName = normalizeForSearch(station.name);
   const upperQuery = query.toUpperCase();
 
-  // Exact line match gets highest priority
   if (station.lines.some((line) => line === upperQuery)) {
     return 1000;
   }
 
-  // Name starts with query - high priority
   if (normalizedName.startsWith(normalizedQuery)) {
     return 100;
   }
 
-  // Name contains query as a word
   const words = normalizedName.split(/\s+/);
   if (words.some((word) => word.startsWith(normalizedQuery))) {
     return 50;
   }
 
-  // Name contains query anywhere
   if (normalizedName.includes(normalizedQuery)) {
     return 10;
   }
@@ -153,9 +129,6 @@ function scoreSearchResult(station: Station, query: string): number {
   return 1;
 }
 
-/**
- * Build a station-to-complex lookup map
- */
 function buildStationToComplexMap(complexes: ComplexIndex): Map<string, StationComplex> {
   const map = new Map<string, StationComplex>();
   for (const complex of Object.values(complexes)) {
@@ -182,7 +155,6 @@ export function createApp(
 ): Hono {
   const app = new Hono();
 
-  // Build station-to-complex lookup for efficient complex expansion
   const stationToComplex = buildStationToComplexMap(complexes);
 
   // Create transfer engine for commute analysis
@@ -194,7 +166,6 @@ export function createApp(
     getArrivals: (stationId: string) => {
       const stationArrivals = getArrivals(stationId);
       if (!stationArrivals) return null;
-      // Combine northbound and southbound arrivals
       return [...stationArrivals.northbound, ...stationArrivals.southbound];
     },
   });
@@ -264,7 +235,6 @@ export function createApp(
     const trimmedQuery = query.trim();
     const normalizedQuery = normalizeForSearch(trimmedQuery);
 
-    // Filter and score matching stations
     const results = Object.values(stations)
       .filter((station) => stationMatchesQuery(station, normalizedQuery, trimmedQuery))
       .map((station) => ({
@@ -286,10 +256,8 @@ export function createApp(
       return c.json({ error: "Station not found" }, 404);
     }
 
-    // Check if this station is part of a complex
     const complex = stationToComplex.get(id);
 
-    // Build response with complex expansion
     const response: Record<string, unknown> = {
       ...station,
       complexStations: [] as Station[],
@@ -297,12 +265,10 @@ export function createApp(
     };
 
     if (complex) {
-      // Get all stations in this complex
       const complexStations = complex.stations
         .map((sid) => stations[sid])
         .filter((s): s is Station => s !== undefined);
 
-      // Collect all unique lines across the complex
       const allLines = new Set<string>();
       for (const s of complexStations) {
         for (const line of s.lines) {
@@ -341,7 +307,7 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
-  // Static GTFS data (complexes, transfers, travel times)
+  // Static GTFS data (complexes)
   // -------------------------------------------------------------------------
   app.get("/api/static/complexes", (c) => {
     c.header("Cache-Control", STATIC_CACHE_HEADER);
@@ -374,12 +340,10 @@ export function createApp(
 
       const { originId, destinationId, preferredLines = [], commuteId = "default" } = body;
 
-      // Validate inputs
       if (!originId || !destinationId) {
         return c.json({ error: "originId and destinationId are required" }, 400);
       }
 
-      // Validate station IDs
       if (!stations[originId]) {
         return c.json({ error: `Origin station not found: ${originId}` }, 404);
       }
@@ -387,7 +351,6 @@ export function createApp(
         return c.json({ error: `Destination station not found: ${destinationId}` }, 404);
       }
 
-      // Analyze commute
       const analysis = transferEngine.analyzeCommute(
         originId,
         destinationId,
@@ -400,7 +363,10 @@ export function createApp(
     } catch (error) {
       console.error("Commute analysis error:", error);
       return c.json(
-        { error: "Failed to analyze commute", message: error instanceof Error ? error.message : "Unknown error" },
+        {
+          error: "Failed to analyze commute",
+          message: error instanceof Error ? error.message : "Unknown error",
+        },
         500
       );
     }
@@ -416,8 +382,6 @@ export function createApp(
     })
   );
 
-  // SPA fallback: serve index.html for any non-API route that didn't match a
-  // static file (so React Router can handle client-side routing)
   app.get("*", async (c) => {
     const html = await readFile(join(webDistPath, "index.html"), "utf8").catch(() => null);
     if (!html) return c.notFound();

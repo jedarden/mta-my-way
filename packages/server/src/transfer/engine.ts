@@ -15,24 +15,20 @@
 
 import type {
   ArrivalTime,
+  CommuteAnalysis,
+  ComplexIndex,
   DirectRoute,
+  RouteIndex,
+  StationIndex,
+  StationRef,
+  TransferGraph,
   TransferLeg,
   TransferRoute,
-  CommuteAnalysis,
-  StationRef,
-  StationIndex,
-  RouteIndex,
-  TransferGraph,
   TravelTimeIndex,
-  ComplexIndex,
 } from "@mta-my-way/shared";
 import { isBDivision } from "@mta-my-way/shared";
 import { buildTransferGraph, getReachableStations } from "./graph.js";
-import {
-  getTravelTimes,
-  calculateRouteTravelTime,
-  determineDirection,
-} from "./travel-times.js";
+import { calculateRouteTravelTime, determineDirection, getTravelTimes } from "./travel-times.js";
 
 /** Buffer to add to B Division arrival estimates (in seconds) */
 const B_DIVISION_BUFFER_SECONDS = 120; // 2 minutes
@@ -52,7 +48,10 @@ const MAX_WAIT_TIME_SECONDS = 1800; // 30 minutes
 export interface EngineConfig {
   stations: StationIndex;
   routes: RouteIndex;
-  transfers: Record<string, Array<{ toStationId: string; toLines: string[]; walkingSeconds: number; accessible: boolean }>>;
+  transfers: Record<
+    string,
+    Array<{ toStationId: string; toLines: string[]; walkingSeconds: number; accessible: boolean }>
+  >;
   complexes: ComplexIndex;
   getArrivals: (stationId: string) => ArrivalTime[] | null;
 }
@@ -95,14 +94,21 @@ export class TransferEngine {
     const directRoutes = this.findDirectRoutes(originId, destinationId, preferredLines);
 
     // Find transfer routes (1 transfer max = 2 legs)
-    const transferRoutes = this.findTransferRoutes(originId, destinationId, preferredLines, directRoutes);
+    const transferRoutes = this.findTransferRoutes(
+      originId,
+      destinationId,
+      preferredLines,
+      directRoutes
+    );
 
     // Determine recommendation
     const recommendation = this.determineRecommendation(directRoutes, transferRoutes);
 
     // Sort routes by arrival time
     directRoutes.sort((a, b) => a.estimatedArrivalAtDestination - b.estimatedArrivalAtDestination);
-    transferRoutes.sort((a, b) => a.estimatedArrivalAtDestination - b.estimatedArrivalAtDestination);
+    transferRoutes.sort(
+      (a, b) => a.estimatedArrivalAtDestination - b.estimatedArrivalAtDestination
+    );
 
     return {
       commuteId,
@@ -140,7 +146,7 @@ export class TransferEngine {
     }
 
     // Find common lines
-    const commonLines = originStation.lines.filter(line =>
+    const commonLines = originStation.lines.filter((line) =>
       destinationStation.lines.includes(line)
     );
 
@@ -154,12 +160,14 @@ export class TransferEngine {
 
       // Get arrivals for this line and direction
       const lineArrivals = originArrivals.filter(
-        a => a.line === line && (a.direction === direction || this.isCorrectDirection(a, originId, destinationId))
+        (a) =>
+          a.line === line &&
+          (a.direction === direction || this.isCorrectDirection(a, originId, destinationId))
       );
 
       if (lineArrivals.length === 0) {
         // Try without direction filter - sometimes direction data is unreliable
-        const allLineArrivals = originArrivals.filter(a => a.line === line);
+        const allLineArrivals = originArrivals.filter((a) => a.line === line);
         if (allLineArrivals.length === 0) continue;
 
         // Use first arrival and estimate
@@ -195,19 +203,23 @@ export class TransferEngine {
   ): DirectRoute {
     const route = this.routes[line];
     const travelTimeSeconds = this.travelTimes
-      ? calculateRouteTravelTime(this.travelTimes, line, route?.stops ?? [], originId, destinationId)
+      ? calculateRouteTravelTime(
+          this.travelTimes,
+          line,
+          route?.stops ?? [],
+          originId,
+          destinationId
+        )
       : this.estimateTravelTime(originId, destinationId);
 
     // Get next 3 arrivals with B Division buffer applied
-    const nextArrivals = arrivals
-      .slice(0, 3)
-      .map(a => this.applyBDivisionBuffer(a));
+    const nextArrivals = arrivals.slice(0, 3).map((a) => this.applyBDivisionBuffer(a));
 
     // Calculate estimated arrival using the first arrival
     const firstArrival = nextArrivals[0];
     const bufferMinutes = isBDivision(line) ? B_DIVISION_BUFFER_SECONDS / 60 : 0;
     const estimatedArrival = firstArrival
-      ? firstArrival.arrivalTime + travelTimeSeconds + (bufferMinutes * 60)
+      ? firstArrival.arrivalTime + travelTimeSeconds + bufferMinutes * 60
       : Date.now() / 1000 + travelTimeSeconds;
 
     return {
@@ -229,9 +241,10 @@ export class TransferEngine {
     directRoutes: DirectRoute[]
   ): TransferRoute[] {
     const routes: TransferRoute[] = [];
-    const bestDirectArrival = directRoutes.length > 0
-      ? directRoutes[0]?.estimatedArrivalAtDestination ?? Infinity
-      : Infinity;
+    const bestDirectArrival =
+      directRoutes.length > 0
+        ? (directRoutes[0]?.estimatedArrivalAtDestination ?? Infinity)
+        : Infinity;
 
     // Get origin arrivals
     const originArrivals = this.getArrivalsFn(originId);
@@ -259,7 +272,7 @@ export class TransferEngine {
 
       if (!transferStation || !destinationStation) continue;
 
-      const linesToDestination = transferStation.lines.filter(line =>
+      const linesToDestination = transferStation.lines.filter((line) =>
         destinationStation.lines.includes(line)
       );
 
@@ -267,13 +280,13 @@ export class TransferEngine {
       const originStation = this.stations[originId];
       if (!originStation) continue;
 
-      const firstLegLines = originStation.lines.filter(line =>
+      const firstLegLines = originStation.lines.filter((line) =>
         transferStation.lines.includes(line)
       );
 
       for (const firstLegLine of firstLegLines) {
         // Get first leg arrivals
-        const firstLegArrivals = originArrivals.filter(a => a.line === firstLegLine);
+        const firstLegArrivals = originArrivals.filter((a) => a.line === firstLegLine);
         if (firstLegArrivals.length === 0) continue;
 
         for (const secondLegLine of linesToDestination) {
@@ -288,11 +301,14 @@ export class TransferEngine {
             firstLegLine,
             secondLegLine,
             firstLegArrivals,
-            transferArrivals.filter(a => a.line === secondLegLine),
+            transferArrivals.filter((a) => a.line === secondLegLine),
             transferEdge.walkingSeconds
           );
 
-          if (transferRoute && transferRoute.estimatedArrivalAtDestination < bestDirectArrival + 600) {
+          if (
+            transferRoute &&
+            transferRoute.estimatedArrivalAtDestination < bestDirectArrival + 600
+          ) {
             // Only include if it's not much worse than direct
             routes.push(transferRoute);
           }
@@ -305,7 +321,7 @@ export class TransferEngine {
 
     // Dedupe by transfer station
     const seen = new Set<string>();
-    return routes.filter(route => {
+    return routes.filter((route) => {
       const key = `${route.legs[0]?.line}-${route.transferStation.stationId}-${route.legs[1]?.line}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -335,11 +351,23 @@ export class TransferEngine {
     const secondLegRoute = this.routes[secondLegLine];
 
     const firstLegTravelSeconds = this.travelTimes
-      ? calculateRouteTravelTime(this.travelTimes, firstLegLine, firstLegRoute?.stops ?? [], originId, transferStationId)
+      ? calculateRouteTravelTime(
+          this.travelTimes,
+          firstLegLine,
+          firstLegRoute?.stops ?? [],
+          originId,
+          transferStationId
+        )
       : this.estimateTravelTime(originId, transferStationId);
 
     const secondLegTravelSeconds = this.travelTimes
-      ? calculateRouteTravelTime(this.travelTimes, secondLegLine, secondLegRoute?.stops ?? [], transferStationId, destinationId)
+      ? calculateRouteTravelTime(
+          this.travelTimes,
+          secondLegLine,
+          secondLegRoute?.stops ?? [],
+          transferStationId,
+          destinationId
+        )
       : this.estimateTravelTime(transferStationId, destinationId);
 
     // Apply B Division buffer to first leg arrival
@@ -349,8 +377,8 @@ export class TransferEngine {
     // Find the best second leg arrival (must arrive after we get there + walking time)
     const arrivalAtTransferWithWalk = firstLegArrivalAtTransfer + walkingSeconds;
     const viableSecondLegs = secondLegArrivals
-      .map(a => this.applyBDivisionBuffer(a))
-      .filter(a => a.arrivalTime >= arrivalAtTransferWithWalk - 30); // Allow 30s slack
+      .map((a) => this.applyBDivisionBuffer(a))
+      .filter((a) => a.arrivalTime >= arrivalAtTransferWithWalk - 30); // Allow 30s slack
 
     if (viableSecondLegs.length === 0) {
       return null;
@@ -387,10 +415,10 @@ export class TransferEngine {
 
     const totalMinutes = Math.ceil(
       (firstArrival.arrivalTime - Date.now() / 1000) / 60 +
-      firstLegTravelSeconds / 60 +
-      walkingSeconds / 60 +
-      waitAtTransfer / 60 +
-      secondLegTravelSeconds / 60
+        firstLegTravelSeconds / 60 +
+        walkingSeconds / 60 +
+        waitAtTransfer / 60 +
+        secondLegTravelSeconds / 60
     );
 
     return {
@@ -440,7 +468,8 @@ export class TransferEngine {
     const bestTransfer = transferRoutes[0]!;
 
     // Calculate time saved
-    bestTransfer.timeSavedVsDirect = bestDirect.estimatedArrivalAtDestination - bestTransfer.estimatedArrivalAtDestination;
+    bestTransfer.timeSavedVsDirect =
+      bestDirect.estimatedArrivalAtDestination - bestTransfer.estimatedArrivalAtDestination;
 
     // Recommend transfer if it saves at least 2 minutes
     if (bestTransfer.timeSavedVsDirect >= 120) {
@@ -481,13 +510,17 @@ export class TransferEngine {
 
     // Roughly 1 degree = 111km, average subway speed ~40km/h
     // This gives a very rough estimate in seconds
-    return Math.max(Math.round(distance * 111 / 40 * 3600), 120);
+    return Math.max(Math.round(((distance * 111) / 40) * 3600), 120);
   }
 
   /**
    * Check if an arrival is going in the correct direction
    */
-  private isCorrectDirection(arrival: ArrivalTime, originId: string, destinationId: string): boolean {
+  private isCorrectDirection(
+    arrival: ArrivalTime,
+    originId: string,
+    destinationId: string
+  ): boolean {
     const route = this.routes[arrival.line];
     if (!route) return true; // Can't determine, assume correct
 

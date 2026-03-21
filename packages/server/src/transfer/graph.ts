@@ -11,7 +11,13 @@
  * - Default walking time of 180s when not specified
  */
 
-import type { TransferConnection, TransferGraph, TransferEdge, StationIndex, ComplexIndex } from "@mta-my-way/shared";
+import type {
+  ComplexIndex,
+  StationIndex,
+  TransferConnection,
+  TransferEdge,
+  TransferGraph,
+} from "@mta-my-way/shared";
 
 /** Default walking time for transfers (3 minutes) */
 const DEFAULT_WALKING_SECONDS = 180;
@@ -71,7 +77,7 @@ export function buildTransferGraph(
         const complexWalkTime = 60;
 
         // Add edge A -> B
-        const existingAToB = graph[stationA].find(e => e.toStationId === stationB);
+        const existingAToB = graph[stationA].find((e) => e.toStationId === stationB);
         if (!existingAToB) {
           graph[stationA].push({
             toStationId: stationB,
@@ -82,7 +88,7 @@ export function buildTransferGraph(
         }
 
         // Add edge B -> A
-        const existingBToA = graph[stationB].find(e => e.toStationId === stationA);
+        const existingBToA = graph[stationB].find((e) => e.toStationId === stationA);
         if (!existingBToA) {
           graph[stationB].push({
             toStationId: stationA,
@@ -111,7 +117,7 @@ function addTransferEdge(
   }
 
   // Check if edge already exists
-  const existing = graph[fromStationId].find(e => e.toStationId === transfer.toStationId);
+  const existing = graph[fromStationId].find((e) => e.toStationId === transfer.toStationId);
   if (existing) {
     // Update with better (shorter) walking time if available
     if (transfer.walkingSeconds < existing.walkingSeconds) {
@@ -133,10 +139,7 @@ function addTransferEdge(
 /**
  * Get all stations reachable from a given station with one transfer
  */
-export function getReachableStations(
-  graph: TransferGraph,
-  stationId: string
-): TransferEdge[] {
+export function getReachableStations(graph: TransferGraph, stationId: string): TransferEdge[] {
   return graph[stationId] ?? [];
 }
 
@@ -169,7 +172,7 @@ export function findTransferPoints(
   const transferPoints: Array<{ stationId: string; walkingSeconds: number }> = [];
 
   // Find stations served by lineA
-  const lineAStations = Object.values(stations).filter(s => s.lines.includes(lineA));
+  const lineAStations = Object.values(stations).filter((s) => s.lines.includes(lineA));
 
   for (const station of lineAStations) {
     // Check if any reachable station serves lineB
@@ -208,10 +211,7 @@ export function areInSameComplex(
 /**
  * Get all stations in the same complex as a given station
  */
-export function getComplexStations(
-  complexes: ComplexIndex,
-  stationId: string
-): string[] {
+export function getComplexStations(complexes: ComplexIndex, stationId: string): string[] {
   for (const complex of Object.values(complexes)) {
     if (complex.stations.includes(stationId)) {
       return complex.stations;

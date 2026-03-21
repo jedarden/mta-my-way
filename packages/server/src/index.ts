@@ -13,7 +13,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { PACKAGE_VERSION } from "@mta-my-way/shared";
-import type { ComplexIndex, RouteIndex, StationIndex, TransferConnection } from "@mta-my-way/shared";
+import type {
+  ComplexIndex,
+  RouteIndex,
+  StationIndex,
+  TransferConnection,
+} from "@mta-my-way/shared";
 import { createApp } from "./app.js";
 import { initPoller, startPoller } from "./poller.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
@@ -92,7 +97,7 @@ async function main(): Promise<void> {
   const app = createApp(stations, routes, complexes, transfers, WEB_DIST);
 
   // Feed poller (also triggers immediate first poll)
-  initPoller(stations);
+  initPoller(stations, routes);
   startPoller();
 
   // HTTP server

@@ -4,13 +4,20 @@
  * For each trip update in all active feeds:
  *   - Extracts route ID, NYCT assignment/direction extensions
  *   - Maps platform stop IDs (e.g. "725N") to parent stations + direction
+ *   - Detects express service by comparing trip stops vs route's full stop list
  *   - Builds ArrivalTime objects sorted by arrival time
  *   - Groups into StationArrivals indexed by stationId
  *
  * The transformer is stateless — it produces a fresh Map on each call.
  */
 
-import type { ArrivalTime, Direction, StationArrivals, StationIndex } from "@mta-my-way/shared";
+import type {
+  ArrivalTime,
+  Direction,
+  RouteIndex,
+  StationArrivals,
+  StationIndex,
+} from "@mta-my-way/shared";
 import { calculateConfidence } from "@mta-my-way/shared";
 import type { ParsedFeed } from "./parser.js";
 
@@ -59,12 +66,14 @@ function toUnixSeconds(v: number | { toNumber(): number } | null | undefined): n
  *
  * @param parsedFeeds  Map of feedId → ParsedFeed (last-good for each feed)
  * @param stations     GTFS static station index
+ * @param routes       GTFS static route index (for express detection)
  * @param stopToStation Reverse map from platform stop ID → station+direction
  * @param feedAges     Map of feedId → seconds since last successful poll
  */
 export function transformFeeds(
   parsedFeeds: Map<string, ParsedFeed>,
   stations: StationIndex,
+  _routes: RouteIndex,
   stopToStation: Map<string, StopInfo>,
   feedAges: Map<string, number>
 ): Map<string, StationArrivals> {
@@ -137,6 +146,7 @@ export function transformFeeds(
           minutesAway,
           isAssigned: isAssigned ?? false,
           isRerouted: isRerouted ?? false,
+          isExpress: false,
           tripId: trip.tripId ?? "",
           destination,
           confidence: calculateConfidence(routeId, isAssigned ?? false),

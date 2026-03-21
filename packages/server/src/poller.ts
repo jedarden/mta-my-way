@@ -10,7 +10,7 @@
  */
 
 import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS } from "@mta-my-way/shared";
-import type { StationIndex } from "@mta-my-way/shared";
+import type { RouteIndex, StationIndex } from "@mta-my-way/shared";
 import {
   getAllFeedAges,
   getAllParsedFeeds,
@@ -27,13 +27,15 @@ const FETCH_TIMEOUT_MS = 15_000; // 15s per feed
 
 let stopToStation: ReturnType<typeof buildStopToStationMap>;
 let stations: StationIndex;
+let routes: RouteIndex;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Must be called before startPoller() with the loaded station data.
  */
-export function initPoller(stationData: StationIndex): void {
+export function initPoller(stationData: StationIndex, routeData: RouteIndex): void {
   stations = stationData;
+  routes = routeData;
   stopToStation = buildStopToStationMap(stationData);
 }
 
@@ -72,7 +74,7 @@ async function runPoll(): Promise<void> {
   // Rebuild arrivals from all currently-good feeds
   const parsedFeeds = getAllParsedFeeds();
   const feedAges = getAllFeedAges();
-  const arrivals = transformFeeds(parsedFeeds, stations, stopToStation, feedAges);
+  const arrivals = transformFeeds(parsedFeeds, stations, routes, stopToStation, feedAges);
   updateArrivals(arrivals);
 
   console.log(
