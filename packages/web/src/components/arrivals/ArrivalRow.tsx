@@ -3,10 +3,16 @@
  *
  * The arrival time is the HERO number: 24px, 800 weight.
  * Shows confidence indicator via ConfidenceBar component.
+ *
+ * Staleness visualization (per plan.md):
+ *   - 'fresh': normal display
+ *   - 'fading': opacity reduced (data 2-5 min old)
+ *   - 'stale': grayscale + more opacity (data >5 min old)
  */
 
 import type { ArrivalTime } from "@mta-my-way/shared";
 import { formatMinutesAway } from "@mta-my-way/shared";
+import type { StalenessLevel } from "../../hooks/useStaleness";
 import { ConfidenceBar } from "./ConfidenceBar";
 import { LineBullet } from "./LineBullet";
 
@@ -19,6 +25,20 @@ interface ArrivalRowProps {
   showLine?: boolean;
   /** Compact mode for inline display in FavoriteCard */
   compact?: boolean;
+  /** Staleness level for visual indication */
+  staleness?: StalenessLevel;
+}
+
+/** Map staleness level to Tailwind classes */
+function getStalenessClass(staleness: StalenessLevel): string {
+  switch (staleness) {
+    case "stale":
+      return "opacity-50 grayscale-[50%]";
+    case "fading":
+      return "opacity-70";
+    default:
+      return "";
+  }
 }
 
 export function ArrivalRow({
@@ -26,18 +46,21 @@ export function ArrivalRow({
   onClick,
   showLine = true,
   compact = false,
+  staleness = "fresh",
 }: ArrivalRowProps) {
   const { line, destination, minutesAway, confidence, isAssigned, isExpress } = arrival;
 
   // Format arrival time - "now", "2 min", "12 min"
   const timeDisplay = formatMinutesAway(minutesAway);
+  const stalenessClass = getStalenessClass(staleness);
 
   // In compact mode, show less info
   if (compact) {
     return (
       <div
         className={`
-          flex items-center gap-2 py-1
+          flex items-center gap-2 py-1 transition-opacity duration-300
+          ${stalenessClass}
           ${onClick ? "cursor-pointer active:bg-surface dark:active:bg-dark-surface" : ""}
         `}
         onClick={onClick}
@@ -59,6 +82,8 @@ export function ArrivalRow({
       className={`
         flex items-center gap-3 py-3 px-4
         bg-surface dark:bg-dark-surface rounded-lg
+        transition-opacity duration-300
+        ${stalenessClass}
         ${onClick ? "cursor-pointer active:opacity-80" : ""}
         min-h-touch
       `}

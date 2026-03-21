@@ -11,6 +11,7 @@ import type { Favorite } from "@mta-my-way/shared";
 import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useArrivals } from "../../hooks/useArrivals";
+import { useStaleness } from "../../hooks/useStaleness";
 import { useFavoritesStore } from "../../stores/favoritesStore";
 import { ArrivalRow } from "../arrivals/ArrivalRow";
 import { LineBullet } from "../arrivals/LineBullet";
@@ -26,7 +27,8 @@ interface FavoriteCardProps {
 export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardProps) {
   const navigate = useNavigate();
   const recordTap = useFavoritesStore((s) => s.recordTap);
-  const { data, status, refresh } = useArrivals(favorite.stationId);
+  const { data, status, refresh, updatedAt } = useArrivals(favorite.stationId);
+  const staleness = useStaleness(updatedAt);
 
   // Respond to pull-to-refresh from parent
   const prevRefreshId = useRef(forceRefreshId);
@@ -122,6 +124,7 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
                 key={`${arrival.tripId}-${arrival.arrivalTime}`}
                 arrival={arrival}
                 compact
+                staleness={staleness.level}
               />
             ))}
           </div>

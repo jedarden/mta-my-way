@@ -42,20 +42,41 @@ self.addEventListener("notificationclick", function (event) {
   var url = (event.notification.data && event.notification.data.url) || "/alerts";
 
   event.waitUntil(
-    clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then(function (windowClients) {
-        // Focus an existing tab showing the app if one is open
-        for (var i = 0; i < windowClients.length; i++) {
-          var client = windowClients[i];
-          if ("focus" in client) {
-            return client.focus();
-          }
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (windowClients) {
+      // Focus an existing tab showing the app if one is open
+      for (var i = 0; i < windowClients.length; i++) {
+        var client = windowClients[i];
+        if ("focus" in client) {
+          return client.focus();
         }
-        // Otherwise open a new tab
-        if (clients.openWindow) {
-          return clients.openWindow(url);
-        }
-      })
+      }
+      // Otherwise open a new tab
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
   );
+});
+
+/**
+ * Background Sync: when connectivity is restored, notify open app windows to
+ * retry any queued push subscription changes (subscribe / unsubscribe).
+ *
+ * The app stores pending operations in localStorage and registers a sync tag
+ * via reg.sync.register('push-subscription-sync'). Once the browser wakes the
+ * service worker after reconnecting, this handler broadcasts a message so the
+ * app can flush the queue.
+ */
+self.addEventListener("sync", function (event) {
+  if (event.tag === "push-subscription-sync") {
+    event.waitUntil(
+      clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then(function (windowClients) {
+          windowClients.forEach(function (client) {
+            client.postMessage({ type: "RETRY_PUSH_SUBSCRIPTION" });
+          });
+        })
+    );
+  }
 });

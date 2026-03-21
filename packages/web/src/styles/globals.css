@@ -136,3 +136,41 @@ body,
   border-left: 4px dotted currentColor;
   opacity: 0.7;
 }
+
+/* Stale data visualization */
+/* Per plan.md: "data fades after 2 min, grays out after 5 min" */
+.stale-fresh {
+  /* Data is fresh - no visual change */
+}
+
+.stale-fading {
+  /* Data is 2-5 minutes old - subtle fade */
+  opacity: 0.75;
+}
+
+.stale-grayed {
+  /* Data is 5+ minutes old - fully grayed out */
+  opacity: 0.5;
+  filter: grayscale(50%);
+}
+
+/* Offline indicator chip */
+.offline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: rgba(252, 204, 10, 0.15);
+  color: #666;
+}
+
+@media (prefers-color-scheme: dark) {
+  .offline-chip {
+    background-color: rgba(252, 204, 10, 0.1);
+    color: #999;
+  }
+}
+

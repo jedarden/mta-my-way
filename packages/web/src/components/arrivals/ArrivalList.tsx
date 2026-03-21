@@ -9,6 +9,7 @@
  */
 
 import type { ArrivalTime, DirectionPreference } from "@mta-my-way/shared";
+import type { StalenessLevel } from "../../hooks/useStaleness";
 import { ArrivalRow } from "./ArrivalRow";
 
 interface ArrivalListProps {
@@ -26,6 +27,8 @@ interface ArrivalListProps {
   compact?: boolean;
   /** Click handler for individual arrivals */
   onArrivalClick?: (arrival: ArrivalTime) => void;
+  /** Staleness level for visual indication of data freshness */
+  staleness?: StalenessLevel;
 }
 
 /**
@@ -50,6 +53,7 @@ export function ArrivalList({
   maxPerDirection,
   compact = false,
   onArrivalClick,
+  staleness = "fresh",
 }: ArrivalListProps) {
   const showNorth = direction === "both" || direction === "N";
   const showSouth = direction === "both" || direction === "S";
@@ -84,6 +88,7 @@ export function ArrivalList({
                 arrival={arrival}
                 onClick={onArrivalClick ? () => onArrivalClick(arrival) : undefined}
                 compact={compact}
+                staleness={staleness}
               />
             ))}
           </div>
@@ -107,6 +112,7 @@ export function ArrivalList({
                 arrival={arrival}
                 onClick={onArrivalClick ? () => onArrivalClick(arrival) : undefined}
                 compact={compact}
+                staleness={staleness}
               />
             ))}
           </div>

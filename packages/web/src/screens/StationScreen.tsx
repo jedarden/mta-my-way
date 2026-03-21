@@ -17,11 +17,13 @@ import { Link, useParams } from "react-router-dom";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { AlertBanner } from "../components/alerts";
+import { OfflineBanner } from "../components/common";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import BottomNav from "../components/layout/BottomNav";
 import { useArrivals } from "../hooks/useArrivals";
 import { useAlertsForStation } from "../hooks/useAlerts";
 import { useFavorites } from "../hooks/useFavorites";
+import { useStaleness } from "../hooks/useStaleness";
 import { type Station, api } from "../lib/api";
 
 export default function StationScreen() {
@@ -41,6 +43,7 @@ export default function StationScreen() {
   }, [stationId]);
 
   const { data: arrivals, status, refresh, updatedAt } = useArrivals(stationId ?? null);
+  const staleness = useStaleness(updatedAt);
 
   // Fetch alerts for this station's lines
   const stationLines = station?.lines ?? [];
@@ -144,6 +147,7 @@ export default function StationScreen() {
         </div>
       </header>
 
+      <OfflineBanner />
       <main className="flex-1 overflow-y-auto pb-14 p-4" role="main">
         {/* Station error */}
         {stationError ? <p className="text-severe font-medium mb-4">{stationError}</p> : null}
@@ -246,7 +250,11 @@ export default function StationScreen() {
 
           {/* Actual arrivals */}
           {arrivals && (
-            <ArrivalList northbound={arrivals.northbound} southbound={arrivals.southbound} />
+            <ArrivalList
+              northbound={arrivals.northbound}
+              southbound={arrivals.southbound}
+              staleness={staleness.level}
+            />
           )}
         </section>
 

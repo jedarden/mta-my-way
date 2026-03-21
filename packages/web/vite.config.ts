@@ -45,70 +45,40 @@ export default defineConfig({
         importScripts: ["/sw-push.js"],
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
         runtimeCaching: [
-          // Static station data: CacheFirst (rarely changes)
+          // Static station/route/complex data: CacheFirst, 24 h
           {
-            urlPattern: /^https:\/\/.*\/api\/stations/,
+            urlPattern: /\/api\/stations/,
             handler: "CacheFirst",
             options: {
               cacheName: "stations-cache",
-              expiration: {
-                maxEntries: 1,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
-              },
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
-          // Static routes data: CacheFirst (rarely changes)
           {
-            urlPattern: /^https:\/\/.*\/api\/routes/,
+            urlPattern: /\/api\/routes/,
             handler: "CacheFirst",
             options: {
               cacheName: "routes-cache",
-              expiration: {
-                maxEntries: 1,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
-              },
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
-          // Static complexes data: CacheFirst (rarely changes)
           {
-            urlPattern: /^https:\/\/.*\/api\/static/,
+            urlPattern: /\/api\/complexes/,
             handler: "CacheFirst",
             options: {
-              cacheName: "static-cache",
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
-              },
+              cacheName: "complexes-cache",
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
-          // Arrivals API: StaleWhileRevalidate (show cached, update in background)
+          // Dynamic API: StaleWhileRevalidate — return cached immediately,
+          // update cache in background (arrivals, alerts, commute analysis, etc.)
           {
-            urlPattern: /^https:\/\/.*\/api\/arrivals/,
+            urlPattern: /\/api\//,
             handler: "StaleWhileRevalidate",
             options: {
-              cacheName: "arrivals-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 5, // 5 minutes
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          // Alerts API: StaleWhileRevalidate
-          {
-            urlPattern: /^https:\/\/.*\/api\/alerts/,
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "alerts-cache",
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 2, // 2 minutes
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
+              cacheName: "api-cache",
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 5 },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],
