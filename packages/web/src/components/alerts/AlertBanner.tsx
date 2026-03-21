@@ -149,7 +149,9 @@ export function AlertBanner({
           {showLink && (
             <button
               type="button"
-              onClick={() => navigate("/alerts")}
+              onClick={() => {
+                void navigate("/alerts");
+              }}
               className="text-13 text-mta-primary font-medium flex-shrink-0 min-h-touch px-2"
             >
               View all

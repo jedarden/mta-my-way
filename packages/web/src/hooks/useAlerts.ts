@@ -192,7 +192,9 @@ export function useAlerts(): AlertsResult {
     alerts: displayAlerts,
     myAlerts,
     myAlertsCount: myAlerts.length,
-    refresh: fetchAlerts,
+    refresh: () => {
+      void fetchAlerts();
+    },
     filterMode,
     setFilterMode,
   };
@@ -241,5 +243,11 @@ export function useAlertsForStation(
     return filterAlertsByLines(allAlerts, stationLines);
   }, [allAlerts, stationLines]);
 
-  return { alerts, status, refresh: fetchAlerts };
+  return {
+    alerts,
+    status,
+    refresh: () => {
+      void fetchAlerts();
+    },
+  };
 }
