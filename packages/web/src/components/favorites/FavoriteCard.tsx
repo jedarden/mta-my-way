@@ -63,7 +63,7 @@ export function FavoriteCard({
 
   const handleCardTap = () => {
     recordTap(favorite.id);
-    navigate(`/station/${favorite.stationId}`);
+    void navigate(`/station/${favorite.stationId}`);
   };
 
   const isLoading = status === "loading" && !data;

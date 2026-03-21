@@ -116,14 +116,13 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
         updatedAt: cached.cachedAt,
       });
     } else {
-      fetchArrivals();
+      void fetchArrivals();
     }
 
     // Auto-refresh on interval
-    const interval = setInterval(fetchArrivals, refreshInterval * 1000);
+    const interval = setInterval(() => { void fetchArrivals(); }, refreshInterval * 1000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stationId, refreshInterval]);
 
-  return { ...state, refresh: () => fetchArrivals(true) };
+  return { ...state, refresh: () => { void fetchArrivals(true); } };
 }

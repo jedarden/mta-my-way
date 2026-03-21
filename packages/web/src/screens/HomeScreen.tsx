@@ -5,6 +5,7 @@
  * "Open and see your data in under 3 seconds."
  *
  * Features:
+ * - OnboardingFlow for first-time users (GPS-powered 60-second setup)
  * - FavoritesList with inline arrival data per card
  * - "Updated Xs ago" timestamp reflecting last refresh
  * - Pull-to-refresh (touch gesture) with optional haptic feedback
@@ -16,9 +17,10 @@ import { useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { formatTimeAgo } from "@mta-my-way/shared";
 import { useFavorites } from "../hooks/useFavorites";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useFavoritesStore, useSettingsStore } from "../stores";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
+import OnboardingFlow from "../components/onboarding/OnboardingFlow";
 import Screen from "../components/layout/Screen";
 import type { Favorite } from "@mta-my-way/shared";
 
@@ -29,9 +31,15 @@ const TIME_AGO_INTERVAL = 15_000;
 const PULL_THRESHOLD = 56;
 
 export default function HomeScreen() {
+  const onboardingComplete = useFavoritesStore((s) => s.onboardingComplete);
   const { favorites, hasFavorites, updateFavorite, removeFavorite, reorderFavorites } =
     useFavorites();
   const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
+
+  // Show onboarding flow for first-time users
+  if (!onboardingComplete) {
+    return <OnboardingFlow />;
+  }
 
   // Pull-to-refresh
   const [forceRefreshId, setForceRefreshId] = useState(0);

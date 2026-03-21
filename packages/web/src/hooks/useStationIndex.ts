@@ -51,7 +51,7 @@ export function useStationIndex(): StationIndexState {
         });
     } else {
       // Piggyback on the in-flight request
-      inflight.then(() => {
+      void inflight.then(() => {
         if (cached) {
           setState({ ...cached, loading: false, error: null });
         }

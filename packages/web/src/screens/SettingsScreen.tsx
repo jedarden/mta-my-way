@@ -1,10 +1,12 @@
 import { useState } from "react";
+import Screen from "../components/layout/Screen";
 
 export default function SettingsScreen() {
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
 
   return (
-    <div className="p-4">
+    <Screen>
+      <div className="px-4 pt-2 pb-4">
       <section aria-labelledby="appearance-heading" className="mb-6">
         <h2 id="appearance-heading" className="text-lg font-semibold mb-4 text-text-primary dark:text-dark-text-primary">
           Appearance
@@ -90,6 +92,7 @@ export default function SettingsScreen() {
           </p>
         </div>
       </section>
-    </div>
+      </div>
+    </Screen>
   );
 }
