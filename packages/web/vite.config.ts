@@ -1,7 +1,86 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import type { Plugin, Rollup } from "rollup";
+import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+
+/**
+ * Bundle size budget plugin.
+ * Fails the build if:
+ * - Any individual chunk exceeds MAX_CHUNK_SIZE_KB gzipped
+ * - Total JS exceeds MAX_TOTAL_JS_KB gzipped
+ */
+const MAX_CHUNK_SIZE_KB = 50; // 50KB per chunk max
+const MAX_TOTAL_JS_KB = 150; // 150KB total JS max
+
+// Per-chunk overrides for known large vendor dependencies
+const CHUNK_SIZE_OVERRIDES: Record<string, number> = {
+  "react-dom": 60, // React 19's react-dom is ~56KB gzip, cannot be reduced
+};
+
+function bundleSizeBudget(): Plugin {
+  return {
+    name: "bundle-size-budget",
+    enforce: "post",
+    apply: "build",
+    async writeBundle(_options, bundle) {
+      // Use dynamic import for gzip-size (ESM only)
+      const { gzipSize } = await import("gzip-size");
+      const { basename } = await import("node:path");
+
+      const jsChunks: { name: string; sizeKb: number }[] = [];
+      let hasErrors = false;
+
+      for (const [fileName, output] of Object.entries(bundle)) {
+        if (fileName.endsWith(".js") && output.type === "chunk") {
+          const chunk = output as Rollup.OutputChunk;
+          const gzipped = await gzipSize(Buffer.from(chunk.code));
+          const sizeKb = Math.round((gzipped / 1024) * 100) / 100;
+          jsChunks.push({ name: basename(fileName), sizeKb });
+
+          // Check per-chunk override, fall back to global limit
+          const chunkLimit =
+            Object.entries(CHUNK_SIZE_OVERRIDES).find(([name]) =>
+              basename(fileName).startsWith(name)
+            )?.[1] ?? MAX_CHUNK_SIZE_KB;
+
+          if (sizeKb > chunkLimit) {
+            console.error(
+              `\x1b[31m✗ Bundle budget exceeded: ${basename(fileName)} is ${sizeKb}KB gzipped (max ${chunkLimit}KB)\x1b[0m`
+            );
+            hasErrors = true;
+          }
+        }
+      }
+
+      const totalJsKb = Math.round(jsChunks.reduce((sum, c) => sum + c.sizeKb, 0) * 100) / 100;
+      if (totalJsKb > MAX_TOTAL_JS_KB) {
+        console.error(
+          `\x1b[31m✗ Total JS budget exceeded: ${totalJsKb}KB gzipped (max ${MAX_TOTAL_JS_KB}KB)\x1b[0m`
+        );
+        hasErrors = true;
+      }
+
+      // Print summary
+      console.log("\n\x1b[36m📦 Bundle Size Summary (gzipped):\x1b[0m");
+      for (const chunk of jsChunks.sort((a, b) => b.sizeKb - a.sizeKb)) {
+        const chunkLimit =
+          Object.entries(CHUNK_SIZE_OVERRIDES).find(([name]) => chunk.name.startsWith(name))?.[1] ??
+          MAX_CHUNK_SIZE_KB;
+        const status = chunk.sizeKb > chunkLimit ? "\x1b[31m" : "\x1b[32m";
+        const limitNote = chunkLimit !== MAX_CHUNK_SIZE_KB ? ` (limit: ${chunkLimit}KB)` : "";
+        console.log(`  ${status}${chunk.name}: ${chunk.sizeKb}KB${limitNote}\x1b[0m`);
+      }
+      const totalStatus = totalJsKb > MAX_TOTAL_JS_KB ? "\x1b[31m" : "\x1b[32m";
+      console.log(`  ${totalStatus}Total JS: ${totalJsKb}KB\x1b[0m\n`);
+
+      if (hasErrors) {
+        throw new Error("Bundle size budget exceeded");
+      }
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
@@ -84,15 +163,55 @@ export default defineConfig({
         ],
       },
     }),
+    // Bundle analysis - generates stats.html in build output
+    visualizer({
+      filename: "dist/stats.html",
+      open: false,
+      gzipSize: true,
+      brotliSize: false,
+    }),
+    // Bundle size budget enforcement
+    bundleSizeBudget(),
   ],
   build: {
     outDir: "dist",
     sourcemap: true,
+    // Use terser for smaller bundles
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ["console.log", "console.info", "console.debug"],
+      },
+      format: {
+        comments: false,
+      },
+    },
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          state: ["zustand"],
+        // Fine-grained chunk splitting for optimal caching
+        manualChunks(id) {
+          // Split React and ReactDOM into separate chunks to stay under per-chunk budget
+          if (id.includes("node_modules/react-dom/")) {
+            return "react-dom";
+          }
+          if (id.includes("node_modules/react/") && !id.includes("node_modules/react-dom/")) {
+            return "react";
+          }
+          if (id.includes("node_modules/react-router-dom/")) {
+            return "router";
+          }
+          // State management
+          if (id.includes("node_modules/zustand/")) {
+            return "zustand";
+          }
+          // Shared types (small, can be inlined but explicit is clearer)
+          if (id.includes("packages/shared/")) {
+            return "shared";
+          }
+          // Screens are lazy-loaded by React.lazy() in App.tsx
+          // Each screen becomes its own chunk automatically
         },
       },
     },

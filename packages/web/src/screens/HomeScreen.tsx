@@ -191,11 +191,7 @@ export default function HomeScreen() {
             </div>
             <div className="space-y-3">
               {commutes.slice(0, 3).map((commute) => (
-                <CommuteCard
-                  key={commute.id}
-                  commute={commute}
-                  forceRefreshId={forceRefreshId}
-                />
+                <CommuteCard key={commute.id} commute={commute} forceRefreshId={forceRefreshId} />
               ))}
             </div>
           </section>

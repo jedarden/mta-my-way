@@ -15,7 +15,7 @@
     "process-gtfs:verbose": "node scripts/process-gtfs.mjs --verbose"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.11",
+    "@hono/node-server": "1.19.11",
     "@mta-my-way/shared": "*",
     "better-sqlite3": "^12.8.0",
     "hono": "^4.12.8",

@@ -19,9 +19,9 @@
  *   GET /*                         — serve React PWA from packages/web/dist
  */
 
-import { createDeflate, createGzip } from "node:zlib";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { createBrotliCompress, createDeflate, createGzip } from "node:zlib";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { CACHE_TTLS } from "@mta-my-way/shared";
 import type {
@@ -32,7 +32,11 @@ import type {
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
-import type { PushSubscribeRequest, PushUnsubscribeRequest, PushUpdateRequest } from "@mta-my-way/shared";
+import type {
+  PushSubscribeRequest,
+  PushUnsubscribeRequest,
+  PushUpdateRequest,
+} from "@mta-my-way/shared";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { getArrivals, getFeedStates } from "./cache.js";
@@ -168,7 +172,8 @@ const IMMUTABLE_CACHE_HEADER = "public, max-age=31536000, immutable";
 
 /**
  * Compression middleware for API responses.
- * Supports gzip and deflate based on Accept-Encoding header.
+ * Supports brotli, gzip, and deflate based on Accept-Encoding header.
+ * Brotli is preferred for best compression ratio.
  */
 function compressionMiddleware(): import("hono").MiddlewareHandler {
   return async (c, next) => {
@@ -189,7 +194,24 @@ function compressionMiddleware(): import("hono").MiddlewareHandler {
     // Clone response to get the body as buffer
     const buffer = Buffer.from(await c.res.clone().arrayBuffer());
 
-    if (acceptEncoding.includes("gzip")) {
+    // Prefer brotli for best compression, then gzip, then deflate
+    if (acceptEncoding.includes("br")) {
+      const brotlied = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        const brotli = createBrotliCompress();
+        brotli.on("data", (chunk) => chunks.push(chunk));
+        brotli.on("end", () => resolve(Buffer.concat(chunks)));
+        brotli.on("error", reject);
+        brotli.end(buffer);
+      });
+
+      c.res = new Response(brotlied, {
+        status: c.res.status,
+        headers: c.res.headers,
+      });
+      c.res.headers.set("Content-Encoding", "br");
+      c.res.headers.delete("Content-Length");
+    } else if (acceptEncoding.includes("gzip")) {
       const gzipped = await new Promise<Buffer>((resolve, reject) => {
         const chunks: Buffer[] = [];
         const gzip = createGzip();
@@ -631,10 +653,6 @@ export function createApp(
     "/*",
     serveStatic({
       root: webDistPath,
-      onNotFound: (_path, c) => {
-        // Let SPA fallback handle this
-        return c.next();
-      },
     })
   );
 

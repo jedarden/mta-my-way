@@ -86,7 +86,7 @@ body,
   height: 100%;
 }
 
-/* Skeleton loading animation */
+/* Skeleton loading animation - background gradient approach */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -106,6 +106,25 @@ body,
   .skeleton {
     background: linear-gradient(90deg, #1e1e1e 25%, #2a2a2a 50%, #1e1e1e 75%);
     background-size: 200% 100%;
+  }
+}
+
+/* Stale data banner - amber warning style */
+.stale-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: rgba(252, 204, 10, 0.15);
+  border-radius: 6px;
+  font-size: 13px;
+  color: #92400e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stale-banner {
+    background-color: rgba(252, 204, 10, 0.1);
+    color: #fcd34d;
   }
 }
 
@@ -173,4 +192,3 @@ body,
     color: #999;
   }
 }
-
