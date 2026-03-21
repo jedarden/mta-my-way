@@ -28,7 +28,9 @@ export default function Header() {
             className="p-2 rounded-full min-h-touch min-w-touch flex items-center justify-center hover:bg-surface dark:hover:bg-dark-surface"
             aria-label="View alerts"
           >
-            <span className="text-2xl" role="img" aria-hidden="true">🔔</span>
+            <span className="text-2xl" role="img" aria-hidden="true">
+              🔔
+            </span>
           </button>
         </div>
       </div>

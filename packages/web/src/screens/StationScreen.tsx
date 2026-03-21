@@ -14,14 +14,14 @@ import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AlertBanner } from "../components/alerts";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
-import { AlertBanner } from "../components/alerts";
 import { OfflineBanner } from "../components/common";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import BottomNav from "../components/layout/BottomNav";
-import { useArrivals } from "../hooks/useArrivals";
 import { useAlertsForStation } from "../hooks/useAlerts";
+import { useArrivals } from "../hooks/useArrivals";
 import { useFavorites } from "../hooks/useFavorites";
 import { useStaleness } from "../hooks/useStaleness";
 import { type Station, api } from "../lib/api";
@@ -129,7 +129,11 @@ export default function StationScreen() {
                 <polyline points="15,18 9,12 15,6" />
               </svg>
             </Link>
-            <h1 ref={headingRef} tabIndex={-1} className="text-lg font-bold text-text-primary dark:text-dark-text-primary truncate outline-none">
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-lg font-bold text-text-primary dark:text-dark-text-primary truncate outline-none"
+            >
               {stationName}
             </h1>
           </div>
@@ -177,11 +181,7 @@ export default function StationScreen() {
         {/* Alert banner */}
         {stationAlerts.length > 0 && (
           <div className="mb-4">
-            <AlertBanner
-              alerts={stationAlerts}
-              title="Service Alerts"
-              maxVisible={2}
-            />
+            <AlertBanner alerts={stationAlerts} title="Service Alerts" maxVisible={2} />
           </div>
         )}
 

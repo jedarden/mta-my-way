@@ -14,8 +14,8 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AlertPattern, AlertSeverity, AlertSource, StationAlert } from "@mta-my-way/shared";
 import { transit_realtime } from "./proto/compiled.js";
 
@@ -316,11 +316,7 @@ export async function parseAlerts(data: Uint8Array): Promise<ParsedAlert[]> {
     }
 
     // Extract affected lines from this alert's informed entities
-    const affectedLines = extractAffectedLines(
-      rawHeadline,
-      rawDescription,
-      [entity]
-    );
+    const affectedLines = extractAffectedLines(rawHeadline, rawDescription, [entity]);
 
     // Extract affected station stop IDs from informed entities
     const affectedStations: string[] = [];

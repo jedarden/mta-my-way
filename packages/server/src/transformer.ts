@@ -19,8 +19,8 @@ import type {
   StationIndex,
 } from "@mta-my-way/shared";
 import { calculateConfidence } from "@mta-my-way/shared";
-import { detectExpressService } from "./transfer/engine.js";
 import type { ParsedFeed } from "./parser.js";
+import { detectExpressService } from "./transfer/engine.js";
 
 // NYCT extension keys as used in protobufjs decoded objects
 const NYCT_TRIP_KEY = ".transit_realtime.nyctTripDescriptor";

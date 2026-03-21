@@ -15,7 +15,10 @@ import { useEffect, useState } from "react";
 import { LineBullet } from "../arrivals/LineBullet";
 
 /** Severity colors and styles */
-const SEVERITY_STYLES: Record<AlertSeverity, { bg: string; border: string; text: string; icon: string }> = {
+const SEVERITY_STYLES: Record<
+  AlertSeverity,
+  { bg: string; border: string; text: string; icon: string }
+> = {
   severe: {
     bg: "bg-mta-red/10 dark:bg-mta-red/20",
     border: "border-l-4 border-mta-red",
@@ -77,7 +80,12 @@ interface AlertCardProps {
   compact?: boolean;
 }
 
-export function AlertCard({ alert, initiallyExpanded = false, isRaw = false, compact = false }: AlertCardProps) {
+export function AlertCard({
+  alert,
+  initiallyExpanded = false,
+  isRaw = false,
+  compact = false,
+}: AlertCardProps) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
 
   const styles = SEVERITY_STYLES[alert.severity];
@@ -96,19 +104,10 @@ export function AlertCard({ alert, initiallyExpanded = false, isRaw = false, com
   }, [alert.activePeriod.start]);
 
   // Raw alert style (dashed border, muted)
-  const rawClass = isRaw
-    ? "border-dashed opacity-75"
-    : "";
+  const rawClass = isRaw ? "border-dashed opacity-75" : "";
 
   if (compact) {
-    return (
-      <CompactAlertCard
-        alert={alert}
-        isRaw={isRaw}
-        styles={styles}
-        sinceText={sinceText}
-      />
-    );
+    return <CompactAlertCard alert={alert} isRaw={isRaw} styles={styles} sinceText={sinceText} />;
   }
 
   return (
@@ -157,15 +156,22 @@ export function AlertCard({ alert, initiallyExpanded = false, isRaw = false, com
             </h3>
 
             {/* Since timestamp */}
-            <p className={`text-11 ${styles.text} mt-1`}>
-              Since {sinceText}
-            </p>
+            <p className={`text-11 ${styles.text} mt-1`}>Since {sinceText}</p>
           </div>
 
           {/* Expand indicator */}
           {hasDescription && (
-            <span className={`${styles.text} flex-shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <span
+              className={`${styles.text} flex-shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <polyline points="6,9 12,15 18,9" />
               </svg>
             </span>
@@ -194,16 +200,13 @@ function CompactAlertCard({
 }: {
   alert: StationAlert;
   isRaw: boolean;
-  styles: typeof SEVERITY_STYLES[AlertSeverity];
+  styles: (typeof SEVERITY_STYLES)[AlertSeverity];
   sinceText: string;
 }) {
   const rawClass = isRaw ? "border-dashed opacity-75" : "";
 
   return (
-    <div
-      className={`rounded-lg ${styles.bg} ${styles.border} ${rawClass} p-2.5`}
-      role="alert"
-    >
+    <div className={`rounded-lg ${styles.bg} ${styles.border} ${rawClass} p-2.5`} role="alert">
       <div className="flex items-center gap-2">
         {/* Severity icon */}
         <span className={`${styles.text} flex-shrink-0`}>
@@ -230,9 +233,7 @@ function CompactAlertCard({
         </p>
 
         {/* Since timestamp */}
-        <span className={`text-11 ${styles.text} flex-shrink-0`}>
-          {sinceText}
-        </span>
+        <span className={`text-11 ${styles.text} flex-shrink-0`}>{sinceText}</span>
       </div>
     </div>
   );

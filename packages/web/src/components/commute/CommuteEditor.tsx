@@ -34,9 +34,7 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
   const [preferredLines, setPreferredLines] = useState<Set<string>>(
     new Set(commute?.preferredLines ?? [])
   );
-  const [enableTransfer, setEnableTransfer] = useState(
-    commute?.enableTransferSuggestions ?? true
-  );
+  const [enableTransfer, setEnableTransfer] = useState(commute?.enableTransferSuggestions ?? true);
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -295,10 +293,7 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
                       key={line}
                       type="button"
                       onClick={() => toggleLine(line)}
-                      className={[
-                        "relative transition-all",
-                        !selected ? "opacity-40 scale-90" : "",
-                      ]
+                      className={["relative transition-all", !selected ? "opacity-40 scale-90" : ""]
                         .filter(Boolean)
                         .join(" ")}
                       aria-pressed={selected}
@@ -333,7 +328,6 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
               aria-label="Enable transfer suggestions"
             />
           </label>
-
         </div>
 
         {/* Actions */}

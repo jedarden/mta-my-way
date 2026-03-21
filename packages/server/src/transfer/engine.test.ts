@@ -1,11 +1,6 @@
+import type { ArrivalTime, ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
 import { describe, expect, it } from "vitest";
-import { detectExpressService, TransferEngine } from "./engine.js";
-import type {
-  ArrivalTime,
-  ComplexIndex,
-  RouteIndex,
-  StationIndex,
-} from "@mta-my-way/shared";
+import { TransferEngine, detectExpressService } from "./engine.js";
 
 // ─── detectExpressService ──────────────────────────────────────────────────
 
@@ -66,43 +61,86 @@ const now = Math.floor(Date.now() / 1000);
 
 const STATIONS: StationIndex = {
   "101": {
-    id: "101", name: "First Ave", lines: ["1"],
-    lat: 40.7, lon: -74.0, borough: "manhattan",
-    northStopId: "101N", southStopId: "101S", transfers: [], ada: true,
+    id: "101",
+    name: "First Ave",
+    lines: ["1"],
+    lat: 40.7,
+    lon: -74.0,
+    borough: "manhattan",
+    northStopId: "101N",
+    southStopId: "101S",
+    transfers: [],
+    ada: true,
   },
   "102": {
-    id: "102", name: "Transfer Sq", lines: ["1", "A"],
-    lat: 40.71, lon: -74.01, borough: "manhattan",
-    northStopId: "102N", southStopId: "102S", transfers: [], ada: true,
+    id: "102",
+    name: "Transfer Sq",
+    lines: ["1", "A"],
+    lat: 40.71,
+    lon: -74.01,
+    borough: "manhattan",
+    northStopId: "102N",
+    southStopId: "102S",
+    transfers: [],
+    ada: true,
   },
   "103": {
-    id: "103", name: "Third Ave", lines: ["1"],
-    lat: 40.72, lon: -74.02, borough: "manhattan",
-    northStopId: "103N", southStopId: "103S", transfers: [], ada: false,
+    id: "103",
+    name: "Third Ave",
+    lines: ["1"],
+    lat: 40.72,
+    lon: -74.02,
+    borough: "manhattan",
+    northStopId: "103N",
+    southStopId: "103S",
+    transfers: [],
+    ada: false,
   },
   "201": {
-    id: "201", name: "Alpha St", lines: ["A"],
-    lat: 40.69, lon: -73.99, borough: "manhattan",
-    northStopId: "201N", southStopId: "201S", transfers: [], ada: false,
+    id: "201",
+    name: "Alpha St",
+    lines: ["A"],
+    lat: 40.69,
+    lon: -73.99,
+    borough: "manhattan",
+    northStopId: "201N",
+    southStopId: "201S",
+    transfers: [],
+    ada: false,
   },
   "203": {
-    id: "203", name: "Gamma St", lines: ["A"],
-    lat: 40.73, lon: -74.03, borough: "manhattan",
-    northStopId: "203N", southStopId: "203S", transfers: [], ada: false,
+    id: "203",
+    name: "Gamma St",
+    lines: ["A"],
+    lat: 40.73,
+    lon: -74.03,
+    borough: "manhattan",
+    northStopId: "203N",
+    southStopId: "203S",
+    transfers: [],
+    ada: false,
   },
 };
 
 const ROUTES: RouteIndex = {
   "1": {
-    id: "1", shortName: "1", longName: "1 Train",
-    color: "EE352E", textColor: "FFFFFF",
-    feedId: "gtfs", division: "A",
+    id: "1",
+    shortName: "1",
+    longName: "1 Train",
+    color: "EE352E",
+    textColor: "FFFFFF",
+    feedId: "gtfs",
+    division: "A",
     stops: ["101", "102", "103"],
   },
-  "A": {
-    id: "A", shortName: "A", longName: "A Train",
-    color: "0039A6", textColor: "FFFFFF",
-    feedId: "gtfs-ace", division: "B",
+  A: {
+    id: "A",
+    shortName: "A",
+    longName: "A Train",
+    color: "0039A6",
+    textColor: "FFFFFF",
+    feedId: "gtfs-ace",
+    division: "B",
     stops: ["201", "102", "203"],
   },
 };
@@ -110,10 +148,12 @@ const ROUTES: RouteIndex = {
 // Put 101 and 102 in the same complex so the graph adds a walking edge between them.
 // This lets the engine find the 101→102 transfer point when routing 101→203.
 const COMPLEXES: ComplexIndex = {
-  "c1": {
-    complexId: "c1", name: "Downtown Complex",
+  c1: {
+    complexId: "c1",
+    name: "Downtown Complex",
     stations: ["101", "102"],
-    allLines: ["1", "A"], allStopIds: ["101N", "101S", "102N", "102S"],
+    allLines: ["1", "A"],
+    allStopIds: ["101N", "101S", "102N", "102S"],
   },
 };
 
@@ -232,13 +272,22 @@ describe("TransferEngine.analyzeCommute", () => {
 
   it("applies B Division buffer: A train arrival is shifted forward", () => {
     const bArrivalTime = now + 120;
-    const bArrivals: ArrivalTime[] = [{
-      tripId: "trip-A", line: "A", destination: "Terminal",
-      direction: "S", arrivalTime: bArrivalTime, minutesAway: 2,
-      confidence: "medium", isAssigned: true,
-      isRerouted: false, isExpress: false,
-      feedName: "gtfs-ace", feedAge: 5,
-    }];
+    const bArrivals: ArrivalTime[] = [
+      {
+        tripId: "trip-A",
+        line: "A",
+        destination: "Terminal",
+        direction: "S",
+        arrivalTime: bArrivalTime,
+        minutesAway: 2,
+        confidence: "medium",
+        isAssigned: true,
+        isRerouted: false,
+        isExpress: false,
+        feedName: "gtfs-ace",
+        feedAge: 5,
+      },
+    ];
 
     const engineWithAOnly = new TransferEngine({
       stations: {

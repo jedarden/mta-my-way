@@ -72,9 +72,7 @@ export function CommuteCard({ commute, forceRefreshId, onEdit }: CommuteCardProp
 
   // The line for the best route (for confidence tooltip)
   const bestArrivalLineId =
-    best?.type === "transfer"
-      ? bestTransfer?.legs[0]?.line
-      : bestDirect?.line;
+    best?.type === "transfer" ? bestTransfer?.legs[0]?.line : bestDirect?.line;
 
   return (
     <article className="bg-surface dark:bg-dark-surface rounded-lg overflow-hidden shadow-sm">

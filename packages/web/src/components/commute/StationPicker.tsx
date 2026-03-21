@@ -88,11 +88,7 @@ export function StationPicker({ title, onSelect, onClose }: StationPickerProps) 
   return (
     <>
       {/* Backdrop - above CommuteEditor */}
-      <div
-        className="fixed inset-0 z-[60] bg-black/50"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="fixed inset-0 z-[60] bg-black/50" onClick={onClose} aria-hidden="true" />
 
       {/* Panel */}
       <div
@@ -137,11 +133,7 @@ export function StationPicker({ title, onSelect, onClose }: StationPickerProps) 
 
         {/* Search input */}
         <div className="px-4 pb-3 shrink-0">
-          <StationSearch
-            value={query}
-            onChange={setQuery}
-            autoFocus
-          />
+          <StationSearch value={query} onChange={setQuery} autoFocus />
         </div>
 
         {/* Results */}

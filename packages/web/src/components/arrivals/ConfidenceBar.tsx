@@ -10,9 +10,9 @@
  * and the A vs B Division tracking difference.
  */
 
-import { useState, useRef, useEffect } from "react";
 import type { ConfidenceLevel } from "@mta-my-way/shared";
 import { isADivision, isBDivision } from "@mta-my-way/shared";
+import { useEffect, useRef, useState } from "react";
 
 interface ConfidenceBarProps {
   /** Confidence level from the arrival data */

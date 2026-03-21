@@ -9,20 +9,13 @@
  *   - Empty states for both modes
  */
 
-import Screen from "../components/layout/Screen";
 import { AlertList } from "../components/alerts";
+import Screen from "../components/layout/Screen";
 import { useAlerts } from "../hooks/useAlerts";
 
 export default function AlertsScreen() {
-  const {
-    alerts,
-    myAlerts,
-    myAlertsCount,
-    status,
-    refresh,
-    filterMode,
-    setFilterMode,
-  } = useAlerts();
+  const { alerts, myAlerts, myAlertsCount, status, refresh, filterMode, setFilterMode } =
+    useAlerts();
 
   const isMineMode = filterMode === "mine";
   const displayAlerts = isMineMode ? myAlerts : alerts;
@@ -37,11 +30,7 @@ export default function AlertsScreen() {
               {myAlertsCount} alert{myAlertsCount === 1 ? "" : "s"} affecting your lines
             </p>
           )}
-          <FilterToggle
-            mode={filterMode}
-            onChange={setFilterMode}
-            myAlertsCount={myAlertsCount}
-          />
+          <FilterToggle mode={filterMode} onChange={setFilterMode} myAlertsCount={myAlertsCount} />
         </div>
 
         {/* Active alerts */}
@@ -57,11 +46,7 @@ export default function AlertsScreen() {
             alerts={displayAlerts}
             status={status}
             onRetry={refresh}
-            emptyMessage={
-              isMineMode
-                ? "No alerts affecting your lines"
-                : "No active alerts"
-            }
+            emptyMessage={isMineMode ? "No alerts affecting your lines" : "No active alerts"}
           />
         </section>
 
@@ -119,9 +104,7 @@ function FilterToggle({
         {myAlertsCount > 0 && (
           <span
             className={`ml-1.5 px-1.5 py-0.5 text-11 rounded-full ${
-              mode === "mine"
-                ? "bg-white/20 text-white"
-                : "bg-mta-red text-white"
+              mode === "mine" ? "bg-white/20 text-white" : "bg-mta-red text-white"
             }`}
           >
             {myAlertsCount}

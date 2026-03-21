@@ -71,8 +71,9 @@ describe("calculateMatchRate", () => {
   });
 
   it("rounds correctly for large sets", () => {
-    const alerts = Array.from({ length: 10 }, (_, i) =>
-      makeParsedAlert({ patternMatched: i < 9 }) // 9 matched, 1 unmatched
+    const alerts = Array.from(
+      { length: 10 },
+      (_, i) => makeParsedAlert({ patternMatched: i < 9 }) // 9 matched, 1 unmatched
     );
     expect(calculateMatchRate(alerts)).toBeCloseTo(0.9);
   });

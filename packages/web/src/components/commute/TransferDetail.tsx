@@ -147,7 +147,9 @@ function DirectRouteDetail({ route, compact = false }: DirectRouteDetailProps) {
       <div className="flex items-center gap-3 px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg">
         <LineBullet line={route.line} size="sm" />
         <div className="flex-1 min-w-0">
-          <span className="text-13 text-text-secondary dark:text-dark-text-secondary">Direct · </span>
+          <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
+            Direct ·{" "}
+          </span>
           <span className="text-13 text-text-primary dark:text-dark-text-primary">
             {route.estimatedTravelMinutes} min ride
           </span>

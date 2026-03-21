@@ -68,13 +68,14 @@ function filterAlertsByLines(alerts: StationAlert[], lineIds: string[]): Station
   if (lineIds.length === 0) return [];
 
   const lineSet = new Set(lineIds);
-  return alerts.filter((alert) =>
-    alert.affectedLines.some((line) => lineSet.has(line))
-  );
+  return alerts.filter((alert) => alert.affectedLines.some((line) => lineSet.has(line)));
 }
 
 /** Get all unique line IDs from user's favorites and commutes */
-function getUserLines(favorites: { lines: string[] }[], commutes: { preferredLines: string[] }[]): string[] {
+function getUserLines(
+  favorites: { lines: string[] }[],
+  commutes: { preferredLines: string[] }[]
+): string[] {
   const lines = new Set<string>();
 
   for (const fav of favorites) {
@@ -111,10 +112,7 @@ export function useAlerts(): AlertsResult {
   const fetchGenRef = useRef(0);
 
   // Get user's lines from favorites and commutes
-  const userLines = useMemo(
-    () => getUserLines(favorites, commutes),
-    [favorites, commutes]
-  );
+  const userLines = useMemo(() => getUserLines(favorites, commutes), [favorites, commutes]);
 
   // Fetch alerts
   const fetchAlerts = useCallback(async () => {
@@ -201,7 +199,10 @@ export function useAlerts(): AlertsResult {
 }
 
 /** Hook to get alerts for a specific station (for AlertBanner) */
-export function useAlertsForStation(stationId: string | null, stationLines: string[]): {
+export function useAlertsForStation(
+  stationId: string | null,
+  stationLines: string[]
+): {
   alerts: StationAlert[];
   status: AlertDataStatus;
   refresh: () => void;

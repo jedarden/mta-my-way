@@ -207,7 +207,10 @@ export default function OnboardingFlow() {
       )}
 
       {step === "search-fallback" && (
-        <SearchFallbackStep onSelect={handleSearchFallbackSelect} onSkip={handleSearchFallbackSkip} />
+        <SearchFallbackStep
+          onSelect={handleSearchFallbackSelect}
+          onSkip={handleSearchFallbackSkip}
+        />
       )}
 
       {step === "commute" && (

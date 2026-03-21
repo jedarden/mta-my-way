@@ -169,10 +169,7 @@ export function AlertBanner({
       {(expanded || alerts.length > 1) && (
         <div className="border-t border-surface/50 dark:border-dark-surface/50 px-3 py-2 space-y-1.5">
           {visibleAlerts.map((alert) => (
-            <div
-              key={alert.id}
-              className="text-13 text-text-primary dark:text-dark-text-primary"
-            >
+            <div key={alert.id} className="text-13 text-text-primary dark:text-dark-text-primary">
               <span className={`${SEVERITY_STYLES[alert.severity].text} font-medium`}>
                 {alert.affectedLines.length > 0 ? `[${alert.affectedLines.join(", ")}] ` : ""}
               </span>

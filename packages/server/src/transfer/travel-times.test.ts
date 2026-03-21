@@ -1,3 +1,4 @@
+import type { TravelTimeIndex } from "@mta-my-way/shared";
 import { describe, expect, it } from "vitest";
 import {
   calculateRouteTravelTime,
@@ -5,7 +6,6 @@ import {
   determineDirection,
   getTravelTime,
 } from "./travel-times.js";
-import type { TravelTimeIndex } from "@mta-my-way/shared";
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
 

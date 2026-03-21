@@ -1,3 +1,4 @@
+import type { ComplexIndex, StationIndex, TransferConnection } from "@mta-my-way/shared";
 import { describe, expect, it } from "vitest";
 import {
   areInSameComplex,
@@ -6,44 +7,71 @@ import {
   getComplexStations,
   getReachableStations,
 } from "./graph.js";
-import type { ComplexIndex, StationIndex, TransferConnection } from "@mta-my-way/shared";
 
 // ─── Minimal fixtures ──────────────────────────────────────────────────────
 
 const STATIONS: StationIndex = {
   "101": {
-    id: "101", name: "Station A", lines: ["1", "2"],
-    lat: 40.7, lon: -74.0, borough: "manhattan",
-    northStopId: "101N", southStopId: "101S", transfers: [], ada: true,
+    id: "101",
+    name: "Station A",
+    lines: ["1", "2"],
+    lat: 40.7,
+    lon: -74.0,
+    borough: "manhattan",
+    northStopId: "101N",
+    southStopId: "101S",
+    transfers: [],
+    ada: true,
   },
   "102": {
-    id: "102", name: "Station B", lines: ["1"],
-    lat: 40.71, lon: -74.01, borough: "manhattan",
-    northStopId: "102N", southStopId: "102S", transfers: [], ada: true,
+    id: "102",
+    name: "Station B",
+    lines: ["1"],
+    lat: 40.71,
+    lon: -74.01,
+    borough: "manhattan",
+    northStopId: "102N",
+    southStopId: "102S",
+    transfers: [],
+    ada: true,
   },
   "103": {
-    id: "103", name: "Station C", lines: ["A", "C"],
-    lat: 40.72, lon: -74.02, borough: "manhattan",
-    northStopId: "103N", southStopId: "103S", transfers: [], ada: false,
+    id: "103",
+    name: "Station C",
+    lines: ["A", "C"],
+    lat: 40.72,
+    lon: -74.02,
+    borough: "manhattan",
+    northStopId: "103N",
+    southStopId: "103S",
+    transfers: [],
+    ada: false,
   },
   "104": {
-    id: "104", name: "Station D", lines: ["F"],
-    lat: 40.73, lon: -74.03, borough: "manhattan",
-    northStopId: "104N", southStopId: "104S", transfers: [], ada: false,
+    id: "104",
+    name: "Station D",
+    lines: ["F"],
+    lat: 40.73,
+    lon: -74.03,
+    borough: "manhattan",
+    northStopId: "104N",
+    southStopId: "104S",
+    transfers: [],
+    ada: false,
   },
 };
 
 const TRANSFERS: Record<string, TransferConnection[]> = {
-  "101": [
-    { toStationId: "103", toLines: ["A", "C"], walkingSeconds: 120, accessible: true },
-  ],
+  "101": [{ toStationId: "103", toLines: ["A", "C"], walkingSeconds: 120, accessible: true }],
 };
 
 const COMPLEXES: ComplexIndex = {
   "complex-1": {
-    complexId: "complex-1", name: "Complex 1",
+    complexId: "complex-1",
+    name: "Complex 1",
     stations: ["102", "104"],
-    allLines: ["1", "F"], allStopIds: ["102N", "102S", "104N", "104S"],
+    allLines: ["1", "F"],
+    allStopIds: ["102N", "102S", "104N", "104S"],
   },
 };
 

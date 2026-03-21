@@ -16,14 +16,14 @@
 import type { Commute } from "@mta-my-way/shared";
 import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AlertBanner } from "../components/alerts";
 import { CommuteCard } from "../components/commute/CommuteCard";
 import { CommuteEditor } from "../components/commute/CommuteEditor";
 import { RouteComparison } from "../components/commute/RouteComparison";
 import { TransferDetail } from "../components/commute/TransferDetail";
-import { AlertBanner } from "../components/alerts";
 import Screen from "../components/layout/Screen";
-import { useCommute } from "../hooks/useCommute";
 import { useAlertsForStation } from "../hooks/useAlerts";
+import { useCommute } from "../hooks/useCommute";
 import { useFavoritesStore } from "../stores";
 
 const MAX_COMMUTES = 10;
@@ -169,10 +169,7 @@ function CommuteList() {
           />
         )}
         {showNewEditor && (
-          <CommuteEditor
-            onSave={handleSaveNew}
-            onClose={() => setShowNewEditor(false)}
-          />
+          <CommuteEditor onSave={handleSaveNew} onClose={() => setShowNewEditor(false)} />
         )}
       </div>
     </Screen>
@@ -183,9 +180,7 @@ function CommuteList() {
 
 function CommuteDetailView({ commuteId }: { commuteId: string }) {
   const navigate = useNavigate();
-  const commute = useFavoritesStore((s) =>
-    s.commutes.find((c) => c.id === commuteId)
-  );
+  const commute = useFavoritesStore((s) => s.commutes.find((c) => c.id === commuteId));
 
   const { data, status, refresh } = useCommute({
     originId: commute?.origin.stationId ?? null,
@@ -228,9 +223,7 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
             </svg>
             Back to commutes
           </button>
-          <p className="text-text-secondary dark:text-dark-text-secondary">
-            Commute not found
-          </p>
+          <p className="text-text-secondary dark:text-dark-text-secondary">Commute not found</p>
         </div>
       </Screen>
     );
@@ -286,11 +279,7 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
         {/* Alert banner */}
         {commuteAlerts.length > 0 && (
           <div className="mb-4">
-            <AlertBanner
-              alerts={commuteAlerts}
-              title="Service Alerts"
-              maxVisible={2}
-            />
+            <AlertBanner alerts={commuteAlerts} title="Service Alerts" maxVisible={2} />
           </div>
         )}
 

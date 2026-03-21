@@ -12,7 +12,12 @@
 import { MTA_ALERTS_FEED_URL, POLLING_INTERVALS } from "@mta-my-way/shared";
 import type { StationAlert } from "@mta-my-way/shared";
 import type { ParsedAlert } from "./alerts-parser.js";
-import { parseAlerts, toStationAlert, calculateMatchRate, getUnmatchedAlerts } from "./alerts-parser.js";
+import {
+  calculateMatchRate,
+  getUnmatchedAlerts,
+  parseAlerts,
+  toStationAlert,
+} from "./alerts-parser.js";
 
 const POLL_INTERVAL_MS = POLLING_INTERVALS.alerts * 1000; // 60,000 ms
 const FETCH_TIMEOUT_MS = 15_000;
@@ -53,7 +58,7 @@ export interface AlertsCache {
 // Module state
 // ---------------------------------------------------------------------------
 
-let cache: AlertsCache = {
+const cache: AlertsCache = {
   alerts: [],
   lastFetchAt: null,
   lastSuccessAt: null,
@@ -313,9 +318,7 @@ export function getAllAlerts(): StationAlert[] {
  * Get alerts filtered by line ID.
  */
 export function getAlertsForLine(lineId: string): StationAlert[] {
-  return cache.alerts
-    .filter((a) => a.affectedLines.includes(lineId))
-    .map(toStationAlert);
+  return cache.alerts.filter((a) => a.affectedLines.includes(lineId)).map(toStationAlert);
 }
 
 /**
@@ -332,9 +335,7 @@ export function getAlertsForLines(lineIds: string[]): StationAlert[] {
  * Note: This requires station IDs to be extracted from the alert.
  */
 export function getAlertsForStation(stationId: string): StationAlert[] {
-  return cache.alerts
-    .filter((a) => a.affectedStations.includes(stationId))
-    .map(toStationAlert);
+  return cache.alerts.filter((a) => a.affectedStations.includes(stationId)).map(toStationAlert);
 }
 
 /**
@@ -372,9 +373,7 @@ export function getAlertsAgeSeconds(): number {
  * Register a listener for alert changes.
  * Returns an unsubscribe function.
  */
-export function onAlertChange(
-  listener: (changes: AlertChange[]) => void
-): () => void {
+export function onAlertChange(listener: (changes: AlertChange[]) => void): () => void {
   changeListeners.push(listener);
   return () => {
     const index = changeListeners.indexOf(listener);

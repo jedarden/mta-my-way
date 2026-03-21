@@ -99,9 +99,7 @@ export function AlertList({
   if (alerts.length === 0) {
     return (
       <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
-        <p className="text-text-secondary dark:text-dark-text-secondary">
-          {emptyMessage}
-        </p>
+        <p className="text-text-secondary dark:text-dark-text-secondary">{emptyMessage}</p>
       </div>
     );
   }
@@ -114,12 +112,7 @@ export function AlertList({
     return (
       <div className="space-y-2" role="list" aria-label="Alerts">
         {displayedAlerts.map((alert) => (
-          <AlertCard
-            key={alert.id}
-            alert={alert}
-            compact
-            isRaw={alert.isRaw ?? false}
-          />
+          <AlertCard key={alert.id} alert={alert} compact isRaw={alert.isRaw ?? false} />
         ))}
         {maxAlerts && alerts.length > maxAlerts && (
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary text-center py-1">
@@ -143,19 +136,12 @@ export function AlertList({
 
         return (
           <section key={severity} aria-labelledby={`${severity}-heading`}>
-            <h3
-              id={`${severity}-heading`}
-              className={`text-sm font-semibold mb-2 ${className}`}
-            >
+            <h3 id={`${severity}-heading`} className={`text-sm font-semibold mb-2 ${className}`}>
               {label}
             </h3>
             <div className="space-y-2">
               {groupAlerts.map((alert) => (
-                <AlertCard
-                  key={alert.id}
-                  alert={alert}
-                  isRaw={alert.isRaw ?? false}
-                />
+                <AlertCard key={alert.id} alert={alert} isRaw={alert.isRaw ?? false} />
               ))}
             </div>
           </section>
@@ -176,10 +162,7 @@ export function AlertListSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Loading alerts">
       {Array.from({ length: count }).map((_, i) => (
-        <div
-          key={i}
-          className="h-20 rounded-lg animate-pulse bg-surface dark:bg-dark-surface"
-        />
+        <div key={i} className="h-20 rounded-lg animate-pulse bg-surface dark:bg-dark-surface" />
       ))}
     </div>
   );
