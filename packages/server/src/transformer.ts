@@ -201,7 +201,7 @@ export function transformFeeds(
       feedAge: stationFeedAge,
       northbound: dirs.N,
       southbound: dirs.S,
-      alerts: [], // Phase 3: alert parsing not yet implemented
+      alerts: [], // Alerts are served via /api/alerts, not embedded per-station
     });
   }
 

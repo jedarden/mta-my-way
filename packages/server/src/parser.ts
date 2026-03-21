@@ -14,7 +14,15 @@ export interface ParsedFeed {
   /** POSIX timestamp (seconds) from the feed header */
   feedTimestamp: number;
   entityCount: number;
+  /**
+   * Trip replacement period (seconds) from NYCT feed header extension.
+   * During this window, scheduled trips absent from the feed are considered cancelled.
+   */
+  tripReplacementPeriod: number | null;
 }
+
+/** NYCT feed header extension key as used in protobufjs decoded objects */
+const NYCT_FEED_HEADER_KEY = ".transit_realtime.nyctFeedHeader";
 
 /**
  * Decode a raw protobuf buffer into a structured FeedMessage.
@@ -24,5 +32,18 @@ export function parseFeed(feedId: string, data: Uint8Array): ParsedFeed {
   const message = transit_realtime.FeedMessage.decode(data);
   const feedTimestamp = Number(message.header.timestamp);
   const entityCount = message.entity?.length ?? 0;
-  return { feedId, message, feedTimestamp, entityCount };
+
+  // Extract trip replacement period from NYCT feed header extension
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nyctHeader = (message.header as any)[NYCT_FEED_HEADER_KEY] as
+    | { trip_replacement_period?: number | { toNumber(): number } | null }
+    | null
+    | undefined;
+  let tripReplacementPeriod: number | null = null;
+  if (nyctHeader?.trip_replacement_period != null) {
+    const v = nyctHeader.trip_replacement_period;
+    tripReplacementPeriod = typeof v === "number" ? v : v.toNumber();
+  }
+
+  return { feedId, message, feedTimestamp, entityCount, tripReplacementPeriod };
 }

@@ -176,12 +176,16 @@ export function createApp(
   // -------------------------------------------------------------------------
   app.get("/api/health", (c) => {
     const feedStates = getFeedStates();
-    const allOk = feedStates.every(
+    const alertsStatus = getAlertsStatus();
+    const allFeedsOk = feedStates.every(
       (f) => f.circuitOpenAt === null && f.lastSuccessAt !== null && !f.isStale
     );
+    const alertsOk = !alertsStatus.circuitOpen && alertsStatus.lastSuccessAt !== null;
+
+    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
 
     return c.json({
-      status: allOk ? "ok" : "degraded",
+      status,
       timestamp: new Date().toISOString(),
       feeds: feedStates.map((f) => ({
         id: f.id,
@@ -199,7 +203,16 @@ export function createApp(
         consecutiveFailures: f.consecutiveFailures,
         entityCount: f.entityCount,
         lastError: f.lastErrorMessage,
+        tripReplacementPeriod: f.tripReplacementPeriod,
       })),
+      alerts: {
+        count: alertsStatus.alertCount,
+        lastSuccessAt: alertsStatus.lastSuccessAt,
+        matchRate: alertsStatus.matchRate,
+        consecutiveFailures: alertsStatus.consecutiveFailures,
+        circuitOpen: alertsStatus.circuitOpen,
+        unmatchedCount: alertsStatus.unmatchedCount,
+      },
     });
   });
 
