@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useAlerts } from "../../hooks/useAlerts";
 
 const navItems = [
   { path: "/", label: "Home", icon: "🏠" },
@@ -8,6 +9,9 @@ const navItems = [
 ] as const;
 
 export default function BottomNav() {
+  // Get alert count for badge
+  const { myAlertsCount } = useAlerts();
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-background dark:bg-dark-background border-t border-surface dark:border-dark-surface pb-[env(safe-area-inset-bottom)]"
@@ -20,7 +24,7 @@ export default function BottomNav() {
             <NavLink
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center min-h-touch min-w-touch px-4 rounded-lg transition-colors ${
+                `flex flex-col items-center justify-center min-h-touch min-w-touch px-4 rounded-lg transition-colors relative ${
                   isActive
                     ? "text-mta-primary dark:text-blue-400"
                     : "text-text-secondary dark:text-dark-text-secondary hover:bg-surface dark:hover:bg-dark-surface"
@@ -31,6 +35,15 @@ export default function BottomNav() {
                 {item.icon}
               </span>
               <span className="text-11 font-medium">{item.label}</span>
+              {/* Alert badge */}
+              {item.path === "/alerts" && myAlertsCount > 0 && (
+                <span
+                  className="absolute top-1 right-3 min-w-[18px] h-[18px] px-1 bg-mta-red text-white text-11 font-bold rounded-full flex items-center justify-center"
+                  aria-label={`${myAlertsCount} alerts`}
+                >
+                  {myAlertsCount > 99 ? "99+" : myAlertsCount}
+                </span>
+              )}
             </NavLink>
           </li>
         ))}

@@ -6,6 +6,7 @@
 import type {
   ArrivalTime,
   CommuteAnalysis,
+  StationAlert,
   StationArrivals,
   StationComplex,
 } from "@mta-my-way/shared";
@@ -14,7 +15,7 @@ import type {
 export type { StationComplex };
 
 // Re-export shared arrival types so callers can import from one place
-export type { ArrivalTime, CommuteAnalysis, StationArrivals };
+export type { ArrivalTime, CommuteAnalysis, StationAlert, StationArrivals };
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -79,12 +80,15 @@ export interface Station {
   ada: boolean;
 }
 
-export interface StationAlert {
-  id: string;
-  severity: "info" | "warning" | "severe";
-  headline: string;
-  description: string;
-  affectedLines: string[];
+export interface AlertsResponse {
+  alerts: StationAlert[];
+  meta: {
+    count: number;
+    lastUpdatedAt: string | null;
+    matchRate: number;
+    consecutiveFailures: number;
+    circuitOpen: boolean;
+  };
 }
 
 // API Endpoints
@@ -115,8 +119,12 @@ export const api = {
   },
 
   // Alerts
-  async getAlerts(): Promise<StationAlert[]> {
-    return fetchJson<StationAlert[]>("/api/alerts");
+  async getAlerts(): Promise<AlertsResponse> {
+    return fetchJson<AlertsResponse>("/api/alerts");
+  },
+
+  async getAlertsForLine(lineId: string): Promise<{ alerts: StationAlert[]; lineId: string }> {
+    return fetchJson<{ alerts: StationAlert[]; lineId: string }>(`/api/alerts/${lineId}`);
   },
 
   // Health

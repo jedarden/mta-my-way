@@ -3,6 +3,7 @@
  *
  * Shows:
  * - Station name and lines
+ * - Alert banners when relevant alerts exist
  * - ArrivalList for both directions (or the filtered direction)
  * - "Updated Xs ago" freshness indicator
  * - Add-to-favorites / already-favorited button
@@ -15,9 +16,11 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
+import { AlertBanner } from "../components/alerts";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import BottomNav from "../components/layout/BottomNav";
 import { useArrivals } from "../hooks/useArrivals";
+import { useAlertsForStation } from "../hooks/useAlerts";
 import { useFavorites } from "../hooks/useFavorites";
 import { type Station, api } from "../lib/api";
 
@@ -38,6 +41,10 @@ export default function StationScreen() {
   }, [stationId]);
 
   const { data: arrivals, status, refresh, updatedAt } = useArrivals(stationId ?? null);
+
+  // Fetch alerts for this station's lines
+  const stationLines = station?.lines ?? [];
+  const { alerts: stationAlerts } = useAlertsForStation(stationId ?? null, stationLines);
 
   // "Updated X ago" display
   const [timeAgoText, setTimeAgoText] = useState("just now");
@@ -76,7 +83,6 @@ export default function StationScreen() {
   };
 
   const stationName = station?.name ?? arrivals?.stationName ?? `Station ${stationId}`;
-  const stationLines = station?.lines ?? [];
 
   // Derive error state for arrivals
   const arrivalsError =
@@ -148,6 +154,17 @@ export default function StationScreen() {
             {stationLines.map((line) => (
               <LineBullet key={line} line={line} size="md" />
             ))}
+          </div>
+        )}
+
+        {/* Alert banner */}
+        {stationAlerts.length > 0 && (
+          <div className="mb-4">
+            <AlertBanner
+              alerts={stationAlerts}
+              title="Service Alerts"
+              maxVisible={2}
+            />
           </div>
         )}
 

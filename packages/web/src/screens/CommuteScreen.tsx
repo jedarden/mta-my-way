@@ -7,6 +7,7 @@
  *   - Trip journal placeholder (Phase 5)
  *
  * When navigated to /commute/:commuteId, shows:
+ *   - Alert banners for lines on the commute
  *   - Full analysis with TransferDetail (RECOMMENDED/DIRECT/ALSO POSSIBLE)
  *   - RouteComparison side-by-side view
  *   - Back navigation
@@ -19,8 +20,10 @@ import { CommuteCard } from "../components/commute/CommuteCard";
 import { CommuteEditor } from "../components/commute/CommuteEditor";
 import { RouteComparison } from "../components/commute/RouteComparison";
 import { TransferDetail } from "../components/commute/TransferDetail";
+import { AlertBanner } from "../components/alerts";
 import Screen from "../components/layout/Screen";
 import { useCommute } from "../hooks/useCommute";
+import { useAlertsForStation } from "../hooks/useAlerts";
 import { useFavoritesStore } from "../stores";
 
 const MAX_COMMUTES = 10;
@@ -190,6 +193,13 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
     commuteId,
   });
 
+  // Get alerts for the commute's preferred lines
+  const commuteLines = commute?.preferredLines ?? [];
+  const { alerts: commuteAlerts } = useAlertsForStation(
+    commute?.origin.stationId ?? null,
+    commuteLines
+  );
+
   const isLoading = status === "loading" && !data;
 
   if (!commute) {
@@ -268,6 +278,17 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
             ))}
           </div>
         </div>
+
+        {/* Alert banner */}
+        {commuteAlerts.length > 0 && (
+          <div className="mb-4">
+            <AlertBanner
+              alerts={commuteAlerts}
+              title="Service Alerts"
+              maxVisible={2}
+            />
+          </div>
+        )}
 
         {/* Analysis */}
         {isLoading ? (
