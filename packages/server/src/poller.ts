@@ -64,8 +64,12 @@ async function runPoll(): Promise<void> {
     SUBWAY_FEEDS.map((feed) => fetchFeed(feed))
   );
 
-  const succeeded = results.filter((r) => r.status === "fulfilled").length;
-  const failed = results.filter((r) => r.status === "rejected").length;
+  let feedsOk = 0;
+  let feedsFailed = 0;
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value) feedsOk++;
+    else feedsFailed++;
+  }
 
   // Rebuild arrivals from all currently-good feeds
   const parsedFeeds = getAllParsedFeeds();
@@ -78,8 +82,8 @@ async function runPoll(): Promise<void> {
       event: "poll_complete",
       timestamp: new Date().toISOString(),
       elapsed_ms: Date.now() - cycleStart,
-      feeds_ok: succeeded,
-      feeds_failed: failed,
+      feeds_ok: feedsOk,
+      feeds_failed: feedsFailed,
       station_count: arrivals.size,
     })
   );
@@ -89,7 +93,7 @@ async function runPoll(): Promise<void> {
 // Individual feed fetch
 // ---------------------------------------------------------------------------
 
-async function fetchFeed(config: FeedConfig): Promise<void> {
+async function fetchFeed(config: FeedConfig): Promise<boolean> {
   // Circuit breaker: skip this feed until reset window expires
   if (isCircuitOpen(config.id)) {
     console.log(
@@ -99,7 +103,7 @@ async function fetchFeed(config: FeedConfig): Promise<void> {
         feed: config.id,
       })
     );
-    return;
+    return false;
   }
 
   const start = Date.now();
@@ -135,6 +139,7 @@ async function fetchFeed(config: FeedConfig): Promise<void> {
         entities: parsed.entityCount,
       })
     );
+    return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     recordFeedFailure(config.id, message);
@@ -148,5 +153,6 @@ async function fetchFeed(config: FeedConfig): Promise<void> {
         error: message,
       })
     );
+    return false;
   }
 }

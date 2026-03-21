@@ -11,6 +11,8 @@
 
 import { Hono } from "hono";
 import { serveStatic } from "@hono/node-server/serve-static";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { CACHE_TTLS } from "@mta-my-way/shared";
 import type { StationIndex } from "@mta-my-way/shared";
 import { getArrivals, getFeedStates } from "./cache.js";
@@ -108,6 +110,16 @@ export function createApp(stations: StationIndex, webDistPath: string): Hono {
       root: webDistPath,
     })
   );
+
+  // SPA fallback: serve index.html for any non-API route that didn't match a
+  // static file (so React Router can handle client-side routing)
+  app.get("*", async (c) => {
+    const html = await readFile(join(webDistPath, "index.html"), "utf8").catch(
+      () => null
+    );
+    if (!html) return c.notFound();
+    return c.html(html);
+  });
 
   return app;
 }
