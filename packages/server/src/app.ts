@@ -27,6 +27,7 @@ import type {
 } from "@mta-my-way/shared";
 import { Hono } from "hono";
 import { getArrivals, getFeedStates } from "./cache.js";
+import { getAllAlerts, getAlertsForLine, getAlertsStatus } from "./alerts-poller.js";
 import { createTransferEngine } from "./transfer/index.js";
 
 /** Cache header for static GTFS data */
@@ -370,6 +371,34 @@ export function createApp(
         500
       );
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // Alerts
+  // -------------------------------------------------------------------------
+  app.get("/api/alerts", (c) => {
+    const alerts = getAllAlerts();
+    const status = getAlertsStatus();
+
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json({
+      alerts,
+      meta: {
+        count: alerts.length,
+        lastUpdatedAt: status.lastSuccessAt,
+        matchRate: status.matchRate,
+        consecutiveFailures: status.consecutiveFailures,
+        circuitOpen: status.circuitOpen,
+      },
+    });
+  });
+
+  app.get("/api/alerts/:lineId", (c) => {
+    const lineId = c.req.param("lineId").toUpperCase();
+    const alerts = getAlertsForLine(lineId);
+
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json({ alerts, lineId });
   });
 
   // -------------------------------------------------------------------------

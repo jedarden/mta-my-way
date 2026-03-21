@@ -21,6 +21,7 @@ import type {
 } from "@mta-my-way/shared";
 import { createApp } from "./app.js";
 import { initPoller, startPoller } from "./poller.js";
+import { startAlertsPoller } from "./alerts-poller.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -99,6 +100,7 @@ async function main(): Promise<void> {
   // Feed poller (also triggers immediate first poll)
   initPoller(stations, routes);
   startPoller();
+  startAlertsPoller();
 
   // HTTP server
   serve({ fetch: app.fetch, port: PORT }, (info) => {

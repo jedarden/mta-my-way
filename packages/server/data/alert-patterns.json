@@ -1,0 +1,107 @@
+[
+  {
+    "id": "suspended_between",
+    "pattern": "^\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+(?:service|trains)\\s+(?:has|have)\\s+been\\s+suspended\\s+between\\s+(?<from>[^,]+)\\s+and\\s+(?<to>[^.]+)",
+    "template": "{lines} suspended {from} to {to}",
+    "exampleMatch": "[F] service has been suspended between Church Av and Jay St-MetroTech",
+    "exampleOutput": "F suspended Church Av to Jay St-MetroTech"
+  },
+  {
+    "id": "suspended_in_both_directions",
+    "pattern": "^\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+service\\s+(?:is|has been)\\s+suspended\\s+in\\s+both\\s+directions",
+    "template": "{lines} suspended in both directions",
+    "exampleMatch": "[A,C] service is suspended in both directions",
+    "exampleOutput": "A,C suspended in both directions"
+  },
+  {
+    "id": "running_with_delays",
+    "pattern": "^(?<dir>Northbound|Southbound|Bronx-bound|Brooklyn-bound|Manhattan-bound|Queens-bound|Uptown|Downtown)?\\s*\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+(?:trains|service)\\s+(?:are|is)\\s+running\\s+with\\s+(?<delayDesc>\\d+-\\d+\\s+minute\\s+)?delays",
+    "template": "{dir} {lines} trains delayed{delayDesc: with :}",
+    "exampleMatch": "Southbound [F] trains are running with 8-12 minute delays",
+    "exampleOutput": "Southbound F trains delayed with 8-12 minute"
+  },
+  {
+    "id": "running_express",
+    "pattern": "^(?:Due to (?<cause>[^,]+),\\s+)?(?<dir>Northbound|Southbound|Bronx-bound|Brooklyn-bound|Manhattan-bound|Queens-bound|Uptown|Downtown)?\\s*\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+trains\\s+are\\s+running\\s+express\\s+from\\s+(?<from>[^\\s]+)\\s+to\\s+(?<to>[^.]+)",
+    "template": "{dir} {lines} express from {from} to {to}{cause: due to :}",
+    "exampleMatch": "Due to signal problems, Northbound [2,3] trains are running express from 14 St to 96 St",
+    "exampleOutput": "Northbound 2,3 express from 14 St to 96 St due to signal problems"
+  },
+  {
+    "id": "service_resumed",
+    "pattern": "^\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+(?:service|trains)\\s+(?:has|have)\\s+resumed",
+    "template": "{lines} service restored",
+    "exampleMatch": "[F] service has resumed between Church Av and Jay St-MetroTech",
+    "exampleOutput": "F service restored"
+  },
+  {
+    "id": "rerouted_track",
+    "pattern": "^\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+trains\\s+are\\s+running\\s+on\\s+the\\s+(?<track>[^\\s]+)\\s+track\\s+from\\s+(?<from>[^\\s]+)\\s+to\\s+(?<to>[^.]+)",
+    "template": "{lines} rerouted to {track} track {from} to {to}",
+    "exampleMatch": "[F] trains are running on the F track from Jay St to Church Av",
+    "exampleOutput": "F rerouted to F track Jay St to Church Av"
+  },
+  {
+    "id": "skipping_stations",
+    "pattern": "^(?<dir>Northbound|Southbound|Bronx-bound|Brooklyn-bound|Manhattan-bound|Queens-bound|Uptown|Downtown)?\\s*\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+trains\\s+are\\s+skipping\\s+(?<stations>[^.]+)",
+    "template": "{dir} {lines} skipping {stations}",
+    "exampleMatch": "Southbound [F] trains are skipping 23 St, 14 St, and W 4 St",
+    "exampleOutput": "Southbound F skipping 23 St, 14 St, and W 4 St"
+  },
+  {
+    "id": "no_trains_between",
+    "pattern": "^No\\s+\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+trains?\\s+between\\s+(?<from>[^\\s]+)\\s+and\\s+(?<to>[^.]+)",
+    "template": "No {lines} trains between {from} and {to}",
+    "exampleMatch": "No [F] trains between Church Av and Jay St-MetroTech",
+    "exampleOutput": "No F trains between Church Av and Jay St-MetroTech"
+  },
+  {
+    "id": "running_local",
+    "pattern": "^(?<dir>Northbound|Southbound|Bronx-bound|Brooklyn-bound|Manhattan-bound|Queens-bound|Uptown|Downtown)?\\s*\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+trains\\s+are\\s+running\\s+local",
+    "template": "{dir} {lines} running local",
+    "exampleMatch": "Northbound [A,C,E] trains are running local",
+    "exampleOutput": "Northbound A,C,E running local"
+  },
+  {
+    "id": "planned_work",
+    "pattern": "^\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+(?<workType>[^:]+):\\s+(?<desc>.+)",
+    "template": "{lines} {workType}: {desc}",
+    "exampleMatch": "[F] Planned Work: No trains between Church Av and Jay St",
+    "exampleOutput": "F Planned Work: No trains between Church Av and Jay St"
+  },
+  {
+    "id": "delays_due_to",
+    "pattern": "^\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+trains\\s+(?:are|is)\\s+running\\s+with\\s+delays\\s+(?:due to|because of)\\s+(?<cause>[^.]+)",
+    "template": "{lines} trains delayed due to {cause}",
+    "exampleMatch": "[F] trains are running with delays due to signal problems",
+    "exampleOutput": "F trains delayed due to signal problems"
+  },
+  {
+    "id": "bypassing_station",
+    "pattern": "^(?<dir>Northbound|Southbound|Bronx-bound|Brooklyn-bound|Manhattan-bound|Queens-bound|Uptown|Downtown)?\\s*\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+trains\\s+(?:are|will be)\\s+bypassing\\s+(?<station>[^.]+)",
+    "template": "{dir} {lines} bypassing {station}",
+    "exampleMatch": "Northbound [6] trains are bypassing Hunts Point Av",
+    "exampleOutput": "Northbound 6 bypassing Hunts Point Av"
+  },
+  {
+    "id": "reduced_service",
+    "pattern": "^\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+service\\s+is\\s+operating\\s+with\\s+(?<desc>[^.]+)",
+    "template": "{lines} reduced service: {desc}",
+    "exampleMatch": "[F] service is operating with reduced frequency",
+    "exampleOutput": "F reduced service: reduced frequency"
+  },
+  {
+    "id": "stalled_train",
+    "pattern": "^(?:Due to\\s+)?(?:a\\s+)?(?<cause>stalled train)\\s+(?:at|near)\\s+(?<location>[^,]+),?\\s*(?<dir>Northbound|Southbound|Bronx-bound|Brooklyn-bound|Manhattan-bound|Queens-bound|Uptown|Downtown)?\\s*\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+(?:trains|service)\\s+(?:are|is)\\s+(?<effect>[^.]+)",
+    "template": "{lines} {effect} due to {cause} near {location}",
+    "exampleMatch": "Due to a stalled train at 34 St, Northbound [F] trains are running with delays",
+    "exampleOutput": "F running with delays due to stalled train near 34 St"
+  },
+  {
+    "id": "fdny_activity",
+    "pattern": "^(?:Due to\\s+)?(?<cause>FDNY activity)\\s+(?:at|near)\\s+(?<location>[^,]+),?\\s*(?<dir>Northbound|Southbound|Bronx-bound|Brooklyn-bound|Manhattan-bound|Queens-bound|Uptown|Downtown)?\\s*\\[(?<lines>[A-Z0-9,/\\s]+)\\]\\s+(?:trains|service)\\s+(?:are|is)\\s+(?<effect>[^.]+)",
+    "template": "{lines} {effect} due to {cause} near {location}",
+    "exampleMatch": "Due to FDNY activity near Jay St, [F] trains are running with delays",
+    "exampleOutput": "F running with delays due to FDNY activity near Jay St"
+  }
+]
