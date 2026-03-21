@@ -7,13 +7,16 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
+    "compile-proto": "pbjs -t static-module -w es6 -o src/proto/compiled.js src/proto/gtfs-realtime.proto src/proto/nyct-subway.proto && node scripts/fix-esm-import.mjs && pbts -o src/proto/compiled.d.ts src/proto/compiled.js",
     "dev": "node --watch src/index.ts",
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@mta-my-way/shared": "*"
+    "@mta-my-way/shared": "*",
+    "protobufjs": "^7.5.4"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0"
+    "@types/node": "^25.5.0",
+    "protobufjs-cli": "^2.0.0"
   }
 }
