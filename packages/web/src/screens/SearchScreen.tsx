@@ -82,6 +82,7 @@ export default function SearchScreen() {
         ) : (
           <PopularStations />
         )}
+        </div>
       </div>
     </Screen>
   );
