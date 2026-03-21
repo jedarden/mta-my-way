@@ -45,6 +45,7 @@ export default defineConfig({
         importScripts: ["/sw-push.js"],
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
         runtimeCaching: [
+          // Static station data: CacheFirst (rarely changes)
           {
             urlPattern: /^https:\/\/.*\/api\/stations/,
             handler: "CacheFirst",
@@ -56,6 +57,7 @@ export default defineConfig({
               },
             },
           },
+          // Static routes data: CacheFirst (rarely changes)
           {
             urlPattern: /^https:\/\/.*\/api\/routes/,
             handler: "CacheFirst",
@@ -67,15 +69,45 @@ export default defineConfig({
               },
             },
           },
+          // Static complexes data: CacheFirst (rarely changes)
+          {
+            urlPattern: /^https:\/\/.*\/api\/static/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "static-cache",
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
+            },
+          },
+          // Arrivals API: StaleWhileRevalidate (show cached, update in background)
           {
             urlPattern: /^https:\/\/.*\/api\/arrivals/,
-            handler: "NetworkFirst",
+            handler: "StaleWhileRevalidate",
             options: {
               cacheName: "arrivals-cache",
-              networkTimeoutSeconds: 10,
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 5, // 5 minutes
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          // Alerts API: StaleWhileRevalidate
+          {
+            urlPattern: /^https:\/\/.*\/api\/alerts/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "alerts-cache",
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 2, // 2 minutes
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
               },
             },
           },

@@ -12,3 +12,8 @@ export type { AlertDataStatus, AlertsMeta, AlertsState, AlertsResult } from "./u
 
 export { usePushNotifications } from "./usePushNotifications";
 export type { PushNotificationsState } from "./usePushNotifications";
+
+export { useOnlineStatus } from "./useOnlineStatus";
+
+export { useStaleness } from "./useStaleness";
+export type { StalenessLevel, StalenessState } from "./useStaleness";

@@ -1,10 +1,14 @@
-import { useState } from "react";
 import Screen from "../components/layout/Screen";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useSettingsStore } from "../stores/settingsStore";
 
 export default function SettingsScreen() {
-  const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
+  const theme = useSettingsStore((s) => s.theme);
+  const setTheme = useSettingsStore((s) => s.setTheme);
+  const showUnassignedTrips = useSettingsStore((s) => s.showUnassignedTrips);
+  const setShowUnassignedTrips = useSettingsStore((s) => s.setShowUnassignedTrips);
+  const refreshInterval = useSettingsStore((s) => s.refreshInterval);
+  const setRefreshInterval = useSettingsStore((s) => s.setRefreshInterval);
   const quietHours = useSettingsStore((s) => s.quietHours);
   const setQuietHours = useSettingsStore((s) => s.setQuietHours);
 
@@ -181,7 +185,7 @@ export default function SettingsScreen() {
                 <span className="text-text-primary dark:text-dark-text-primary">Theme</span>
                 <select
                   value={theme}
-                  onChange={(e) => setTheme(e.target.value as typeof theme)}
+                  onChange={(e) => setTheme(e.target.value as "system" | "light" | "dark")}
                   className="bg-background dark:bg-dark-background text-text-primary dark:text-dark-text-primary rounded px-3 py-2 min-h-touch"
                 >
                   <option value="system">System</option>
@@ -206,7 +210,12 @@ export default function SettingsScreen() {
                 <span className="text-text-primary dark:text-dark-text-primary">
                   Show unassigned trips
                 </span>
-                <input type="checkbox" className="w-5 h-5 accent-mta-primary" />
+                <input
+                  type="checkbox"
+                  checked={showUnassignedTrips}
+                  onChange={(e) => setShowUnassignedTrips(e.target.checked)}
+                  className="w-5 h-5 accent-mta-primary"
+                />
               </label>
             </div>
             <div className="p-4 border-b border-background dark:border-dark-background">
@@ -214,7 +223,11 @@ export default function SettingsScreen() {
                 <span className="text-text-primary dark:text-dark-text-primary">
                   Refresh interval
                 </span>
-                <select className="bg-background dark:bg-dark-background text-text-primary dark:text-dark-text-primary rounded px-3 py-2 min-h-touch">
+                <select
+                  value={refreshInterval}
+                  onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                  className="bg-background dark:bg-dark-background text-text-primary dark:text-dark-text-primary rounded px-3 py-2 min-h-touch"
+                >
                   <option value="15">15 seconds</option>
                   <option value="30">30 seconds</option>
                   <option value="60">60 seconds</option>

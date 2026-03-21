@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { OfflineBanner } from "../common";
 import BottomNav from "./BottomNav";
 import Header from "./Header";
 
@@ -10,6 +11,7 @@ export default function Screen({ children }: ScreenProps) {
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
       <Header />
+      <OfflineBanner />
       <main className="flex-1 overflow-y-auto pb-14" role="main">
         {children}
       </main>
