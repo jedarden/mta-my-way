@@ -1,11 +1,13 @@
 /**
  * useFavorites - Clean hook interface over favoritesStore.
  *
- * Returns sorted favorites (by sortOrder) and CRUD operations.
- * Also exposes recordTap for Phase 5 context-aware sorting.
+ * Returns favorites sorted by time-of-day context (via useContextSort)
+ * with pinned favorites floating to top. Falls back to plain sortOrder
+ * when tap history is insufficient (<20 events).
  */
 
 import type { Favorite } from "@mta-my-way/shared";
+import { useContextSort } from "./useContextSort";
 import { useFavoritesStore } from "../stores/favoritesStore";
 
 export type { Favorite };
@@ -23,12 +25,7 @@ export function useFavorites() {
     completeOnboarding,
   } = useFavoritesStore();
 
-  // Pinned favorites first, then by sortOrder
-  const sortedFavorites = [...favorites].sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
-    return a.sortOrder - b.sortOrder;
-  });
+  const sortedFavorites = useContextSort();
 
   return {
     favorites: sortedFavorites,

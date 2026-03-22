@@ -4,6 +4,8 @@ export type { ArrivalsState, ArrivalsResult, DataStatus } from "./useArrivals";
 export { useFavorites } from "./useFavorites";
 export type { Favorite } from "./useFavorites";
 
+export { useContextSort } from "./useContextSort";
+
 export { getBestRoute, useCommute } from "./useCommute";
 export type { CommuteResult, CommuteState, CommuteStatus, UseCommuteOptions } from "./useCommute";
 
