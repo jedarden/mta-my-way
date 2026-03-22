@@ -24,9 +24,11 @@ import { CommuteCard } from "../components/commute/CommuteCard";
 import { CommuteEditor } from "../components/commute/CommuteEditor";
 import { RouteComparison } from "../components/commute/RouteComparison";
 import { TransferDetail } from "../components/commute/TransferDetail";
+import { WalkComparison } from "../components/commute/WalkComparison";
 import Screen from "../components/layout/Screen";
 import { useAlertsForStation } from "../hooks/useAlerts";
 import { useCommute } from "../hooks/useCommute";
+import { useWalkComparison } from "../hooks/useWalkComparison";
 import { useFavoritesStore } from "../stores";
 
 const MAX_COMMUTES = 10;
@@ -199,6 +201,13 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
     commuteLines
   );
 
+  // Walking comparison for short trips
+  const walkComparison = useWalkComparison({
+    originId: commute?.origin.stationId ?? null,
+    destinationId: commute?.destination.stationId ?? null,
+    analysis: data,
+  });
+
   if (!commute) {
     return (
       <Screen>
@@ -295,6 +304,9 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
         >
           {(commuteData) => (
             <div className="space-y-4">
+              {/* Walking comparison for short trips */}
+              <WalkComparison comparison={walkComparison} />
+
               {/* Route comparison (if both types exist) */}
               {commuteData.directRoutes.length > 0 && commuteData.transferRoutes.length > 0 && (
                 <RouteComparison analysis={commuteData} />
