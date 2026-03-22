@@ -11,11 +11,13 @@ import type { Favorite } from "@mta-my-way/shared";
 import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useArrivals } from "../../hooks/useArrivals";
+import { useOfflineCountdown } from "../../hooks/useOfflineCountdown";
 import { useStaleness } from "../../hooks/useStaleness";
 import { useFavoritesStore } from "../../stores/favoritesStore";
 import { ArrivalRow } from "../arrivals/ArrivalRow";
 import { LineBullet } from "../arrivals/LineBullet";
 import { ArrivalRowSkeleton } from "../common/Skeleton";
+import { EquipmentBadge } from "../equipment/EquipmentBadge";
 
 interface FavoriteCardProps {
   favorite: Favorite;
@@ -30,6 +32,8 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
   const recordTap = useFavoritesStore((s) => s.recordTap);
   const { data, status, refresh, updatedAt } = useArrivals(favorite.stationId);
   const staleness = useStaleness(updatedAt);
+  const { isActive: isOfflineCountdown, arrivals: offlineArrivals } =
+    useOfflineCountdown(favorite.stationId);
 
   // Respond to pull-to-refresh from parent
   const prevRefreshId = useRef(forceRefreshId);
@@ -41,16 +45,18 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
   }, [forceRefreshId, refresh]);
 
   // Filter and sort arrivals per the favorite's config, then take top 3
+  // When offline countdown is active, use estimated data instead
   const arrivals = useMemo(() => {
-    if (!data) return [];
+    const source = isOfflineCountdown && offlineArrivals ? offlineArrivals : data;
+    if (!source) return [];
     const all = [
-      ...(favorite.direction === "both" || favorite.direction === "N" ? data.northbound : []),
-      ...(favorite.direction === "both" || favorite.direction === "S" ? data.southbound : []),
+      ...(favorite.direction === "both" || favorite.direction === "N" ? source.northbound : []),
+      ...(favorite.direction === "both" || favorite.direction === "S" ? source.southbound : []),
     ];
     const filtered =
       favorite.lines.length > 0 ? all.filter((a) => favorite.lines.includes(a.line)) : all;
     return filtered.sort((a, b) => a.minutesAway - b.minutesAway).slice(0, 3);
-  }, [data, favorite]);
+  }, [data, offlineArrivals, isOfflineCountdown, favorite]);
 
   const handleCardTap = () => {
     recordTap(favorite.id);
@@ -58,6 +64,11 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
   };
 
   const isLoading = status === "loading" && !data;
+
+  // Extract equipment info from injected arrivals data
+  const equipment = data?.equipment ?? [];
+  const brokenElevators = equipment.filter((e) => e.type === "elevator").length;
+  const brokenEscalators = equipment.filter((e) => e.type === "escalator").length;
 
   return (
     <article className="bg-surface dark:bg-dark-surface rounded-lg overflow-hidden shadow-sm">
@@ -72,10 +83,13 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
               {favorite.stationName}
             </p>
           )}
-          <div className="flex flex-wrap gap-1 mt-1.5">
+          <div className="flex flex-wrap gap-1 mt-1.5 items-center">
             {favorite.lines.map((line) => (
               <LineBullet key={line} line={line} size="sm" />
             ))}
+            {(brokenElevators > 0 || brokenEscalators > 0) && (
+              <EquipmentBadge brokenElevators={brokenElevators} brokenEscalators={brokenEscalators} />
+            )}
           </div>
         </div>
         <button
@@ -131,6 +145,7 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
                   arrival={arrival}
                   compact
                   staleness={staleness.level}
+                  isEstimated={"isEstimated" in arrival && arrival.isEstimated === true}
                 />
               ))}
             </div>

@@ -11,9 +11,10 @@
  */
 
 import { formatTimeAgo } from "@mta-my-way/shared";
-import type { Favorite } from "@mta-my-way/shared";
+import type { ArrivalTime, Favorite } from "@mta-my-way/shared";
+import { useCallback } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
@@ -21,10 +22,13 @@ import { DataState } from "../components/common/DataState";
 import { EmptyArrivals } from "../components/common/EmptyState";
 import OfflineBanner from "../components/common/OfflineBanner";
 import { ArrivalListSkeleton } from "../components/common/Skeleton";
+import { EquipmentBanner } from "../components/equipment";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
+import { FreshnessFooter } from "../components/freshness";
 import BottomNav from "../components/layout/BottomNav";
 import { useAlertsForStation } from "../hooks/useAlerts";
 import { useArrivals } from "../hooks/useArrivals";
+import { useEquipment } from "../hooks/useEquipment";
 import { useFavorites } from "../hooks/useFavorites";
 import { type Station, api } from "../lib/api";
 
@@ -45,6 +49,9 @@ export default function StationScreen() {
   }, [stationId]);
 
   const { data: arrivals, status, refresh, updatedAt } = useArrivals(stationId ?? null);
+
+  // Equipment status (uses injected data from arrivals response)
+  const { equipment } = useEquipment(stationId ?? null, arrivals?.equipment);
 
   // Fetch alerts for this station's lines
   const stationLines = station?.lines ?? [];
@@ -186,6 +193,13 @@ export default function StationScreen() {
           </div>
         )}
 
+        {/* Equipment outages banner */}
+        {equipment.length > 0 && (
+          <div className="mb-4">
+            <EquipmentBanner equipment={equipment} stationName={stationName} />
+          </div>
+        )}
+
         {/* Arrivals section */}
         <section aria-labelledby="arrivals-heading" className="mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -231,14 +245,23 @@ export default function StationScreen() {
           >
             {(data) => (
               <div aria-live="polite" aria-atomic="false">
-                <ArrivalList northbound={data.northbound} southbound={data.southbound} />
+                <ArrivalList
+                  northbound={data.northbound}
+                  southbound={data.southbound}
+                  showTrackButton
+                  onTrackTrip={(arrival: ArrivalTime) => navigate(`/trip/${encodeURIComponent(arrival.tripId)}`)}
+                />
+                <FreshnessFooter
+                  arrivals={[...data.northbound, ...data.southbound]}
+                  stationFeedAge={data.feedAge}
+                />
               </div>
             )}
           </DataState>
         </section>
 
-        {/* Footer: freshness */}
-        {updatedAt && (
+        {/* Footer: simple freshness when no arrivals loaded */}
+        {updatedAt && !arrivals && (
           <p
             className="mt-4 text-center text-13 text-text-secondary dark:text-dark-text-secondary"
             aria-live="polite"
