@@ -11,6 +11,8 @@ export default function SettingsScreen() {
   const setRefreshInterval = useSettingsStore((s) => s.setRefreshInterval);
   const quietHours = useSettingsStore((s) => s.quietHours);
   const setQuietHours = useSettingsStore((s) => s.setQuietHours);
+  const accessibleMode = useSettingsStore((s) => s.accessibleMode);
+  const setAccessibleMode = useSettingsStore((s) => s.setAccessibleMode);
 
   const {
     isSupported,
@@ -228,6 +230,48 @@ export default function SettingsScreen() {
                   <option value="30">30 seconds</option>
                   <option value="60">60 seconds</option>
                 </select>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="accessibility-heading" className="mb-6">
+          <h2
+            id="accessibility-heading"
+            className="text-lg font-semibold mb-4 text-text-primary dark:text-dark-text-primary"
+          >
+            Accessibility
+          </h2>
+          <div className="bg-surface dark:bg-dark-surface rounded-lg">
+            <div className="p-4">
+              <label className="flex items-center justify-between">
+                <div>
+                  <span className="text-text-primary dark:text-dark-text-primary">
+                    Accessible mode
+                  </span>
+                  <p className="text-13 text-text-secondary dark:text-dark-text-secondary mt-0.5">
+                    Avoid stations with broken elevators in route suggestions
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={accessibleMode}
+                  onClick={() => setAccessibleMode(!accessibleMode)}
+                  className={[
+                    "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
+                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+                    "focus-visible:outline-mta-primary",
+                    accessibleMode ? "bg-mta-primary" : "bg-gray-300 dark:bg-gray-600",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow-sm transition-transform",
+                      accessibleMode ? "translate-x-5.5" : "translate-x-0.5",
+                    ].join(" ")}
+                  />
+                </button>
               </label>
             </div>
           </div>

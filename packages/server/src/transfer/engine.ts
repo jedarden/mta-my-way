@@ -29,6 +29,7 @@ import type {
 import { isBDivision } from "@mta-my-way/shared";
 import { buildTransferGraph, getReachableStations } from "./graph.js";
 import { calculateRouteTravelTime, determineDirection, getTravelTimes } from "./travel-times.js";
+import { getStationsWithBrokenElevators } from "../equipment-poller.js";
 
 /** Buffer to add to B Division arrival estimates (in seconds) */
 const B_DIVISION_BUFFER_SECONDS = 120; // 2 minutes
@@ -81,7 +82,8 @@ export class TransferEngine {
     originId: string,
     destinationId: string,
     preferredLines: string[] = [],
-    commuteId = "default"
+    commuteId = "default",
+    accessibleMode = false
   ): CommuteAnalysis {
     const origin = this.getStationRef(originId);
     const destination = this.getStationRef(destinationId);
@@ -98,7 +100,8 @@ export class TransferEngine {
       originId,
       destinationId,
       preferredLines,
-      directRoutes
+      directRoutes,
+      accessibleMode
     );
 
     // Determine recommendation
@@ -238,7 +241,8 @@ export class TransferEngine {
     originId: string,
     destinationId: string,
     _preferredLines: string[],
-    directRoutes: DirectRoute[]
+    directRoutes: DirectRoute[],
+    accessibleMode = false
   ): TransferRoute[] {
     const routes: TransferRoute[] = [];
     const bestDirectArrival =
@@ -252,6 +256,11 @@ export class TransferEngine {
       return routes;
     }
 
+    // When accessible mode is on, weight transfer stations with broken elevators as Infinity
+    const brokenElevatorStations = accessibleMode
+      ? getStationsWithBrokenElevators()
+      : new Set<string>();
+
     // Get all reachable transfer stations from origin
     const reachableFromOrigin = getReachableStations(this.graph, originId);
 
@@ -259,6 +268,9 @@ export class TransferEngine {
     for (const transferEdge of reachableFromOrigin) {
       // Skip if walking time is too long
       if (transferEdge.walkingSeconds > MAX_WALKING_TIME_SECONDS) continue;
+
+      // In accessible mode, skip transfer stations with broken elevators
+      if (accessibleMode && brokenElevatorStations.has(transferEdge.toStationId)) continue;
 
       const transferStationId = transferEdge.toStationId;
 

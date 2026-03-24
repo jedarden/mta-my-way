@@ -10,6 +10,9 @@ export const MTA_FEED_BASE_URL = "https://api-endpoint.mta.info/Dataservice/mtag
 export const MTA_ALERTS_FEED_URL =
   "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys/subway-alerts";
 
+/** Base URL for MTA Elevator & Escalator (ENE) feed */
+export const MTA_ENE_FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fnyct_ene.xml";
+
 /** Base URL for GTFS static data */
 export const GTFS_STATIC_BASE_URL = "https://rrgtfsfeeds.s3.amazonaws.com";
 
