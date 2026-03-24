@@ -1,0 +1,22 @@
+# NEEDLE workspace configuration
+# Workspace: /home/coding/mta-my-way
+
+agent:
+  default: glm
+  timeout: 600
+
+strands:
+  pluck:
+    enabled: true
+    exclude_labels:
+      - deferred
+      - human
+      - blocked
+
+prompt:
+  context_files: []
+  instructions: |
+    You are working on MTA My Way, a mobile-first PWA for NYC subway commuters.
+    The project is a TypeScript monorepo (packages/server, packages/web, packages/shared).
+    Backend is Hono on Node.js; frontend is React + Vite.
+    Follow existing code patterns. Run `npm test` and `npm run lint` before closing a bead.
