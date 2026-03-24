@@ -48,6 +48,12 @@ export interface FeedState {
   parsedFeed: ParsedFeed | null;
   /** Trip replacement period (seconds) from NYCT feed header, or null if not present */
   tripReplacementPeriod: number | null;
+  /** Rolling window of recent poll latencies (ms), capped at 100 entries */
+  latencyHistory: number[];
+  /** Timestamps of recent errors for 24h error count, auto-pruned */
+  errorTimestamps: number[];
+  /** Number of parse errors in the last successful poll */
+  parseErrors: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +75,9 @@ const feedStates = new Map<string, FeedState>(
       entityCount: 0,
       parsedFeed: null,
       tripReplacementPeriod: null,
+      latencyHistory: [],
+      errorTimestamps: [],
+      parseErrors: 0,
     },
   ])
 );
@@ -101,7 +110,7 @@ export function isCircuitOpen(feedId: string): boolean {
 // Feed state mutations
 // ---------------------------------------------------------------------------
 
-export function recordFeedSuccess(feedId: string, parsed: ParsedFeed, entityCount: number): void {
+export function recordFeedSuccess(feedId: string, parsed: ParsedFeed, entityCount: number, latencyMs: number, parseErrors: number = 0): void {
   const state = feedStates.get(feedId);
   if (!state) return;
   const now = Date.now();
@@ -113,16 +122,26 @@ export function recordFeedSuccess(feedId: string, parsed: ParsedFeed, entityCoun
   state.lastErrorMessage = null;
   state.parsedFeed = parsed;
   state.tripReplacementPeriod = parsed.tripReplacementPeriod;
+  state.parseErrors = parseErrors;
+  // Track latency (rolling window of last 100)
+  state.latencyHistory.push(latencyMs);
+  if (state.latencyHistory.length > 100) state.latencyHistory.shift();
 }
 
-export function recordFeedFailure(feedId: string, error: string): void {
+export function recordFeedFailure(feedId: string, error: string, latencyMs: number): void {
   const state = feedStates.get(feedId);
   if (!state) return;
-  state.lastPollAt = Date.now();
+  const now = Date.now();
+  state.lastPollAt = now;
   state.consecutiveFailures++;
   state.lastErrorMessage = error;
+  // Track latency even on failure
+  state.latencyHistory.push(latencyMs);
+  if (state.latencyHistory.length > 100) state.latencyHistory.shift();
+  // Track error timestamps for 24h error count
+  state.errorTimestamps.push(now);
   if (state.consecutiveFailures >= CIRCUIT_OPEN_AFTER && state.circuitOpenAt === null) {
-    state.circuitOpenAt = Date.now();
+    state.circuitOpenAt = now;
   }
 }
 
@@ -168,6 +187,36 @@ export function getFeedStates(): (FeedState & { isStale: boolean })[] {
     ...state,
     isStale: state.lastSuccessAt !== null && now - state.lastSuccessAt > STALE_MS,
   }));
+}
+
+/** 24 hours in ms */
+const TWENTY_FOUR_H_MS = 86_400_000;
+
+/** Per-feed metrics for the health endpoint */
+export function getFeedMetrics(): {
+  avgLatencyMs: number;
+  errorCount24h: number;
+} {
+  const now = Date.now();
+  const cutoff = now - TWENTY_FOUR_H_MS;
+  // Prune old error timestamps
+  for (const state of feedStates.values()) {
+    state.errorTimestamps = state.errorTimestamps.filter((t) => t >= cutoff);
+  }
+  // Empty map to be filled by callers if needed
+  return { avgLatencyMs: 0, errorCount24h: 0 };
+}
+
+/** Compute average latency from a latency history array */
+export function avgLatency(latencyHistory: number[]): number {
+  if (latencyHistory.length === 0) return 0;
+  return Math.round(latencyHistory.reduce((a, b) => a + b, 0) / latencyHistory.length);
+}
+
+/** Count errors within the last 24h */
+export function errorCount24h(errorTimestamps: number[]): number {
+  const cutoff = Date.now() - TWENTY_FOUR_H_MS;
+  return errorTimestamps.filter((t) => t >= cutoff).length;
 }
 
 // ---------------------------------------------------------------------------
