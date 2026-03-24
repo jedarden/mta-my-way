@@ -12,6 +12,8 @@
 import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS } from "@mta-my-way/shared";
 import type { RouteIndex, StationIndex } from "@mta-my-way/shared";
 import {
+  avgLatency,
+  errorCount24h,
   getAllFeedAges,
   getAllParsedFeeds,
   isCircuitOpen,
@@ -19,6 +21,7 @@ import {
   recordFeedSuccess,
   updateArrivals,
 } from "./cache.js";
+import { extractVehiclePositions, processVehicleUpdates } from "./delay-detector.js";
 import { parseFeed } from "./parser.js";
 import { buildStopToStationMap, transformFeeds } from "./transformer.js";
 
@@ -74,6 +77,17 @@ async function runPoll(): Promise<void> {
   // Rebuild arrivals from all currently-good feeds
   const parsedFeeds = getAllParsedFeeds();
   const feedAges = getAllFeedAges();
+
+  // Extract VehiclePositions for delay detection (Phase 5)
+  const allVehiclePositions: ReturnType<typeof extractVehiclePositions> = [];
+  for (const [feedId, parsed] of parsedFeeds) {
+    const positions = extractVehiclePositions(feedId, parsed.message);
+    allVehiclePositions.push(...positions);
+  }
+  if (allVehiclePositions.length > 0) {
+    processVehicleUpdates(allVehiclePositions);
+  }
+
   const arrivals = transformFeeds(parsedFeeds, stations, routes, stopToStation, feedAges);
   updateArrivals(arrivals);
 
@@ -128,7 +142,7 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
     const data = new Uint8Array(buffer);
     const parsed = parseFeed(config.id, data);
 
-    recordFeedSuccess(config.id, parsed, parsed.entityCount);
+    recordFeedSuccess(config.id, parsed, parsed.entityCount, Date.now() - start);
 
     console.log(
       JSON.stringify({
@@ -142,7 +156,7 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    recordFeedFailure(config.id, message);
+    recordFeedFailure(config.id, message, Date.now() - start);
 
     console.log(
       JSON.stringify({
