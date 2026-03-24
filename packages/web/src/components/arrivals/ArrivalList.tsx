@@ -29,6 +29,10 @@ interface ArrivalListProps {
   onArrivalClick?: (arrival: ArrivalTime) => void;
   /** Staleness level for visual indication of data freshness */
   staleness?: StalenessLevel;
+  /** Show "I'm on this train" button on each arrival */
+  showTrackButton?: boolean;
+  /** Handler for "I'm on this train" button */
+  onTrackTrip?: (arrival: ArrivalTime) => void;
 }
 
 /**
@@ -54,6 +58,8 @@ export function ArrivalList({
   compact = false,
   onArrivalClick,
   staleness = "fresh",
+  showTrackButton = false,
+  onTrackTrip,
 }: ArrivalListProps) {
   const showNorth = direction === "both" || direction === "N";
   const showSouth = direction === "both" || direction === "S";
@@ -89,6 +95,8 @@ export function ArrivalList({
                 onClick={onArrivalClick ? () => onArrivalClick(arrival) : undefined}
                 compact={compact}
                 staleness={staleness}
+                showTrackButton={showTrackButton}
+                onTrackTrip={onTrackTrip ? () => onTrackTrip(arrival) : undefined}
               />
             ))}
           </div>
@@ -113,6 +121,8 @@ export function ArrivalList({
                 onClick={onArrivalClick ? () => onArrivalClick(arrival) : undefined}
                 compact={compact}
                 staleness={staleness}
+                showTrackButton={showTrackButton}
+                onTrackTrip={onTrackTrip ? () => onTrackTrip(arrival) : undefined}
               />
             ))}
           </div>

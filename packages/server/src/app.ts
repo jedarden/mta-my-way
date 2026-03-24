@@ -16,11 +16,13 @@
  *   POST /api/push/subscribe       — register a push subscription
  *   DELETE /api/push/unsubscribe   — remove a push subscription
  *   PATCH /api/push/subscription   — update favorites/quiet hours
+ *   GET /api/trip/:tripId          — live trip progress (stop-by-stop)
  *   GET /*                         — serve React PWA from packages/web/dist
  */
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 import { createBrotliCompress, createDeflate, createGzip } from "node:zlib";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { CACHE_TTLS } from "@mta-my-way/shared";
@@ -37,9 +39,25 @@ import type {
   PushUnsubscribeRequest,
   PushUpdateRequest,
 } from "@mta-my-way/shared";
+import {
+  commuteAnalyzeRequestSchema,
+  pushSubscribeRequestSchema,
+  pushUnsubscribeRequestSchema,
+  pushUpdateRequestSchema,
+} from "@mta-my-way/shared";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
-import { getArrivals, getFeedStates } from "./cache.js";
+import { avgLatency, errorCount24h, getArrivals, getFeedStates } from "./cache.js";
+import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
+import {
+  getEquipmentForStation,
+  getAllEquipment,
+  getEquipmentStatus,
+  getStationsWithBrokenElevators,
+} from "./equipment-poller.js";
+import { rateLimiter, securityHeaders } from "./middleware/index.js";
+import { validateBody } from "./middleware/validation.js";
+import { lookupTrip } from "./trip-lookup.js";
 import {
   getSubscriptionCount,
   removeSubscription,
@@ -49,6 +67,21 @@ import {
 } from "./push/subscriptions.js";
 import { getVapidPublicKey } from "./push/vapid.js";
 import { createTransferEngine } from "./transfer/index.js";
+
+/** Server start time for uptime calculation */
+const SERVER_START_MS = Date.now();
+
+/** Number of feeds failing >5 min before returning 503 */
+const UNHEALTHY_FEED_THRESHOLD = 3;
+
+/** Track API cache hit/miss for cache hit rate metric */
+let apiCacheHits = 0;
+let apiCacheMisses = 0;
+
+/** Record a cache hit (caller already returned cached data) */
+export function recordCacheHit(): void { apiCacheHits++; }
+/** Record a cache miss (caller fetched fresh data) */
+export function recordCacheMiss(): void { apiCacheMisses++; }
 
 /** Cache header for static GTFS data */
 const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-while-revalidate=${CACHE_TTLS.gtfsStaticStale}`;
@@ -265,7 +298,13 @@ export function createApp(
 ): Hono {
   const app = new Hono();
 
-  // Apply compression to all API routes
+  // Security headers on all responses (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+  app.use("*", securityHeaders());
+
+  // Rate limiting on all API routes (60 req/min per IP, token bucket)
+  app.use("/api/*", rateLimiter());
+
+  // Compression for API responses
   app.use("/api/*", compressionMiddleware());
 
   const stationToComplex = buildStationToComplexMap(complexes);
@@ -294,39 +333,69 @@ export function createApp(
     );
     const alertsOk = !alertsStatus.circuitOpen && alertsStatus.lastSuccessAt !== null;
 
-    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
+    // Count feeds that have been failing for >5 minutes
+    const now = Date.now();
+    const failingFeeds = feedStates.filter(
+      (f) => f.consecutiveFailures > 0 && f.lastSuccessAt !== null && now - f.lastSuccessAt > 300_000
+    );
+    const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
-    return c.json({
-      status,
-      timestamp: new Date().toISOString(),
-      feeds: feedStates.map((f) => ({
-        id: f.id,
-        name: f.name,
-        status:
-          f.circuitOpenAt !== null
-            ? "circuit_open"
-            : f.lastSuccessAt === null
-              ? "never_polled"
-              : f.isStale
-                ? "stale"
-                : "ok",
-        lastSuccessAt: f.lastSuccessAt ? new Date(f.lastSuccessAt).toISOString() : null,
-        lastPollAt: f.lastPollAt ? new Date(f.lastPollAt).toISOString() : null,
-        consecutiveFailures: f.consecutiveFailures,
-        entityCount: f.entityCount,
-        lastError: f.lastErrorMessage,
-        tripReplacementPeriod: f.tripReplacementPeriod,
-      })),
-      alerts: {
-        count: alertsStatus.alertCount,
-        lastSuccessAt: alertsStatus.lastSuccessAt,
-        matchRate: alertsStatus.matchRate,
-        consecutiveFailures: alertsStatus.consecutiveFailures,
-        circuitOpen: alertsStatus.circuitOpen,
-        unmatchedCount: alertsStatus.unmatchedCount,
+    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
+    const httpStatus = unhealthy ? 503 : 200;
+
+    const totalRequests = apiCacheHits + apiCacheMisses;
+    const cacheHitRate = totalRequests > 0 ? Math.round((apiCacheHits / totalRequests) * 100) / 100 : 0;
+
+    const memUsage = process.memoryUsage();
+
+    return c.json(
+      {
+        status,
+        timestamp: new Date().toISOString(),
+        uptime_seconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+        feeds: feedStates.map((f) => ({
+          id: f.id,
+          name: f.name,
+          status:
+            f.circuitOpenAt !== null
+              ? "circuit_open"
+              : f.lastSuccessAt === null
+                ? "never_polled"
+                : f.isStale
+                  ? "stale"
+                  : "ok",
+          lastSuccessAt: f.lastSuccessAt ? new Date(f.lastSuccessAt).toISOString() : null,
+          lastPollAt: f.lastPollAt ? new Date(f.lastPollAt).toISOString() : null,
+          consecutiveFailures: f.consecutiveFailures,
+          entityCount: f.entityCount,
+          lastError: f.lastErrorMessage,
+          tripReplacementPeriod: f.tripReplacementPeriod,
+          avgLatencyMs: avgLatency(f.latencyHistory),
+          errorCount24h: errorCount24h(f.errorTimestamps),
+          parseErrors: f.parseErrors,
+        })),
+        alerts: {
+          count: alertsStatus.alertCount,
+          lastSuccessAt: alertsStatus.lastSuccessAt,
+          matchRate: alertsStatus.matchRate,
+          consecutiveFailures: alertsStatus.consecutiveFailures,
+          circuitOpen: alertsStatus.circuitOpen,
+          unmatchedCount: alertsStatus.unmatchedCount,
+        },
+        delayDetector: getDelayDetectorStatus(),
+        equipment: getEquipmentStatus(),
+        pushSubscriptions: getSubscriptionCount(),
+        cacheHitRate,
+        memory: {
+          rssBytes: memUsage.rss,
+          heapUsedBytes: memUsage.heapUsed,
+          heapTotalBytes: memUsage.heapTotal,
+          externalBytes: memUsage.external,
+        },
+        failingFeedsCount: failingFeeds.length,
       },
-      pushSubscriptions: getSubscriptionCount(),
-    });
+      httpStatus as 200
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -340,8 +409,15 @@ export function createApp(
       return c.json({ error: "Station not found or no data yet" }, 404);
     }
 
+    // Inject equipment status into arrivals response
+    const equipmentSummary = getEquipmentForStation(stationId);
+    const response = {
+      ...arrivals,
+      equipment: equipmentSummary?.equipment ?? [],
+    };
+
     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-    return c.json(arrivals);
+    return c.json(response);
   });
 
   // -------------------------------------------------------------------------
@@ -458,18 +534,10 @@ export function createApp(
   // -------------------------------------------------------------------------
   app.post("/api/commute/analyze", async (c) => {
     try {
-      const body = await c.req.json<{
-        originId: string;
-        destinationId: string;
-        preferredLines?: string[];
-        commuteId?: string;
-      }>();
+      const body = await validateBody(c, commuteAnalyzeRequestSchema);
+      if (!body) return;
 
-      const { originId, destinationId, preferredLines = [], commuteId = "default" } = body;
-
-      if (!originId || !destinationId) {
-        return c.json({ error: "originId and destinationId are required" }, 400);
-      }
+      const { originId, destinationId, preferredLines = [], commuteId = "default", accessibleMode = false } = body;
 
       if (!stations[originId]) {
         return c.json({ error: `Origin station not found: ${originId}` }, 404);
@@ -482,7 +550,8 @@ export function createApp(
         originId,
         destinationId,
         preferredLines,
-        commuteId
+        commuteId,
+        accessibleMode
       );
 
       c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
@@ -503,28 +572,80 @@ export function createApp(
   // Alerts
   // -------------------------------------------------------------------------
   app.get("/api/alerts", (c) => {
-    const alerts = getAllAlerts();
+    const officialAlerts = getAllAlerts();
+    const predictedAlerts = getPredictedAlerts();
     const status = getAlertsStatus();
+    const delayDetector = getDelayDetectorStatus();
+
+    // Merge official + predicted alerts; predicted are tagged with source field
+    const alerts = [...officialAlerts, ...predictedAlerts];
 
     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
     return c.json({
       alerts,
       meta: {
         count: alerts.length,
+        officialCount: officialAlerts.length,
+        predictedCount: predictedAlerts.length,
         lastUpdatedAt: status.lastSuccessAt,
         matchRate: status.matchRate,
         consecutiveFailures: status.consecutiveFailures,
         circuitOpen: status.circuitOpen,
+        delayDetector,
       },
     });
   });
 
   app.get("/api/alerts/:lineId", (c) => {
     const lineId = c.req.param("lineId").toUpperCase();
-    const alerts = getAlertsForLine(lineId);
+    const officialAlerts = getAlertsForLine(lineId);
+    const predictedAlerts = getPredictedAlerts().filter((a) => a.affectedLines.includes(lineId));
+    const alerts = [...officialAlerts, ...predictedAlerts];
 
     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
     return c.json({ alerts, lineId });
+  });
+
+  // -------------------------------------------------------------------------
+  // Equipment (elevator/escalator outages)
+  // -------------------------------------------------------------------------
+  app.get("/api/equipment", (c) => {
+    const summaries = getAllEquipment();
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json({ stations: summaries, count: summaries.length });
+  });
+
+  app.get("/api/equipment/:stationId", (c) => {
+    const stationId = c.req.param("stationId");
+    const summary = getEquipmentForStation(stationId);
+
+    if (!summary) {
+      return c.json({ stationId, equipment: [], adaAccessible: true }, 200);
+    }
+
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json(summary);
+  });
+
+  // -------------------------------------------------------------------------
+  // Live trip tracking
+  // -------------------------------------------------------------------------
+  app.get("/api/trip/:tripId", (c) => {
+    const tripId = c.req.param("tripId");
+
+    if (!tripId) {
+      return c.json({ error: "tripId is required" }, 400);
+    }
+
+    const trip = lookupTrip(tripId, stations);
+
+    if (!trip) {
+      return c.json({ error: "Trip not found or no longer active" }, 404);
+    }
+
+    // Short cache: trip data updates every 30s with the feed
+    c.header("Cache-Control", "public, max-age=15");
+    return c.json(trip);
   });
 
   // -------------------------------------------------------------------------
@@ -545,15 +666,8 @@ export function createApp(
   /** Register a push subscription */
   app.post("/api/push/subscribe", async (c) => {
     try {
-      const body = await c.req.json<PushSubscribeRequest>();
-
-      if (
-        !body.subscription?.endpoint ||
-        !body.subscription?.keys?.p256dh ||
-        !body.subscription?.keys?.auth
-      ) {
-        return c.json({ error: "Invalid subscription object" }, 400);
-      }
+      const body = await validateBody(c, pushSubscribeRequestSchema);
+      if (!body) return;
 
       upsertSubscription(body);
 

@@ -22,7 +22,10 @@ import type {
 } from "@mta-my-way/shared";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
+import { initDelayDetector } from "./delay-detector.js";
+import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { initPoller, startPoller } from "./poller.js";
+import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
 import { initPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
@@ -74,7 +77,10 @@ async function main(): Promise<void> {
     ]);
 
     // Load travel times into module cache before createApp builds the TransferEngine
-    await loadTravelTimes(join(DATA_DIR, "travel-times.json"));
+    const travelTimes = await loadTravelTimes(join(DATA_DIR, "travel-times.json"));
+
+    // Initialize delay detector for predictive alerts
+    initDelayDetector(travelTimes, routes, stations);
 
     console.log(
       JSON.stringify({
@@ -112,6 +118,10 @@ async function main(): Promise<void> {
   initPoller(stations, routes);
   startPoller();
   startAlertsPoller();
+
+  // Equipment poller (elevator/escalator outages)
+  initEquipmentPoller(stations);
+  startEquipmentPoller();
 
   // HTTP server
   serve({ fetch: app.fetch, port: PORT }, (info) => {

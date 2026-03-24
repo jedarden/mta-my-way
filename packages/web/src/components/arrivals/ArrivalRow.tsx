@@ -13,6 +13,7 @@
 import type { ArrivalTime } from "@mta-my-way/shared";
 import { formatMinutesAway } from "@mta-my-way/shared";
 import type { StalenessLevel } from "../../hooks/useStaleness";
+import { computeFeedFreshness } from "../../hooks/useFeedFreshness";
 import { ConfidenceBar } from "./ConfidenceBar";
 import { LineBullet } from "./LineBullet";
 
@@ -27,6 +28,12 @@ interface ArrivalRowProps {
   compact?: boolean;
   /** Staleness level for visual indication */
   staleness?: StalenessLevel;
+  /** Show "I'm on this train" button */
+  showTrackButton?: boolean;
+  /** Handler for "I'm on this train" button */
+  onTrackTrip?: () => void;
+  /** Whether this arrival is an offline estimate (not live data) */
+  isEstimated?: boolean;
 }
 
 /** Map staleness level to Tailwind classes */
@@ -47,12 +54,25 @@ export function ArrivalRow({
   showLine = true,
   compact = false,
   staleness = "fresh",
+  showTrackButton = false,
+  onTrackTrip,
 }: ArrivalRowProps) {
-  const { line, destination, minutesAway, confidence, isAssigned, isExpress } = arrival;
+  const { line, destination, minutesAway, confidence, isAssigned, isExpress, feedAge } = arrival;
 
   // Format arrival time - "now", "2 min", "12 min"
   const timeDisplay = formatMinutesAway(minutesAway);
   const stalenessClass = getStalenessClass(staleness);
+
+  // Per-arrival feed freshness for visual indicators
+  const freshness = computeFeedFreshness(feedAge);
+
+  // Merge per-arrival freshness with station-level staleness
+  const feedTintClass = freshness.isOutdated
+    ? "opacity-50 grayscale-[50%]"
+    : freshness.isStale
+      ? "ring-1 ring-amber-400/30"
+      : "";
+  const mergedClass = stalenessClass || feedTintClass;
 
   // In compact mode, show less info
   if (compact) {
@@ -60,7 +80,7 @@ export function ArrivalRow({
       <div
         className={`
           flex items-center gap-2 py-1 transition-opacity duration-300
-          ${stalenessClass}
+          ${mergedClass}
           ${onClick ? "cursor-pointer active:bg-surface dark:active:bg-dark-surface" : ""}
         `}
         onClick={onClick}
@@ -83,54 +103,84 @@ export function ArrivalRow({
           {timeDisplay}
         </span>
         <ConfidenceBar confidence={confidence} lineId={line} className="ml-auto" />
+        {freshness.isOutdated && (
+          <span className="text-10 text-red-500 dark:text-red-400 shrink-0">stale</span>
+        )}
       </div>
     );
   }
 
   return (
-    <div
-      className={`
-        flex items-center gap-3 py-3 px-4
-        bg-surface dark:bg-dark-surface rounded-lg
-        transition-opacity duration-300
-        ${stalenessClass}
-        ${onClick ? "cursor-pointer active:opacity-80" : ""}
-        min-h-touch
-      `}
-      onClick={onClick}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={(e) => {
-        if (onClick && (e.key === "Enter" || e.key === " ")) {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-    >
-      {/* Line bullet */}
-      {showLine && <LineBullet line={line} size="md" />}
+    <>
+      <div
+        className={`
+          flex items-center gap-3 py-3 px-4
+          bg-surface dark:bg-dark-surface rounded-lg
+          transition-opacity duration-300
+          ${showTrackButton && !compact ? "rounded-b-none" : ""}
+          ${mergedClass}
+          ${onClick ? "cursor-pointer active:opacity-80" : ""}
+          min-h-touch
+        `}
+        onClick={onClick}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={(e) => {
+          if (onClick && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        {/* Line bullet */}
+        {showLine && <LineBullet line={line} size="md" />}
 
-      {/* Destination */}
-      <div className="flex-1 min-w-0">
-        <p className="text-base font-medium text-text-primary dark:text-dark-text-primary truncate">
-          {destination}
-        </p>
-        <div className="flex items-center gap-2">
-          {isExpress && <ExpressBadge />}
-          {!isAssigned && (
-            <p className="text-13 text-text-secondary dark:text-dark-text-secondary">Scheduled</p>
-          )}
+        {/* Destination */}
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-medium text-text-primary dark:text-dark-text-primary truncate">
+            {destination}
+          </p>
+          <div className="flex items-center gap-2">
+            {isExpress && <ExpressBadge />}
+            {!isAssigned && (
+              <p className="text-13 text-text-secondary dark:text-dark-text-secondary">Scheduled</p>
+            )}
+            {freshness.isOutdated && (
+              <p className="text-12 text-red-500 dark:text-red-400">(data may be outdated)</p>
+            )}
+          </div>
+        </div>
+
+        {/* Arrival time - HERO number */}
+        <div className="flex flex-col items-end">
+          <span className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums">
+            {timeDisplay}
+          </span>
+          <ConfidenceBar confidence={confidence} lineId={line} />
         </div>
       </div>
 
-      {/* Arrival time - HERO number */}
-      <div className="flex flex-col items-end">
-        <span className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums">
-          {timeDisplay}
-        </span>
-        <ConfidenceBar confidence={confidence} lineId={line} />
-      </div>
-    </div>
+      {/* "I'm on this train" button */}
+      {showTrackButton && !compact && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTrackTrip?.();
+          }}
+          className={`
+            w-full py-2 rounded-b-lg
+            text-13 font-semibold text-mta-primary
+            bg-mta-primary/5 hover:bg-mta-primary/10
+            active:bg-mta-primary/15 transition-colors
+            ${mergedClass}
+          `}
+          aria-label={`Track ${destination} train`}
+        >
+          I'm on this train
+        </button>
+      )}
+    </>
   );
 }
 

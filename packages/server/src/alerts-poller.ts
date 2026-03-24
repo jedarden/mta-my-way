@@ -129,6 +129,9 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
     cache.lastSuccessAt = Date.now();
     cache.matchRate = calculateMatchRate(alerts);
 
+    const matchedCount = alerts.filter((a) => a.patternMatched).length;
+    const unmatchedCount = alerts.length - matchedCount;
+
     console.log(
       JSON.stringify({
         event: "alerts_fetch_ok",
@@ -136,7 +139,8 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
         latency_ms: Date.now() - start,
         alert_count: alerts.length,
         match_rate: Math.round(cache.matchRate * 100) / 100,
-        unmatched_count: alerts.filter((a) => !a.patternMatched).length,
+        matched_count: matchedCount,
+        unmatched_count,
       })
     );
 

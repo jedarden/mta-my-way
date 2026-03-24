@@ -6,6 +6,7 @@
 import type {
   ArrivalTime,
   CommuteAnalysis,
+  EquipmentStatus,
   PushSubscribeRequest,
   PushSubscribeResponse,
   PushUnsubscribeRequest,
@@ -13,6 +14,7 @@ import type {
   StationAlert,
   StationArrivals,
   StationComplex,
+  StationEquipmentSummary,
 } from "@mta-my-way/shared";
 
 // Re-export for use across the frontend
@@ -22,12 +24,14 @@ export type { StationComplex };
 export type {
   ArrivalTime,
   CommuteAnalysis,
+  EquipmentStatus,
   PushSubscribeRequest,
   PushSubscribeResponse,
   PushUnsubscribeRequest,
   PushUnsubscribeResponse,
   StationAlert,
   StationArrivals,
+  StationEquipmentSummary,
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
@@ -104,6 +108,61 @@ export interface AlertsResponse {
   };
 }
 
+/** Trip stop info from the /api/trip endpoint */
+export interface TripStopInfo {
+  stopId: string;
+  stationId: string | null;
+  stationName: string;
+  arrivalTime: number | null;
+  departureTime: number | null;
+  scheduledTrack: string | null;
+  actualTrack: string | null;
+}
+
+/** Trip data from the /api/trip endpoint */
+export interface TripData {
+  tripId: string;
+  routeId: string;
+  direction: "N" | "S" | null;
+  destination: string;
+  isAssigned: boolean;
+  trainId: string | null;
+  stops: TripStopInfo[];
+  currentStopIndex: number;
+  updatedAt: number;
+  feedAge: number;
+}
+
+/** Feed status from /api/health */
+export interface FeedHealthInfo {
+  id: string;
+  name: string;
+  status: "ok" | "stale" | "circuit_open" | "never_polled";
+  lastSuccessAt: string | null;
+  lastPollAt: string | null;
+  consecutiveFailures: number;
+  entityCount: number;
+  lastError: string | null;
+  avgLatencyMs: number;
+  errorCount24h: number;
+}
+
+/** Full health response from /api/health */
+export interface HealthResponse {
+  status: string;
+  timestamp: string;
+  uptime_seconds: number;
+  feeds: FeedHealthInfo[];
+  alerts: {
+    count: number;
+    lastSuccessAt: string | null;
+    matchRate: number;
+    consecutiveFailures: number;
+    circuitOpen: boolean;
+  };
+  failingFeedsCount: number;
+}
+
 // API Endpoints
 export const api = {
   // Stations
@@ -141,8 +200,8 @@ export const api = {
   },
 
   // Health
-  async getHealth(): Promise<{ status: string; uptime: number }> {
-    return fetchJson<{ status: string; uptime: number }>("/api/health");
+  async getHealth(): Promise<HealthResponse> {
+    return fetchJson<HealthResponse>("/api/health");
   },
 
   // Commute analysis
@@ -151,11 +210,21 @@ export const api = {
     destinationId: string;
     preferredLines?: string[];
     commuteId?: string;
+    accessibleMode?: boolean;
   }): Promise<CommuteAnalysis> {
     return fetchJson<CommuteAnalysis>("/api/commute/analyze", {
       method: "POST",
       body: JSON.stringify(options),
     });
+  },
+
+  // Equipment status
+  async getEquipment(stationId: string): Promise<StationEquipmentSummary> {
+    return fetchJson<StationEquipmentSummary>(`/api/equipment/${stationId}`);
+  },
+
+  async getAllEquipment(): Promise<{ stations: StationEquipmentSummary[]; count: number }> {
+    return fetchJson<{ stations: StationEquipmentSummary[]; count: number }>("/api/equipment");
   },
 
   // Push notifications
@@ -175,6 +244,11 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify(request),
     });
+  },
+
+  // Live trip tracking
+  async getTrip(tripId: string): Promise<TripData> {
+    return fetchJson<TripData>(`/api/trip/${encodeURIComponent(tripId)}`);
   },
 };
 

@@ -9,7 +9,9 @@ const SearchScreen = lazy(() => import("./screens/SearchScreen"));
 const CommuteScreen = lazy(() => import("./screens/CommuteScreen"));
 const AlertsScreen = lazy(() => import("./screens/AlertsScreen"));
 const StationScreen = lazy(() => import("./screens/StationScreen"));
+const TripScreen = lazy(() => import("./screens/TripScreen"));
 const SettingsScreen = lazy(() => import("./screens/SettingsScreen"));
+const HealthScreen = lazy(() => import("./screens/HealthScreen"));
 
 function App() {
   return (
@@ -21,7 +23,9 @@ function App() {
           <Route path="/commute" element={<CommuteScreen />} />
           <Route path="/commute/:commuteId" element={<CommuteScreen />} />
           <Route path="/alerts" element={<AlertsScreen />} />
+          <Route path="/health" element={<HealthScreen />} />
           <Route path="/station/:stationId" element={<StationScreen />} />
+          <Route path="/trip/:tripId" element={<TripScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
