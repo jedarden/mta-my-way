@@ -113,6 +113,18 @@ export type {
 } from "./types/push.js";
 
 // =============================================================================
+// Validation Schemas (Zod)
+// =============================================================================
+
+export {
+  pushFavoriteTupleSchema,
+  pushSubscribeRequestSchema,
+  pushUnsubscribeRequestSchema,
+  pushUpdateRequestSchema,
+  commuteAnalyzeRequestSchema,
+} from "./schemas/index.js";
+
+// =============================================================================
 // Constants
 // =============================================================================
 
@@ -181,6 +193,16 @@ export {
   calculateJourneyConfidence,
   getDivision,
 } from "./utils/confidence.js";
+
+// Data freshness utilities
+export {
+  getFreshnessLevel,
+  getFreshnessTextColor,
+  getFreshnessDotColor,
+  formatFeedAge,
+} from "./utils/freshness.js";
+
+export type { FreshnessLevel } from "./utils/freshness.js";
 
 // Walking distance and time calculation
 export {
