@@ -78,7 +78,7 @@ function buildStopToStationIdMap(stations: StationIndex): Map<string, string> {
  */
 function inferDirection(stops: TripStopInfo[]): "N" | "S" | null {
   if (stops.length < 2) return null;
-  const firstStopId = stops[0].stopId;
+  const firstStopId = stops[0]!.stopId;
   if (firstStopId.endsWith("N")) return "N";
   if (firstStopId.endsWith("S")) return "S";
   return null;
@@ -91,7 +91,8 @@ function inferDirection(stops: TripStopInfo[]): "N" | "S" | null {
 function findCurrentStopIndex(stops: TripStopInfo[], nowSeconds: number): number {
   let lastPassed = -1;
   for (let i = 0; i < stops.length; i++) {
-    const departure = stops[i].departureTime ?? stops[i].arrivalTime;
+    const stop = stops[i]!;
+    const departure = stop.departureTime ?? stop.arrivalTime;
     if (departure !== null && departure < nowSeconds) {
       lastPassed = i;
     }
@@ -150,7 +151,7 @@ export function lookupTrip(tripId: string, stations: StationIndex): TripData | n
   const stopToStationId = buildStopToStationIdMap(stations);
   const nowSeconds = Math.floor(Date.now() / 1000);
 
-  for (const [feedId, parsed] of parsedFeeds) {
+  for (const [_feedId, parsed] of parsedFeeds) {
     for (const entity of parsed.message.entity) {
       if (entity.isDeleted || !entity.tripUpdate) continue;
 

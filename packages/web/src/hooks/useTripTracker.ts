@@ -46,16 +46,18 @@ const POLL_INTERVAL_MS = 30_000;
 function deriveStops(trip: TripData): TripStopProgress[] {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const { stops, currentStopIndex } = trip;
+  const lastStopIndex = stops.length - 1;
 
   return stops.map((stop, index) => {
     let status: TripStopProgress["status"];
 
-    if (index <= currentStopIndex) {
+    // Check destination first - the last stop is always the destination
+    if (index === lastStopIndex) {
+      status = "destination";
+    } else if (index <= currentStopIndex) {
       status = index === currentStopIndex ? "current" : "passed";
     } else if (index === currentStopIndex + 1) {
       status = "next";
-    } else if (index === stops.length - 1) {
-      status = "destination";
     } else {
       status = "upcoming";
     }
