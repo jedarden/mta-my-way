@@ -8,6 +8,8 @@
  * Identifies which station+line+direction combos the user cares about
  */
 export interface PushFavoriteTuple {
+  /** Favorite UUID for correlating with morningScores */
+  id: string;
   /** Parent station ID, e.g., "725" */
   stationId: string;
   /** Lines to watch, e.g., ["1", "2", "3"] */
@@ -123,6 +125,8 @@ export interface PushSubscriptionRecord {
   favorites: string; // JSON-encoded PushFavoriteTuple[]
   /** JSON object of quiet hours config */
   quietHours: string; // JSON-encoded quiet hours
+  /** JSON object of morning relevance scores */
+  morningScores: string; // JSON-encoded MorningScoreMap
   /** ISO timestamp when subscription was created */
   createdAt: string;
   /** ISO timestamp of last update */

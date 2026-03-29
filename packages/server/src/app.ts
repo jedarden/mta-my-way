@@ -47,7 +47,7 @@ import {
 } from "@mta-my-way/shared";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
-import { avgLatency, errorCount24h, getArrivals, getFeedStates } from "./cache.js";
+import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import {
   getEquipmentForStation,
@@ -62,6 +62,7 @@ import {
   getSubscriptionCount,
   removeSubscription,
   updateSubscriptionFavorites,
+  updateSubscriptionMorningScores,
   updateSubscriptionQuietHours,
   upsertSubscription,
 } from "./push/subscriptions.js";
@@ -649,6 +650,21 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
+  // Train positions (for line diagram)
+  // -------------------------------------------------------------------------
+  app.get("/api/positions/:lineId", (c) => {
+    const lineId = c.req.param("lineId").toUpperCase();
+    const positions = getPositions(lineId);
+
+    if (!positions) {
+      return c.json({ error: "No position data for line", lineId, trains: [] }, 404);
+    }
+
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json(positions);
+  });
+
+  // -------------------------------------------------------------------------
   // Push notification API
   // -------------------------------------------------------------------------
 
@@ -735,6 +751,10 @@ export function createApp(
 
       if (body.quietHours) {
         updateSubscriptionQuietHours(body.endpoint, body.quietHours);
+      }
+
+      if (body.morningScores) {
+        updateSubscriptionMorningScores(body.endpoint, body.morningScores);
       }
 
       return c.json({ success: true });

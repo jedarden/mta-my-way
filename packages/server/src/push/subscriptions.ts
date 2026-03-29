@@ -151,7 +151,7 @@ export function getAllSubscriptions(): PushSubscriptionRecord[] {
   const database = getDb();
 
   const stmt = database.prepare(
-    "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions"
+    "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions"
   );
 
   return stmt.all() as PushSubscriptionRecord[];
@@ -202,6 +202,25 @@ export function updateSubscriptionQuietHours(
     "UPDATE push_subscriptions SET quiet_hours = ?, updated_at = ? WHERE endpoint_hash = ?"
   );
   const result = stmt.run(JSON.stringify(quietHours), now, endpointHash);
+
+  return result.changes > 0;
+}
+
+/**
+ * Update morning scores for an existing subscription.
+ */
+export function updateSubscriptionMorningScores(
+  endpoint: string,
+  morningScores: MorningScoreMap
+): boolean {
+  const database = getDb();
+  const endpointHash = hashEndpoint(endpoint);
+  const now = new Date().toISOString();
+
+  const stmt = database.prepare(
+    "UPDATE push_subscriptions SET morning_scores = ?, updated_at = ? WHERE endpoint_hash = ?"
+  );
+  const result = stmt.run(JSON.stringify(morningScores), now, endpointHash);
 
   return result.changes > 0;
 }

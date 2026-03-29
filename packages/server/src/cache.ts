@@ -16,7 +16,7 @@
  */
 
 import { SUBWAY_FEEDS } from "@mta-my-way/shared";
-import type { StationArrivals } from "@mta-my-way/shared";
+import type { LinePositions, StationArrivals, TrainPosition } from "@mta-my-way/shared";
 import type { ParsedFeed } from "./parser.js";
 
 /** Number of consecutive failures before the circuit opens */
@@ -233,4 +233,38 @@ export function getArrivals(stationId: string): StationArrivals | null {
 
 export function getAllArrivals(): Map<string, StationArrivals> {
   return arrivalsCache;
+}
+
+// ---------------------------------------------------------------------------
+// Positions cache (for train diagram)
+// ---------------------------------------------------------------------------
+
+/** Positions indexed by routeId, rebuilt on each poll cycle */
+let positionsCache = new Map<string, LinePositions>();
+
+/** When the positions cache was last updated */
+let positionsFetchedAt = 0;
+
+export function updatePositions(
+  positions: Map<string, LinePositions>,
+  fetchedAt: number
+): void {
+  positionsCache = positions;
+  positionsFetchedAt = fetchedAt;
+}
+
+export function getPositions(routeId: string): LinePositions | null {
+  const positions = positionsCache.get(routeId.toUpperCase());
+  if (!positions) return null;
+
+  // Update feedAge based on current time
+  const feedAge = Math.floor((Date.now() - positionsFetchedAt) / 1000);
+  return {
+    ...positions,
+    feedAge,
+  };
+}
+
+export function getAllPositions(): Map<string, LinePositions> {
+  return positionsCache;
 }

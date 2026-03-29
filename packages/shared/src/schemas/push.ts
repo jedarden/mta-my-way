@@ -7,6 +7,7 @@ import { z } from "zod";
 
 /** A single station/line/direction favorite tuple */
 export const pushFavoriteTupleSchema = z.object({
+  id: z.string().min(1),
   stationId: z.string().min(1),
   lines: z.array(z.string()).min(1),
   direction: z.enum(["N", "S", "both"]),

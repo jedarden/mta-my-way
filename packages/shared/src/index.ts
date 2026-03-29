@@ -110,6 +110,7 @@ export type {
   PushUnsubscribeResponse,
   PushSubscriptionRecord,
   PushUpdateRequest,
+  MorningScoreMap,
 } from "./types/push.js";
 
 // =============================================================================

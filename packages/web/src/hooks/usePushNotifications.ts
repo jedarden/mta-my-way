@@ -280,6 +280,7 @@ export function usePushNotifications(): PushNotificationsState {
 
       // 4. Build the PushFavoriteTuple list from the user's current favorites
       const favoriteTuples: PushFavoriteTuple[] = favorites.map((fav) => ({
+        id: fav.id,
         stationId: fav.stationId,
         lines: fav.lines,
         direction: fav.direction,
