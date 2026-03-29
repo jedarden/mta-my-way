@@ -56,6 +56,7 @@ export function ArrivalRow({
   staleness = "fresh",
   showTrackButton = false,
   onTrackTrip,
+  isEstimated = false,
 }: ArrivalRowProps) {
   const { line, destination, minutesAway, confidence, isAssigned, isExpress, feedAge } = arrival;
 
@@ -99,6 +100,7 @@ export function ArrivalRow({
       >
         {showLine && <LineBullet line={line} size="sm" />}
         {isExpress && <ExpressBadge />}
+        {isEstimated && <EstimatedBadge />}
         <span className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums">
           {timeDisplay}
         </span>
@@ -142,6 +144,7 @@ export function ArrivalRow({
           </p>
           <div className="flex items-center gap-2">
             {isExpress && <ExpressBadge />}
+            {isEstimated && <EstimatedBadge />}
             {!isAssigned && (
               <p className="text-13 text-text-secondary dark:text-dark-text-secondary">Scheduled</p>
             )}
@@ -196,6 +199,20 @@ function ExpressBadge() {
       title="Express service — skips stops"
     >
       EXP
+    </span>
+  );
+}
+
+// ─── Estimated badge (offline countdown) ───────────────────────────────────
+
+function EstimatedBadge() {
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-amber-500/10 text-amber-600 dark:text-amber-400"
+      aria-label="Estimated time based on cached data"
+      title="Offline estimate — refresh when connected"
+    >
+      EST
     </span>
   );
 }

@@ -19,3 +19,13 @@ export { useOnlineStatus } from "./useOnlineStatus";
 
 export { useStaleness } from "./useStaleness";
 export type { StalenessLevel, StalenessState } from "./useStaleness";
+
+// Geofence and prefetch hooks for underground caching
+export { useGeofence } from "./useGeofence";
+export type { GeofenceEvent, UseGeofenceOptions, UseGeofenceReturn } from "./useGeofence";
+
+export { usePrefetch } from "./usePrefetch";
+export type { UsePrefetchReturn } from "./usePrefetch";
+
+export { useOfflineCountdown } from "./useOfflineCountdown";
+export type { EstimatedArrival, OfflineCountdownState } from "./useOfflineCountdown";
