@@ -8,6 +8,7 @@
 
 import { createHash } from "node:crypto";
 import type {
+  MorningScoreMap,
   PushFavoriteTuple,
   PushSubscribeRequest,
   PushSubscriptionRecord,
@@ -40,6 +41,7 @@ export function initPushDatabase(dbPath: string): void {
       auth TEXT NOT NULL,
       favorites TEXT NOT NULL DEFAULT '[]',
       quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
+      morning_scores TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -98,19 +100,20 @@ export function upsertSubscription(request: PushSubscribeRequest): {
   endpointHash: string;
 } {
   const database = getDb();
-  const { subscription, favorites, quietHours } = request;
+  const { subscription, favorites, quietHours, morningScores } = request;
   const endpointHash = hashEndpoint(subscription.endpoint);
   const now = new Date().toISOString();
 
   const stmt = database.prepare(`
-    INSERT INTO push_subscriptions (endpoint_hash, endpoint, p256dh, auth, favorites, quiet_hours, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO push_subscriptions (endpoint_hash, endpoint, p256dh, auth, favorites, quiet_hours, morning_scores, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(endpoint_hash) DO UPDATE SET
       endpoint = excluded.endpoint,
       p256dh = excluded.p256dh,
       auth = excluded.auth,
       favorites = excluded.favorites,
       quiet_hours = excluded.quiet_hours,
+      morning_scores = excluded.morning_scores,
       updated_at = excluded.updated_at
   `);
 
@@ -121,6 +124,7 @@ export function upsertSubscription(request: PushSubscribeRequest): {
     subscription.keys.auth,
     JSON.stringify(favorites),
     JSON.stringify(quietHours ?? { enabled: false, startHour: 22, endHour: 7 }),
+    JSON.stringify(morningScores ?? {}),
     now
   );
 

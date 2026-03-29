@@ -101,6 +101,43 @@ function detectSupport(): boolean {
   );
 }
 
+/** Morning window: 6 AM to 10 AM */
+const MORNING_HOUR_START = 6;
+const MORNING_HOUR_END = 10;
+
+/** Only weekdays count for morning commute scoring */
+function isWeekday(day: number): boolean {
+  return day >= 1 && day <= 5;
+}
+
+/**
+ * Compute morning relevance scores from tap history.
+ * Counts taps on weekdays between 6-10 AM.
+ */
+function computeMorningScores(
+  favorites: { id: string }[],
+  tapHistory: { favoriteId: string; dayOfWeek: number; hour: number }[]
+): MorningScoreMap {
+  const scores: MorningScoreMap = {};
+  for (const fav of favorites) {
+    let score = 0;
+    for (const tap of tapHistory) {
+      if (
+        tap.favoriteId === fav.id &&
+        isWeekday(tap.dayOfWeek) &&
+        tap.hour >= MORNING_HOUR_START &&
+        tap.hour < MORNING_HOUR_END
+      ) {
+        score++;
+      }
+    }
+    if (score > 0) {
+      scores[fav.id] = score;
+    }
+  }
+  return scores;
+}
+
 /** Persist the VAPID key to localStorage so subscribe() can work when offline */
 function cacheVapidKey(key: string): void {
   try {
@@ -171,7 +208,14 @@ export function usePushNotifications(): PushNotificationsState {
   const [error, setError] = useState<string | null>(null);
 
   const favorites = useFavoritesStore((s) => s.favorites);
+  const tapHistory = useFavoritesStore((s) => s.tapHistory);
   const quietHours = useSettingsStore((s) => s.quietHours);
+
+  // Compute morning scores for push notification personalization
+  const morningScores = useMemo(
+    () => computeMorningScores(favorites, tapHistory),
+    [favorites, tapHistory]
+  );
 
   // Check existing subscription status on mount
   useEffect(() => {
@@ -254,6 +298,7 @@ export function usePushNotifications(): PushNotificationsState {
         },
         favorites: favoriteTuples,
         quietHours: quietHours ?? { enabled: false, startHour: 0, endHour: 5 },
+        morningScores,
       };
 
       try {
@@ -403,6 +448,7 @@ export function usePushNotifications(): PushNotificationsState {
             endpoint: pushSub.endpoint,
             favorites: favoriteTuples,
             quietHours: quietHours ?? { enabled: false, startHour: 0, endHour: 5 },
+            morningScores,
           }),
         });
       } catch {
@@ -411,7 +457,7 @@ export function usePushNotifications(): PushNotificationsState {
     };
 
     void sync();
-  }, [isSubscribed, isSupported, favorites, quietHours]);
+  }, [isSubscribed, isSupported, favorites, quietHours, morningScores]);
 
   return {
     isSupported,

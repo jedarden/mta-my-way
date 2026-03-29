@@ -17,6 +17,12 @@ export interface PushFavoriteTuple {
 }
 
 /**
+ * Map of favoriteId -> morning relevance score
+ * Used by server to prioritize morning briefing push notifications
+ */
+export type MorningScoreMap = Record<string, number>;
+
+/**
  * Payload sent from frontend to POST /api/push/subscribe
  */
 export interface PushSubscribeRequest {
@@ -36,6 +42,8 @@ export interface PushSubscribeRequest {
     startHour: number;
     endHour: number;
   };
+  /** Morning relevance scores for morning briefing prioritization */
+  morningScores?: MorningScoreMap;
 }
 
 /**
@@ -95,6 +103,8 @@ export interface PushUpdateRequest {
     startHour: number;
     endHour: number;
   };
+  /** Updated morning relevance scores (optional) */
+  morningScores?: MorningScoreMap;
 }
 
 /**

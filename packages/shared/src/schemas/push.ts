@@ -29,6 +29,7 @@ export const pushSubscribeRequestSchema = z.object({
       endHour: z.number().int().min(0).max(23),
     })
     .optional(),
+  morningScores: z.record(z.string(), z.number().int().min(0)).optional(),
 });
 
 /** DELETE /api/push/unsubscribe */
@@ -48,7 +49,8 @@ export const pushUpdateRequestSchema = z
         endHour: z.number().int().min(0).max(23),
       })
       .optional(),
+    morningScores: z.record(z.string(), z.number().int().min(0)).optional(),
   })
-  .refine((data) => data.favorites !== undefined || data.quietHours !== undefined, {
-    message: "favorites or quietHours is required",
+  .refine((data) => data.favorites !== undefined || data.quietHours !== undefined || data.morningScores !== undefined, {
+    message: "favorites, quietHours, or morningScores is required",
   });

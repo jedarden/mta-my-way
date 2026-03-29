@@ -12,7 +12,7 @@
  * display an "estimated" badge.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ArrivalTime, StationArrivals } from "@mta-my-way/shared";
 import { getPrefetchedArrivals } from "../lib/prefetch";
 import { useOnlineStatus } from "./useOnlineStatus";
