@@ -48,6 +48,7 @@ import {
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
+import { buildLineDiagram } from "./positions-interpolator.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import {
   getEquipmentForStation,
@@ -395,7 +396,7 @@ export function createApp(
         },
         failingFeedsCount: failingFeeds.length,
       },
-      httpStatus as 200
+      httpStatus as 200 | 503
     );
   });
 
@@ -407,8 +408,11 @@ export function createApp(
     const arrivals = getArrivals(stationId);
 
     if (!arrivals) {
+      apiCacheMisses++; // Track cache miss (station not in cache)
       return c.json({ error: "Station not found or no data yet" }, 404);
     }
+
+    apiCacheHits++; // Track cache hit
 
     // Inject equipment status into arrivals response
     const equipmentSummary = getEquipmentForStation(stationId);
@@ -660,8 +664,15 @@ export function createApp(
       return c.json({ error: "No position data for line", lineId, trains: [] }, 404);
     }
 
+    // Build interpolated diagram data
+    const diagramData = buildLineDiagram(positions, lineId, routes, stations);
+
+    if (!diagramData) {
+      return c.json({ error: "Route not found", lineId, trains: [] }, 404);
+    }
+
     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-    return c.json(positions);
+    return c.json(diagramData);
   });
 
   // -------------------------------------------------------------------------

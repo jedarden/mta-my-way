@@ -155,8 +155,10 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
         event: "feed_ok",
         timestamp: new Date().toISOString(),
         feed: config.id,
+        status: "ok",
         latency_ms: Date.now() - start,
         entities: parsed.entityCount,
+        parseErrors: 0, // Protobuf decode either succeeds or throws
       })
     );
     return true;
@@ -169,6 +171,7 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
         event: "feed_error",
         timestamp: new Date().toISOString(),
         feed: config.id,
+        status: "error",
         latency_ms: Date.now() - start,
         error: message,
       })
