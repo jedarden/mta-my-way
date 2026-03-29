@@ -47,6 +47,7 @@ export default function CommuteScreen() {
 // ─── Commute List View ──────────────────────────────────────────────────
 
 function CommuteList() {
+  const navigate = useNavigate();
   const commutes = useFavoritesStore((s) => s.commutes);
   const addCommute = useFavoritesStore((s) => s.addCommute);
   const updateCommute = useFavoritesStore((s) => s.updateCommute);
@@ -149,7 +150,7 @@ function CommuteList() {
           )}
         </section>
 
-        {/* Trip journal placeholder (Phase 5) */}
+        {/* Trip journal link */}
         <section className="mt-6" aria-labelledby="journal-heading">
           <h2
             id="journal-heading"
@@ -157,11 +158,35 @@ function CommuteList() {
           >
             Trip Journal
           </h2>
-          <div className="bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
-            <p className="text-text-secondary dark:text-dark-text-secondary">
-              Your trip history will appear here
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={() => void navigate("/journal")}
+            className="w-full bg-surface dark:bg-dark-surface rounded-lg p-4 text-left flex items-center justify-between min-h-touch hover:bg-surface/80 dark:hover:bg-dark-surface/80 transition-colors"
+            aria-label="View trip journal"
+          >
+            <div>
+              <p className="font-medium text-text-primary dark:text-dark-text-primary">
+                View Trip History
+              </p>
+              <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                Your commute patterns and stats
+              </p>
+            </div>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-text-secondary dark:text-dark-text-secondary"
+              aria-hidden="true"
+            >
+              <polyline points="9,18 15,12 9,6" />
+            </svg>
+          </button>
         </section>
 
         {/* CommuteEditor modals */}

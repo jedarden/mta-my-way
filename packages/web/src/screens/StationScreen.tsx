@@ -12,7 +12,6 @@
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import type { ArrivalTime, Favorite } from "@mta-my-way/shared";
-import { useCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
@@ -34,6 +33,7 @@ import { type Station, api } from "../lib/api";
 
 export default function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
+  const navigate = useNavigate();
   const { favorites, addFavorite, updateFavorite, removeFavorite } = useFavorites();
 
   const [station, setStation] = useState<Station | null>(null);
@@ -249,7 +249,13 @@ export default function StationScreen() {
                   northbound={data.northbound}
                   southbound={data.southbound}
                   showTrackButton
-                  onTrackTrip={(arrival: ArrivalTime) => navigate(`/trip/${encodeURIComponent(arrival.tripId)}`)}
+                  onTrackTrip={(arrival: ArrivalTime) => {
+                  // Include origin station info for trip journaling
+                  const origin = encodeURIComponent(station?.id ?? "");
+                  const dest = arrival.destination ? encodeURIComponent(arrival.destination) : "";
+                  const destParam = dest ? `&dest=${dest}` : "";
+                  navigate(`/trip/${encodeURIComponent(arrival.tripId)}?origin=${origin}${destParam}`);
+                }}
                 />
                 <FreshnessFooter
                   arrivals={[...data.northbound, ...data.southbound]}

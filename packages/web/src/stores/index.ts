@@ -7,7 +7,7 @@ export {
 } from "./favoritesStore";
 export { useSettingsStore } from "./settingsStore";
 export { useArrivalsStore } from "./arrivalsStore";
-export { useJournalStore } from "./journalStore";
+export { useJournalStore, type DayOfWeekStats, type AnomalyResult } from "./journalStore";
 export { useFareStore } from "./fareStore";
 export {
   backupState,

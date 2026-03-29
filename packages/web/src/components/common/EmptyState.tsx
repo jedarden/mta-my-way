@@ -156,4 +156,41 @@ export function EmptyJournal({ className = "" }: EmptyStateBaseProps) {
   );
 }
 
-export default EmptyFavorites;
+/**
+ * Generic EmptyState - A reusable empty state with title, message, and optional action
+ */
+function GenericEmptyState({
+  title,
+  message,
+  actionLabel,
+  onAction,
+  className = "",
+}: EmptyStateBaseProps & {
+  title: string;
+  message?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div
+      className={`bg-surface dark:bg-dark-surface rounded-lg p-6 text-center ${className}`}
+      role="status"
+    >
+      <p className="text-text-secondary dark:text-dark-text-secondary mb-1 text-base">{title}</p>
+      {message && (
+        <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4">{message}</p>
+      )}
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex items-center justify-center px-4 py-3 bg-mta-primary text-white rounded-lg font-medium min-h-touch hover:opacity-90 transition-opacity"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default GenericEmptyState;

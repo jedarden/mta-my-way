@@ -115,7 +115,6 @@ export function useGeofence(options: UseGeofenceOptions = {}): UseGeofenceReturn
         // Check against all stations
         const currentStations = stationsRef.current;
         const radiusM = radiusRef.current;
-        const radiusKm = radiusM / 1000;
 
         for (const station of currentStations) {
           const distKm = haversineDistance(lat, lon, station.lat, station.lon);
@@ -139,7 +138,7 @@ export function useGeofence(options: UseGeofenceOptions = {}): UseGeofenceReturn
           }
         }
       },
-      (error) => {
+      (_error) => {
         gpsFailuresRef.current++;
         setGpsFailureCount(gpsFailuresRef.current);
 

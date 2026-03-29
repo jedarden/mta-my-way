@@ -10,7 +10,6 @@
  */
 
 import type { TripStopProgress } from "../../hooks/useTripTracker";
-import { LineBullet } from "../arrivals/LineBullet";
 
 interface TripTrackerProps {
   stops: TripStopProgress[];
@@ -22,9 +21,9 @@ interface TripTrackerProps {
 
 export function TripTracker({
   stops,
-  line,
-  destination,
-  minutesToDestination,
+  line: _line,
+  destination: _destination,
+  minutesToDestination: _minutesToDestination,
   isExpired,
 }: TripTrackerProps) {
   return (

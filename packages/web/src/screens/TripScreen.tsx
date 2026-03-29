@@ -5,6 +5,7 @@
  * - Line badge + destination as header
  * - ETA countdown as hero number
  * - Vertical timeline (TripTracker component)
+ * - Anomaly detection banner when trip is longer than usual
  * - "Stop tracking" button (prominent)
  * - Share button to generate a shareable URL
  */
@@ -15,6 +16,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { DataState } from "../components/common/DataState";
 import { TripTracker } from "../components/trip/TripTracker";
+import { useTripJournal } from "../hooks/useTripJournal";
 import { useTripTracker } from "../hooks/useTripTracker";
 import type { DataStatus } from "../hooks/useArrivals";
 
@@ -23,11 +25,47 @@ export default function TripScreen() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // destinationStation from URL params for share links
-  const destinationStation = searchParams.get("dest");
+  // URL params for journaling
+  const originStationId = searchParams.get("origin");
+  const destinationStationId = searchParams.get("dest");
 
   const { trip, stops, minutesToDestination, isActive, isLoading, error, isExpired, stop: stopTracking } =
     useTripTracker(tripId ?? null);
+
+  // Derive origin/destination names from trip data
+  const firstStop = stops[0];
+  const lastStop = stops[stops.length - 1];
+  const originStationName = firstStop?.stationName ?? "Unknown";
+  const destinationStationName = lastStop?.stationName ?? "Unknown";
+  const line = trip?.routeId ?? "";
+
+  // Trip journaling with anomaly detection
+  const { matchedCommuteId, detectAnomaly, wasLogged } = useTripJournal({
+    originStationId,
+    originStationName,
+    destinationStationId,
+    destinationStationName,
+    line,
+    stops,
+    isExpired,
+    isActive,
+  });
+
+  // Track if trip was logged when it expired (for UI feedback)
+  const [loggedOnExpire, setLoggedOnExpire] = useState(false);
+  useEffect(() => {
+    if (isExpired && wasLogged && matchedCommuteId) {
+      setLoggedOnExpire(true);
+    }
+  }, [isExpired, wasLogged, matchedCommuteId]);
+
+  // Anomaly detection for current duration
+  const [anomaly, setAnomaly] = useState<ReturnType<typeof detectAnomaly>>(null);
+  useEffect(() => {
+    if (minutesToDestination && minutesToDestination > 0) {
+      setAnomaly(detectAnomaly(minutesToDestination));
+    }
+  }, [minutesToDestination, detectAnomaly]);
 
   // Ticking ETA countdown
   const [etaDisplay, setEtaDisplay] = useState<string | null>(null);
@@ -86,12 +124,15 @@ export default function TripScreen() {
 
   const handleShare = useCallback(async () => {
     if (!tripId) return;
-    const url = `${window.location.origin}/trip/${encodeURIComponent(tripId)}${destinationStation ? `?dest=${encodeURIComponent(destinationStation)}` : ""}`;
+    const params = new URLSearchParams();
+    if (originStationId) params.set("origin", originStationId);
+    if (destinationStationId) params.set("dest", destinationStationId);
+    const url = `${window.location.origin}/trip/${encodeURIComponent(tripId)}${params.toString() ? `?${params.toString()}` : ""}`;
     try {
       if (navigator.share) {
         await navigator.share({
           title: `Live trip on ${trip?.routeId ?? ""} line`,
-          text: `Track my trip to ${trip?.destination ?? destinationStation ?? "destination"}`,
+          text: `Track my trip to ${trip?.destination ?? destinationStationId ?? "destination"}`,
           url,
         });
       } else {
@@ -100,10 +141,9 @@ export default function TripScreen() {
     } catch {
       // User cancelled share or clipboard failed — silent
     }
-  }, [tripId, trip, destinationStation]);
+  }, [tripId, trip, originStationId, destinationStationId]);
 
-  const line = trip?.routeId ?? "";
-  const destination = trip?.destination ?? destinationStation ?? "Unknown";
+  const destination = trip?.destination ?? destinationStationId ?? "Unknown";
 
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
@@ -190,9 +230,51 @@ export default function TripScreen() {
               <span className="text-3xl font-extrabold text-text-secondary dark:text-dark-text-secondary">
                 Ended
               </span>
+              {loggedOnExpire && (
+                <p className="text-13 text-mta-primary mt-1">
+                  ✓ Trip logged to your commute journal
+                </p>
+              )}
             </div>
           )}
         </section>
+
+        {/* Anomaly detection banner */}
+        {anomaly?.isAnomaly && !isExpired && (
+          <section className="px-4 mb-4">
+            <div
+              className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20"
+              role="alert"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-warning shrink-0"
+                aria-hidden="true"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-warning">
+                  {anomaly.deviationMinutes > 0
+                    ? `${anomaly.deviationMinutes} min longer than usual`
+                    : "Unusually long trip"}
+                </p>
+                <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                  Your average: ~{anomaly.baselineMinutes} min
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Trip timeline */}
         <section className="px-4">
