@@ -7,6 +7,7 @@ import type {
   ArrivalTime,
   CommuteAnalysis,
   EquipmentStatus,
+  LineDiagramData,
   LinePositions,
   PushSubscribeRequest,
   PushSubscribeResponse,
@@ -26,6 +27,7 @@ export type {
   ArrivalTime,
   CommuteAnalysis,
   EquipmentStatus,
+  LineDiagramData,
   LinePositions,
   PushSubscribeRequest,
   PushSubscribeResponse,
@@ -97,6 +99,13 @@ export interface Station {
   southStopId: string;
   borough: string;
   ada: boolean;
+}
+
+export interface Route {
+  id: string;
+  shortName: string;
+  longName: string;
+  color: string;
 }
 
 export interface AlertsResponse {
@@ -174,6 +183,15 @@ export const api = {
 
   async getStation(stationId: string): Promise<Station> {
     return fetchJson<Station>(`/api/stations/${stationId}`);
+  },
+
+  // Routes
+  async getRoutes(): Promise<Route[]> {
+    return fetchJson<Route[]>("/api/routes");
+  },
+
+  async getRoute(routeId: string): Promise<Route> {
+    return fetchJson<Route>(`/api/routes/${routeId}`);
   },
 
   // Arrivals
@@ -254,8 +272,8 @@ export const api = {
   },
 
   // Train positions for line diagram
-  async getPositions(lineId: string): Promise<LinePositions> {
-    return fetchJson<LinePositions>(`/api/positions/${encodeURIComponent(lineId)}`);
+  async getPositions(lineId: string): Promise<LineDiagramData> {
+    return fetchJson<LineDiagramData>(`/api/positions/${encodeURIComponent(lineId)}`);
   },
 };
 

@@ -8,7 +8,7 @@ interface HealthSummaryProps {
   updatedAt: number | null;
 }
 
-export function HealthSummary({ percentage, totalLines, updatedAt }: HealthSummaryProps) {
+export function HealthSummary({ percentage, totalLines }: Omit<HealthSummaryProps, 'updatedAt'>) {
   const color =
     percentage >= 90
       ? "text-green-600 dark:text-green-400"

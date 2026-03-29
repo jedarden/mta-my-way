@@ -12,6 +12,7 @@ const StationScreen = lazy(() => import("./screens/StationScreen"));
 const TripScreen = lazy(() => import("./screens/TripScreen"));
 const SettingsScreen = lazy(() => import("./screens/SettingsScreen"));
 const HealthScreen = lazy(() => import("./screens/HealthScreen"));
+const LineDiagramScreen = lazy(() => import("./screens/LineDiagramScreen"));
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/alerts" element={<AlertsScreen />} />
           <Route path="/health" element={<HealthScreen />} />
           <Route path="/station/:stationId" element={<StationScreen />} />
+          <Route path="/line/:lineId" element={<LineDiagramScreen />} />
           <Route path="/trip/:tripId" element={<TripScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />

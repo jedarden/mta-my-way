@@ -32,3 +32,7 @@ export type { UsePrefetchReturn } from "./usePrefetch";
 
 export { useOfflineCountdown } from "./useOfflineCountdown";
 export type { EstimatedArrival, OfflineCountdownState } from "./useOfflineCountdown";
+
+// Train positions for line diagram
+export { getTrainOverallProgress, usePositions } from "./usePositions";
+export type { PositionsResult, PositionsState, PositionsStatus } from "./usePositions";

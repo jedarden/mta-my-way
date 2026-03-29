@@ -21,7 +21,7 @@ import { api } from "../lib/api";
 const HIDDEN_LINES = new Set(["GS"]); // GS is a duplicate of S
 
 export default function HealthScreen() {
-  const { lines, healthPercentage, status, error, updatedAt, refresh } = useSystemHealth();
+  const { lines, healthPercentage, status, updatedAt, refresh } = useSystemHealth();
   const totalLines = lines.length;
   const navigate = useNavigate();
 
@@ -84,7 +84,7 @@ export default function HealthScreen() {
 
         {/* Overall health */}
         {status === "success" && (
-          <HealthSummary percentage={healthPercentage} totalLines={totalLines} updatedAt={updatedAt} />
+          <HealthSummary percentage={healthPercentage} totalLines={totalLines} />
         )}
 
         {/* Loading skeleton */}
@@ -122,9 +122,7 @@ export default function HealthScreen() {
                     <LineStatusTile
                       key={line.lineId}
                       line={line}
-                      onClick={() =>
-                        navigate("/alerts", { state: { focusLine: line.lineId } })
-                      }
+                      onClick={() => navigate(`/line/${line.lineId}`)}
                     />
                   ))}
                 </div>
@@ -153,10 +151,17 @@ export default function HealthScreen() {
 /** List of lines with issues, showing summary */
 function AffectedLinesList({ lines }: { lines: LineHealthStatus[] }) {
   const affected = useMemo(
-    () => lines.filter((l) => l.status !== "normal").sort((a, b) => {
-      const rank = { suspended: 3, significant_delays: 2, minor_delays: 1 };
-      return rank[b.status] - rank[a.status];
-    }),
+    () =>
+      lines
+        .filter((l) => l.status !== "normal")
+        .sort((a, b) => {
+          const rank: Record<string, number> = {
+            suspended: 3,
+            significant_delays: 2,
+            minor_delays: 1,
+          };
+          return (rank[b.status] ?? 0) - (rank[a.status] ?? 1);
+        }),
     [lines],
   );
 
