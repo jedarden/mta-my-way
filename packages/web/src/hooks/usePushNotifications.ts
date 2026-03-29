@@ -437,6 +437,7 @@ export function usePushNotifications(): PushNotificationsState {
         if (!pushSub) return;
 
         const favoriteTuples: PushFavoriteTuple[] = favorites.map((fav) => ({
+          id: fav.id,
           stationId: fav.stationId,
           lines: fav.lines,
           direction: fav.direction,
