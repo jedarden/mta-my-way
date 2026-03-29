@@ -10,7 +10,7 @@
  */
 
 import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS } from "@mta-my-way/shared";
-import type { RouteIndex, StationIndex } from "@mta-my-way/shared";
+import type { LinePositions, RouteIndex, StationIndex, TrainPosition } from "@mta-my-way/shared";
 import {
   avgLatency,
   errorCount24h,
@@ -20,6 +20,7 @@ import {
   recordFeedFailure,
   recordFeedSuccess,
   updateArrivals,
+  updatePositions,
 } from "./cache.js";
 import { extractVehiclePositions, processVehicleUpdates } from "./delay-detector.js";
 import { parseFeed } from "./parser.js";
@@ -78,7 +79,7 @@ async function runPoll(): Promise<void> {
   const parsedFeeds = getAllParsedFeeds();
   const feedAges = getAllFeedAges();
 
-  // Extract VehiclePositions for delay detection (Phase 5)
+  // Extract VehiclePositions for delay detection (Phase 5) and positions cache (Phase 6)
   const allVehiclePositions: ReturnType<typeof extractVehiclePositions> = [];
   for (const [feedId, parsed] of parsedFeeds) {
     const positions = extractVehiclePositions(feedId, parsed.message);
@@ -87,6 +88,10 @@ async function runPoll(): Promise<void> {
   if (allVehiclePositions.length > 0) {
     processVehicleUpdates(allVehiclePositions);
   }
+
+  // Build and cache positions for train diagram
+  const positionsMap = buildPositionsMap(allVehiclePositions, stations);
+  updatePositions(positionsMap, cycleStart);
 
   const arrivals = transformFeeds(parsedFeeds, stations, routes, stopToStation, feedAges);
   updateArrivals(arrivals);
@@ -99,6 +104,7 @@ async function runPoll(): Promise<void> {
       feeds_ok: feedsOk,
       feeds_failed: feedsFailed,
       station_count: arrivals.size,
+      train_count: allVehiclePositions.length,
     })
   );
 }
@@ -169,4 +175,106 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
     );
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Positions map builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a Map<routeId, LinePositions> from extracted vehicle positions.
+ * Groups trains by route, resolves station names for destinations.
+ */
+function buildPositionsMap(
+  positions: Array<{
+    tripId: string;
+    routeId: string;
+    direction: "N" | "S";
+    currentStopSequence: number;
+    currentStopId: string;
+    status: "INCOMING_AT" | "STOPPED_AT" | "IN_TRANSIT_TO";
+    timestamp: number;
+    isAssigned: boolean;
+    destination: string;
+    delay?: number;
+  }>,
+  stationIndex: StationIndex
+): Map<string, LinePositions> {
+  const now = Date.now();
+  const map = new Map<string, LinePositions>();
+
+  // Group positions by routeId
+  const byRoute = new Map<string, typeof positions>();
+  for (const pos of positions) {
+    const routeId = pos.routeId.toUpperCase();
+    if (!byRoute.has(routeId)) byRoute.set(routeId, []);
+    byRoute.get(routeId)!.push(pos);
+  }
+
+  // Build LinePositions for each route
+  for (const [routeId, routePositions] of byRoute) {
+    const trains: TrainPosition[] = routePositions.map((pos) => {
+      // Resolve destination station name
+      let destName = pos.destination;
+      if (destName) {
+        // Try to resolve as stop ID
+        const station = resolveStationFromStopId(destName, stationIndex);
+        if (station) destName = station.name;
+      }
+
+      return {
+        tripId: pos.tripId,
+        routeId: pos.routeId,
+        direction: pos.direction,
+        currentStopSequence: pos.currentStopSequence,
+        status: pos.status,
+        currentStopId: pos.currentStopId,
+        timestamp: pos.timestamp,
+        isAssigned: pos.isAssigned,
+        destination: destName || "Unknown",
+        delay: pos.delay,
+      };
+    });
+
+    map.set(routeId, {
+      routeId,
+      fetchedAt: now,
+      feedAge: 0,
+      trains,
+    });
+  }
+
+  return map;
+}
+
+/**
+ * Resolve a stop ID to its parent station.
+ */
+function resolveStationFromStopId(
+  stopId: string,
+  stationIndex: StationIndex
+): { name: string; id: string } | null {
+  // Check if it's already a parent station ID
+  if (stationIndex[stopId]) {
+    return { id: stopId, name: stationIndex[stopId].name };
+  }
+
+  // Try stripping direction suffix (N/S)
+  for (const suffix of ["N", "S"]) {
+    if (stopId.endsWith(suffix)) {
+      const candidate = stopId.slice(0, -1);
+      if (stationIndex[candidate]) {
+        return { id: candidate, name: stationIndex[candidate].name };
+      }
+    }
+  }
+
+  // Try looking up by northStopId/southStopId
+  for (const station of Object.values(stationIndex)) {
+    if (station.northStopId === stopId || station.southStopId === stopId) {
+      return { id: station.id, name: station.name };
+    }
+  }
+
+  return null;
 }

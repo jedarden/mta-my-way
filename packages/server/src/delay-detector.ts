@@ -163,6 +163,8 @@ export function extractVehiclePositions(
   status: "INCOMING_AT" | "STOPPED_AT" | "IN_TRANSIT_TO";
   timestamp: number;
   isAssigned: boolean;
+  destination: string;
+  delay?: number;
 }> {
   if (!message?.entity) return [];
 
@@ -176,6 +178,8 @@ export function extractVehiclePositions(
     status: "INCOMING_AT" | "STOPPED_AT" | "IN_TRANSIT_TO";
     timestamp: number;
     isAssigned: boolean;
+    destination: string;
+    delay?: number;
   }> = [];
 
   for (const entity of message.entity) {
@@ -212,6 +216,31 @@ export function extractVehiclePositions(
       ? (typeof vp.timestamp === "number" ? vp.timestamp : vp.timestamp.toNumber?.() ?? 0)
       : 0;
 
+    // Extract destination from StopTimeUpdate if available (last stop in the trip)
+    let destination = "";
+    if (entity.tripUpdate?.stopTimeUpdate) {
+      const updates = entity.tripUpdate.stopTimeUpdate;
+      if (updates.length > 0) {
+        const lastStop = updates[updates.length - 1];
+        // Get stop name from our stations index (will be resolved later)
+        destination = lastStop?.stopId ?? "";
+      }
+    }
+
+    // Also try to get delay from the stop time updates
+    let delay: number | undefined;
+    if (entity.tripUpdate?.stopTimeUpdate) {
+      for (const stu of entity.tripUpdate.stopTimeUpdate) {
+        if (stu.stopId === stopId || stu.stopSequence === stopSequence) {
+          delay = stu.arrival?.delay ?? stu.departure?.delay ?? undefined;
+          if (typeof delay === "object" && delay !== null && "toNumber" in delay) {
+            delay = delay.toNumber();
+          }
+          break;
+        }
+      }
+    }
+
     if (timestamp === 0 || !stopId) continue;
 
     positions.push({
@@ -223,6 +252,8 @@ export function extractVehiclePositions(
       status,
       timestamp,
       isAssigned,
+      destination,
+      delay,
     });
   }
 

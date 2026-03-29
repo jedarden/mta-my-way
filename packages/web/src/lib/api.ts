@@ -7,6 +7,7 @@ import type {
   ArrivalTime,
   CommuteAnalysis,
   EquipmentStatus,
+  LinePositions,
   PushSubscribeRequest,
   PushSubscribeResponse,
   PushUnsubscribeRequest,
@@ -25,6 +26,7 @@ export type {
   ArrivalTime,
   CommuteAnalysis,
   EquipmentStatus,
+  LinePositions,
   PushSubscribeRequest,
   PushSubscribeResponse,
   PushUnsubscribeRequest,
@@ -249,6 +251,11 @@ export const api = {
   // Live trip tracking
   async getTrip(tripId: string): Promise<TripData> {
     return fetchJson<TripData>(`/api/trip/${encodeURIComponent(tripId)}`);
+  },
+
+  // Train positions for line diagram
+  async getPositions(lineId: string): Promise<LinePositions> {
+    return fetchJson<LinePositions>(`/api/positions/${encodeURIComponent(lineId)}`);
   },
 };
 

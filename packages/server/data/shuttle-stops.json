@@ -12,7 +12,8 @@
       { "nearStationId": "L05", "description": "14th St & 3rd Ave (NE corner)" },
       { "nearStationId": "L08", "description": "Bedford Ave & N 7th St (SE corner)" }
     ],
-    "frequencyMinutes": "6-10"
+    "frequencyMinutes": "6-10",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "G",
@@ -27,7 +28,8 @@
       { "nearStationId": "G20", "description": "Smith-9th Sts & 9th St (east side)" },
       { "nearStationId": "G16", "description": "Bergen St & Smith St (NE corner)" }
     ],
-    "frequencyMinutes": "8-12"
+    "frequencyMinutes": "8-12",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "A",
@@ -42,7 +44,8 @@
       { "nearStationId": "A30", "description": "190th St & Fort Washington Ave (west side)" },
       { "nearStationId": "A28", "description": "168th St & Broadway (near hospital entrance)" }
     ],
-    "frequencyMinutes": "10-15"
+    "frequencyMinutes": "10-15",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "F",
@@ -57,7 +60,8 @@
       { "nearStationId": "F12", "description": "7th Ave & Flatbush Ave (SE corner)" },
       { "nearStationId": "F11", "description": "Jay St & Myrtle Ave (near MetroTech)" }
     ],
-    "frequencyMinutes": "8-12"
+    "frequencyMinutes": "8-12",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "7",
@@ -72,7 +76,8 @@
       { "nearStationId": "722", "description": "Junction Blvd & Roosevelt Ave (east side)" },
       { "nearStationId": "716", "description": "Woodside Ave & Roosevelt Ave (west side)" }
     ],
-    "frequencyMinutes": "8-12"
+    "frequencyMinutes": "8-12",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "B",
@@ -87,7 +92,8 @@
       { "nearStationId": "D27", "description": "Fordham Rd & Grand Concourse (east side)" },
       { "nearStationId": "D25", "description": "125 St & St Nicholas Ave (north side)" }
     ],
-    "frequencyMinutes": "10-15"
+    "frequencyMinutes": "10-15",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "N",
@@ -102,7 +108,8 @@
       { "nearStationId": "N03", "description": "City Hall & Broadway (west side)" },
       { "nearStationId": "N02", "description": "Whitehall St & Stone St (east side)" }
     ],
-    "frequencyMinutes": "8-12"
+    "frequencyMinutes": "8-12",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "E",
@@ -117,7 +124,8 @@
       { "nearStationId": "E05", "description": "23rd St & 8th Ave (south side)" },
       { "nearStationId": "E07", "description": "42nd St & 8th Ave (Port Authority south side)" }
     ],
-    "frequencyMinutes": "6-10"
+    "frequencyMinutes": "6-10",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "2",
@@ -132,7 +140,8 @@
       { "nearStationId": "235", "description": "225th St & White Plains Rd (west side)" },
       { "nearStationId": "232", "description": "180th St & Morris Park Ave (south side)" }
     ],
-    "frequencyMinutes": "10-15"
+    "frequencyMinutes": "10-15",
+    "lastVerified": "2026-03-22"
   },
   {
     "lineId": "J",
@@ -147,6 +156,7 @@
       { "nearStationId": "J11", "description": "Woodhaven Blvd & Jamaica Ave (east side)" },
       { "nearStationId": "J10", "description": "Myrtle Ave & Wyckoff Ave (NE corner)" }
     ],
-    "frequencyMinutes": "10-15"
+    "frequencyMinutes": "10-15",
+    "lastVerified": "2026-03-22"
   }
 ]

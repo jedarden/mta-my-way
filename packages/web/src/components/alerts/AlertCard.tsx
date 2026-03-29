@@ -13,6 +13,7 @@ import type { AlertSeverity, StationAlert } from "@mta-my-way/shared";
 import { formatTimeAgo } from "@mta-my-way/shared";
 import { useEffect, useState } from "react";
 import { LineBullet } from "../arrivals/LineBullet";
+import { ShuttleInfo } from "./ShuttleInfo";
 
 /** Severity colors and styles */
 const SEVERITY_STYLES: Record<
@@ -184,6 +185,21 @@ export function AlertCard({
         <div className="px-3 pb-3 pt-0">
           <div className="pl-6 text-13 text-text-secondary dark:text-dark-text-secondary leading-relaxed border-t border-surface dark:border-dark-surface pt-2">
             {alert.description}
+          </div>
+          {/* Shuttle bus info */}
+          {alert.shuttleInfo && (
+            <div className="pl-6 mt-2">
+              <ShuttleInfo shuttleInfo={alert.shuttleInfo} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Shuttle info in collapsed state for NO_SERVICE alerts */}
+      {!expanded && alert.shuttleInfo && (
+        <div className="px-3 pb-3 pt-0">
+          <div className="pl-6">
+            <ShuttleInfo shuttleInfo={alert.shuttleInfo} compact />
           </div>
         </div>
       )}

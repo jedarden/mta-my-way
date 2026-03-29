@@ -29,6 +29,7 @@ interface ShuttleSegment {
   description: string;
   stops: ShuttleStop[];
   frequencyMinutes: string;
+  lastVerified: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,7 +86,7 @@ export async function matchShuttle(
         toStopId: segment.toStopId,
         stops: segment.stops,
         frequencyMinutes: segment.frequencyMinutes,
-        lastVerified: "2026-03-22",
+        lastVerified: segment.lastVerified,
       };
     }
   }

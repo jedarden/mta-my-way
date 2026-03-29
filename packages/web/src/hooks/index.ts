@@ -15,6 +15,9 @@ export type { AlertDataStatus, AlertsMeta, AlertsState, AlertsResult } from "./u
 export { usePushNotifications } from "./usePushNotifications";
 export type { PushNotificationsState } from "./usePushNotifications";
 
+export { useMorningBriefing } from "./useMorningBriefing";
+export type { MorningBriefing, MorningBriefingEntry } from "./useMorningBriefing";
+
 export { useOnlineStatus } from "./useOnlineStatus";
 
 export { useStaleness } from "./useStaleness";

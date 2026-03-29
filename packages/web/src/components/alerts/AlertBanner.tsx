@@ -9,6 +9,7 @@ import type { AlertSeverity, StationAlert } from "@mta-my-way/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineBullet } from "../arrivals/LineBullet";
+import { ShuttleInfo } from "./ShuttleInfo";
 
 /** Severity styles for banners */
 const SEVERITY_STYLES: Record<AlertSeverity, { bg: string; border: string; text: string }> = {
@@ -171,11 +172,19 @@ export function AlertBanner({
       {(expanded || alerts.length > 1) && (
         <div className="border-t border-surface/50 dark:border-dark-surface/50 px-3 py-2 space-y-1.5">
           {visibleAlerts.map((alert) => (
-            <div key={alert.id} className="text-13 text-text-primary dark:text-dark-text-primary">
-              <span className={`${SEVERITY_STYLES[alert.severity].text} font-medium`}>
-                {alert.affectedLines.length > 0 ? `[${alert.affectedLines.join(", ")}] ` : ""}
-              </span>
-              {alert.headline}
+            <div key={alert.id}>
+              <div className="text-13 text-text-primary dark:text-dark-text-primary">
+                <span className={`${SEVERITY_STYLES[alert.severity].text} font-medium`}>
+                  {alert.affectedLines.length > 0 ? `[${alert.affectedLines.join(", ")}] ` : ""}
+                </span>
+                {alert.headline}
+              </div>
+              {/* Shuttle info if available */}
+              {alert.shuttleInfo && (
+                <div className="mt-1">
+                  <ShuttleInfo shuttleInfo={alert.shuttleInfo} compact />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -225,6 +234,12 @@ export function SingleAlertBanner({ alert }: { alert: StationAlert }) {
           {alert.headline}
         </p>
       </div>
+      {/* Shuttle info if available */}
+      {alert.shuttleInfo && (
+        <div className="mt-1.5">
+          <ShuttleInfo shuttleInfo={alert.shuttleInfo} compact />
+        </div>
+      )}
     </div>
   );
 }

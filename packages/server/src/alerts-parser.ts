@@ -16,7 +16,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AlertPattern, AlertSeverity, AlertSource, StationAlert } from "@mta-my-way/shared";
+import type { AlertPattern, AlertSeverity, AlertSource, ShuttleBusInfo, StationAlert } from "@mta-my-way/shared";
+import { matchShuttle } from "./shuttle-matcher.js";
 import { transit_realtime } from "./proto/compiled.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,6 +63,8 @@ export interface ParsedAlert {
   createdAt: number;
   /** Last modified timestamp */
   modifiedAt: number;
+  /** Shuttle bus info if matched (Phase 7) */
+  shuttleInfo?: ShuttleBusInfo;
 }
 
 /** Result of pattern matching */
@@ -374,6 +377,16 @@ export async function parseAlerts(data: Uint8Array): Promise<ParsedAlert[]> {
     alerts.push(parsedAlert);
   }
 
+  // Phase 7: Match shuttle bus info for NO_SERVICE alerts
+  for (const alert of alerts) {
+    if (alert.effect === "NO_SERVICE" && alert.affectedLines.length > 0) {
+      const shuttleInfo = await matchShuttle(alert.affectedLines, alert.affectedStations);
+      if (shuttleInfo) {
+        alert.shuttleInfo = shuttleInfo;
+      }
+    }
+  }
+
   return alerts;
 }
 
@@ -392,6 +405,7 @@ export function toStationAlert(parsed: ParsedAlert): StationAlert {
     cause: parsed.cause,
     effect: parsed.effect,
     isRaw: !parsed.patternMatched,
+    shuttleInfo: parsed.shuttleInfo,
   };
 }
 
