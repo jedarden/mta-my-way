@@ -21,9 +21,6 @@ const FRESHNESS_LABELS: Record<string, string> = {
 };
 
 export function FreshnessDetail({ feedEntries }: FreshnessDetailProps) {
-  // Build a set of active feed IDs so we can show inactive ones too
-  const activeFeedIds = new Set(feedEntries.map(([id]) => id));
-
   // Show all feeds, marking inactive ones
   const allFeeds = SUBWAY_FEEDS.map((feed) => {
     const active = feedEntries.find(([id]) => id === feed.id);

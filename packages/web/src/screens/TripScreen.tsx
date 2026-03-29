@@ -26,12 +26,12 @@ export default function TripScreen() {
   // destinationStation from URL params for share links
   const destinationStation = searchParams.get("dest");
 
-  const { trip, stops, minutesToDestination, isActive, isLoading, error, isExpired, updatedAt, stop: stopTracking, refresh } =
+  const { trip, stops, minutesToDestination, isActive, isLoading, error, isExpired, stop: stopTracking } =
     useTripTracker(tripId ?? null);
 
   // Ticking ETA countdown
   const [etaDisplay, setEtaDisplay] = useState<string | null>(null);
-  const etaIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const etaIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   useEffect(() => {
     if (etaIntervalRef.current) clearInterval(etaIntervalRef.current);

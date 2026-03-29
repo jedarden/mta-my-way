@@ -45,10 +45,6 @@ export function FreshnessFooter({ arrivals, stationFeedAge }: FreshnessFooterPro
   const feeds = getUniqueFeeds(arrivals);
   const feedEntries = Array.from(feeds.entries()).sort((a, b) => b[1].age - a[1].age);
 
-  // Station-level overall freshness
-  const stationLevel = getFreshnessLevel(stationFeedAge);
-  const stationColor = getFreshnessTextColor(stationLevel);
-
   if (feedEntries.length === 0) return null;
 
   return (
