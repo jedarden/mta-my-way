@@ -3,6 +3,9 @@
  *
  * Scans all parsed feeds for a matching trip_update and returns
  * structured stop-by-stop progress data for the trip tracker.
+ *
+ * Enforces a 24h TTL on trip share links — trips older than 24h from
+ * first access are no longer accessible even if still in the feed.
  */
 
 import type { StationIndex } from "@mta-my-way/shared";
@@ -11,6 +14,16 @@ import { getAllParsedFeeds } from "./cache.js";
 // NYCT extension keys
 const NYCT_TRIP_KEY = ".transit_realtime.nyctTripDescriptor";
 const NYCT_STU_KEY = ".transit_realtime.nyctStopTimeUpdate";
+
+// Trip share link TTL: 24 hours in milliseconds
+const TRIP_SHARE_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Track when each trip was first seen for TTL enforcement
+const tripFirstSeen = new Map<string, number>();
+
+// Prune stale entries every 5 minutes
+const PRUNE_INTERVAL_MS = 300_000;
+let lastPrune = Date.now();
 
 export interface TripStopInfo {
   stopId: string;
@@ -87,10 +100,52 @@ function findCurrentStopIndex(stops: TripStopInfo[], nowSeconds: number): number
 }
 
 /**
+ * Check if a trip has exceeded the 24h TTL.
+ * Tracks first-seen time and enforces expiry.
+ */
+function isTripExpired(tripId: string, now: number): boolean {
+  const firstSeen = tripFirstSeen.get(tripId);
+
+  if (firstSeen === undefined) {
+    // First time seeing this trip — record the timestamp
+    tripFirstSeen.set(tripId, now);
+    return false;
+  }
+
+  // Check if trip has exceeded TTL
+  return now - firstSeen > TRIP_SHARE_TTL_MS;
+}
+
+/**
+ * Prune stale trip tracking entries to prevent memory leak.
+ * Called periodically during lookup.
+ */
+function pruneStaleTrips(now: number): void {
+  if (now - lastPrune < PRUNE_INTERVAL_MS) return;
+
+  for (const [tripId, firstSeen] of tripFirstSeen) {
+    if (now - firstSeen > TRIP_SHARE_TTL_MS * 2) {
+      tripFirstSeen.delete(tripId);
+    }
+  }
+  lastPrune = now;
+}
+
+/**
  * Look up a trip by tripId across all cached feeds.
- * Returns null if the trip is not found in any feed.
+ * Returns null if the trip is not found in any feed or has exceeded the 24h TTL.
  */
 export function lookupTrip(tripId: string, stations: StationIndex): TripData | null {
+  const nowMs = Date.now();
+
+  // Periodic prune of stale entries
+  pruneStaleTrips(nowMs);
+
+  // Check TTL before doing any work
+  if (isTripExpired(tripId, nowMs)) {
+    return null;
+  }
+
   const parsedFeeds = getAllParsedFeeds();
   const stopToStationId = buildStopToStationIdMap(stations);
   const nowSeconds = Math.floor(Date.now() / 1000);

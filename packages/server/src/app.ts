@@ -696,11 +696,8 @@ export function createApp(
   /** Remove a push subscription */
   app.delete("/api/push/unsubscribe", async (c) => {
     try {
-      const body = await c.req.json<PushUnsubscribeRequest>();
-
-      if (!body.endpoint) {
-        return c.json({ error: "endpoint is required" }, 400);
-      }
+      const body = await validateBody(c, pushUnsubscribeRequestSchema);
+      if (!body) return;
 
       const removed = removeSubscription(body.endpoint);
 
@@ -729,11 +726,8 @@ export function createApp(
   /** Update favorites or quiet hours for an existing push subscription */
   app.patch("/api/push/subscription", async (c) => {
     try {
-      const body = await c.req.json<PushUpdateRequest>();
-
-      if (!body.endpoint) {
-        return c.json({ error: "endpoint is required" }, 400);
-      }
+      const body = await validateBody(c, pushUpdateRequestSchema);
+      if (!body) return;
 
       if (body.favorites) {
         updateSubscriptionFavorites(body.endpoint, body.favorites);
@@ -741,10 +735,6 @@ export function createApp(
 
       if (body.quietHours) {
         updateSubscriptionQuietHours(body.endpoint, body.quietHours);
-      }
-
-      if (!body.favorites && !body.quietHours) {
-        return c.json({ error: "favorites or quietHours is required" }, 400);
       }
 
       return c.json({ success: true });
