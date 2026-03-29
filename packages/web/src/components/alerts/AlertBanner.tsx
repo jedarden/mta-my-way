@@ -178,6 +178,11 @@ export function AlertBanner({
                   {alert.affectedLines.length > 0 ? `[${alert.affectedLines.join(", ")}] ` : ""}
                 </span>
                 {alert.headline}
+                {alert.source === "predicted" && (
+                  <span className="ml-1.5 text-11 text-amber-600 dark:text-amber-400 font-normal">
+                    (predicted)
+                  </span>
+                )}
               </div>
               {/* Shuttle info if available */}
               {alert.shuttleInfo && (
@@ -232,6 +237,11 @@ export function SingleAlertBanner({ alert }: { alert: StationAlert }) {
         {/* Headline */}
         <p className="text-13 text-text-primary dark:text-dark-text-primary truncate flex-1">
           {alert.headline}
+          {alert.source === "predicted" && (
+            <span className="ml-1.5 text-11 text-amber-600 dark:text-amber-400 font-normal">
+              (predicted)
+            </span>
+          )}
         </p>
       </div>
       {/* Shuttle info if available */}

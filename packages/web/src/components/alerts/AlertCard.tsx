@@ -77,6 +77,8 @@ interface AlertCardProps {
   initiallyExpanded?: boolean;
   /** Whether this is a "raw" alert (unmatched pattern) */
   isRaw?: boolean;
+  /** Whether this is a predicted alert from delay detection */
+  isPredicted?: boolean;
   /** Compact mode for inline use */
   compact?: boolean;
 }
@@ -85,6 +87,7 @@ export function AlertCard({
   alert,
   initiallyExpanded = false,
   isRaw = false,
+  isPredicted = false,
   compact = false,
 }: AlertCardProps) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
@@ -106,14 +109,24 @@ export function AlertCard({
 
   // Raw alert style (dashed border, muted)
   const rawClass = isRaw ? "border-dashed opacity-75" : "";
+  // Predicted alert style (amber dotted border)
+  const predictedClass = isPredicted ? "border-amber-500 border-dotted" : "";
 
   if (compact) {
-    return <CompactAlertCard alert={alert} isRaw={isRaw} styles={styles} sinceText={sinceText} />;
+    return (
+      <CompactAlertCard
+        alert={alert}
+        isRaw={isRaw}
+        isPredicted={isPredicted}
+        styles={styles}
+        sinceText={sinceText}
+      />
+    );
   }
 
   return (
     <article
-      className={`rounded-lg ${styles.bg} ${styles.border} ${rawClass} overflow-hidden`}
+      className={`rounded-lg ${styles.bg} ${predictedClass || styles.border} ${rawClass} overflow-hidden`}
       role="article"
       aria-label={`${alert.severity} alert: ${alert.headline}`}
     >
@@ -149,6 +162,11 @@ export function AlertCard({
             {/* Headline */}
             <h3 className="text-sm font-medium text-text-primary dark:text-dark-text-primary leading-snug">
               {alert.headline}
+              {isPredicted && (
+                <span className="ml-2 text-11 text-amber-600 dark:text-amber-400 font-normal">
+                  (predicted)
+                </span>
+              )}
               {isRaw && (
                 <span className="ml-2 text-11 text-text-secondary dark:text-dark-text-secondary font-normal">
                   (raw alert)
@@ -211,18 +229,24 @@ export function AlertCard({
 function CompactAlertCard({
   alert,
   isRaw,
+  isPredicted,
   styles,
   sinceText,
 }: {
   alert: StationAlert;
   isRaw: boolean;
+  isPredicted: boolean;
   styles: (typeof SEVERITY_STYLES)[AlertSeverity];
   sinceText: string;
 }) {
   const rawClass = isRaw ? "border-dashed opacity-75" : "";
+  const predictedClass = isPredicted ? "border-amber-500 border-dotted" : "";
 
   return (
-    <div className={`rounded-lg ${styles.bg} ${styles.border} ${rawClass} p-2.5`} role="alert">
+    <div
+      className={`rounded-lg ${styles.bg} ${predictedClass || styles.border} ${rawClass} p-2.5`}
+      role="alert"
+    >
       <div className="flex items-center gap-2">
         {/* Severity icon */}
         <span className={`${styles.text} flex-shrink-0`}>
@@ -246,6 +270,11 @@ function CompactAlertCard({
         {/* Headline */}
         <p className="text-13 font-medium text-text-primary dark:text-dark-text-primary truncate flex-1">
           {alert.headline}
+          {isPredicted && (
+            <span className="ml-1.5 text-11 text-amber-600 dark:text-amber-400 font-normal">
+              (predicted)
+            </span>
+          )}
         </p>
 
         {/* Since timestamp */}

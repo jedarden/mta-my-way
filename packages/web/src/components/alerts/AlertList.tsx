@@ -116,7 +116,13 @@ function AlertListContent({
     return (
       <div className="space-y-2" role="list" aria-label="Alerts">
         {displayedAlerts.map((alert) => (
-          <AlertCard key={alert.id} alert={alert} compact isRaw={alert.isRaw ?? false} />
+          <AlertCard
+            key={alert.id}
+            alert={alert}
+            compact
+            isRaw={alert.isRaw ?? false}
+            isPredicted={alert.source === "predicted"}
+          />
         ))}
         {maxAlerts && alerts.length > maxAlerts && (
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary text-center py-1">
@@ -145,7 +151,12 @@ function AlertListContent({
             </h3>
             <div className="space-y-2">
               {groupAlerts.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} isRaw={alert.isRaw ?? false} />
+                <AlertCard
+                  key={alert.id}
+                  alert={alert}
+                  isRaw={alert.isRaw ?? false}
+                  isPredicted={alert.source === "predicted"}
+                />
               ))}
             </div>
           </section>
