@@ -24,6 +24,7 @@ import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
 import { useFavorites } from "../hooks/useFavorites";
+import { usePrefetch } from "../hooks/usePrefetch";
 import { useFavoritesStore, useSettingsStore } from "../stores";
 
 /** How often to tick the "Updated X ago" counter (ms) */
@@ -38,6 +39,9 @@ export default function HomeScreen() {
     useFavorites();
   const commutes = useFavoritesStore((s) => s.commutes);
   const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
+
+  // Start geofence-based prefetching for underground pre-fetch
+  usePrefetch();
 
   // Show onboarding flow for first-time users
   if (!onboardingComplete) {
