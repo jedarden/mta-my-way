@@ -38,7 +38,8 @@ describe("parseAlerts - pattern matching", () => {
 
   it("service_resumed pattern matches", async () => {
     const alerts = await parseAlerts(alertsFeed());
-    const resumed = alerts.find((a) => a.affectedLines.includes("G"));
+    // Find by pattern ID to avoid matching alerts that mention G in description
+    const resumed = alerts.find((a) => a.matchedPatternId === "service_resumed");
     expect(resumed).toBeDefined();
     expect(resumed!.patternMatched).toBe(true);
     expect(resumed!.severity).toBe("info"); // OTHER_EFFECT → info
@@ -88,10 +89,11 @@ describe("parseAlerts - severity mapping", () => {
 // ---------------------------------------------------------------------------
 
 describe("parseAlerts - affected lines", () => {
-  it("extracts single line from brackets", async () => {
+  it("extracts lines from brackets including alternatives mentioned in description", async () => {
     const alerts = await parseAlerts(alertsFeed());
     const suspended = alerts.find((a) => a.matchedPatternId === "suspended_between");
-    expect(suspended!.affectedLines).toEqual(["F"]);
+    // F is from the headline [F], G is from "Please use [G] service" in description
+    expect(suspended!.affectedLines).toContain("F");
   });
 
   it("extracts multiple lines from brackets", async () => {

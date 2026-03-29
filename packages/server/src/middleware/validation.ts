@@ -63,9 +63,10 @@ function formatZodError(error: ZodError): ValidationErrorDetail[] {
 
 /**
  * Parse and validate a JSON request body against a Zod schema.
- * Returns the validated data on success, or null (with response sent) on failure.
+ * Returns the validated data on success, or a Response on failure.
+ * Caller must check `if (body instanceof Response) return body;`
  */
-export async function validateBody<T>(c: Context, schema: ZodSchema<T>): Promise<T | null> {
+export async function validateBody<T>(c: Context, schema: ZodSchema<T>): Promise<T | Response> {
   let body: unknown;
   try {
     body = await c.req.json();

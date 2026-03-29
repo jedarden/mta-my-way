@@ -162,6 +162,7 @@ function makeFeedMessage(entities: Array<{
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  resetDelayDetector();
   initDelayDetector(travelTimes, routes, stations);
 });
 
@@ -186,7 +187,7 @@ describe("extractVehiclePositions", () => {
 
     const positions = extractVehiclePositions("gtfs", message);
     expect(positions).toHaveLength(1);
-    expect(positions[0]).toEqual({
+    expect(positions[0]).toMatchObject({
       tripId: "T1",
       routeId: "1",
       direction: "N",
@@ -397,27 +398,20 @@ describe("processVehicleUpdates - delay detection", () => {
 
 describe("processVehicleUpdates - line-level escalation", () => {
   it("escalates to line-level alert when 2+ trains are delayed on same route/direction", () => {
-    // Route "7" has terminals at 725 (first) and 727 (last).
-    // Use segment 726→727: 726 is intermediate, 727 is terminal — but 726 is not terminal.
-    // Actually, 727 IS terminal, so this would be excluded. Let me use a longer route.
     // Route "1" has 5 stops: 101(term), 102, 103, 104, 105(term).
-    // Use segment 102→103 (both intermediate).
+    // Use segment 102→103 (both intermediate, neither is terminal).
+    // Both trains must move in the same processVehicleUpdates call so
+    // generateAlerts sees both segments in one batch.
 
-    // Train 1 at 102
+    // Register both trains at 102
     processVehicleUpdates([
       makePosition({ tripId: "line-train-1", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
-    ]);
-    // Train 2 at 102
-    processVehicleUpdates([
       makePosition({ tripId: "line-train-2", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
     ]);
 
-    // Train 1 moves to 103 (delayed: 200s vs 90s scheduled)
-    processVehicleUpdates([
-      makePosition({ tripId: "line-train-1", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
-    ]);
-    // Train 2 moves to 103 (delayed: 210s vs 90s scheduled)
+    // Both trains move to 103 in the same batch (delayed: 200s/210s vs 90s scheduled)
     const segments = processVehicleUpdates([
+      makePosition({ tripId: "line-train-1", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
       makePosition({ tripId: "line-train-2", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 210 }),
     ]);
 

@@ -79,9 +79,65 @@ interface PatternMatchResult {
 // Severity mapping
 // ---------------------------------------------------------------------------
 
+/** GTFS-RT Effect enum values (from proto) */
+const EFFECT_NO_SERVICE = 1;
+const EFFECT_REDUCED_SERVICE = 2;
+const EFFECT_SIGNIFICANT_DELAYS = 3;
+const EFFECT_DETOUR = 4;
+const EFFECT_ADDITIONAL_SERVICE = 5;
+const EFFECT_MODIFIED_SERVICE = 6;
+const EFFECT_OTHER_EFFECT = 7;
+const EFFECT_UNKNOWN_EFFECT = 8;
+
+/** Map numeric effect to string name */
+function effectToString(effect: number | undefined): string {
+  if (effect === undefined) return "UNKNOWN_EFFECT";
+  switch (effect) {
+    case EFFECT_NO_SERVICE:
+      return "NO_SERVICE";
+    case EFFECT_REDUCED_SERVICE:
+      return "REDUCED_SERVICE";
+    case EFFECT_SIGNIFICANT_DELAYS:
+      return "SIGNIFICANT_DELAYS";
+    case EFFECT_DETOUR:
+      return "DETOUR";
+    case EFFECT_ADDITIONAL_SERVICE:
+      return "ADDITIONAL_SERVICE";
+    case EFFECT_MODIFIED_SERVICE:
+      return "MODIFIED_SERVICE";
+    case EFFECT_OTHER_EFFECT:
+      return "OTHER_EFFECT";
+    case EFFECT_UNKNOWN_EFFECT:
+      return "UNKNOWN_EFFECT";
+    default:
+      return `EFFECT_${effect}`;
+  }
+}
+
 /** Map GTFS-RT effect to our severity levels */
-function mapEffectToSeverity(effect: string): AlertSeverity {
-  const effectUpper = effect.toUpperCase();
+function mapEffectToSeverity(effect: string | number): AlertSeverity {
+  // Handle numeric effect values from protobuf
+  const effectNum = typeof effect === "number" ? effect : parseInt(effect, 10);
+
+  if (!isNaN(effectNum)) {
+    // Severe: NO_SERVICE (1)
+    if (effectNum === EFFECT_NO_SERVICE) {
+      return "severe";
+    }
+    // Warning: REDUCED_SERVICE (2), SIGNIFICANT_DELAYS (3), DETOUR (4)
+    if (
+      effectNum === EFFECT_REDUCED_SERVICE ||
+      effectNum === EFFECT_SIGNIFICANT_DELAYS ||
+      effectNum === EFFECT_DETOUR
+    ) {
+      return "warning";
+    }
+    // Info: everything else
+    return "info";
+  }
+
+  // Fallback to string matching for non-numeric values
+  const effectUpper = String(effect).toUpperCase();
 
   // Severe: No service, suspended
   if (
@@ -347,7 +403,7 @@ export async function parseAlerts(data: Uint8Array): Promise<ParsedAlert[]> {
 
     // Extract cause and effect
     const cause = alert.cause?.toString() || "UNKNOWN_CAUSE";
-    const effect = alert.effect?.toString() || "UNKNOWN_EFFECT";
+    const effect = typeof alert.effect === "number" ? effectToString(alert.effect) : (alert.effect?.toString() || "UNKNOWN_EFFECT");
 
     // Map effect to severity
     const severity = mapEffectToSeverity(effect);

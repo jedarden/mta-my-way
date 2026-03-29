@@ -27,7 +27,10 @@ function makeHeader(timestamp = NOW, tripReplacementPeriod?: number) {
     timestamp,
   };
   if (tripReplacementPeriod !== undefined) {
-    header[".transit_realtime.nyctFeedHeader"] = { trip_replacement_period: tripReplacementPeriod };
+    header[".transit_realtime.nyctFeedHeader"] = {
+      nyctSubwayVersion: "1.0",
+      tripReplacementPeriod: [{ routeId: "*", replacementPeriod: { start: timestamp, end: timestamp + tripReplacementPeriod } }],
+    };
   }
   return header;
 }
@@ -45,8 +48,8 @@ function makeStopTimeUpdate(
   };
   if (scheduledTrack !== undefined || actualTrack !== undefined) {
     stu[".transit_realtime.nyctStopTimeUpdate"] = {
-      scheduled_track: scheduledTrack ?? null,
-      actual_track: actualTrack ?? null,
+      scheduledTrack: scheduledTrack ?? null,
+      actualTrack: actualTrack ?? null,
     };
   }
   return stu;
@@ -67,8 +70,8 @@ function makeTripUpdate(
       tripId,
       routeId,
       ".transit_realtime.nyctTripDescriptor": {
-        is_assigned: options.isAssigned ?? true,
-        train_id: options.trainId ?? null,
+        isAssigned: options.isAssigned ?? true,
+        trainId: options.trainId ?? null,
         direction: options.direction ?? "N",
       },
     },
@@ -275,7 +278,7 @@ export function alertsFeed(): Uint8Array {
     activePeriod: [{ start: NOW - 3600, end: NOW + 3600 }],
     informedEntity: [{ routeId: "F" }],
     cause: 1, // CONSTRUCTION
-    effect: 5, // NO_SERVICE
+    effect: 1, // NO_SERVICE (proto enum value 1)
   });
 
   const alertEntity2 = makeEntity("alert-delays", undefined, {
@@ -316,7 +319,7 @@ export function alertsFeed(): Uint8Array {
     activePeriod: [{ start: NOW }],
     informedEntity: [{ routeId: "G" }],
     cause: 1,
-    effect: 1, // OTHER_EFFECT → maps to "info"
+    effect: 7, // OTHER_EFFECT (proto enum value 7) → maps to "info"
   });
 
   const alertEntity4 = makeEntity("alert-html-entities", undefined, {
@@ -350,15 +353,17 @@ export function alertsFeed(): Uint8Array {
 
 /** Feed with past arrivals (should be filtered by transformer) */
 export function pastArrivalsFeed(): Uint8Array {
-  const pastTime = NOW - 120; // 2 minutes ago
+  // All arrivals are 2+ minutes in the past
+  const pastTime1 = NOW - 120; // 2 minutes ago
+  const pastTime2 = NOW - 90; // 1.5 minutes ago (still > 30s past)
   return encodeFeed({
     header: makeHeader(NOW, 12000),
     entity: [
       makeEntity(
         "past-trip-001",
         makeTripUpdate("PAST_1", "1", [
-          makeStopTimeUpdate("101N", pastTime),
-          makeStopTimeUpdate("102N", pastTime + 180),
+          makeStopTimeUpdate("101N", pastTime1),
+          makeStopTimeUpdate("102N", pastTime2),
         ], { isAssigned: true })
       ),
     ],

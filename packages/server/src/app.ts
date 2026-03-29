@@ -540,7 +540,7 @@ export function createApp(
   app.post("/api/commute/analyze", async (c) => {
     try {
       const body = await validateBody(c, commuteAnalyzeRequestSchema);
-      if (!body) return;
+      if (body instanceof Response) return body;
 
       const { originId, destinationId, preferredLines = [], commuteId = "default", accessibleMode = false } = body;
 
@@ -694,7 +694,7 @@ export function createApp(
   app.post("/api/push/subscribe", async (c) => {
     try {
       const body = await validateBody(c, pushSubscribeRequestSchema);
-      if (!body) return;
+      if (body instanceof Response) return body;
 
       upsertSubscription(body);
 
@@ -724,7 +724,7 @@ export function createApp(
   app.delete("/api/push/unsubscribe", async (c) => {
     try {
       const body = await validateBody(c, pushUnsubscribeRequestSchema);
-      if (!body) return;
+      if (body instanceof Response) return body;
 
       const removed = removeSubscription(body.endpoint);
 
@@ -754,7 +754,7 @@ export function createApp(
   app.patch("/api/push/subscription", async (c) => {
     try {
       const body = await validateBody(c, pushUpdateRequestSchema);
-      if (!body) return;
+      if (body instanceof Response) return body;
 
       if (body.favorites) {
         updateSubscriptionFavorites(body.endpoint, body.favorites);

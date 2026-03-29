@@ -34,15 +34,25 @@ export function parseFeed(feedId: string, data: Uint8Array): ParsedFeed {
   const entityCount = message.entity?.length ?? 0;
 
   // Extract trip replacement period from NYCT feed header extension
+  // The tripReplacementPeriod is an array of { routeId, replacementPeriod: { start, end } }
+  // We calculate the duration from the first entry's replacement period
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nyctHeader = (message.header as any)[NYCT_FEED_HEADER_KEY] as
-    | { trip_replacement_period?: number | { toNumber(): number } | null }
+    | { tripReplacementPeriod?: Array<{ replacementPeriod?: { start?: number | { toNumber(): number }; end?: number | { toNumber(): number } } }> | null }
     | null
     | undefined;
   let tripReplacementPeriod: number | null = null;
-  if (nyctHeader?.trip_replacement_period != null) {
-    const v = nyctHeader.trip_replacement_period;
-    tripReplacementPeriod = typeof v === "number" ? v : v.toNumber();
+  if (nyctHeader?.tripReplacementPeriod?.length) {
+    const firstPeriod = nyctHeader.tripReplacementPeriod[0];
+    if (firstPeriod?.replacementPeriod) {
+      const start = firstPeriod.replacementPeriod.start;
+      const end = firstPeriod.replacementPeriod.end;
+      if (start != null && end != null) {
+        const startNum = typeof start === "number" ? start : start.toNumber();
+        const endNum = typeof end === "number" ? end : end.toNumber();
+        tripReplacementPeriod = endNum - startNum;
+      }
+    }
   }
 
   return { feedId, message, feedTimestamp, entityCount, tripReplacementPeriod };

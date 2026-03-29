@@ -133,7 +133,7 @@ describe("parseFeed - field presence", () => {
     const entity = result.message.entity[0] as any;
     const nyctTrip = entity.tripUpdate?.trip?.[".transit_realtime.nyctTripDescriptor"];
     expect(nyctTrip).toBeDefined();
-    expect(nyctTrip.is_assigned).toBe(true);
+    expect(nyctTrip.isAssigned).toBe(true);
   });
 
   it("NYCT stop time update is accessible for rerouted feed", () => {
@@ -143,8 +143,8 @@ describe("parseFeed - field presence", () => {
     const stu = entity.tripUpdate?.stopTimeUpdate?.[0];
     const nyctStu = stu?.[".transit_realtime.nyctStopTimeUpdate"];
     expect(nyctStu).toBeDefined();
-    expect(nyctStu.scheduled_track).toBe("1");
-    expect(nyctStu.actual_track).toBe("2");
+    expect(nyctStu.scheduledTrack).toBe("1");
+    expect(nyctStu.actualTrack).toBe("2");
   });
 
   it("feedTimestamp is a positive number", () => {
@@ -165,7 +165,8 @@ describe("parseFeed - NYCT stop time extensions", () => {
     const entity = result.message.entity[0] as any;
     const firstStu = entity.tripUpdate.stopTimeUpdate[0];
     const nyctStu = firstStu[".transit_realtime.nyctStopTimeUpdate"];
-    expect(nyctStu.scheduled_track).not.toBe(nyctStu.actual_track);
+    // Protobufjs converts snake_case to camelCase
+    expect(nyctStu.scheduledTrack).not.toBe(nyctStu.actualTrack);
   });
 
   it("normal feed has matching scheduled/actual track (or no extension)", () => {
@@ -174,8 +175,8 @@ describe("parseFeed - NYCT stop time extensions", () => {
     const entity = result.message.entity[0] as any;
     const nyctStu = entity.tripUpdate?.stopTimeUpdate?.[0]?.[".transit_realtime.nyctStopTimeUpdate"];
     // Normal feeds may not have track info at all
-    if (nyctStu?.scheduled_track && nyctStu?.actual_track) {
-      expect(nyctStu.scheduled_track).toBe(nyctStu.actual_track);
+    if (nyctStu?.scheduledTrack && nyctStu?.actualTrack) {
+      expect(nyctStu.scheduledTrack).toBe(nyctStu.actualTrack);
     }
   });
 });
@@ -190,8 +191,8 @@ describe("parseFeed - past arrivals", () => {
     expect(result.entityCount).toBe(1);
     const entity = result.message.entity[0];
     expect(entity.tripUpdate).toBeDefined();
-    expect(entity.tripUpdate?.stopTimeUpdate?.[0]?.arrival?.time).toBeLessThan(
-      Math.floor(Date.now() / 1000)
-    );
+    // Protobuf time fields may be Long objects - convert to number
+    const arrivalTime = entity.tripUpdate?.stopTimeUpdate?.[0]?.arrival?.time;
+    expect(Number(arrivalTime)).toBeLessThan(Math.floor(Date.now() / 1000));
   });
 });

@@ -19,17 +19,22 @@ import { SUBWAY_FEEDS, MTA_FEED_BASE_URL, MTA_ALERTS_FEED_URL } from "@mta-my-wa
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { transit_realtime } from "../../../proto/compiled.js";
+
+// Alert feed ID for manifest
+const ALERTS_FEED_ID = "nyct-subway-alerts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, "feeds");
 
 const SUBWAY_FEED_IDS = SUBWAY_FEEDS.map((f) => f.id);
-const ALERTS_FEED_ID = "nyct-subway-alerts";
 
 interface DownloadResult {
   feedId: string;
   data: Uint8Array;
   entityCount: number;
+  feedTimestamp: number;
+  hasNyctExtension: boolean;
 }
 
 async function downloadFeed(feedId: string, feedUrl: string): Promise<DownloadResult> {
@@ -53,7 +58,38 @@ async function downloadFeed(feedId: string, feedUrl: string): Promise<DownloadRe
   }
 
   const data = new Uint8Array(buffer);
-  return { feedId, data, entityCount: 0 }; // entityCount would need protobuf decode
+
+  // Decode to get metadata
+  let entityCount = 0;
+  let feedTimestamp = 0;
+  let hasNyctExtension = false;
+
+  try {
+    const message = transit_realtime.FeedMessage.decode(data);
+    entityCount = message.entity.length;
+    feedTimestamp = message.header.timestamp?.toNumber() ?? 0;
+    // Check for NYCT extension
+    const nyctHeader = message.header[".transit_realtime.nyctFeedHeader"];
+    hasNyctExtension = nyctHeader !== null && nyctHeader !== undefined;
+  } catch {
+    // If we can't decode, still save the fixture
+    console.warn(`Warning: Could not decode ${feedId} to get metadata`);
+  }
+
+  return { feedId, data, entityCount, feedTimestamp, hasNyctExtension };
+}
+
+interface FixtureManifest {
+  downloadedAt: string;
+  source: "real-mta-api";
+  feeds: Array<{
+    id: string;
+    sizeBytes: number;
+    entityCount: number;
+    feedTimestamp: number;
+    hasNyctExtension: boolean;
+  }>;
+  note: string;
 }
 
 async function downloadFixtures(): Promise<void> {
@@ -75,6 +111,7 @@ async function downloadFixtures(): Promise<void> {
   console.log("Output directory:", OUTPUT_DIR);
 
   const results: DownloadResult[] = [];
+  const manifestFeeds: FixtureManifest["feeds"] = [];
   let feedCount = 0;
   let alertCount = 0;
 
@@ -87,7 +124,16 @@ async function downloadFixtures(): Promise<void> {
 
       const outputPath = join(OUTPUT_DIR, `${feedId}.bin`);
       writeFileSync(outputPath, result.data);
-      console.log(`✓ Downloaded ${feedId} (${result.data.length} bytes)`);
+      console.log(
+        `✓ Downloaded ${feedId} (${result.data.length} bytes, ${result.entityCount} entities, NYCT: ${result.hasNyctExtension})`
+      );
+      manifestFeeds.push({
+        id: feedId,
+        sizeBytes: result.data.length,
+        entityCount: result.entityCount,
+        feedTimestamp: result.feedTimestamp,
+        hasNyctExtension: result.hasNyctExtension,
+      });
       feedCount++;
     } catch (error) {
       console.error(`✗ Failed to download ${feedId}:`, error instanceof Error ? error.message : error);
@@ -101,11 +147,30 @@ async function downloadFixtures(): Promise<void> {
 
     const outputPath = join(OUTPUT_DIR, `${ALERTS_FEED_ID}.bin`);
     writeFileSync(outputPath, result.data);
-    console.log(`✓ Downloaded ${ALERTS_FEED_ID} (${result.data.length} bytes)`);
+    console.log(
+      `✓ Downloaded ${ALERTS_FEED_ID} (${result.data.length} bytes, ${result.entityCount} entities)`
+    );
+    manifestFeeds.push({
+      id: ALERTS_FEED_ID,
+      sizeBytes: result.data.length,
+      entityCount: result.entityCount,
+      feedTimestamp: result.feedTimestamp,
+      hasNyctExtension: result.hasNyctExtension,
+    });
     alertCount = 1;
   } catch (error) {
     console.error(`✗ Failed to download ${ALERTS_FEED_ID}:`, error instanceof Error ? error.message : error);
   }
+
+  // Write manifest
+  const manifest: FixtureManifest = {
+    downloadedAt: new Date().toISOString(),
+    source: "real-mta-api",
+    feeds: manifestFeeds,
+    note: "Real MTA feed fixtures downloaded from the MTA API. Re-record periodically to catch format changes.",
+  };
+  writeFileSync(join(OUTPUT_DIR, "manifest.json"), JSON.stringify(manifest, null, 2));
+  console.log(`\n✓ Generated manifest.json`);
 
   console.log("\nAll fixtures downloaded successfully!");
   console.log(`Total subway feeds: ${feedCount}/${SUBWAY_FEED_IDS.length}`);
