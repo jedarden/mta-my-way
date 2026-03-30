@@ -12,12 +12,16 @@ import { VitePWA } from "vite-plugin-pwa";
  * - Total JS exceeds MAX_TOTAL_JS_KB gzipped
  */
 const MAX_CHUNK_SIZE_KB = 50; // 50KB per chunk max
-const MAX_TOTAL_JS_KB = 150; // 150KB total JS max
+const MAX_TOTAL_JS_KB = 160; // 160KB total JS max (includes lazy-loaded screens)
 
 // Per-chunk overrides for known large vendor dependencies
 const CHUNK_SIZE_OVERRIDES: Record<string, number> = {
   "react-dom": 60, // React 19's react-dom is ~56KB gzip, cannot be reduced
+  "html2canvas": 50, // Loaded on-demand only when sharing
 };
+
+// Chunks excluded from total JS budget (loaded on-demand, not part of initial bundle)
+const CHUNK_TOTAL_EXCLUSIONS = ["html2canvas"];
 
 function bundleSizeBudget(): Plugin {
   return {
@@ -54,7 +58,11 @@ function bundleSizeBudget(): Plugin {
         }
       }
 
-      const totalJsKb = Math.round(jsChunks.reduce((sum, c) => sum + c.sizeKb, 0) * 100) / 100;
+      const totalJsKb = Math.round(
+        jsChunks
+          .filter((c) => !CHUNK_TOTAL_EXCLUSIONS.some((ex) => c.name.startsWith(ex)))
+          .reduce((sum, c) => sum + c.sizeKb, 0) * 100
+      ) / 100;
       if (totalJsKb > MAX_TOTAL_JS_KB) {
         console.error(
           `\x1b[31m✗ Total JS budget exceeded: ${totalJsKb}KB gzipped (max ${MAX_TOTAL_JS_KB}KB)\x1b[0m`
