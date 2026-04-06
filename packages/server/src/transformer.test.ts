@@ -12,20 +12,20 @@
  * - Deleted entities are skipped
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import type { RouteIndex, StationIndex } from "@mta-my-way/shared";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { ParsedFeed } from "./parser.js";
 import { parseFeed } from "./parser.js";
-import { buildStopToStationMap, transformFeeds } from "./transformer.js";
-import type { StationIndex, RouteIndex } from "@mta-my-way/shared";
 import {
   aDivisionFeed,
   bDivisionFeed,
-  emptyFeed,
-  unassignedTripsFeed,
-  reroutedTrackFeed,
   deletedEntitiesFeed,
+  emptyFeed,
   pastArrivalsFeed,
+  reroutedTrackFeed,
+  unassignedTripsFeed,
 } from "./test/fixtures.js";
+import { buildStopToStationMap, transformFeeds } from "./transformer.js";
 
 // ---------------------------------------------------------------------------
 // Minimal test data
@@ -119,7 +119,7 @@ const STATIONS: StationIndex = {
   "724": {
     id: "724",
     name: "34 St-Herald Sq",
-    lat: 40.750,
+    lat: 40.75,
     lon: -73.988,
     lines: ["F"],
     northStopId: "724N",

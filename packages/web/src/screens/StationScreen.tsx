@@ -250,12 +250,14 @@ export default function StationScreen() {
                   southbound={data.southbound}
                   showTrackButton
                   onTrackTrip={(arrival: ArrivalTime) => {
-                  // Include origin station info for trip journaling
-                  const origin = encodeURIComponent(station?.id ?? "");
-                  const dest = arrival.destination ? encodeURIComponent(arrival.destination) : "";
-                  const destParam = dest ? `&dest=${dest}` : "";
-                  navigate(`/trip/${encodeURIComponent(arrival.tripId)}?origin=${origin}${destParam}`);
-                }}
+                    // Include origin station info for trip journaling
+                    const origin = encodeURIComponent(station?.id ?? "");
+                    const dest = arrival.destination ? encodeURIComponent(arrival.destination) : "";
+                    const destParam = dest ? `&dest=${dest}` : "";
+                    navigate(
+                      `/trip/${encodeURIComponent(arrival.tripId)}?origin=${origin}${destParam}`
+                    );
+                  }}
                 />
                 <FreshnessFooter
                   arrivals={[...data.northbound, ...data.southbound]}

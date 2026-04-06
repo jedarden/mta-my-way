@@ -7,8 +7,8 @@
  */
 
 import type { Favorite } from "@mta-my-way/shared";
-import { useContextSort } from "./useContextSort";
 import { useFavoritesStore } from "../stores/favoritesStore";
+import { useContextSort } from "./useContextSort";
 
 export type { Favorite };
 

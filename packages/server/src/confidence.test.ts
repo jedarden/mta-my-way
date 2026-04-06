@@ -10,17 +10,17 @@
  * - Transfer buffer, journey confidence, acceptability
  */
 
-import { describe, expect, it } from "vitest";
 import {
   calculateConfidence,
   calculateConfidenceWithReroute,
-  getTransferBufferMinutes,
-  isConfidenceAcceptable,
   calculateJourneyConfidence,
   getConfidenceDescription,
   getConfidenceStyleClass,
   getDivision,
+  getTransferBufferMinutes,
+  isConfidenceAcceptable,
 } from "@mta-my-way/shared";
+import { describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
 // calculateConfidence: A Division (numbered lines)

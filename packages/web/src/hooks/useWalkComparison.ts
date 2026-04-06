@@ -5,7 +5,6 @@
  * (haversine distance at 4.5 km/h) to determine if walking is faster than transit.
  */
 
-import { useMemo } from "react";
 import type { CommuteAnalysis } from "@mta-my-way/shared";
 import {
   compareWalkingVsTransit,
@@ -15,6 +14,7 @@ import {
   isWalkingViable,
   walkingTimeFromDistance,
 } from "@mta-my-way/shared";
+import { useMemo } from "react";
 import { useStationIndex } from "./useStationIndex";
 
 export interface WalkComparisonResult {
@@ -92,7 +92,8 @@ function getBestTransitTimes(analysis: CommuteAnalysis): {
   if (bestTransfer) {
     return {
       waitMinutes: bestTransfer.legs[0]?.nextArrival.minutesAway ?? 0,
-      rideMinutes: bestTransfer.totalEstimatedMinutes - (bestTransfer.legs[0]?.nextArrival.minutesAway ?? 0),
+      rideMinutes:
+        bestTransfer.totalEstimatedMinutes - (bestTransfer.legs[0]?.nextArrival.minutesAway ?? 0),
     };
   }
 

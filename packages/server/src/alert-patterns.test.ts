@@ -71,9 +71,7 @@ describe("parseAlerts - severity mapping", () => {
 
   it("SIGNIFICANT_DELAYS effect → warning", async () => {
     const alerts = await parseAlerts(alertsFeed());
-    const delayed = alerts.find(
-      (a) => a.affectedLines.includes("A") && a.patternMatched
-    );
+    const delayed = alerts.find((a) => a.affectedLines.includes("A") && a.patternMatched);
     expect(delayed!.severity).toBe("warning");
   });
 

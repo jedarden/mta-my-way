@@ -7,7 +7,10 @@
     "toStation": "Bedford Av",
     "description": "L train Manhattan to Williamsburg",
     "stops": [
-      { "nearStationId": "L01", "description": "14th St & 8th Ave (NW corner, near subway entrance)" },
+      {
+        "nearStationId": "L01",
+        "description": "14th St & 8th Ave (NW corner, near subway entrance)"
+      },
       { "nearStationId": "L03", "description": "14th St & 6th Ave (SW corner)" },
       { "nearStationId": "L05", "description": "14th St & 3rd Ave (NE corner)" },
       { "nearStationId": "L08", "description": "Bedford Ave & N 7th St (SE corner)" }

@@ -130,7 +130,6 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
     cache.matchRate = calculateMatchRate(alerts);
 
     const matchedCount = alerts.filter((a) => a.patternMatched).length;
-    const unmatchedCount = alerts.length - matchedCount;
 
     console.log(
       JSON.stringify({
@@ -140,7 +139,7 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
         alert_count: alerts.length,
         match_rate: Math.round(cache.matchRate * 100) / 100,
         matched_count: matchedCount,
-        unmatched_count,
+        unmatched_count: alerts.length - matchedCount,
       })
     );
 

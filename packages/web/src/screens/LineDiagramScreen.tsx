@@ -46,7 +46,8 @@ export default function LineDiagramScreen() {
   useEffect(() => {
     if (!lineId) return;
     setRouteError(null);
-    api.getRoutes()
+    api
+      .getRoutes()
       .then((routes) => {
         const route = routes.find((r) => r.id.toUpperCase() === lineId.toUpperCase());
         if (route) {
@@ -188,11 +189,7 @@ export default function LineDiagramScreen() {
           >
             {(diagramData) => (
               <div className="bg-surface dark:bg-dark-surface rounded-xl p-4">
-                <TrainDiagram
-                  data={diagramData}
-                  onTrainTap={handleTrainTap}
-                  className="w-full"
-                />
+                <TrainDiagram data={diagramData} onTrainTap={handleTrainTap} className="w-full" />
 
                 {/* Legend */}
                 <div className="mt-4 pt-4 border-t border-border dark:border-dark-border">
@@ -216,7 +213,8 @@ export default function LineDiagramScreen() {
 
                 {/* Train count */}
                 <p className="mt-2 text-center text-12 text-text-tertiary dark:text-dark-text-tertiary">
-                  {diagramData.trains.length} train{diagramData.trains.length !== 1 ? "s" : ""} tracking
+                  {diagramData.trains.length} train{diagramData.trains.length !== 1 ? "s" : ""}{" "}
+                  tracking
                 </p>
               </div>
             )}
@@ -229,9 +227,10 @@ export default function LineDiagramScreen() {
             About this diagram
           </h2>
           <p className="text-13 text-text-tertiary dark:text-dark-text-tertiary leading-relaxed">
-            This schematic shows live train positions along the {routeInfo?.shortName ?? lineId ?? "selected"} line.
-            Dots are positioned between stations based on real-time tracking data.
-            Tap any train dot to see details including destination and delay status.
+            This schematic shows live train positions along the{" "}
+            {routeInfo?.shortName ?? lineId ?? "selected"} line. Dots are positioned between
+            stations based on real-time tracking data. Tap any train dot to see details including
+            destination and delay status.
           </p>
         </section>
       </main>
@@ -261,20 +260,14 @@ function DiagramSkeleton() {
       {/* Station dots skeleton */}
       <div className="flex justify-between items-center px-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="w-3 h-3 rounded-full bg-border dark:bg-dark-border"
-          />
+          <div key={i} className="w-3 h-3 rounded-full bg-border dark:bg-dark-border" />
         ))}
       </div>
 
       {/* Train dots skeleton */}
       <div className="flex justify-around mt-8 px-8">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="w-4 h-4 rounded-full bg-border dark:bg-dark-border"
-          />
+          <div key={i} className="w-4 h-4 rounded-full bg-border dark:bg-dark-border" />
         ))}
       </div>
 

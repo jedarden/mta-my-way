@@ -16,7 +16,13 @@ interface ShuttleInfoProps {
 /** Bus icon */
 function BusIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <rect x="3" y="6" width="18" height="12" rx="2" />
       <path d="M3 10h18" />
       <circle cx="7" cy="18" r="1.5" fill="currentColor" />
@@ -90,9 +96,7 @@ function CompactShuttleInfo({ shuttleInfo }: { shuttleInfo: ShuttleBusInfo }) {
   return (
     <div className="flex items-center gap-1.5 text-11 text-blue-600 dark:text-blue-400">
       <BusIcon className="w-3.5 h-3.5" />
-      <span>
-        Shuttle bus every {shuttleInfo.frequencyMinutes} min
-      </span>
+      <span>Shuttle bus every {shuttleInfo.frequencyMinutes} min</span>
       <LocationIcon className="w-3 h-3 ml-1" />
       <span>{shuttleInfo.stops.length} stops</span>
     </div>

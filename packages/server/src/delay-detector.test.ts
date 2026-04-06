@@ -12,19 +12,19 @@
  * - Edge cases: no travel times, empty feed, duplicate positions
  */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import type { RouteIndex, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   extractVehiclePositions,
+  getDelayDetectorStatus,
   getPredictedAlerts,
   getTrackedTripCount,
-  getDelayDetectorStatus,
   initDelayDetector,
-  processVehicleUpdates,
   onPredictedAlert,
+  processVehicleUpdates,
   resetDelayDetector,
 } from "./delay-detector.js";
 import type { DelayDetectorConfig } from "./delay-detector.js";
-import type { RouteIndex, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -39,17 +39,105 @@ const NOW = Math.floor(Date.now() / 1000);
  * the terminal exclusion logic.
  */
 const stations: StationIndex = {
-  "101": { id: "101", name: "Van Cortlandt Park-242 St", lines: ["1"], northStopId: "101N", southStopId: "101S", lat: 0, lon: 0 },
-  "102": { id: "102", name: "238 St", lines: ["1"], northStopId: "102N", southStopId: "102S", lat: 0, lon: 0 },
-  "103": { id: "103", name: "231 St", lines: ["1"], northStopId: "103N", southStopId: "103S", lat: 0, lon: 0 },
-  "104": { id: "104", name: "225 St", lines: ["1"], northStopId: "104N", southStopId: "104S", lat: 0, lon: 0 },
-  "105": { id: "105", name: "Marble Hill-225 St", lines: ["1"], northStopId: "105N", southStopId: "105S", lat: 0, lon: 0 },
-  "725": { id: "725", name: "34 St-Hudson Yards", lines: ["7"], northStopId: "725N", southStopId: "725S", lat: 0, lon: 0 },
-  "726": { id: "726", name: "Times Sq-42 St", lines: ["7"], northStopId: "726N", southStopId: "726S", lat: 0, lon: 0 },
-  "727": { id: "727", name: "5 Av", lines: ["7"], northStopId: "727N", southStopId: "727S", lat: 0, lon: 0 },
-  "A01": { id: "A01", name: "Inwood-207 St", lines: ["A"], northStopId: "A01N", southStopId: "A01S", lat: 0, lon: 0 },
-  "A02": { id: "A02", name: "Dyckman St", lines: ["A"], northStopId: "A02N", southStopId: "A02S", lat: 0, lon: 0 },
-  "A03": { id: "A03", name: "190 St", lines: ["A"], northStopId: "A03N", southStopId: "A03S", lat: 0, lon: 0 },
+  "101": {
+    id: "101",
+    name: "Van Cortlandt Park-242 St",
+    lines: ["1"],
+    northStopId: "101N",
+    southStopId: "101S",
+    lat: 0,
+    lon: 0,
+  },
+  "102": {
+    id: "102",
+    name: "238 St",
+    lines: ["1"],
+    northStopId: "102N",
+    southStopId: "102S",
+    lat: 0,
+    lon: 0,
+  },
+  "103": {
+    id: "103",
+    name: "231 St",
+    lines: ["1"],
+    northStopId: "103N",
+    southStopId: "103S",
+    lat: 0,
+    lon: 0,
+  },
+  "104": {
+    id: "104",
+    name: "225 St",
+    lines: ["1"],
+    northStopId: "104N",
+    southStopId: "104S",
+    lat: 0,
+    lon: 0,
+  },
+  "105": {
+    id: "105",
+    name: "Marble Hill-225 St",
+    lines: ["1"],
+    northStopId: "105N",
+    southStopId: "105S",
+    lat: 0,
+    lon: 0,
+  },
+  "725": {
+    id: "725",
+    name: "34 St-Hudson Yards",
+    lines: ["7"],
+    northStopId: "725N",
+    southStopId: "725S",
+    lat: 0,
+    lon: 0,
+  },
+  "726": {
+    id: "726",
+    name: "Times Sq-42 St",
+    lines: ["7"],
+    northStopId: "726N",
+    southStopId: "726S",
+    lat: 0,
+    lon: 0,
+  },
+  "727": {
+    id: "727",
+    name: "5 Av",
+    lines: ["7"],
+    northStopId: "727N",
+    southStopId: "727S",
+    lat: 0,
+    lon: 0,
+  },
+  A01: {
+    id: "A01",
+    name: "Inwood-207 St",
+    lines: ["A"],
+    northStopId: "A01N",
+    southStopId: "A01S",
+    lat: 0,
+    lon: 0,
+  },
+  A02: {
+    id: "A02",
+    name: "Dyckman St",
+    lines: ["A"],
+    northStopId: "A02N",
+    southStopId: "A02S",
+    lat: 0,
+    lon: 0,
+  },
+  A03: {
+    id: "A03",
+    name: "190 St",
+    lines: ["A"],
+    northStopId: "A03N",
+    southStopId: "A03S",
+    lat: 0,
+    lon: 0,
+  },
 };
 
 /** Route index with terminal stations at first/last positions */
@@ -74,7 +162,7 @@ const routes: RouteIndex = {
     division: "A",
     stops: ["725", "726", "727"],
   },
-  "A": {
+  A: {
     id: "A",
     shortName: "A",
     longName: "8th Ave Express",
@@ -102,9 +190,9 @@ const travelTimes: TravelTimeIndex = {
     "725": { "726": 90 },
     "726": { "727": 90 },
   },
-  "A": {
-    "A01": { "A02": 90 },
-    "A02": { "A03": 90 },
+  A: {
+    A01: { A02: 90 },
+    A02: { A03: 90 },
   },
 };
 
@@ -114,7 +202,9 @@ const travelTimes: TravelTimeIndex = {
 
 type VehiclePositionInput = Parameters<typeof processVehicleUpdates>[0][number];
 
-function makePosition(overrides: Partial<VehiclePositionInput> & { tripId: string; routeId: string }): VehiclePositionInput {
+function makePosition(
+  overrides: Partial<VehiclePositionInput> & { tripId: string; routeId: string }
+): VehiclePositionInput {
   return {
     direction: "N" as const,
     currentStopSequence: 1,
@@ -127,16 +217,18 @@ function makePosition(overrides: Partial<VehiclePositionInput> & { tripId: strin
 }
 
 /** Create a synthetic GTFS-RT feed message with VehiclePosition entities */
-function makeFeedMessage(entities: Array<{
-  tripId: string;
-  routeId: string;
-  stopId: string;
-  stopSequence: number;
-  timestamp: number;
-  status: number;
-  direction: number;
-  isAssigned: boolean;
-}>) {
+function makeFeedMessage(
+  entities: Array<{
+    tripId: string;
+    routeId: string;
+    stopId: string;
+    stopSequence: number;
+    timestamp: number;
+    status: number;
+    direction: number;
+    isAssigned: boolean;
+  }>
+) {
   return {
     entity: entities.map((e) => ({
       vehicle: {
@@ -227,7 +319,15 @@ describe("extractVehiclePositions", () => {
   it("skips entities without tripId or routeId", () => {
     const message = {
       entity: [
-        { vehicle: { trip: { tripId: "T1" }, stopId: "102N", currentStopSequence: 1, current_status: 1, timestamp: NOW } },
+        {
+          vehicle: {
+            trip: { tripId: "T1" },
+            stopId: "102N",
+            currentStopSequence: 1,
+            current_status: 1,
+            timestamp: NOW,
+          },
+        },
       ],
     };
     const positions = extractVehiclePositions("gtfs", message);
@@ -237,7 +337,15 @@ describe("extractVehiclePositions", () => {
   it("skips entities without timestamp or stopId", () => {
     const message = {
       entity: [
-        { vehicle: { trip: { tripId: "T1", routeId: "1" }, stopId: "", currentStopSequence: 1, current_status: 1, timestamp: 0 } },
+        {
+          vehicle: {
+            trip: { tripId: "T1", routeId: "1" },
+            stopId: "",
+            currentStopSequence: 1,
+            current_status: 1,
+            timestamp: 0,
+          },
+        },
       ],
     };
     const positions = extractVehiclePositions("gtfs", message);
@@ -246,7 +354,16 @@ describe("extractVehiclePositions", () => {
 
   it("maps NYCT direction: 3 → SOUTH", () => {
     const message = makeFeedMessage([
-      { tripId: "T1", routeId: "1", stopId: "102S", stopSequence: 2, timestamp: NOW, status: 2, direction: 3, isAssigned: true },
+      {
+        tripId: "T1",
+        routeId: "1",
+        stopId: "102S",
+        stopSequence: 2,
+        timestamp: NOW,
+        status: 2,
+        direction: 3,
+        isAssigned: true,
+      },
     ]);
     const positions = extractVehiclePositions("gtfs", message);
     expect(positions[0].direction).toBe("S");
@@ -261,7 +378,16 @@ describe("extractVehiclePositions", () => {
 
     for (const { status, expected } of statuses) {
       const message = makeFeedMessage([
-        { tripId: `T-${status}`, routeId: "1", stopId: "102N", stopSequence: 2, timestamp: NOW, status, direction: 1, isAssigned: true },
+        {
+          tripId: `T-${status}`,
+          routeId: "1",
+          stopId: "102N",
+          stopSequence: 2,
+          timestamp: NOW,
+          status,
+          direction: 1,
+          isAssigned: true,
+        },
       ]);
       const positions = extractVehiclePositions("gtfs", message);
       expect(positions[0].status).toBe(expected);
@@ -286,7 +412,14 @@ describe("processVehicleUpdates - basic tracking", () => {
   });
 
   it("starts tracking a new trip", () => {
-    const positions = [makePosition({ tripId: "new-trip-1", routeId: "1", currentStopId: "102N", currentStopSequence: 2 })];
+    const positions = [
+      makePosition({
+        tripId: "new-trip-1",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+      }),
+    ];
     processVehicleUpdates(positions);
     expect(getTrackedTripCount()).toBeGreaterThanOrEqual(1);
   });
@@ -294,12 +427,24 @@ describe("processVehicleUpdates - basic tracking", () => {
   it("does not flag a delay when train moves within scheduled time", () => {
     // Use non-terminal segment: 102 → 103
     processVehicleUpdates([
-      makePosition({ tripId: "ontime-trip", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "ontime-trip",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     // 100s elapsed, scheduled = 90s, ratio = 1.11x (below 2.0x threshold)
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "ontime-trip", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 100 }),
+      makePosition({
+        tripId: "ontime-trip",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 100,
+      }),
     ]);
 
     expect(segments).toHaveLength(0);
@@ -315,12 +460,24 @@ describe("processVehicleUpdates - delay detection", () => {
   it("detects delay when actual time exceeds 2x scheduled", () => {
     // Use non-terminal segment: 102 → 103 (neither is first/last stop)
     processVehicleUpdates([
-      makePosition({ tripId: "delay-trip-1", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "delay-trip-1",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     // 200s elapsed vs 90s scheduled = 2.22x
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "delay-trip-1", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "delay-trip-1",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 200,
+      }),
     ]);
 
     expect(segments).toHaveLength(1);
@@ -334,11 +491,23 @@ describe("processVehicleUpdates - delay detection", () => {
 
   it("generates a single-train predicted alert (info severity)", () => {
     processVehicleUpdates([
-      makePosition({ tripId: "single-alert-1", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "single-alert-1",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     processVehicleUpdates([
-      makePosition({ tripId: "single-alert-1", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "single-alert-1",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 200,
+      }),
     ]);
 
     const alerts = getPredictedAlerts();
@@ -353,12 +522,24 @@ describe("processVehicleUpdates - delay detection", () => {
 
   it("does not flag delay below minimum observation time (60s)", () => {
     processVehicleUpdates([
-      makePosition({ tripId: "min-obs-trip", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "min-obs-trip",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     // Only 30s elapsed — below MIN_OBSERVATION_SECONDS
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "min-obs-trip", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 30 }),
+      makePosition({
+        tripId: "min-obs-trip",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 30,
+      }),
     ]);
 
     expect(segments).toHaveLength(0);
@@ -368,11 +549,23 @@ describe("processVehicleUpdates - delay detection", () => {
   it("does not flag delay departing from terminal station (first stop)", () => {
     // 101 is the first stop (terminal) on route "1"
     processVehicleUpdates([
-      makePosition({ tripId: "terminal-trip", routeId: "1", currentStopId: "101N", currentStopSequence: 1, timestamp: NOW }),
+      makePosition({
+        tripId: "terminal-trip",
+        routeId: "1",
+        currentStopId: "101N",
+        currentStopSequence: 1,
+        timestamp: NOW,
+      }),
     ]);
 
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "terminal-trip", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "terminal-trip",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW + 200,
+      }),
     ]);
 
     expect(segments).toHaveLength(0);
@@ -381,11 +574,23 @@ describe("processVehicleUpdates - delay detection", () => {
   it("does not flag delay arriving at terminal station (last stop)", () => {
     // 105 is the last stop (terminal) on route "1"
     processVehicleUpdates([
-      makePosition({ tripId: "terminal-arr", routeId: "1", currentStopId: "104N", currentStopSequence: 4, timestamp: NOW }),
+      makePosition({
+        tripId: "terminal-arr",
+        routeId: "1",
+        currentStopId: "104N",
+        currentStopSequence: 4,
+        timestamp: NOW,
+      }),
     ]);
 
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "terminal-arr", routeId: "1", currentStopId: "105N", currentStopSequence: 5, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "terminal-arr",
+        routeId: "1",
+        currentStopId: "105N",
+        currentStopSequence: 5,
+        timestamp: NOW + 200,
+      }),
     ]);
 
     expect(segments).toHaveLength(0);
@@ -405,14 +610,38 @@ describe("processVehicleUpdates - line-level escalation", () => {
 
     // Register both trains at 102
     processVehicleUpdates([
-      makePosition({ tripId: "line-train-1", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
-      makePosition({ tripId: "line-train-2", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "line-train-1",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
+      makePosition({
+        tripId: "line-train-2",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     // Both trains move to 103 in the same batch (delayed: 200s/210s vs 90s scheduled)
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "line-train-1", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
-      makePosition({ tripId: "line-train-2", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 210 }),
+      makePosition({
+        tripId: "line-train-1",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 200,
+      }),
+      makePosition({
+        tripId: "line-train-2",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 210,
+      }),
     ]);
 
     // Both trains flagged as delayed
@@ -435,18 +664,36 @@ describe("processVehicleUpdates - line-level escalation", () => {
 describe("alert deduplication", () => {
   it("does not duplicate an alert for the same trip/segment", () => {
     processVehicleUpdates([
-      makePosition({ tripId: "dedup-trip", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "dedup-trip",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     processVehicleUpdates([
-      makePosition({ tripId: "dedup-trip", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "dedup-trip",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 200,
+      }),
     ]);
 
     const firstCount = getPredictedAlerts().length;
 
     // Process same position again — should not create duplicate
     processVehicleUpdates([
-      makePosition({ tripId: "dedup-trip", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 205 }),
+      makePosition({
+        tripId: "dedup-trip",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 205,
+      }),
     ]);
 
     expect(getPredictedAlerts().length).toBe(firstCount);
@@ -481,11 +728,23 @@ describe("configuration", () => {
     initDelayDetector(travelTimes, routes, stations, { thresholdMultiplier: 1.5 });
 
     processVehicleUpdates([
-      makePosition({ tripId: "custom-thresh", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "custom-thresh",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "custom-thresh", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 135 }),
+      makePosition({
+        tripId: "custom-thresh",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 135,
+      }),
     ]);
 
     expect(segments).toHaveLength(1);
@@ -496,11 +755,23 @@ describe("configuration", () => {
     initDelayDetector(travelTimes, routes, stations, { thresholdMultiplier: 1.5 });
 
     processVehicleUpdates([
-      makePosition({ tripId: "below-custom", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "below-custom",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
 
     const segments = processVehicleUpdates([
-      makePosition({ tripId: "below-custom", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 130 }),
+      makePosition({
+        tripId: "below-custom",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 130,
+      }),
     ]);
 
     expect(segments).toHaveLength(0);
@@ -519,10 +790,22 @@ describe("onPredictedAlert", () => {
     });
 
     processVehicleUpdates([
-      makePosition({ tripId: "listener-trip", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "listener-trip",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
     processVehicleUpdates([
-      makePosition({ tripId: "listener-trip", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "listener-trip",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 200,
+      }),
     ]);
 
     expect(received.length).toBe(1);
@@ -538,10 +821,22 @@ describe("onPredictedAlert", () => {
     unsubscribe();
 
     processVehicleUpdates([
-      makePosition({ tripId: "unsub-trip", routeId: "1", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "unsub-trip",
+        routeId: "1",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
     processVehicleUpdates([
-      makePosition({ tripId: "unsub-trip", routeId: "1", currentStopId: "103N", currentStopSequence: 3, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "unsub-trip",
+        routeId: "1",
+        currentStopId: "103N",
+        currentStopSequence: 3,
+        timestamp: NOW + 200,
+      }),
     ]);
 
     expect(received).toHaveLength(0);
@@ -576,7 +871,13 @@ describe("edge cases", () => {
 
   it("handles unknown stop ID gracefully", () => {
     processVehicleUpdates([
-      makePosition({ tripId: "unknown-stop", routeId: "1", currentStopId: "999N", currentStopSequence: 1, timestamp: NOW }),
+      makePosition({
+        tripId: "unknown-stop",
+        routeId: "1",
+        currentStopId: "999N",
+        currentStopSequence: 1,
+        timestamp: NOW,
+      }),
     ]);
     // Should not crash, trip should not be tracked (stationId resolves to null)
     expect(getPredictedAlerts()).toHaveLength(0);
@@ -584,7 +885,13 @@ describe("edge cases", () => {
 
   it("handles unknown route gracefully", () => {
     processVehicleUpdates([
-      makePosition({ tripId: "unknown-route", routeId: "Z", currentStopId: "102N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "unknown-route",
+        routeId: "Z",
+        currentStopId: "102N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
     // Should not crash
     expect(getPredictedAlerts()).toHaveLength(0);
@@ -595,10 +902,22 @@ describe("edge cases", () => {
     // A03 IS terminal, so this will be excluded. Use a route with more intermediate stops.
     // Since we can't easily modify routes here, test that A02→A03 is excluded (terminal arrival)
     processVehicleUpdates([
-      makePosition({ tripId: "b-div-trip", routeId: "A", currentStopId: "A02N", currentStopSequence: 2, timestamp: NOW }),
+      makePosition({
+        tripId: "b-div-trip",
+        routeId: "A",
+        currentStopId: "A02N",
+        currentStopSequence: 2,
+        timestamp: NOW,
+      }),
     ]);
     processVehicleUpdates([
-      makePosition({ tripId: "b-div-trip", routeId: "A", currentStopId: "A03N", currentStopSequence: 3, timestamp: NOW + 200 }),
+      makePosition({
+        tripId: "b-div-trip",
+        routeId: "A",
+        currentStopId: "A03N",
+        currentStopSequence: 3,
+        timestamp: NOW + 200,
+      }),
     ]);
     // A03 is terminal → excluded
     expect(getPredictedAlerts()).toHaveLength(0);

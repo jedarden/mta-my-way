@@ -12,8 +12,8 @@
 
 import type { ArrivalTime } from "@mta-my-way/shared";
 import { formatMinutesAway } from "@mta-my-way/shared";
-import type { StalenessLevel } from "../../hooks/useStaleness";
 import { computeFeedFreshness } from "../../hooks/useFeedFreshness";
+import type { StalenessLevel } from "../../hooks/useStaleness";
 import { ConfidenceBar } from "./ConfidenceBar";
 import { LineBullet } from "./LineBullet";
 

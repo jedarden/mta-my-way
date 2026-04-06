@@ -25,10 +25,7 @@ function isWeekday(day: number): boolean {
 }
 
 /** Score a favorite for morning relevance based on tap history */
-function scoreMorningFavorite(
-  favoriteId: string,
-  tapHistory: FavoriteTapEvent[]
-): number {
+function scoreMorningFavorite(favoriteId: string, tapHistory: FavoriteTapEvent[]): number {
   let score = 0;
   for (const tap of tapHistory) {
     if (

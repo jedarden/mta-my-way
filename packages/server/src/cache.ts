@@ -16,7 +16,7 @@
  */
 
 import { SUBWAY_FEEDS } from "@mta-my-way/shared";
-import type { LinePositions, StationArrivals, TrainPosition } from "@mta-my-way/shared";
+import type { LinePositions, StationArrivals } from "@mta-my-way/shared";
 import type { ParsedFeed } from "./parser.js";
 
 /** Number of consecutive failures before the circuit opens */
@@ -110,7 +110,13 @@ export function isCircuitOpen(feedId: string): boolean {
 // Feed state mutations
 // ---------------------------------------------------------------------------
 
-export function recordFeedSuccess(feedId: string, parsed: ParsedFeed, entityCount: number, latencyMs: number, parseErrors: number = 0): void {
+export function recordFeedSuccess(
+  feedId: string,
+  parsed: ParsedFeed,
+  entityCount: number,
+  latencyMs: number,
+  parseErrors: number = 0
+): void {
   const state = feedStates.get(feedId);
   if (!state) return;
   const now = Date.now();
@@ -245,10 +251,7 @@ let positionsCache = new Map<string, LinePositions>();
 /** When the positions cache was last updated */
 let positionsFetchedAt = 0;
 
-export function updatePositions(
-  positions: Map<string, LinePositions>,
-  fetchedAt: number
-): void {
+export function updatePositions(positions: Map<string, LinePositions>, fetchedAt: number): void {
   positionsCache = positions;
   positionsFetchedAt = fetchedAt;
 }

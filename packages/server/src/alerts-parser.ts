@@ -16,9 +16,15 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AlertPattern, AlertSeverity, AlertSource, ShuttleBusInfo, StationAlert } from "@mta-my-way/shared";
-import { matchShuttle } from "./shuttle-matcher.js";
+import type {
+  AlertPattern,
+  AlertSeverity,
+  AlertSource,
+  ShuttleBusInfo,
+  StationAlert,
+} from "@mta-my-way/shared";
 import { transit_realtime } from "./proto/compiled.js";
+import { matchShuttle } from "./shuttle-matcher.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -403,7 +409,10 @@ export async function parseAlerts(data: Uint8Array): Promise<ParsedAlert[]> {
 
     // Extract cause and effect
     const cause = alert.cause?.toString() || "UNKNOWN_CAUSE";
-    const effect = typeof alert.effect === "number" ? effectToString(alert.effect) : (alert.effect?.toString() || "UNKNOWN_EFFECT");
+    const effect =
+      typeof alert.effect === "number"
+        ? effectToString(alert.effect)
+        : alert.effect?.toString() || "UNKNOWN_EFFECT";
 
     // Map effect to severity
     const severity = mapEffectToSeverity(effect);

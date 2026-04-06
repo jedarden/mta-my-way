@@ -49,39 +49,42 @@ export function usePositions(lineId: string | null): PositionsResult {
   // Simple in-memory cache (not persisted)
   const cacheRef = useRef<Map<string, { data: LineDiagramData; cachedAt: number }>>(new Map());
 
-  const fetchPositions = useCallback(async (triggerHaptic = false) => {
-    if (!lineId) return;
+  const fetchPositions = useCallback(
+    async (triggerHaptic = false) => {
+      if (!lineId) return;
 
-    if (triggerHaptic && navigator.vibrate) {
-      navigator.vibrate(10);
-    }
+      if (triggerHaptic && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
 
-    const gen = ++fetchGenRef.current;
+      const gen = ++fetchGenRef.current;
 
-    setState((prev) => ({
-      ...prev,
-      status: prev.data ? "stale" : "loading",
-    }));
+      setState((prev) => ({
+        ...prev,
+        status: prev.data ? "stale" : "loading",
+      }));
 
-    try {
-      const data = await api.getPositions(lineId);
-      if (gen !== fetchGenRef.current) return; // superseded
+      try {
+        const data = await api.getPositions(lineId);
+        if (gen !== fetchGenRef.current) return; // superseded
 
-      const now = Date.now();
-      cacheRef.current.set(lineId, { data, cachedAt: now });
-      setState({ status: "success", data, error: null, updatedAt: now });
-    } catch (err) {
-      if (gen !== fetchGenRef.current) return; // superseded
+        const now = Date.now();
+        cacheRef.current.set(lineId, { data, cachedAt: now });
+        setState({ status: "success", data, error: null, updatedAt: now });
+      } catch (err) {
+        if (gen !== fetchGenRef.current) return; // superseded
 
-      const stale = cacheRef.current.get(lineId);
-      setState({
-        status: navigator.onLine ? "error" : "offline",
-        data: stale?.data ?? null,
-        error: err instanceof Error ? err.message : "Failed to load positions",
-        updatedAt: stale?.cachedAt ?? null,
-      });
-    }
-  }, [lineId]);
+        const stale = cacheRef.current.get(lineId);
+        setState({
+          status: navigator.onLine ? "error" : "offline",
+          data: stale?.data ?? null,
+          error: err instanceof Error ? err.message : "Failed to load positions",
+          updatedAt: stale?.cachedAt ?? null,
+        });
+      }
+    },
+    [lineId]
+  );
 
   useEffect(() => {
     if (!lineId) {
@@ -133,7 +136,8 @@ export function getTrainOverallProgress(
   }
 
   const stopProgress = lastStopIndex / Math.max(stops.length - 1, 1);
-  const interStopProgress = ((nextStopIndex - lastStopIndex) / Math.max(stops.length - 1, 1)) * train.progress;
+  const interStopProgress =
+    ((nextStopIndex - lastStopIndex) / Math.max(stops.length - 1, 1)) * train.progress;
 
   return stopProgress + interStopProgress;
 }

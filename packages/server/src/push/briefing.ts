@@ -9,7 +9,11 @@
  * the user is in their quiet window.
  */
 
-import type { MorningScoreMap, PushFavoriteTuple, PushNotificationPayload } from "@mta-my-way/shared";
+import type {
+  MorningScoreMap,
+  PushFavoriteTuple,
+  PushNotificationPayload,
+} from "@mta-my-way/shared";
 import { getAllAlerts } from "../alerts-poller.js";
 import { sendPushNotification } from "./sender.js";
 import { getAllSubscriptions } from "./subscriptions.js";
@@ -89,9 +93,7 @@ function buildBriefingPayload(
 
   // Get current alerts
   const alerts = getAllAlerts();
-  const activeAlerts = alerts.filter(
-    (a) => a.severity === "warning" || a.severity === "severe"
-  );
+  const activeAlerts = alerts.filter((a) => a.severity === "warning" || a.severity === "severe");
 
   // Find alerts matching the user's lines
   const matchingAlerts = activeAlerts.filter((a) =>
@@ -107,17 +109,24 @@ function buildBriefingPayload(
     }
   }
 
-  const topLinesList = [...topLines].sort().map((l) => `(${l})`).join(" ");
-  const allLinesList = [...allLines].sort().map((l) => `(${l})`).join(" ");
+  const topLinesList = [...topLines]
+    .sort()
+    .map((l) => `(${l})`)
+    .join(" ");
+  const allLinesList = [...allLines]
+    .sort()
+    .map((l) => `(${l})`)
+    .join(" ");
 
   let body: string;
   let severity: "info" | "warning" | "severe";
 
   if (matchingAlerts.length === 0) {
     // All clear - mention top lines prominently
-    body = topLines.length < allLines.size
-      ? `${topLinesList} — All clear! (${allLinesList})`
-      : `${allLinesList} — All clear! No active alerts.`;
+    body =
+      topLines.length < allLines.size
+        ? `${topLinesList} — All clear! (${allLinesList})`
+        : `${allLinesList} — All clear! No active alerts.`;
     severity = "info";
   } else {
     // Check if any top-priority lines have alerts

@@ -16,9 +16,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { DataState } from "../components/common/DataState";
 import { TripTracker } from "../components/trip/TripTracker";
+import type { DataStatus } from "../hooks/useArrivals";
 import { useTripJournal } from "../hooks/useTripJournal";
 import { useTripTracker } from "../hooks/useTripTracker";
-import type { DataStatus } from "../hooks/useArrivals";
 
 export default function TripScreen() {
   const { tripId } = useParams<{ tripId: string }>();
@@ -29,8 +29,16 @@ export default function TripScreen() {
   const originStationId = searchParams.get("origin");
   const destinationStationId = searchParams.get("dest");
 
-  const { trip, stops, minutesToDestination, isActive, isLoading, error, isExpired, stop: stopTracking } =
-    useTripTracker(tripId ?? null);
+  const {
+    trip,
+    stops,
+    minutesToDestination,
+    isActive,
+    isLoading,
+    error,
+    isExpired,
+    stop: stopTracking,
+  } = useTripTracker(tripId ?? null);
 
   // Derive origin/destination names from trip data
   const firstStop = stops[0];

@@ -12,6 +12,36 @@ strands:
       - deferred
       - human
       - blocked
+  explore:
+    enabled: true
+    workspaces:
+      - /home/coding/AgentScribe
+      - /home/coding/ai-code-battle
+      - /home/coding/spaxel
+      - /home/coding/domain-check
+  weave:
+    enabled: true
+    max_beads_per_run: 3
+    cooldown_hours: 24
+    doc_patterns:
+      - "README*"
+      - "docs/**/*"
+  unravel:
+    enabled: true
+    max_beads_per_run: 3
+    cooldown_hours: 168
+  pulse:
+    enabled: true
+    cooldown_hours: 48
+    severity_threshold: 3
+    scanners:
+      - name: lint
+        command: "npm run lint 2>&1"
+      - name: test
+        command: "npm test 2>&1"
+
+verification:
+  - /home/coding/.needle/hooks/verify-changes.sh
 
 prompt:
   context_files: []
@@ -20,3 +50,34 @@ prompt:
     The project is a TypeScript monorepo (packages/server, packages/web, packages/shared).
     Backend is Hono on Node.js; frontend is React + Vite.
     Follow existing code patterns. Run `npm test` and `npm run lint` before closing a bead.
+  templates:
+    pluck: |
+      ## Workflow
+
+      You are a coding agent. Complete the task below, then close the bead.
+
+      Steps:
+      1. Read the task description and context below
+      2. Implement the required changes in {workspace_path}
+      3. Commit your work: `git commit -am "brief description of what was done"`
+      4. Push: `git push`
+      5. Close the bead: `br close {bead_id} --body "brief summary of what was implemented"`
+
+      If you cannot complete the task — do NOT close the bead. It will be retried automatically.
+
+      ---
+
+      ## Task: {bead_title}
+
+      {bead_body}
+
+      ## Rules
+
+      {workspace_instructions}
+
+      ## Context
+
+      {context_file_contents}
+
+      Bead ID: {bead_id}
+

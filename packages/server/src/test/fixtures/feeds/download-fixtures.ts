@@ -15,10 +15,10 @@
  * - Re-run periodically to catch MTA feed format changes
  */
 
-import { SUBWAY_FEEDS, MTA_FEED_BASE_URL, MTA_ALERTS_FEED_URL } from "@mta-my-way/shared";
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { MTA_ALERTS_FEED_URL, MTA_FEED_BASE_URL, SUBWAY_FEEDS } from "@mta-my-way/shared";
 import { transit_realtime } from "../../../proto/compiled.js";
 
 // Alert feed ID for manifest
@@ -136,7 +136,10 @@ async function downloadFixtures(): Promise<void> {
       });
       feedCount++;
     } catch (error) {
-      console.error(`✗ Failed to download ${feedId}:`, error instanceof Error ? error.message : error);
+      console.error(
+        `✗ Failed to download ${feedId}:`,
+        error instanceof Error ? error.message : error
+      );
     }
   }
 
@@ -159,7 +162,10 @@ async function downloadFixtures(): Promise<void> {
     });
     alertCount = 1;
   } catch (error) {
-    console.error(`✗ Failed to download ${ALERTS_FEED_ID}:`, error instanceof Error ? error.message : error);
+    console.error(
+      `✗ Failed to download ${ALERTS_FEED_ID}:`,
+      error instanceof Error ? error.message : error
+    );
   }
 
   // Write manifest

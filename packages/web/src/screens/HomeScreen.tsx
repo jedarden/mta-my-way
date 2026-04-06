@@ -19,6 +19,7 @@ import { useCallback, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyFavorites } from "../components/common/EmptyState";
 import { CommuteCard } from "../components/commute/CommuteCard";
+import { FareTracker } from "../components/fare/FareTracker";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
@@ -175,6 +176,14 @@ export default function HomeScreen() {
           ) : (
             <EmptyFavorites />
           )}
+        </section>
+
+        {/* Fare cap tracker */}
+        <section aria-labelledby="fare-heading" className="mt-6">
+          <h2 id="fare-heading" className="sr-only">
+            OMNY Fare Cap Tracker
+          </h2>
+          <FareTracker />
         </section>
 
         {/* Commutes section */}

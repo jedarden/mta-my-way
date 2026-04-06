@@ -29,7 +29,12 @@ function makeHeader(timestamp = NOW, tripReplacementPeriod?: number) {
   if (tripReplacementPeriod !== undefined) {
     header[".transit_realtime.nyctFeedHeader"] = {
       nyctSubwayVersion: "1.0",
-      tripReplacementPeriod: [{ routeId: "*", replacementPeriod: { start: timestamp, end: timestamp + tripReplacementPeriod } }],
+      tripReplacementPeriod: [
+        {
+          routeId: "*",
+          replacementPeriod: { start: timestamp, end: timestamp + tripReplacementPeriod },
+        },
+      ],
     };
   }
   return header;
@@ -95,9 +100,7 @@ function makeEntity(
 
 /** Encode a FeedMessage to a Uint8Array for parser testing */
 function encodeFeed(message: transit_realtime.IFeedMessage): Uint8Array {
-  const writer = transit_realtime.FeedMessage.encode(
-    transit_realtime.FeedMessage.create(message)
-  );
+  const writer = transit_realtime.FeedMessage.encode(transit_realtime.FeedMessage.create(message));
   return writer.finish();
 }
 
@@ -112,18 +115,25 @@ export function aDivisionFeed(): Uint8Array {
     entity: [
       makeEntity(
         "1-trip-001",
-        makeTripUpdate("A2024-01-01_001", "1", [
-          makeStopTimeUpdate("101N", futureTime(2)),
-          makeStopTimeUpdate("102N", futureTime(5)),
-          makeStopTimeUpdate("103N", futureTime(8)),
-        ], { isAssigned: true, trainId: "01@1234" })
+        makeTripUpdate(
+          "A2024-01-01_001",
+          "1",
+          [
+            makeStopTimeUpdate("101N", futureTime(2)),
+            makeStopTimeUpdate("102N", futureTime(5)),
+            makeStopTimeUpdate("103N", futureTime(8)),
+          ],
+          { isAssigned: true, trainId: "01@1234" }
+        )
       ),
       makeEntity(
         "1-trip-002",
-        makeTripUpdate("A2024-01-01_002", "2", [
-          makeStopTimeUpdate("101S", futureTime(3)),
-          makeStopTimeUpdate("100S", futureTime(7)),
-        ], { isAssigned: true, trainId: "02@5678", direction: "S" })
+        makeTripUpdate(
+          "A2024-01-01_002",
+          "2",
+          [makeStopTimeUpdate("101S", futureTime(3)), makeStopTimeUpdate("100S", futureTime(7))],
+          { isAssigned: true, trainId: "02@5678", direction: "S" }
+        )
       ),
     ],
   });
@@ -136,24 +146,30 @@ export function bDivisionFeed(): Uint8Array {
     entity: [
       makeEntity(
         "F-trip-001",
-        makeTripUpdate("B2024-01-01_001", "F", [
-          makeStopTimeUpdate("725N", futureTime(1)),
-          makeStopTimeUpdate("726N", futureTime(4)),
-        ], { isAssigned: true, trainId: "F1@9012" })
+        makeTripUpdate(
+          "B2024-01-01_001",
+          "F",
+          [makeStopTimeUpdate("725N", futureTime(1)), makeStopTimeUpdate("726N", futureTime(4))],
+          { isAssigned: true, trainId: "F1@9012" }
+        )
       ),
       makeEntity(
         "F-trip-002",
-        makeTripUpdate("B2024-01-01_002", "F", [
-          makeStopTimeUpdate("725S", futureTime(6)),
-          makeStopTimeUpdate("724S", futureTime(10)),
-        ], { isAssigned: false })
+        makeTripUpdate(
+          "B2024-01-01_002",
+          "F",
+          [makeStopTimeUpdate("725S", futureTime(6)), makeStopTimeUpdate("724S", futureTime(10))],
+          { isAssigned: false }
+        )
       ),
       makeEntity(
         "D-trip-001",
-        makeTripUpdate("B2024-01-01_003", "D", [
-          makeStopTimeUpdate("725N", futureTime(3)),
-          makeStopTimeUpdate("730N", futureTime(9)),
-        ], { isAssigned: false })
+        makeTripUpdate(
+          "B2024-01-01_003",
+          "D",
+          [makeStopTimeUpdate("725N", futureTime(3)), makeStopTimeUpdate("730N", futureTime(9))],
+          { isAssigned: false }
+        )
       ),
     ],
   });
@@ -166,10 +182,12 @@ export function lLineFeed(): Uint8Array {
     entity: [
       makeEntity(
         "L-trip-001",
-        makeTripUpdate("L2024-01-01_001", "L", [
-          makeStopTimeUpdate("L01N", futureTime(1)),
-          makeStopTimeUpdate("L02N", futureTime(3)),
-        ], { isAssigned: true, trainId: "L01@ABC" })
+        makeTripUpdate(
+          "L2024-01-01_001",
+          "L",
+          [makeStopTimeUpdate("L01N", futureTime(1)), makeStopTimeUpdate("L02N", futureTime(3))],
+          { isAssigned: true, trainId: "L01@ABC" }
+        )
       ),
     ],
   });
@@ -190,16 +208,18 @@ export function unassignedTripsFeed(): Uint8Array {
     entity: [
       makeEntity(
         "A-unassigned-001",
-        makeTripUpdate("A_UN1", "A", [
-          makeStopTimeUpdate("A01N", futureTime(5)),
-          makeStopTimeUpdate("A02N", futureTime(10)),
-        ], { isAssigned: false })
+        makeTripUpdate(
+          "A_UN1",
+          "A",
+          [makeStopTimeUpdate("A01N", futureTime(5)), makeStopTimeUpdate("A02N", futureTime(10))],
+          { isAssigned: false }
+        )
       ),
       makeEntity(
         "C-unassigned-001",
-        makeTripUpdate("C_UN1", "C", [
-          makeStopTimeUpdate("C01S", futureTime(4)),
-        ], { isAssigned: false })
+        makeTripUpdate("C_UN1", "C", [makeStopTimeUpdate("C01S", futureTime(4))], {
+          isAssigned: false,
+        })
       ),
     ],
   });
@@ -212,10 +232,15 @@ export function reroutedTrackFeed(): Uint8Array {
     entity: [
       makeEntity(
         "F-reroute-001",
-        makeTripUpdate("F_REROUTE_1", "F", [
-          makeStopTimeUpdate("725N", futureTime(2), "1", "2"),
-          makeStopTimeUpdate("726N", futureTime(5), "1", "1"),
-        ], { isAssigned: true, trainId: "FR@REROUTE" })
+        makeTripUpdate(
+          "F_REROUTE_1",
+          "F",
+          [
+            makeStopTimeUpdate("725N", futureTime(2), "1", "2"),
+            makeStopTimeUpdate("726N", futureTime(5), "1", "1"),
+          ],
+          { isAssigned: true, trainId: "FR@REROUTE" }
+        )
       ),
     ],
   });
@@ -230,9 +255,9 @@ export function deletedEntitiesFeed(): Uint8Array {
       makeEntity("deleted-002", undefined, undefined, true),
       makeEntity(
         "active-001",
-        makeTripUpdate("ACTIVE_1", "1", [
-          makeStopTimeUpdate("101N", futureTime(3)),
-        ], { isAssigned: true })
+        makeTripUpdate("ACTIVE_1", "1", [makeStopTimeUpdate("101N", futureTime(3))], {
+          isAssigned: true,
+        })
       ),
     ],
   });
@@ -248,9 +273,9 @@ export function noNyctExtensionFeed(): Uint8Array {
     entity: [
       makeEntity(
         "basic-001",
-        makeTripUpdate("BASIC_1", "N", [
-          makeStopTimeUpdate("N01N", futureTime(4)),
-        ], { isAssigned: true })
+        makeTripUpdate("BASIC_1", "N", [makeStopTimeUpdate("N01N", futureTime(4))], {
+          isAssigned: true,
+        })
       ),
     ],
   });
@@ -361,10 +386,12 @@ export function pastArrivalsFeed(): Uint8Array {
     entity: [
       makeEntity(
         "past-trip-001",
-        makeTripUpdate("PAST_1", "1", [
-          makeStopTimeUpdate("101N", pastTime1),
-          makeStopTimeUpdate("102N", pastTime2),
-        ], { isAssigned: true })
+        makeTripUpdate(
+          "PAST_1",
+          "1",
+          [makeStopTimeUpdate("101N", pastTime1), makeStopTimeUpdate("102N", pastTime2)],
+          { isAssigned: true }
+        )
       ),
     ],
   });
@@ -377,17 +404,21 @@ export function nqrwFeed(): Uint8Array {
     entity: [
       makeEntity(
         "N-trip-001",
-        makeTripUpdate("N2024_001", "N", [
-          makeStopTimeUpdate("N01N", futureTime(2)),
-          makeStopTimeUpdate("N02N", futureTime(6)),
-        ], { isAssigned: true, trainId: "N1@A1B2" })
+        makeTripUpdate(
+          "N2024_001",
+          "N",
+          [makeStopTimeUpdate("N01N", futureTime(2)), makeStopTimeUpdate("N02N", futureTime(6))],
+          { isAssigned: true, trainId: "N1@A1B2" }
+        )
       ),
       makeEntity(
         "Q-trip-001",
-        makeTripUpdate("Q2024_001", "Q", [
-          makeStopTimeUpdate("Q01N", futureTime(4)),
-          makeStopTimeUpdate("Q02N", futureTime(8)),
-        ], { isAssigned: false })
+        makeTripUpdate(
+          "Q2024_001",
+          "Q",
+          [makeStopTimeUpdate("Q01N", futureTime(4)), makeStopTimeUpdate("Q02N", futureTime(8))],
+          { isAssigned: false }
+        )
       ),
     ],
   });

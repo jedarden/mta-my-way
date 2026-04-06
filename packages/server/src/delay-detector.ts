@@ -129,7 +129,8 @@ export function initDelayDetector(
   stations = stationData;
   config = {
     thresholdMultiplier: detectorConfig?.thresholdMultiplier ?? DEFAULT_THRESHOLD_MULTIPLIER,
-    minTrainsForLineAlert: detectorConfig?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
+    minTrainsForLineAlert:
+      detectorConfig?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
   };
 
   console.log(
@@ -198,7 +199,8 @@ export function extractVehiclePositions(
       | undefined;
 
     let direction: "N" | "S" = "N";
-    if (nyctTrip?.direction === 3) direction = "S"; // SOUTH = 3
+    if (nyctTrip?.direction === 3)
+      direction = "S"; // SOUTH = 3
     else if (nyctTrip?.direction === 1) direction = "N"; // NORTH = 1
 
     const stopId = vp.stopId ?? "";
@@ -213,7 +215,9 @@ export function extractVehiclePositions(
     else if (vpStatus === 2) status = "IN_TRANSIT_TO";
 
     const timestamp = vp.timestamp
-      ? (typeof vp.timestamp === "number" ? vp.timestamp : vp.timestamp.toNumber?.() ?? 0)
+      ? typeof vp.timestamp === "number"
+        ? vp.timestamp
+        : (vp.timestamp.toNumber?.() ?? 0)
       : 0;
 
     // Extract destination from StopTimeUpdate if available (last stop in the trip)
@@ -324,10 +328,7 @@ export function processVehicleUpdates(
     if (!lastObs) continue;
 
     // Skip if the position hasn't changed (same stop, similar timestamp)
-    if (
-      lastObs.stationId === stationId &&
-      Math.abs(pos.timestamp - lastObs.timestamp) < 15
-    ) {
+    if (lastObs.stationId === stationId && Math.abs(pos.timestamp - lastObs.timestamp) < 15) {
       // Update timestamp but don't process
       lastObs.timestamp = pos.timestamp;
       lastObs.status = pos.status;
@@ -340,18 +341,17 @@ export function processVehicleUpdates(
       const traversalTime = pos.timestamp - lastObs.timestamp;
 
       if (traversalTime > 0 && traversalTime >= MIN_OBSERVATION_SECONDS) {
-        const scheduled = getScheduledTravelTime(
-          pos.routeId,
-          lastObs.stationId,
-          stationId
-        );
+        const scheduled = getScheduledTravelTime(pos.routeId, lastObs.stationId, stationId);
 
         if (scheduled > 0) {
           const ratio = traversalTime / scheduled;
 
           if (ratio >= config.thresholdMultiplier) {
             // Check we're not at a terminal
-            if (!isTerminalStop(pos.routeId, lastObs.stationId) && !isTerminalStop(pos.routeId, stationId)) {
+            if (
+              !isTerminalStop(pos.routeId, lastObs.stationId) &&
+              !isTerminalStop(pos.routeId, stationId)
+            ) {
               const segment: DelayedSegment = {
                 routeId: pos.routeId,
                 direction: pos.direction,
@@ -572,7 +572,11 @@ function resolveStationId(stopId: string): string | null {
  * Get the scheduled travel time between two stations on a route.
  * Returns 0 if not found (caller should skip in that case).
  */
-function getScheduledTravelTime(routeId: string, fromStationId: string, toStationId: string): number {
+function getScheduledTravelTime(
+  routeId: string,
+  fromStationId: string,
+  toStationId: string
+): number {
   if (!travelTimes) return 0;
   return getTravelTime(travelTimes, routeId, fromStationId, toStationId);
 }

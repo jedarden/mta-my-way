@@ -53,11 +53,19 @@ interface JournalState {
   clearJournal: () => void;
 
   // Anomaly detection
-  detectAnomaly: (commuteId: string, durationMinutes: number, dayOfWeek?: number) => AnomalyResult | null;
+  detectAnomaly: (
+    commuteId: string,
+    durationMinutes: number,
+    dayOfWeek?: number
+  ) => AnomalyResult | null;
   getDayOfWeekStats: (commuteId: string, dayOfWeek: number) => DayOfWeekStats | null;
 
   // Station visit tracking
-  recordStationVisit: (stationId: string, stationName: string, lines: string[]) => StationVisit | null;
+  recordStationVisit: (
+    stationId: string,
+    stationName: string,
+    lines: string[]
+  ) => StationVisit | null;
   getLastStationVisit: () => StationVisit | null;
   clearLastStationVisit: () => void;
 }
@@ -84,7 +92,9 @@ function calculateMedian(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0 ? sorted[mid] ?? 0 : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
+  return sorted.length % 2 !== 0
+    ? (sorted[mid] ?? 0)
+    : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 }
 
 function calculateStdDev(values: number[], mean: number): number {
@@ -180,7 +190,11 @@ function detectAnomalyImpl(
   let baseline: number;
   let threshold: number;
 
-  if (dayOfWeek !== undefined && dayStats?.[dayOfWeek] && dayStats[dayOfWeek].sampleCount >= MIN_SAMPLES_FOR_ANOMALY) {
+  if (
+    dayOfWeek !== undefined &&
+    dayStats?.[dayOfWeek] &&
+    dayStats[dayOfWeek].sampleCount >= MIN_SAMPLES_FOR_ANOMALY
+  ) {
     const dow = dayStats[dayOfWeek]!;
     baseline = dow.averageDurationMinutes;
     threshold = baseline + ANOMALY_THRESHOLD * dow.stdDevMinutes;
@@ -220,7 +234,9 @@ const migrations = new Map<number, (state: unknown) => unknown>([
             dayOfWeekStats[commuteId] = computeDayOfWeekStats(commuteStats.records);
 
             // Update stats with new computation
-            const { average, median, stdDev, tripsThisWeek, trend } = computeStats(commuteStats.records);
+            const { average, median, stdDev, tripsThisWeek, trend } = computeStats(
+              commuteStats.records
+            );
             commuteStats.averageDurationMinutes = average;
             commuteStats.medianDurationMinutes = median;
             commuteStats.stdDevMinutes = stdDev;

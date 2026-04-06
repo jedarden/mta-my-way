@@ -73,7 +73,10 @@ export function TrainDotDetails({ train, routeId, onClose, onTrackTrip }: TrainD
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <LineBullet line={routeId} size="md" />
-            <h2 id="train-details-title" className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">
+            <h2
+              id="train-details-title"
+              className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+            >
               {train.direction === "N" ? "Northbound" : "Southbound"} Train
             </h2>
           </div>
@@ -103,7 +106,9 @@ export function TrainDotDetails({ train, routeId, onClose, onTrackTrip }: TrainD
         <div className="space-y-3">
           {/* Destination */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-text-secondary dark:text-dark-text-secondary">Destination</span>
+            <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
+              Destination
+            </span>
             <span className="text-sm font-medium text-text-primary dark:text-dark-text-primary">
               {train.destination}
             </span>
@@ -111,7 +116,9 @@ export function TrainDotDetails({ train, routeId, onClose, onTrackTrip }: TrainD
 
           {/* Assignment status */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-text-secondary dark:text-dark-text-secondary">Status</span>
+            <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
+              Status
+            </span>
             <span
               className={`text-sm font-medium ${
                 train.isAssigned
@@ -126,7 +133,9 @@ export function TrainDotDetails({ train, routeId, onClose, onTrackTrip }: TrainD
           {/* Delay */}
           {delayText && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-text-secondary dark:text-dark-text-secondary">Delay</span>
+              <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
+                Delay
+              </span>
               <span
                 className={`text-sm font-medium ${
                   train.delay && train.delay > 300

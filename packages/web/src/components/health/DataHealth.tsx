@@ -5,7 +5,12 @@
  * Color-coded: green (<15s), gray (15-45s), amber (45-90s), red (>90s).
  */
 
-import { formatFeedAge, getFreshnessDotColor, getFreshnessTextColor, getFreshnessLevel } from "@mta-my-way/shared";
+import {
+  formatFeedAge,
+  getFreshnessDotColor,
+  getFreshnessLevel,
+  getFreshnessTextColor,
+} from "@mta-my-way/shared";
 import type { FeedHealthInfo } from "../../lib/api";
 
 interface DataHealthProps {
@@ -40,12 +45,11 @@ export function DataHealth({ feeds }: DataHealthProps) {
           const isDown = feed.status === "circuit_open" || feed.status === "never_polled";
 
           return (
-            <div
-              key={feed.id}
-              className="flex items-center justify-between py-1.5 text-13"
-            >
+            <div key={feed.id} className="flex items-center justify-between py-1.5 text-13">
               <div className="flex items-center gap-2 min-w-0">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${isDown ? "bg-red-500 animate-pulse" : getFreshnessDotColor(level)}`} />
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${isDown ? "bg-red-500 animate-pulse" : getFreshnessDotColor(level)}`}
+                />
                 <span className="text-text-primary dark:text-dark-text-primary truncate">
                   {feed.name}
                 </span>

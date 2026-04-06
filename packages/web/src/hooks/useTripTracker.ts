@@ -80,7 +80,9 @@ function deriveStops(trip: TripData): TripStopProgress[] {
   });
 }
 
-export function useTripTracker(tripId: string | null): TripTrackerState & { refresh: () => void; stop: () => void } {
+export function useTripTracker(
+  tripId: string | null
+): TripTrackerState & { refresh: () => void; stop: () => void } {
   const [state, setState] = useState<TripTrackerState>({
     isActive: !!tripId,
     trip: null,

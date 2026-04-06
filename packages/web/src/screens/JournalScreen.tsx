@@ -26,7 +26,12 @@ interface SparklineProps {
   color?: string;
 }
 
-function Sparkline({ values, width = 120, height = 32, color = "var(--mta-primary)" }: SparklineProps) {
+function Sparkline({
+  values,
+  width = 120,
+  height = 32,
+  color = "var(--mta-primary)",
+}: SparklineProps) {
   if (values.length < 2) {
     return (
       <div
@@ -108,9 +113,12 @@ function CommuteStatsCard({ commuteName, stats, onViewTrips, isExpanded }: Commu
     <div className="bg-surface dark:bg-dark-surface rounded-lg p-4">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="font-semibold text-text-primary dark:text-dark-text-primary">{commuteName}</h3>
+          <h3 className="font-semibold text-text-primary dark:text-dark-text-primary">
+            {commuteName}
+          </h3>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-            {stats.records[0]?.origin.stationName ?? "—"} → {stats.records[0]?.destination.stationName ?? "—"}
+            {stats.records[0]?.origin.stationName ?? "—"} →{" "}
+            {stats.records[0]?.destination.stationName ?? "—"}
           </p>
         </div>
         <span className={`text-13 font-medium ${trendColor}`}>{trendLabel}</span>
@@ -119,21 +127,27 @@ function CommuteStatsCard({ commuteName, stats, onViewTrips, isExpanded }: Commu
       {/* Stats grid */}
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div>
-          <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Avg</p>
+          <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Avg
+          </p>
           <p className="text-lg font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
             {Math.round(stats.averageDurationMinutes)}
             <span className="text-13 font-normal ml-0.5">min</span>
           </p>
         </div>
         <div>
-          <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Median</p>
+          <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Median
+          </p>
           <p className="text-lg font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
             {Math.round(stats.medianDurationMinutes)}
             <span className="text-13 font-normal ml-0.5">min</span>
           </p>
         </div>
         <div>
-          <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">Trips</p>
+          <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Trips
+          </p>
           <p className="text-lg font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
             {stats.totalTrips}
           </p>
@@ -191,7 +205,9 @@ function TripHistoryList({ records }: TripHistoryListProps) {
   }
 
   // Sort by date descending
-  const sorted = [...records].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sorted = [...records].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
 
   return (
     <div className="space-y-2 mt-3">
@@ -207,7 +223,12 @@ function TripHistoryList({ records }: TripHistoryListProps) {
                 {trip.origin.stationName} → {trip.destination.stationName}
               </p>
               <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
-                {formatDate(trip.date)} • {trip.source === "tracked" ? "Tracked" : trip.source === "inferred" ? "Inferred" : "Manual"}
+                {formatDate(trip.date)} •{" "}
+                {trip.source === "tracked"
+                  ? "Tracked"
+                  : trip.source === "inferred"
+                    ? "Inferred"
+                    : "Manual"}
               </p>
             </div>
           </div>
@@ -309,10 +330,40 @@ export default function JournalScreen() {
           Back
         </button>
 
-        <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary mb-1">Trip Journal</h1>
+        <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary mb-1">
+          Trip Journal
+        </h1>
         <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4">
           Your commute history and patterns
         </p>
+
+        {/* Link to Subway Year stats */}
+        {hasData && (
+          <button
+            type="button"
+            onClick={() => void navigate("/stats")}
+            className="w-full bg-gradient-to-r from-[#0039A6] to-[#002d82] text-white rounded-xl p-4 mb-4 flex items-center justify-between group"
+          >
+            <div className="text-left">
+              <p className="font-semibold text-sm">Your Subway Year</p>
+              <p className="text-xs text-blue-200">Personalized annual summary</p>
+            </div>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-blue-200 group-hover:translate-x-1 transition-transform"
+              aria-hidden="true"
+            >
+              <polyline points="9,18 15,12 9,6" />
+            </svg>
+          </button>
+        )}
 
         {/* Overall summary */}
         {hasData && (
@@ -322,20 +373,26 @@ export default function JournalScreen() {
                 <p className="text-2xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
                   {overallStats.totalTrips}
                 </p>
-                <p className="text-11 text-text-secondary dark:text-dark-text-secondary">Total Trips</p>
+                <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
+                  Total Trips
+                </p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
                   {overallStats.averageDuration}
                   <span className="text-13 font-normal">m</span>
                 </p>
-                <p className="text-11 text-text-secondary dark:text-dark-text-secondary">Avg Duration</p>
+                <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
+                  Avg Duration
+                </p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
                   {overallStats.tripsThisWeek}
                 </p>
-                <p className="text-11 text-text-secondary dark:text-dark-text-secondary">This Week</p>
+                <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
+                  This Week
+                </p>
               </div>
             </div>
           </div>
@@ -343,15 +400,14 @@ export default function JournalScreen() {
 
         {/* Commute stats */}
         <section aria-labelledby="commute-stats-heading">
-          <h2 id="commute-stats-heading" className="text-lg font-semibold text-text-primary dark:text-dark-text-primary mb-3">
+          <h2
+            id="commute-stats-heading"
+            className="text-lg font-semibold text-text-primary dark:text-dark-text-primary mb-3"
+          >
             Commute Stats
           </h2>
 
-          <DataState
-            status={hasData ? "success" : "success"}
-            data={commuteIds}
-            error={null}
-          >
+          <DataState status={hasData ? "success" : "success"} data={commuteIds} error={null}>
             {() =>
               hasData ? (
                 <div className="space-y-3">

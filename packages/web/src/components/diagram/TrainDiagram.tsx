@@ -88,7 +88,11 @@ export function TrainDiagram({
   const reducedMotion = useReducedMotion();
 
   return (
-    <figure className={className} role="img" aria-label={getAriaLabel(routeId, trainCount, spacingSummary)}>
+    <figure
+      className={className}
+      role="img"
+      aria-label={getAriaLabel(routeId, trainCount, spacingSummary)}
+    >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}

@@ -15,21 +15,21 @@
  *   MTA_API_KEY=<key> npx tsx packages/server/src/test/fixtures/feeds/download-fixtures.ts
  */
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   aDivisionFeed,
-  bDivisionFeed,
-  lLineFeed,
-  emptyFeed,
-  unassignedTripsFeed,
-  reroutedTrackFeed,
   alertsFeed,
+  bDivisionFeed,
+  deletedEntitiesFeed,
+  emptyFeed,
+  lLineFeed,
+  noNyctExtensionFeed,
   nqrwFeed,
   pastArrivalsFeed,
-  deletedEntitiesFeed,
-  noNyctExtensionFeed,
+  reroutedTrackFeed,
+  unassignedTripsFeed,
 } from "../fixtures.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -42,7 +42,11 @@ interface FixtureDefinition {
 }
 
 const SYNTHETIC_FIXTURES: FixtureDefinition[] = [
-  { id: "synthetic-gtfs", description: "A Division (1/2/3/4/5/6/7/S/GS)", generator: aDivisionFeed },
+  {
+    id: "synthetic-gtfs",
+    description: "A Division (1/2/3/4/5/6/7/S/GS)",
+    generator: aDivisionFeed,
+  },
   { id: "synthetic-gtfs-ace", description: "A/C/E Lines", generator: () => bDivisionFeed() }, // Uses B division structure
   { id: "synthetic-gtfs-bdfm", description: "B/D/F/M Lines", generator: bDivisionFeed },
   { id: "synthetic-gtfs-g", description: "G Line", generator: bDivisionFeed }, // Reuse B division
@@ -56,10 +60,22 @@ const SYNTHETIC_FIXTURES: FixtureDefinition[] = [
 const EDGE_CASE_FIXTURES: FixtureDefinition[] = [
   { id: "edge-empty", description: "Empty feed (header only)", generator: emptyFeed },
   { id: "edge-unassigned", description: "Unassigned trips only", generator: unassignedTripsFeed },
-  { id: "edge-rerouted", description: "Rerouted train (track mismatch)", generator: reroutedTrackFeed },
-  { id: "edge-past-arrivals", description: "Past arrivals (filtered)", generator: pastArrivalsFeed },
+  {
+    id: "edge-rerouted",
+    description: "Rerouted train (track mismatch)",
+    generator: reroutedTrackFeed,
+  },
+  {
+    id: "edge-past-arrivals",
+    description: "Past arrivals (filtered)",
+    generator: pastArrivalsFeed,
+  },
   { id: "edge-deleted", description: "Deleted entities", generator: deletedEntitiesFeed },
-  { id: "edge-no-nyct-extension", description: "No NYCT header extension", generator: noNyctExtensionFeed },
+  {
+    id: "edge-no-nyct-extension",
+    description: "No NYCT header extension",
+    generator: noNyctExtensionFeed,
+  },
 ];
 
 function generateFixtures(): void {
@@ -83,7 +99,10 @@ function generateFixtures(): void {
       console.log(`✓ Generated ${fixture.id} (${data.length} bytes) - ${fixture.description}`);
       syntheticCount++;
     } catch (error) {
-      console.error(`✗ Failed to generate ${fixture.id}:`, error instanceof Error ? error.message : error);
+      console.error(
+        `✗ Failed to generate ${fixture.id}:`,
+        error instanceof Error ? error.message : error
+      );
     }
   }
 
@@ -96,7 +115,10 @@ function generateFixtures(): void {
       console.log(`✓ Generated ${fixture.id} (${data.length} bytes) - ${fixture.description}`);
       edgeCaseCount++;
     } catch (error) {
-      console.error(`✗ Failed to generate ${fixture.id}:`, error instanceof Error ? error.message : error);
+      console.error(
+        `✗ Failed to generate ${fixture.id}:`,
+        error instanceof Error ? error.message : error
+      );
     }
   }
 

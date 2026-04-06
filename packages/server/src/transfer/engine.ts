@@ -27,9 +27,9 @@ import type {
   TravelTimeIndex,
 } from "@mta-my-way/shared";
 import { isBDivision } from "@mta-my-way/shared";
+import { getStationsWithBrokenElevators } from "../equipment-poller.js";
 import { buildTransferGraph, getReachableStations } from "./graph.js";
 import { calculateRouteTravelTime, determineDirection, getTravelTimes } from "./travel-times.js";
-import { getStationsWithBrokenElevators } from "../equipment-poller.js";
 
 /** Buffer to add to B Division arrival estimates (in seconds) */
 const B_DIVISION_BUFFER_SECONDS = 120; // 2 minutes

@@ -13,12 +13,11 @@
  * Uses Zod schemas from @mta-my-way/shared for response validation.
  */
 
+import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
+import type { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Hono } from "hono";
-import { createApp } from "./app.js";
-import type { StationIndex, RouteIndex, ComplexIndex } from "@mta-my-way/shared";
-import { commuteAnalyzeRequestSchema } from "@mta-my-way/shared";
 import { z } from "zod";
+import { createApp } from "./app.js";
 
 // ---------------------------------------------------------------------------
 // Minimal test fixtures
@@ -112,7 +111,10 @@ const COMPLEXES: ComplexIndex = {
   },
 };
 
-const TRANSFERS: Record<string, Array<{ toStationId: string; toLines: string[]; walkingSeconds: number; accessible: boolean }>> = {
+const TRANSFERS: Record<
+  string,
+  Array<{ toStationId: string; toLines: string[]; walkingSeconds: number; accessible: boolean }>
+> = {
   "725": [{ toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120, accessible: true }],
 };
 
@@ -773,6 +775,71 @@ describe("API Push notification endpoints", () => {
 
     expect(res.status).toBe(200);
   });
+});
+
+describe("Security headers", () => {
+  let app: Hono;
+
+  beforeEach(() => {
+    app = createTestApp();
+  });
+
+  it("sets CSP headers on API responses", async () => {
+    const res = await app.request("/api/health");
+
+    const csp = res.headers.get("Content-Security-Policy");
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+  });
+
+  it("sets X-Content-Type-Options: nosniff", async () => {
+    const res = await app.request("/api/health");
+
+    const header = res.headers.get("X-Content-Type-Options");
+    expect(header).toBe("nosniff");
+  });
+
+  it("sets X-Frame-Options: DENY", async () => {
+    const res = await app.request("/api/health");
+
+    const header = res.headers.get("X-Frame-Options");
+    expect(header).toBe("DENY");
+  });
+
+  it("sets Referrer-Policy", async () => {
+    const res = await app.request("/api/health");
+
+    const header = res.headers.get("Referrer-Policy");
+    expect(header).toBe("strict-origin-when-cross-origin");
+  });
+
+  it("sets Strict-Transport-Security", async () => {
+    const res = await app.request("/api/health");
+
+    const header = res.headers.get("Strict-Transport-Security");
+    expect(header).toContain("max-age=31536000");
+    expect(header).toContain("includeSubDomains");
+  });
+});
+
+describe("Rate limiting", () => {
+  let app: Hono;
+
+  beforeEach(() => {
+    app = createTestApp();
+  });
+
+  it("allows requests within rate limit", async () => {
+    const res = await app.request("/api/health", {
+      headers: { "CF-Connecting-IP": "127.0.0.1" },
+    });
+
+    expect(res.status).toBe(200);
+  });
+
+  // Note: Full rate limit testing is difficult in unit tests due to timing
+  // The token bucket implementation is tested indirectly via integration
 });
 
 describe("API Error handling", () => {

@@ -11,9 +11,9 @@
  * - User has a saved commute matching this route
  */
 
-import { useEffect, useRef } from "react";
 import type { TripRecord } from "@mta-my-way/shared";
-import { useFavoritesStore, useJournalStore } from "../stores";
+import { useEffect, useRef } from "react";
+import { useFareStore, useFavoritesStore, useJournalStore } from "../stores";
 
 /** Minimum time between visits to infer a trip (minutes) */
 const MIN_TRIP_MINUTES = 5;
@@ -45,9 +45,14 @@ function formatDate(date: Date): string {
  * Hook to track station visits and infer trips.
  * Call this at the app root level to track all station visits.
  */
-export function useInferredTrips(currentStationId: string | null, stationName: string, stationLines: string[]) {
+export function useInferredTrips(
+  currentStationId: string | null,
+  stationName: string,
+  stationLines: string[]
+) {
   const commutes = useFavoritesStore((s) => s.commutes);
   const addTripRecord = useJournalStore((s) => s.addTripRecord);
+  const addRideLogEntry = useFareStore((s) => s.addRideLogEntry);
 
   // Track last station visit in memory
   const lastVisitRef = useRef<StationVisit | null>(null);
@@ -97,6 +102,14 @@ export function useInferredTrips(currentStationId: string | null, stationName: s
               };
 
               addTripRecord(commute.id, record);
+
+              // Auto-log to fare cap tracker
+              addRideLogEntry({
+                date: record.date,
+                time: Math.floor(now / 1000),
+                stationId: lastVisit.stationId,
+                source: "inferred",
+              });
 
               // Clear last visit to prevent double-counting
               lastVisitRef.current = null;

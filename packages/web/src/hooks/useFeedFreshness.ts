@@ -11,7 +11,12 @@
  */
 
 import type { FreshnessLevel } from "@mta-my-way/shared";
-import { formatFeedAge, getFreshnessLevel, getFreshnessTextColor, getFreshnessDotColor } from "@mta-my-way/shared";
+import {
+  formatFeedAge,
+  getFreshnessDotColor,
+  getFreshnessLevel,
+  getFreshnessTextColor,
+} from "@mta-my-way/shared";
 
 export interface FeedFreshnessState {
   level: FreshnessLevel;
@@ -19,7 +24,7 @@ export interface FeedFreshnessState {
   ageText: string;
   textColor: string;
   dotColor: string;
-  isStale: boolean;  // amber or red
+  isStale: boolean; // amber or red
   isOutdated: boolean; // red only
 }
 

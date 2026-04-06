@@ -67,9 +67,7 @@ function StopRow({ stop, isFirst, isLast }: StopRowProps) {
         {!isFirst && (
           <div
             className={`w-0.5 flex-1 ${
-              stop.status === "passed"
-                ? "bg-mta-primary"
-                : "bg-border dark:bg-dark-border"
+              stop.status === "passed" ? "bg-mta-primary" : "bg-border dark:bg-dark-border"
             }`}
           />
         )}
@@ -90,15 +88,15 @@ function StopRow({ stop, isFirst, isLast }: StopRowProps) {
         </div>
 
         {/* Bottom connector line (hidden for last stop) */}
-        {!isLast && (
-          <div className="w-0.5 flex-1 bg-border dark:bg-dark-border" />
-        )}
+        {!isLast && <div className="w-0.5 flex-1 bg-border dark:bg-dark-border" />}
       </div>
 
       {/* Stop content */}
-      <div className={`flex-1 flex items-center justify-between py-2 px-3 min-w-0 ${
-        stop.status === "passed" ? "opacity-50" : ""
-      }`}>
+      <div
+        className={`flex-1 flex items-center justify-between py-2 px-3 min-w-0 ${
+          stop.status === "passed" ? "opacity-50" : ""
+        }`}
+      >
         <div className="min-w-0">
           <p
             className={`text-sm truncate ${
@@ -140,12 +138,7 @@ function StopRow({ stop, isFirst, isLast }: StopRowProps) {
 // ─── Status dots ────────────────────────────────────────────────────────
 
 function PassedDot() {
-  return (
-    <div
-      className="w-3 h-3 rounded-full bg-mta-primary"
-      aria-label="Passed"
-    />
-  );
+  return <div className="w-3 h-3 rounded-full bg-mta-primary" aria-label="Passed" />;
 }
 
 function CurrentDot() {
@@ -168,10 +161,7 @@ function NextDot() {
 
 function UpcomingDot() {
   return (
-    <div
-      className="w-2 h-2 rounded-full bg-border dark:bg-dark-border"
-      aria-label="Upcoming"
-    />
+    <div className="w-2 h-2 rounded-full bg-border dark:bg-dark-border" aria-label="Upcoming" />
   );
 }
 

@@ -6,7 +6,7 @@
  */
 
 import type { Context } from "hono";
-import type { ZodSchema, ZodError } from "zod";
+import type { ZodError, ZodSchema } from "zod";
 import { ZodIssueCode } from "zod";
 
 interface ValidationErrorDetail {
@@ -22,9 +22,7 @@ interface ValidationErrorResponse {
 function formatZodError(error: ZodError): ValidationErrorDetail[] {
   return error.issues.map((issue) => {
     // For nested objects, join the path with dots
-    const field = issue.path
-      .map((p) => (typeof p === "number" ? `[${p}]` : p))
-      .join(".");
+    const field = issue.path.map((p) => (typeof p === "number" ? `[${p}]` : p)).join(".");
 
     if (issue.code === ZodIssueCode.invalid_enum_value) {
       return {
@@ -35,10 +33,16 @@ function formatZodError(error: ZodError): ValidationErrorDetail[] {
 
     if (issue.code === ZodIssueCode.too_small) {
       if (issue.type === "string") {
-        return { field, message: issue.message || `String must be at least ${issue.minimum} character(s)` };
+        return {
+          field,
+          message: issue.message || `String must be at least ${issue.minimum} character(s)`,
+        };
       }
       if (issue.type === "array") {
-        return { field, message: issue.message || `Array must contain at least ${issue.minimum} item(s)` };
+        return {
+          field,
+          message: issue.message || `Array must contain at least ${issue.minimum} item(s)`,
+        };
       }
       if (issue.type === "number") {
         return { field, message: issue.message || `Number must be at least ${issue.minimum}` };
@@ -47,10 +51,16 @@ function formatZodError(error: ZodError): ValidationErrorDetail[] {
 
     if (issue.code === ZodIssueCode.too_big) {
       if (issue.type === "string") {
-        return { field, message: issue.message || `String must be at most ${issue.maximum} character(s)` };
+        return {
+          field,
+          message: issue.message || `String must be at most ${issue.maximum} character(s)`,
+        };
       }
       if (issue.type === "array") {
-        return { field, message: issue.message || `Array must contain at most ${issue.maximum} item(s)` };
+        return {
+          field,
+          message: issue.message || `Array must contain at most ${issue.maximum} item(s)`,
+        };
       }
       if (issue.type === "number") {
         return { field, message: issue.message || `Number must be at most ${issue.maximum}` };

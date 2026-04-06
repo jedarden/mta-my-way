@@ -25,7 +25,11 @@ let lastPrune = Date.now();
 
 function getClientIp(c: { req: { header(name: string): string | undefined } }): string {
   // Cloudflare tunnel sets CF-Connecting-IP
-  return c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() || "unknown";
+  return (
+    c.req.header("CF-Connecting-IP") ||
+    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
 }
 
 function refillBucket(bucket: TokenBucket, now: number): void {

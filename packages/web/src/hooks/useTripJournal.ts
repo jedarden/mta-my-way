@@ -7,9 +7,9 @@
  * - Anomaly detection with UI feedback
  */
 
-import { useCallback, useEffect, useRef } from "react";
 import type { CommuteStats, TripRecord } from "@mta-my-way/shared";
-import { useFavoritesStore, useJournalStore, type AnomalyResult } from "../stores";
+import { useCallback, useEffect, useRef } from "react";
+import { type AnomalyResult, useFareStore, useFavoritesStore, useJournalStore } from "../stores";
 import type { TripStopProgress } from "./useTripTracker";
 
 /** Generate a UUID for trip records */
@@ -105,6 +105,7 @@ export function useTripJournal(options: UseTripJournalOptions): TripJournalResul
 
   const commutes = useFavoritesStore((s) => s.commutes);
   const addTripRecord = useJournalStore((s) => s.addTripRecord);
+  const addRideLogEntry = useFareStore((s) => s.addRideLogEntry);
   const detectAnomalyFromStore = useJournalStore((s) => s.detectAnomaly);
   const getCommuteStatsFromStore = useJournalStore((s) => s.stats);
 
@@ -166,6 +167,15 @@ export function useTripJournal(options: UseTripJournalOptions): TripJournalResul
       };
 
       addTripRecord(matchedCommuteId, record);
+
+      // Auto-log to fare cap tracker (manual trips count as tracked for fares)
+      addRideLogEntry({
+        date: record.date,
+        time: Math.floor(Date.now() / 1000),
+        stationId: originStationId,
+        source: source === "manual" ? "tracked" : source,
+      });
+
       loggedRef.current = true;
 
       return record;

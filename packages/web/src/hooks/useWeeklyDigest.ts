@@ -7,8 +7,8 @@
  * - Worst day (day with longest average duration)
  */
 
-import { useMemo } from "react";
 import type { CommuteStats } from "@mta-my-way/shared";
+import { useMemo } from "react";
 import { useJournalStore } from "../stores";
 
 export interface WeeklyDigestData {
@@ -89,7 +89,8 @@ export function useWeeklyDigest(): WeeklyDigestData {
     }
 
     // Calculate overall average
-    const averageDurationMinutes = totalTripsCount > 0 ? Math.round(totalDuration / totalTripsCount) : 0;
+    const averageDurationMinutes =
+      totalTripsCount > 0 ? Math.round(totalDuration / totalTripsCount) : 0;
 
     // Calculate average trend
     const trendPercent = trendCount > 0 ? Math.round(trendSum / trendCount) : 0;
@@ -114,7 +115,7 @@ export function useWeeklyDigest(): WeeklyDigestData {
       averageDurationMinutes,
       trendPercent,
       worstDay,
-      worstDayName: worstDay !== null ? DAY_NAMES[worstDay] ?? null : null,
+      worstDayName: worstDay !== null ? (DAY_NAMES[worstDay] ?? null) : null,
       tripsThisWeek,
       totalTrips: totalTripsCount,
     };

@@ -17,8 +17,8 @@ import {
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataState } from "../components/common/DataState";
-import { useJournalStore } from "../stores";
 import { useStationIndex } from "../hooks/useStationIndex";
+import { useJournalStore } from "../stores";
 
 // ---------------------------------------------------------------------------
 // Time Window
@@ -125,7 +125,12 @@ function computeAggregatedStats(
     const originCoords = stationCoords.get(r.origin.stationId);
     const destCoords = stationCoords.get(r.destination.stationId);
     if (originCoords && destCoords) {
-      totalDistanceKm += haversineDistance(originCoords.lat, originCoords.lon, destCoords.lat, destCoords.lon);
+      totalDistanceKm += haversineDistance(
+        originCoords.lat,
+        originCoords.lon,
+        destCoords.lat,
+        destCoords.lon
+      );
     }
   }
 
@@ -184,7 +189,7 @@ function computeAggregatedStats(
     // Current streak: count consecutive days ending at today (or yesterday)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    let checkDate = new Date(today);
+    const checkDate = new Date(today);
     // If no trip today, start checking from yesterday
     if (!datesWithTrips.has(checkDate.toISOString().split("T")[0]!)) {
       checkDate.setDate(checkDate.getDate() - 1);
@@ -289,7 +294,9 @@ function SubwayYearCard({ stats, windowLabel, year }: SubwayYearCardProps) {
           <p className="text-xs text-blue-200 mt-1">Trips Taken</p>
         </div>
         <div className="bg-white/10 rounded-xl p-3 text-center">
-          <p className="text-3xl font-bold tabular-nums">{formatHours(stats.totalMinutesUnderground)}</p>
+          <p className="text-3xl font-bold tabular-nums">
+            {formatHours(stats.totalMinutesUnderground)}
+          </p>
           <p className="text-xs text-blue-200 mt-1">Underground</p>
         </div>
       </div>
@@ -298,11 +305,15 @@ function SubwayYearCard({ stats, windowLabel, year }: SubwayYearCardProps) {
       <div className="space-y-3 mb-5">
         <div className="flex justify-between items-center">
           <span className="text-blue-200 text-sm">Distance</span>
-          <span className="font-semibold tabular-nums">{formatDistance(stats.totalDistanceKm)}</span>
+          <span className="font-semibold tabular-nums">
+            {formatDistance(stats.totalDistanceKm)}
+          </span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-blue-200 text-sm">Top Station</span>
-          <span className="font-semibold text-right max-w-[60%] truncate">{stats.mostUsedStation}</span>
+          <span className="font-semibold text-right max-w-[60%] truncate">
+            {stats.mostUsedStation}
+          </span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-blue-200 text-sm">Top Line</span>
@@ -318,14 +329,18 @@ function SubwayYearCard({ stats, windowLabel, year }: SubwayYearCardProps) {
         </div>
         <div className="flex justify-between items-center">
           <span className="text-blue-200 text-sm">Longest Streak</span>
-          <span className="font-semibold tabular-nums">{stats.longestStreak} day{stats.longestStreak !== 1 ? "s" : ""}</span>
+          <span className="font-semibold tabular-nums">
+            {stats.longestStreak} day{stats.longestStreak !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
 
       {/* Carbon section */}
       <div className="border-t border-white/20 pt-4">
         <p className="text-xs uppercase tracking-widest text-green-300 mb-2">Carbon Savings</p>
-        <p className="text-xl font-bold text-green-300 mb-2">{formatCarbonSavings(carbon.savingsKg)}</p>
+        <p className="text-xl font-bold text-green-300 mb-2">
+          {formatCarbonSavings(carbon.savingsKg)}
+        </p>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
             <p className="text-sm font-semibold tabular-nums">{equivalents.trees}</p>
@@ -375,16 +390,30 @@ function StatsDetail({ stats, windowLabel }: StatsDetailProps) {
     {
       title: "Favorites",
       items: [
-        { label: "Most-Used Station", value: stats.mostUsedStation, sub: `${stats.mostUsedStationCount} visits` },
-        { label: "Most-Used Line", value: stats.mostUsedLine, sub: `${stats.mostUsedLineCount} trips` },
+        {
+          label: "Most-Used Station",
+          value: stats.mostUsedStation,
+          sub: `${stats.mostUsedStationCount} visits`,
+        },
+        {
+          label: "Most-Used Line",
+          value: stats.mostUsedLine,
+          sub: `${stats.mostUsedLineCount} trips`,
+        },
       ],
     },
     {
       title: "Reliability",
       items: [
         { label: "Delay Days", value: `${stats.anomalyCount}`, sub: "trips 1.5x above normal" },
-        { label: "Current Streak", value: `${stats.currentStreak} day${stats.currentStreak !== 1 ? "s" : ""}` },
-        { label: "Longest Streak", value: `${stats.longestStreak} day${stats.longestStreak !== 1 ? "s" : ""}` },
+        {
+          label: "Current Streak",
+          value: `${stats.currentStreak} day${stats.currentStreak !== 1 ? "s" : ""}`,
+        },
+        {
+          label: "Longest Streak",
+          value: `${stats.longestStreak} day${stats.longestStreak !== 1 ? "s" : ""}`,
+        },
       ],
     },
     {
@@ -393,7 +422,10 @@ function StatsDetail({ stats, windowLabel }: StatsDetailProps) {
         { label: "CO\u2082 Saved", value: formatCarbonSavings(carbon.savingsKg) },
         { label: "Distance in Miles", value: formatNumber(Math.round(carbon.totalDistanceMiles)) },
         { label: "Car-Free Equivalent", value: `${carbon.carFreeDays} days` },
-        { label: "Trees Equivalent", value: `${carbon.equivalentTrees} tree${carbon.equivalentTrees !== 1 ? "s" : ""}` },
+        {
+          label: "Trees Equivalent",
+          value: `${carbon.equivalentTrees} tree${carbon.equivalentTrees !== 1 ? "s" : ""}`,
+        },
       ],
     },
   ];
@@ -411,13 +443,17 @@ function StatsDetail({ stats, windowLabel }: StatsDetailProps) {
           <div className="space-y-2">
             {section.items.map((item) => (
               <div key={item.label} className="flex justify-between items-center">
-                <span className="text-13 text-text-secondary dark:text-dark-text-secondary">{item.label}</span>
+                <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                  {item.label}
+                </span>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-text-primary dark:text-dark-text-primary tabular-nums">
                     {item.value}
                   </p>
                   {item.sub && (
-                    <p className="text-11 text-text-secondary dark:text-dark-text-secondary">{item.sub}</p>
+                    <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
+                      {item.sub}
+                    </p>
                   )}
                 </div>
               </div>
@@ -487,7 +523,12 @@ export default function StatsScreen() {
       if (!blob) return;
 
       // Try native share first (mobile)
-      if (navigator.share && navigator.canShare?.({ files: [new File([blob], "subway-year.png", { type: "image/png" })] })) {
+      if (
+        navigator.share &&
+        navigator.canShare?.({
+          files: [new File([blob], "subway-year.png", { type: "image/png" })],
+        })
+      ) {
         const file = new File([blob], "subway-year.png", { type: "image/png" });
         await navigator.share({
           title: "My Subway Year",
@@ -542,7 +583,9 @@ export default function StatsScreen() {
             Back
           </button>
         </div>
-        <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">Your Subway Year</h1>
+        <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">
+          Your Subway Year
+        </h1>
         <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
           A personalized summary of your subway commute
         </p>
@@ -553,7 +596,13 @@ export default function StatsScreen() {
           status={stationsLoading ? "loading" : "success"}
           data={hasData ? allRecords : null}
           error={null}
-          skeleton={<div className="space-y-3 mt-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}</div>}
+          skeleton={
+            <div className="space-y-3 mt-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton h-24 rounded-xl" />
+              ))}
+            </div>
+          }
         >
           {() =>
             hasData ? (

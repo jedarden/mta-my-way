@@ -12,8 +12,8 @@
  * display an "estimated" badge.
  */
 
-import { useEffect, useRef, useState } from "react";
 import type { ArrivalTime, StationArrivals } from "@mta-my-way/shared";
+import { useEffect, useRef, useState } from "react";
 import { getPrefetchedArrivals } from "../lib/prefetch";
 import { useOnlineStatus } from "./useOnlineStatus";
 

@@ -197,9 +197,7 @@ function parseENEDate(dateStr: string): number | undefined {
   if (!dateStr) return undefined;
   const cleaned = dateStr.replace(/\s+/g, " ").trim();
   // Format: "01/05/2024 12:50:00 PM"
-  const match = cleaned.match(
-    /(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)/i
-  );
+  const match = cleaned.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)/i);
   if (!match) return undefined;
 
   const month = parseInt(match[1], 10) - 1;

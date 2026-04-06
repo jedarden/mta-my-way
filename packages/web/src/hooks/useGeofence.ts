@@ -15,10 +15,10 @@
  * - Tracks which stations the user is currently inside to avoid repeated fires.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { haversineDistance } from "@mta-my-way/shared";
-import { useStationIndex } from "./useStationIndex";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useOnlineStatus } from "./useOnlineStatus";
+import { useStationIndex } from "./useStationIndex";
 
 /** Geofence radius in meters (200m) */
 const GEOFENCE_RADIUS_M = 200;

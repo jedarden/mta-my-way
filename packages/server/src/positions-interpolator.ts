@@ -10,7 +10,14 @@
  * - IN_TRANSIT_TO: 50% between stations
  */
 
-import type { LineDiagramData, LinePositions, RouteIndex, StationIndex, TrainPosition, InterpolatedTrainPosition } from "@mta-my-way/shared";
+import type {
+  InterpolatedTrainPosition,
+  LineDiagramData,
+  LinePositions,
+  RouteIndex,
+  StationIndex,
+  TrainPosition,
+} from "@mta-my-way/shared";
 
 /**
  * Build LineDiagramData from raw positions and route data.
@@ -44,11 +51,7 @@ export function buildLineDiagram(
   });
 
   // Interpolate train positions
-  const interpolatedTrains = interpolateTrainPositions(
-    positions.trains,
-    route.stops,
-    stations
-  );
+  const interpolatedTrains = interpolateTrainPositions(positions.trains, route.stops, stations);
 
   return {
     routeId: routeId.toUpperCase(),
@@ -68,10 +71,7 @@ function interpolateTrainPositions(
   stations: StationIndex
 ): InterpolatedTrainPosition[] {
   return trains.map((train) => {
-    const { lastStopIndex, nextStopIndex, progress } = interpolatePosition(
-      train,
-      routeStops
-    );
+    const { lastStopIndex, nextStopIndex, progress } = interpolatePosition(train, routeStops);
 
     const lastStopId = routeStops[lastStopIndex] ?? train.currentStopId;
     const nextStopId = routeStops[nextStopIndex] ?? train.currentStopId;
@@ -111,9 +111,7 @@ function interpolatePosition(
   // But MTA stop_sequence values don't always match array indices directly
   // We need to find the stop by ID or by sequence
 
-  let currentStopIndex = routeStops.findIndex(
-    (s) => normalizeStopId(s) === normalizedStopId
-  );
+  let currentStopIndex = routeStops.findIndex((s) => normalizeStopId(s) === normalizedStopId);
 
   // If not found by ID, try to use sequence (adjusting for 0-indexing)
   // GTFS stop_sequence is typically 1-indexed

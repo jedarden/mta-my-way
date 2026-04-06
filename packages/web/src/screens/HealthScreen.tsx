@@ -7,7 +7,7 @@
  */
 
 import { formatTimeAgo } from "@mta-my-way/shared";
-import { getLinesByColorFamily, getLineMetadata } from "@mta-my-way/shared";
+import { getLineMetadata, getLinesByColorFamily } from "@mta-my-way/shared";
 import type { LineHealthStatus } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -162,7 +162,7 @@ function AffectedLinesList({ lines }: { lines: LineHealthStatus[] }) {
           };
           return (rank[b.status] ?? 0) - (rank[a.status] ?? 1);
         }),
-    [lines],
+    [lines]
   );
 
   if (affected.length === 0) {
@@ -217,7 +217,9 @@ function AffectedLinesList({ lines }: { lines: LineHealthStatus[] }) {
                   {meta?.longName ?? line.lineId}
                 </span>
               </div>
-              <p className="text-12 text-text-tertiary dark:text-dark-text-tertiary">{statusLabel}</p>
+              <p className="text-12 text-text-tertiary dark:text-dark-text-tertiary">
+                {statusLabel}
+              </p>
               {line.summary && (
                 <p className="text-13 text-text-secondary dark:text-dark-text-secondary mt-1 leading-snug">
                   {line.summary}

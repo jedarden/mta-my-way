@@ -11,9 +11,9 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
-import { useFavoritesStore } from "../stores/favoritesStore";
 import { prefetchStations } from "../lib/prefetch";
-import { useGeofence, type GeofenceEvent } from "./useGeofence";
+import { useFavoritesStore } from "../stores/favoritesStore";
+import { type GeofenceEvent, useGeofence } from "./useGeofence";
 import { useOnlineStatus } from "./useOnlineStatus";
 
 export interface UsePrefetchReturn {

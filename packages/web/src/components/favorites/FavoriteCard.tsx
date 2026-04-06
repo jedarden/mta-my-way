@@ -32,8 +32,9 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
   const recordTap = useFavoritesStore((s) => s.recordTap);
   const { data, status, refresh, updatedAt } = useArrivals(favorite.stationId);
   const staleness = useStaleness(updatedAt);
-  const { isActive: isOfflineCountdown, arrivals: offlineArrivals } =
-    useOfflineCountdown(favorite.stationId);
+  const { isActive: isOfflineCountdown, arrivals: offlineArrivals } = useOfflineCountdown(
+    favorite.stationId
+  );
 
   // Respond to pull-to-refresh from parent
   const prevRefreshId = useRef(forceRefreshId);
@@ -88,7 +89,10 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
               <LineBullet key={line} line={line} size="sm" />
             ))}
             {(brokenElevators > 0 || brokenEscalators > 0) && (
-              <EquipmentBadge brokenElevators={brokenElevators} brokenEscalators={brokenEscalators} />
+              <EquipmentBadge
+                brokenElevators={brokenElevators}
+                brokenEscalators={brokenEscalators}
+              />
             )}
           </div>
         </div>

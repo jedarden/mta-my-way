@@ -38,7 +38,14 @@ export function parseFeed(feedId: string, data: Uint8Array): ParsedFeed {
   // We calculate the duration from the first entry's replacement period
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nyctHeader = (message.header as any)[NYCT_FEED_HEADER_KEY] as
-    | { tripReplacementPeriod?: Array<{ replacementPeriod?: { start?: number | { toNumber(): number }; end?: number | { toNumber(): number } } }> | null }
+    | {
+        tripReplacementPeriod?: Array<{
+          replacementPeriod?: {
+            start?: number | { toNumber(): number };
+            end?: number | { toNumber(): number };
+          };
+        }> | null;
+      }
     | null
     | undefined;
   let tripReplacementPeriod: number | null = null;

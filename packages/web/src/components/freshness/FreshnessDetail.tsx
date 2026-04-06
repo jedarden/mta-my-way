@@ -6,7 +6,12 @@
  */
 
 import { SUBWAY_FEEDS } from "@mta-my-way/shared";
-import { formatFeedAge, getFreshnessDotColor, getFreshnessLevel, getFreshnessTextColor } from "@mta-my-way/shared";
+import {
+  formatFeedAge,
+  getFreshnessDotColor,
+  getFreshnessLevel,
+  getFreshnessTextColor,
+} from "@mta-my-way/shared";
 
 interface FreshnessDetailProps {
   /** Feed entries from the current station's arrivals */
@@ -43,12 +48,11 @@ export function FreshnessDetail({ feedEntries }: FreshnessDetailProps) {
       </h3>
       <div className="space-y-1.5">
         {allFeeds.map((feed) => (
-          <div
-            key={feed.id}
-            className="flex items-center justify-between text-12"
-          >
+          <div key={feed.id} className="flex items-center justify-between text-12">
             <div className="flex items-center gap-2 min-w-0">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${getFreshnessDotColor(feed.level)}`} />
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${getFreshnessDotColor(feed.level)}`}
+              />
               <span className="text-text-primary dark:text-dark-text-primary truncate">
                 {feed.name}
               </span>
@@ -64,9 +68,7 @@ export function FreshnessDetail({ feedEntries }: FreshnessDetailProps) {
                   </span>
                 </>
               ) : (
-                <span className="text-text-tertiary dark:text-dark-text-tertiary">
-                  Not needed
-                </span>
+                <span className="text-text-tertiary dark:text-dark-text-tertiary">Not needed</span>
               )}
             </div>
           </div>

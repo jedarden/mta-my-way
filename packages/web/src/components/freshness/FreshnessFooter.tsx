@@ -10,10 +10,15 @@
  * Clicking expands to show FreshnessDetail with all 8 feeds.
  */
 
-import { useState } from "react";
 import type { ArrivalTime } from "@mta-my-way/shared";
 import { getFeedById } from "@mta-my-way/shared";
-import { formatFeedAge, getFreshnessDotColor, getFreshnessLevel, getFreshnessTextColor } from "@mta-my-way/shared";
+import {
+  formatFeedAge,
+  getFreshnessDotColor,
+  getFreshnessLevel,
+  getFreshnessTextColor,
+} from "@mta-my-way/shared";
+import { useState } from "react";
 import { FreshnessDetail } from "./FreshnessDetail";
 
 interface FreshnessFooterProps {
@@ -58,12 +63,16 @@ export function FreshnessFooter({ arrivals, stationFeedAge }: FreshnessFooterPro
         aria-label={`Data freshness: ${formatFeedAge(stationFeedAge)} old. Tap for details.`}
       >
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="text-text-tertiary dark:text-dark-text-tertiary shrink-0">Data age:</span>
+          <span className="text-text-tertiary dark:text-dark-text-tertiary shrink-0">
+            Data age:
+          </span>
           {feedEntries.slice(0, 3).map(([feedId, { name, age }]) => {
             const level = getFreshnessLevel(age);
             return (
               <span key={feedId} className="inline-flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${getFreshnessDotColor(level)}`} />
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${getFreshnessDotColor(level)}`}
+                />
                 <span className={`${getFreshnessTextColor(level)} tabular-nums`}>
                   {name.split(" ")[0]} {formatFeedAge(age)}
                 </span>
@@ -93,9 +102,7 @@ export function FreshnessFooter({ arrivals, stationFeedAge }: FreshnessFooterPro
       </button>
 
       {/* Expandable detail panel */}
-      {expanded && (
-        <FreshnessDetail feedEntries={feedEntries} />
-      )}
+      {expanded && <FreshnessDetail feedEntries={feedEntries} />}
     </div>
   );
 }

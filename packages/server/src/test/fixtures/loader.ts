@@ -5,21 +5,21 @@
  * Falls back to synthetic fixtures if disk fixtures are not available.
  */
 
-import { readFileSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   aDivisionFeed,
-  bDivisionFeed,
-  lLineFeed,
-  emptyFeed,
-  unassignedTripsFeed,
-  reroutedTrackFeed,
   alertsFeed,
+  bDivisionFeed,
+  deletedEntitiesFeed,
+  emptyFeed,
+  lLineFeed,
+  noNyctExtensionFeed,
   nqrwFeed,
   pastArrivalsFeed,
-  deletedEntitiesFeed,
-  noNyctExtensionFeed,
+  reroutedTrackFeed,
+  unassignedTripsFeed,
 } from "../fixtures.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -119,7 +119,9 @@ export function loadFixture(fixtureId: FixtureId | SyntheticFixtureId): Uint8Arr
 /**
  * Load multiple fixtures at once.
  */
-export function loadFixtures(fixtureIds: Array<FixtureId | SyntheticFixtureId>): Map<string, Uint8Array> {
+export function loadFixtures(
+  fixtureIds: Array<FixtureId | SyntheticFixtureId>
+): Map<string, Uint8Array> {
   const result = new Map<string, Uint8Array>();
   for (const id of fixtureIds) {
     result.set(id, loadFixture(id));

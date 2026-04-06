@@ -52,6 +52,12 @@ export const pushUpdateRequestSchema = z
       .optional(),
     morningScores: z.record(z.string(), z.number().int().min(0)).optional(),
   })
-  .refine((data) => data.favorites !== undefined || data.quietHours !== undefined || data.morningScores !== undefined, {
-    message: "favorites, quietHours, or morningScores is required",
-  });
+  .refine(
+    (data) =>
+      data.favorites !== undefined ||
+      data.quietHours !== undefined ||
+      data.morningScores !== undefined,
+    {
+      message: "favorites, quietHours, or morningScores is required",
+    }
+  );

@@ -8,7 +8,7 @@ interface HealthSummaryProps {
   updatedAt: number | null;
 }
 
-export function HealthSummary({ percentage, totalLines }: Omit<HealthSummaryProps, 'updatedAt'>) {
+export function HealthSummary({ percentage, totalLines }: Omit<HealthSummaryProps, "updatedAt">) {
   const color =
     percentage >= 90
       ? "text-green-600 dark:text-green-400"
@@ -61,7 +61,9 @@ export function HealthSummary({ percentage, totalLines }: Omit<HealthSummaryProp
             className={bgColor}
           />
         </svg>
-        <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${color}`}>
+        <span
+          className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${color}`}
+        >
           {percentage}%
         </span>
       </div>

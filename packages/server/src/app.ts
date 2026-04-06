@@ -22,7 +22,6 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { performance } from "node:perf_hooks";
 import { createBrotliCompress, createDeflate, createGzip } from "node:zlib";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { CACHE_TTLS } from "@mta-my-way/shared";
@@ -34,31 +33,21 @@ import type {
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
-import type {
-  PushSubscribeRequest,
-  PushUnsubscribeRequest,
-  PushUpdateRequest,
-} from "@mta-my-way/shared";
 import {
   commuteAnalyzeRequestSchema,
   pushSubscribeRequestSchema,
   pushUnsubscribeRequestSchema,
   pushUpdateRequestSchema,
 } from "@mta-my-way/shared";
+import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
-import { buildLineDiagram } from "./positions-interpolator.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
-import {
-  getEquipmentForStation,
-  getAllEquipment,
-  getEquipmentStatus,
-  getStationsWithBrokenElevators,
-} from "./equipment-poller.js";
+import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import { rateLimiter, securityHeaders } from "./middleware/index.js";
 import { validateBody } from "./middleware/validation.js";
-import { lookupTrip } from "./trip-lookup.js";
+import { buildLineDiagram } from "./positions-interpolator.js";
 import {
   getSubscriptionCount,
   removeSubscription,
@@ -69,6 +58,7 @@ import {
 } from "./push/subscriptions.js";
 import { getVapidPublicKey } from "./push/vapid.js";
 import { createTransferEngine } from "./transfer/index.js";
+import { lookupTrip } from "./trip-lookup.js";
 
 /** Server start time for uptime calculation */
 const SERVER_START_MS = Date.now();
@@ -81,9 +71,13 @@ let apiCacheHits = 0;
 let apiCacheMisses = 0;
 
 /** Record a cache hit (caller already returned cached data) */
-export function recordCacheHit(): void { apiCacheHits++; }
+export function recordCacheHit(): void {
+  apiCacheHits++;
+}
 /** Record a cache miss (caller fetched fresh data) */
-export function recordCacheMiss(): void { apiCacheMisses++; }
+export function recordCacheMiss(): void {
+  apiCacheMisses++;
+}
 
 /** Cache header for static GTFS data */
 const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-while-revalidate=${CACHE_TTLS.gtfsStaticStale}`;
@@ -210,7 +204,7 @@ const IMMUTABLE_CACHE_HEADER = "public, max-age=31536000, immutable";
  * Supports brotli, gzip, and deflate based on Accept-Encoding header.
  * Brotli is preferred for best compression ratio.
  */
-function compressionMiddleware(): import("hono").MiddlewareHandler {
+function compressionMiddleware(): MiddlewareHandler {
   return async (c, next) => {
     await next();
 
@@ -338,7 +332,8 @@ export function createApp(
     // Count feeds that have been failing for >5 minutes
     const now = Date.now();
     const failingFeeds = feedStates.filter(
-      (f) => f.consecutiveFailures > 0 && f.lastSuccessAt !== null && now - f.lastSuccessAt > 300_000
+      (f) =>
+        f.consecutiveFailures > 0 && f.lastSuccessAt !== null && now - f.lastSuccessAt > 300_000
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
@@ -346,7 +341,8 @@ export function createApp(
     const httpStatus = unhealthy ? 503 : 200;
 
     const totalRequests = apiCacheHits + apiCacheMisses;
-    const cacheHitRate = totalRequests > 0 ? Math.round((apiCacheHits / totalRequests) * 100) / 100 : 0;
+    const cacheHitRate =
+      totalRequests > 0 ? Math.round((apiCacheHits / totalRequests) * 100) / 100 : 0;
 
     const memUsage = process.memoryUsage();
 
@@ -542,7 +538,13 @@ export function createApp(
       const body = await validateBody(c, commuteAnalyzeRequestSchema);
       if (body instanceof Response) return body;
 
-      const { originId, destinationId, preferredLines = [], commuteId = "default", accessibleMode = false } = body;
+      const {
+        originId,
+        destinationId,
+        preferredLines = [],
+        commuteId = "default",
+        accessibleMode = false,
+      } = body;
 
       if (!stations[originId]) {
         return c.json({ error: `Origin station not found: ${originId}` }, 404);

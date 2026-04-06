@@ -5,8 +5,8 @@
  * falling back to the dedicated /api/equipment/:stationId endpoint.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { EquipmentStatus, StationEquipmentSummary } from "@mta-my-way/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 
 export interface UseEquipmentResult {

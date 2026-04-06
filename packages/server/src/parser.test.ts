@@ -15,14 +15,14 @@ import { parseFeed } from "./parser.js";
 import {
   aDivisionFeed,
   bDivisionFeed,
-  emptyFeed,
-  unassignedTripsFeed,
-  reroutedTrackFeed,
   deletedEntitiesFeed,
-  noNyctExtensionFeed,
+  emptyFeed,
   lLineFeed,
+  noNyctExtensionFeed,
   nqrwFeed,
   pastArrivalsFeed,
+  reroutedTrackFeed,
+  unassignedTripsFeed,
 } from "./test/fixtures.js";
 
 // ---------------------------------------------------------------------------
@@ -173,7 +173,8 @@ describe("parseFeed - NYCT stop time extensions", () => {
     const result = parseFeed("gtfs", aDivisionFeed());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const entity = result.message.entity[0] as any;
-    const nyctStu = entity.tripUpdate?.stopTimeUpdate?.[0]?.[".transit_realtime.nyctStopTimeUpdate"];
+    const nyctStu =
+      entity.tripUpdate?.stopTimeUpdate?.[0]?.[".transit_realtime.nyctStopTimeUpdate"];
     // Normal feeds may not have track info at all
     if (nyctStu?.scheduledTrack && nyctStu?.actualTrack) {
       expect(nyctStu.scheduledTrack).toBe(nyctStu.actualTrack);

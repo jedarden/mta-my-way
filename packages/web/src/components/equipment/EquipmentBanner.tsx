@@ -33,13 +33,35 @@ export function EquipmentBanner({ equipment, stationName }: EquipmentBannerProps
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         {hasAdaImpact ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600 dark:text-red-400" aria-hidden="true">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-red-600 dark:text-red-400"
+            aria-hidden="true"
+          >
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 dark:text-amber-400" aria-hidden="true">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-amber-600 dark:text-amber-400"
+            aria-hidden="true"
+          >
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -48,9 +70,7 @@ export function EquipmentBanner({ equipment, stationName }: EquipmentBannerProps
         <h3
           className={[
             "font-semibold text-sm",
-            hasAdaImpact
-              ? "text-red-800 dark:text-red-300"
-              : "text-amber-800 dark:text-amber-300",
+            hasAdaImpact ? "text-red-800 dark:text-red-300" : "text-amber-800 dark:text-amber-300",
           ].join(" ")}
         >
           {hasAdaImpact ? "ADA Access Disrupted" : "Equipment Outages"}
@@ -82,13 +102,31 @@ function EquipmentItem({ equipment }: { equipment: EquipmentStatus }) {
     <li className="flex items-start gap-2">
       <span className="mt-0.5 shrink-0" aria-hidden="true">
         {equipment.type === "elevator" ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M12 7v10" />
             <path d="M8 13l4 4 4-4" />
           </svg>
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M4 18l6-6 4 4 6-8" />
             <path d="M4 18h16" />
           </svg>

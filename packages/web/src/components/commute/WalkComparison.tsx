@@ -46,9 +46,7 @@ export function WalkComparison({ comparison }: WalkComparisonProps) {
         {/* Walk option */}
         <div
           className={`flex-1 px-3 py-3 text-center ${
-            isWalkingPromoted
-              ? "bg-green-100/60 dark:bg-green-800/30"
-              : ""
+            isWalkingPromoted ? "bg-green-100/60 dark:bg-green-800/30" : ""
           } ${comparison.recommendation === "similar" ? "border-r border-background dark:border-dark-background" : ""}`}
         >
           <div
@@ -119,7 +117,11 @@ function WalkingIcon({ promoted }: { promoted: boolean }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={promoted ? "text-green-600 dark:text-green-400" : "text-text-secondary dark:text-dark-text-secondary"}
+      className={
+        promoted
+          ? "text-green-600 dark:text-green-400"
+          : "text-text-secondary dark:text-dark-text-secondary"
+      }
       aria-hidden="true"
     >
       <circle cx="13.5" cy="6.5" r="2.5" />
