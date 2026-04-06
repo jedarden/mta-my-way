@@ -30,3 +30,21 @@ export {
   ServiceWorkerUpdatePrompt,
   PWAInstallPrompt,
 } from "./ServiceWorkerUpdatePrompt";
+
+// Fallback UI components
+export {
+  NetworkRetryState,
+  CompactNetworkRetry,
+} from "./NetworkRetryState";
+export {
+  ImageErrorFallback,
+  SafeImage,
+} from "./ImageErrorFallback";
+export {
+  GeolocationPermissionFallback,
+  GeolocationPermissionBanner,
+} from "./GeolocationPermissionFallback";
+export {
+  FullScreenLoadingState,
+  InlineLoadingState,
+} from "./FullScreenLoadingState";
