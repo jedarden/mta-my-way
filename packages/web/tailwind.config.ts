@@ -38,11 +38,12 @@ export default {
         warning: "#FCCC0A",
         info: "#808183",
       },
-      // UI colors - Light mode defaults
+      // UI colors - Light mode defaults (WCAG AA compliant)
       background: "#FFFFFF",
       surface: "#F5F5F5",
       "text-primary": "#1A1A1A",
-      "text-secondary": "#555555",
+      // WCAG AA: 4.5:1 contrast on white (#555555 → #444444)
+      "text-secondary": "#444444",
       // Alert colors
       severe: "#EE352E",
       warning: "#FCCC0A",

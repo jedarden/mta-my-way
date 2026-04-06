@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-interface UseIntersectionObserverOptions {
+export interface UseIntersectionObserverOptions {
   /** Root element to use as viewport (default: browser viewport) */
   root?: Element | null;
   /** Margin around the root element (default: "0px") */
@@ -22,7 +22,7 @@ interface UseIntersectionObserverOptions {
   triggerOnce?: boolean;
 }
 
-interface IntersectionResult {
+export interface IntersectionResult {
   /** Ref to attach to the target element */
   ref: (node: Element | null) => void;
   /** Whether the element is currently intersecting */
@@ -63,6 +63,7 @@ export function useIntersectionObserver(
 
     const observer = new IntersectionObserver(
       ([entry]) => {
+        if (!entry) return;
         const isElementIntersecting = entry.isIntersecting;
 
         setIsIntersecting(isElementIntersecting);

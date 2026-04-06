@@ -13,11 +13,12 @@
  * Uses Zod schemas from @mta-my-way/shared for response validation.
  */
 
-import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
+import type { ComplexIndex, RouteIndex, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
 import type { Hono } from "hono";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createApp } from "./app.js";
+import { initDelayPredictor } from "./delay-predictor.js";
 
 // ---------------------------------------------------------------------------
 // Minimal test fixtures
@@ -119,6 +120,29 @@ const TRANSFERS: Record<
 > = {
   "725": [{ toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120, accessible: true }],
 };
+
+// Minimal travel times for delay predictor
+const TRAVEL_TIMES: TravelTimeIndex = {
+  "1": {
+    "101N": {
+      "102N": 120,
+      "725N": 480,
+    },
+    "102N": {
+      "725N": 360,
+    },
+  },
+  A: {
+    "726N": {
+      "726N": 60,
+    },
+  },
+};
+
+// Initialize delay predictor before tests
+beforeAll(() => {
+  initDelayPredictor(TRAVEL_TIMES, STATIONS);
+});
 
 // Mock the cache module to provide predictable test data
 vi.mock("./cache.js", () => ({

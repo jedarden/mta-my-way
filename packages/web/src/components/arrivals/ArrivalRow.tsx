@@ -77,6 +77,8 @@ export function ArrivalRow({
 
   // In compact mode, show less info
   if (compact) {
+    const accessibleLabel = `${line} train to ${destination}, ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`;
+
     return (
       <div
         className={`
@@ -87,6 +89,7 @@ export function ArrivalRow({
         onClick={onClick}
         role={onClick ? "button" : undefined}
         tabIndex={onClick ? 0 : undefined}
+        aria-label={onClick ? accessibleLabel : undefined}
         onKeyDown={
           onClick
             ? (e) => {
@@ -101,12 +104,17 @@ export function ArrivalRow({
         {showLine && <LineBullet line={line} size="sm" />}
         {isExpress && <ExpressBadge />}
         {isEstimated && <EstimatedBadge />}
-        <span className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums">
+        <span
+          className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums"
+          aria-hidden="true"
+        >
           {timeDisplay}
         </span>
         <ConfidenceBar confidence={confidence} lineId={line} className="ml-auto" />
         {freshness.isOutdated && (
-          <span className="text-10 text-red-500 dark:text-red-400 shrink-0">stale</span>
+          <span className="text-10 text-red-500 dark:text-red-400 shrink-0" aria-live="polite">
+            stale
+          </span>
         )}
       </div>
     );
@@ -127,6 +135,11 @@ export function ArrivalRow({
         onClick={onClick}
         role={onClick ? "button" : undefined}
         tabIndex={onClick ? 0 : undefined}
+        aria-label={
+          onClick
+            ? `${line} train to ${destination}, arriving in ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`
+            : undefined
+        }
         onKeyDown={(e) => {
           if (onClick && (e.key === "Enter" || e.key === " ")) {
             e.preventDefault();
@@ -142,21 +155,26 @@ export function ArrivalRow({
           <p className="text-base font-medium text-text-primary dark:text-dark-text-primary truncate">
             {destination}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" role="group" aria-label="Trip details">
             {isExpress && <ExpressBadge />}
             {isEstimated && <EstimatedBadge />}
             {!isAssigned && (
               <p className="text-13 text-text-secondary dark:text-dark-text-secondary">Scheduled</p>
             )}
             {freshness.isOutdated && (
-              <p className="text-12 text-red-500 dark:text-red-400">(data may be outdated)</p>
+              <p className="text-12 text-red-500 dark:text-red-400" role="note">
+                (data may be outdated)
+              </p>
             )}
           </div>
         </div>
 
         {/* Arrival time - HERO number */}
-        <div className="flex flex-col items-end">
-          <span className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums">
+        <div className="flex flex-col items-end" aria-label={`Arrives in ${timeDisplay}`}>
+          <span
+            className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums"
+            aria-hidden="true"
+          >
             {timeDisplay}
           </span>
           <ConfidenceBar confidence={confidence} lineId={line} />

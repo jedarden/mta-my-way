@@ -4,11 +4,37 @@
  * Polls /api/trip/:tripId every 30 seconds.
  * Handles trip expiration (404 = trip left the feed).
  * Provides stop-by-stop progress derived from the raw trip data.
+ * Enhanced with delay predictions for ETA adjustment.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TripData } from "../lib/api";
 import { api } from "../lib/api";
+
+export type DelayRisk = "low" | "medium" | "high" | null;
+
+export interface TripPrediction {
+  /** Progress percentage (0-100) */
+  progressPercent: number;
+  /** Remaining stops count */
+  remainingStops: number;
+  /** Total stops count */
+  totalStops: number;
+  /** Base ETA in ISO format */
+  baseEta: string | null;
+  /** Adjusted ETA in ISO format (with delay prediction) */
+  adjustedEta: string | null;
+  /** Delay risk level */
+  delayRisk: DelayRisk;
+  /** Delay range as human-readable string (e.g., "+5 min") */
+  delayMinutesRange: string | null;
+  /** Route-level delay probability (0-1) */
+  routeDelayProbability: number | null;
+  /** Whether we have delay predictions for this trip */
+  hasPredictions: boolean;
+  /** When prediction was generated */
+  generatedAt: string;
+}
 
 export interface TripStopProgress {
   stopId: string;
@@ -31,6 +57,10 @@ export interface TripTrackerState {
   eta: number | null;
   /** Minutes until destination */
   minutesToDestination: number | null;
+  /** Trip prediction with delay adjustments */
+  prediction: TripPrediction | null;
+  /** Progress percentage */
+  progressPercent: number;
   /** Loading state */
   isLoading: boolean;
   /** Error message or null */
@@ -89,6 +119,8 @@ export function useTripTracker(
     stops: [],
     eta: null,
     minutesToDestination: null,
+    prediction: null,
+    progressPercent: 0,
     isLoading: !!tripId,
     error: null,
     isExpired: false,
@@ -105,24 +137,45 @@ export function useTripTracker(
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const trip = await api.getTrip(tripId);
+      const [trip, predictionRes] = await Promise.allSettled([
+        api.getTrip(tripId),
+        // Fetch prediction separately - if it fails, we still have base trip data
+        fetch(
+          `${import.meta.env.VITE_API_BASE || ""}/api/trip/${encodeURIComponent(tripId)}/predict`
+        )
+          .then((res) => (res.ok ? (res.json() as Promise<TripPrediction>) : null))
+          .catch(() => null),
+      ]);
+
       if (gen !== fetchGenRef.current) return;
 
-      const stops = deriveStops(trip);
+      // Handle trip data
+      if (trip.status === "rejected") {
+        throw trip.reason;
+      }
+
+      const tripData = trip.value;
+      const stops = deriveStops(tripData);
       const nowSeconds = Math.floor(Date.now() / 1000);
 
       // ETA is the arrival time at the last stop
-      const lastStop = trip.stops[trip.stops.length - 1];
+      const lastStop = tripData.stops[tripData.stops.length - 1];
       const eta = lastStop?.arrivalTime ?? null;
       const minutesToDestination =
         eta && eta > nowSeconds ? Math.round((eta - nowSeconds) / 60) : null;
 
+      // Handle prediction data
+      const prediction =
+        predictionRes.status === "fulfilled" && predictionRes.value ? predictionRes.value : null;
+
       setState({
         isActive: true,
-        trip,
+        trip: tripData,
         stops,
         eta,
         minutesToDestination,
+        prediction,
+        progressPercent: tripData.progressPercent ?? 0,
         isLoading: false,
         error: null,
         isExpired: false,
@@ -154,6 +207,8 @@ export function useTripTracker(
         stops: [],
         eta: null,
         minutesToDestination: null,
+        prediction: null,
+        progressPercent: 0,
         isLoading: false,
         error: null,
         isExpired: false,
@@ -176,6 +231,8 @@ export function useTripTracker(
       stops: [],
       eta: null,
       minutesToDestination: null,
+      prediction: null,
+      progressPercent: 0,
       isLoading: false,
       error: null,
       isExpired: false,

@@ -17,8 +17,8 @@
 import type { RouteIndex, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  getAllDelayRecords,
   getAggregatedPatternCount,
+  getAllDelayRecords,
   getCurrentWeather,
   getDayCategory,
   getDayCategoryForTimestamp,

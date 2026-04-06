@@ -124,11 +124,13 @@ export function AlertCard({
     );
   }
 
+  const alertId = `alert-${alert.id || Math.random().toString(36).substr(2, 9)}`;
+
   return (
     <article
       className={`rounded-lg ${styles.bg} ${predictedClass || styles.border} ${rawClass} overflow-hidden`}
       role="article"
-      aria-label={`${alert.severity} alert: ${alert.headline}`}
+      aria-labelledby={`${alertId}-headline`}
     >
       {/* Header */}
       <button
@@ -136,6 +138,7 @@ export function AlertCard({
         onClick={() => hasDescription && setExpanded(!expanded)}
         className={`w-full text-left p-3 ${hasDescription ? "cursor-pointer" : "cursor-default"}`}
         aria-expanded={hasDescription ? expanded : undefined}
+        aria-controls={hasDescription ? `${alertId}-description` : undefined}
         aria-label={
           hasDescription
             ? `${expanded ? "Collapse" : "Expand"} details for: ${alert.headline}`
@@ -144,7 +147,7 @@ export function AlertCard({
       >
         <div className="flex items-start gap-2">
           {/* Severity icon */}
-          <span className={`${styles.text} mt-0.5 flex-shrink-0`}>
+          <span className={`${styles.text} mt-0.5 flex-shrink-0`} aria-hidden="true">
             <SeverityIcon severity={alert.severity} />
           </span>
 
@@ -152,7 +155,10 @@ export function AlertCard({
           <div className="flex-1 min-w-0">
             {/* Affected lines */}
             {alert.affectedLines.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-1.5">
+              <div
+                className="flex flex-wrap gap-1 mb-1.5"
+                aria-label={`Affected lines: ${alert.affectedLines.join(", ")}`}
+              >
                 {alert.affectedLines.map((line) => (
                   <LineBullet key={line} line={line} size="sm" />
                 ))}
@@ -160,7 +166,10 @@ export function AlertCard({
             )}
 
             {/* Headline */}
-            <h3 className="text-sm font-medium text-text-primary dark:text-dark-text-primary leading-snug">
+            <h3
+              id={`${alertId}-headline`}
+              className="text-sm font-medium text-text-primary dark:text-dark-text-primary leading-snug"
+            >
               {alert.headline}
               {isPredicted && (
                 <span className="ml-2 text-11 text-amber-600 dark:text-amber-400 font-normal">
@@ -182,6 +191,7 @@ export function AlertCard({
           {hasDescription && (
             <span
               className={`${styles.text} flex-shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
+              aria-hidden="true"
             >
               <svg
                 width="16"
@@ -200,7 +210,12 @@ export function AlertCard({
 
       {/* Expandable description */}
       {expanded && hasDescription && (
-        <div className="px-3 pb-3 pt-0">
+        <div
+          id={`${alertId}-description`}
+          className="px-3 pb-3 pt-0"
+          role="region"
+          aria-label="Alert details"
+        >
           <div className="pl-6 text-13 text-text-secondary dark:text-dark-text-secondary leading-relaxed border-t border-surface dark:border-dark-surface pt-2">
             {alert.description}
           </div>

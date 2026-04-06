@@ -23,10 +23,6 @@ declare global {
   }
 }
 
-interface ServiceWorkerRegistration extends ServiceWorkerRegistration {
-  waiting?: ServiceWorker;
-}
-
 /**
  * ServiceWorkerUpdatePrompt - Shows update banner when new version is available
  */

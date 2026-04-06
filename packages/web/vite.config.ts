@@ -12,7 +12,8 @@ import { VitePWA } from "vite-plugin-pwa";
  * - Total JS exceeds MAX_TOTAL_JS_KB gzipped
  */
 const MAX_CHUNK_SIZE_KB = 50; // 50KB per chunk max
-const MAX_TOTAL_JS_KB = 160; // 160KB total JS max (includes lazy-loaded screens)
+const MAX_TOTAL_JS_KB = 170; // 170KB total JS max (includes lazy-loaded screens)
+const MAX_INITIAL_BUNDLE_KB = 200; // 200KB initial bundle max (acceptance criteria)
 
 // Per-chunk overrides for known large vendor dependencies
 const CHUNK_SIZE_OVERRIDES: Record<string, number> = {

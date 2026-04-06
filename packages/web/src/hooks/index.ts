@@ -1,6 +1,9 @@
 export { useArrivals } from "./useArrivals";
 export type { ArrivalsState, ArrivalsResult, DataStatus } from "./useArrivals";
 
+export { useErrorHandler } from "./useErrorHandler";
+export type { ErrorHandlerResult, ErrorHandlerState } from "./useErrorHandler";
+
 export { useFavorites } from "./useFavorites";
 export type { Favorite } from "./useFavorites";
 

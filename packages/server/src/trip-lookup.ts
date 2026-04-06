@@ -46,6 +46,9 @@ export interface TripData {
   currentStopIndex: number;
   updatedAt: number;
   feedAge: number;
+  progressPercent: number;
+  remainingStops: number;
+  totalStops: number;
 }
 
 function toUnixSeconds(v: number | { toNumber(): number } | null | undefined): number | null {
@@ -206,6 +209,15 @@ export function lookupTrip(tripId: string, stations: StationIndex): TripData | n
       const feedTimestamp = Number(parsed.message.header.timestamp);
       const feedAge = nowSeconds - feedTimestamp;
 
+      // Calculate progress: percentage of stops passed (excluding current)
+      // If currentStopIndex is 0, progress is 0% (train at first stop)
+      // If currentStopIndex is lastStopIndex, progress is ~100% (arrived)
+      const lastStopIndex = stops.length - 1;
+      const totalStops = stops.length;
+      const progressPercent =
+        lastStopIndex > 0 ? Math.round((currentStopIndex / lastStopIndex) * 100) : 0;
+      const remainingStops = Math.max(0, lastStopIndex - currentStopIndex);
+
       return {
         tripId,
         routeId,
@@ -217,6 +229,9 @@ export function lookupTrip(tripId: string, stations: StationIndex): TripData | n
         currentStopIndex,
         updatedAt: nowSeconds,
         feedAge,
+        progressPercent,
+        remainingStops,
+        totalStops,
       };
     }
   }

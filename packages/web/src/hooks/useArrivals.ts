@@ -11,11 +11,13 @@
  *
  * Auto-refreshes every `refreshInterval` seconds (from settings, default 30).
  * Provides a manual `refresh()` that optionally triggers haptic feedback.
+ *
+ * Per plan.md Phase 4: Enhanced with apiEnhanced for retry logic and better error handling.
  */
 
 import type { StationArrivals } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../lib/api";
+import { EnhancedApiError, apiEnhanced } from "../lib/apiEnhanced";
 import { useArrivalsStore } from "../stores/arrivalsStore";
 import { useSettingsStore } from "../stores/settingsStore";
 
@@ -66,7 +68,8 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
       }));
 
       try {
-        const data = await api.getArrivals(stationId);
+        // Use apiEnhanced with automatic retry and timeout
+        const data = await apiEnhanced.getArrivals(stationId);
         if (gen !== fetchGenRef.current) return; // superseded
 
         const now = Date.now();
@@ -76,11 +79,20 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
       } catch (err) {
         if (gen !== fetchGenRef.current) return; // superseded
 
+        // Enhanced error handling with user-friendly messages
+        let errorMessage = "Failed to load arrivals";
+        if (err instanceof EnhancedApiError) {
+          // The apiEnhanced already provides user-friendly messages
+          errorMessage = err.message;
+        } else if (err instanceof Error) {
+          errorMessage = err.message;
+        }
+
         const stale = getStaleArrivals(stationId);
         setState({
           status: navigator.onLine ? "error" : "offline",
           data: stale?.data ?? null,
-          error: err instanceof Error ? err.message : "Failed to load arrivals",
+          error: errorMessage,
           updatedAt: stale?.cachedAt ?? null,
         });
       }

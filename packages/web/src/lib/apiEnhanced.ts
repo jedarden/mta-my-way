@@ -11,7 +11,6 @@
  */
 
 import type {
-  AlertsResponse,
   CommuteAnalysis,
   LineDiagramData,
   PushSubscribeRequest,
@@ -25,17 +24,12 @@ import type {
   StationComplex,
   StationEquipmentSummary,
 } from "@mta-my-way/shared";
-import type { HealthResponse, TripData } from "./api";
+
+// Import types from api.ts for internal use
+import type { AlertsResponse, FeedHealthInfo, HealthResponse, TripData, TripStopInfo } from "./api";
 
 // Re-export from base API
-export {
-  api,
-  ApiClientError,
-  type Station,
-  type Route,
-  type TripData,
-  type HealthResponse,
-} from "./api";
+export { api, ApiClientError } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -272,8 +266,8 @@ export type {
   StationEquipmentSummary,
 } from "@mta-my-way/shared";
 
-// Also re-export types that are only defined in api.ts
-export type { TripStopInfo, TripData, FeedHealthInfo, HealthResponse, AlertsResponse } from "./api";
+// Export types from api.ts
+export type { TripStopInfo, TripData, FeedHealthInfo, HealthResponse, AlertsResponse };
 
 // Enhanced API endpoints with retry and timeout
 export const apiEnhanced = {
@@ -404,4 +398,4 @@ export const apiEnhanced = {
   },
 };
 
-export { EnhancedApiError, ApiErrorType };
+export { EnhancedApiError };

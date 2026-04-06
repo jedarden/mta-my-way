@@ -75,11 +75,10 @@ export function memoize<T extends (...args: unknown[]) => ReturnType<T>>(
  *   };
  *   const memoizedFetch = memoizeAsync(fetchData);
  */
-export function memoizeAsync<
-  T extends (
-    ...args: unknown[]
-  ) => Promise<ReturnType<T extends (...args: unknown[]) => Promise<infer R> ? R : never>>,
->(fn: T, options: MemoizeOptions = {}): T {
+export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(
+  fn: T,
+  options: MemoizeOptions = {}
+): T {
   const { maxSize = 100, ttl = 5 * 60 * 1000 } = options;
   const cache = new Map<string, CacheEntry<Awaited<ReturnType<T>>>>();
   const pending = new Map<string, Promise<Awaited<ReturnType<T>>>>();
@@ -103,7 +102,7 @@ export function memoizeAsync<
     // Make request
     const promise = fn(...args).then((result) => {
       // Cache result
-      cache.set(key, { value: result, timestamp: now });
+      cache.set(key, { value: result as Awaited<ReturnType<T>>, timestamp: now });
       pending.delete(key);
 
       // Prune cache if over size limit
@@ -113,7 +112,7 @@ export function memoizeAsync<
       }
 
       return result;
-    });
+    }) as Promise<Awaited<ReturnType<T>>>;
 
     pending.set(key, promise);
     return promise;
@@ -203,7 +202,9 @@ export function createLRUCache<K, V>(maxSize: number) {
       if (cache.size >= maxSize && !cache.has(key)) {
         // Delete least recently used (first item)
         const firstKey = cache.keys().next().value;
-        cache.delete(firstKey);
+        if (firstKey !== undefined) {
+          cache.delete(firstKey);
+        }
       }
       cache.set(key, value);
     },

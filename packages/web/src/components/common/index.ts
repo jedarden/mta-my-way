@@ -20,6 +20,9 @@ export {
   Skeleton,
 } from "./Skeleton";
 export { ErrorBoundary } from "./ErrorBoundary";
+export { ScreenErrorBoundary } from "./ScreenErrorBoundary";
+export { ComponentErrorBoundary } from "./ComponentErrorBoundary";
+export { ApiErrorDisplay } from "./ApiErrorDisplay";
 export { FocusTrap, useFocusTrap } from "./FocusTrap";
 export { LiveRegion, useLiveAnnouncer, useRouteChangeAnnouncer } from "./LiveAnnouncer";
 export {

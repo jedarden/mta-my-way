@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { DataState } from "../components/common/DataState";
+import { TripProgress } from "../components/trip/TripProgress";
 import { TripTracker } from "../components/trip/TripTracker";
 import type { DataStatus } from "../hooks/useArrivals";
 import { useTripJournal } from "../hooks/useTripJournal";
@@ -33,6 +34,8 @@ export default function TripScreen() {
     trip,
     stops,
     minutesToDestination,
+    prediction,
+    progressPercent,
     isActive,
     isLoading,
     error,
@@ -153,6 +156,14 @@ export default function TripScreen() {
 
   const destination = trip?.destination ?? destinationStationId ?? "Unknown";
 
+  // Convert prediction ISO timestamps to minutes for TripProgress component
+  const baseEtaMinutes = prediction?.baseEta
+    ? Math.round((new Date(prediction.baseEta).getTime() - Date.now()) / 60000)
+    : null;
+  const adjustedEtaMinutes = prediction?.adjustedEta
+    ? Math.round((new Date(prediction.adjustedEta).getTime() - Date.now()) / 60000)
+    : null;
+
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
       {/* Header */}
@@ -246,6 +257,21 @@ export default function TripScreen() {
             </div>
           )}
         </section>
+
+        {/* Progress visualization with ETA and delay prediction */}
+        {prediction && !isExpired && (
+          <section className="px-4 mb-4">
+            <TripProgress
+              progressPercent={progressPercent}
+              remainingStops={prediction.remainingStops}
+              totalStops={prediction.totalStops}
+              baseEtaMinutes={baseEtaMinutes}
+              delayRisk={prediction.delayRisk}
+              delayMinutesRange={prediction.delayMinutesRange}
+              adjustedEtaMinutes={adjustedEtaMinutes}
+            />
+          </section>
+        )}
 
         {/* Anomaly detection banner */}
         {anomaly?.isAnomaly && !isExpired && (

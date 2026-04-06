@@ -18,20 +18,20 @@ export default function BottomNav() {
       role="navigation"
       aria-label="Main navigation"
     >
-      <ul className="flex justify-around items-center h-14">
+      <ul className="flex justify-around items-center h-14" role="list">
         {navItems.map((item) => (
           <li key={item.path}>
             <NavLink
               to={item.path}
-              className={({ isActive }) =>
+              className={({ isActive, isPending }) =>
                 `flex flex-col items-center justify-center min-h-touch min-w-touch px-4 rounded-lg transition-colors relative ${
                   isActive
                     ? "text-mta-primary dark:text-blue-400"
                     : "text-text-secondary dark:text-dark-text-secondary hover:bg-surface dark:hover:bg-dark-surface"
-                }`
+                } ${isPending ? "opacity-50" : ""}`
               }
             >
-              <span className="text-xl" role="img" aria-hidden="true">
+              <span className="text-xl" role="img" aria-label={`${item.label} navigation icon`}>
                 {item.icon}
               </span>
               <span className="text-11 font-medium">{item.label}</span>
@@ -39,7 +39,7 @@ export default function BottomNav() {
               {item.path === "/alerts" && myAlertsCount > 0 && (
                 <span
                   className="absolute top-1 right-3 min-w-[18px] h-[18px] px-1 bg-mta-red text-white text-11 font-bold rounded-full flex items-center justify-center"
-                  aria-label={`${myAlertsCount} alerts`}
+                  aria-label={`${myAlertsCount} ${myAlertsCount === 1 ? "alert" : "alerts"}`}
                 >
                   {myAlertsCount > 99 ? "99+" : myAlertsCount}
                 </span>

@@ -7,11 +7,13 @@
  *   - Sorts by severity (severe > warning > info) then recency
  *   - Returns DataState for loading/error/offline handling
  *   - Badge count for relevant alerts
+ *
+ * Per plan.md Phase 4: Enhanced with apiEnhanced for retry logic and better error handling.
  */
 
 import type { StationAlert } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../lib/api";
+import { EnhancedApiError, apiEnhanced } from "../lib/apiEnhanced";
 import { useFavoritesStore } from "../stores/favoritesStore";
 import { useSettingsStore } from "../stores/settingsStore";
 
@@ -124,7 +126,8 @@ export function useAlerts(): AlertsResult {
     }));
 
     try {
-      const response = await api.getAlerts();
+      // Use apiEnhanced with automatic retry and timeout
+      const response = await apiEnhanced.getAlerts();
 
       if (gen !== fetchGenRef.current) return; // superseded
 
@@ -141,11 +144,19 @@ export function useAlerts(): AlertsResult {
     } catch (err) {
       if (gen !== fetchGenRef.current) return;
 
+      // Enhanced error handling with user-friendly messages
+      let errorMessage = "Failed to load alerts";
+      if (err instanceof EnhancedApiError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
       setState({
         status: navigator.onLine ? "error" : "offline",
         alerts: state.alerts, // keep stale data
         meta: state.meta,
-        error: err instanceof Error ? err.message : "Failed to load alerts",
+        error: errorMessage,
         updatedAt: state.updatedAt,
       });
     }
@@ -220,7 +231,8 @@ export function useAlertsForStation(
     setStatus((prev) => (prev === "idle" ? "loading" : "stale"));
 
     try {
-      const response = await api.getAlerts();
+      // Use apiEnhanced with automatic retry and timeout
+      const response = await apiEnhanced.getAlerts();
       if (gen !== fetchGenRef.current) return;
 
       setAllAlerts(sortAlerts(response.alerts ?? []));

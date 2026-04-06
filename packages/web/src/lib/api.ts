@@ -128,6 +128,9 @@ export interface TripData {
   currentStopIndex: number;
   updatedAt: number;
   feedAge: number;
+  progressPercent: number;
+  remainingStops: number;
+  totalStops: number;
 }
 
 /** Feed status from /api/health */

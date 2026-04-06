@@ -801,6 +801,140 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
+  // Trip ETA prediction with delay modeling
+  // -------------------------------------------------------------------------
+  app.get("/api/trip/:tripId/predict", (c) => {
+    const tripId = c.req.param("tripId");
+
+    if (!tripId) {
+      return c.json({ error: "tripId is required" }, 400);
+    }
+
+    const trip = lookupTrip(tripId, stations);
+
+    if (!trip) {
+      return c.json({ error: "Trip not found or no longer active" }, 404);
+    }
+
+    // Calculate remaining trip segments for delay prediction
+    const segments: Array<{
+      fromStationId: string;
+      toStationId: string;
+      fromStationName: string;
+      toStationName: string;
+      scheduledSeconds: number;
+    }> = [];
+
+    for (let i = trip.currentStopIndex; i < trip.stops.length - 1; i++) {
+      const currentStop = trip.stops[i]!;
+      const nextStop = trip.stops[i + 1]!;
+
+      const departureTime = currentStop.departureTime ?? currentStop.arrivalTime;
+      const arrivalTime = nextStop.arrivalTime ?? nextStop.departureTime;
+
+      if (departureTime && arrivalTime && arrivalTime > departureTime) {
+        segments.push({
+          fromStationId: currentStop.stationId ?? currentStop.stopId,
+          toStationId: nextStop.stationId ?? nextStop.stopId,
+          fromStationName: currentStop.stationName,
+          toStationName: nextStop.stationName,
+          scheduledSeconds: arrivalTime - departureTime,
+        });
+      }
+    }
+
+    // Get delay predictions for each segment
+    const segmentPredictions = segments.map((segment) => {
+      const prediction = predictDelay(
+        trip.routeId,
+        trip.direction ?? "N",
+        segment.fromStationId,
+        segment.toStationId,
+        segment.scheduledSeconds
+      );
+
+      return {
+        ...segment,
+        prediction: prediction ?? null,
+      };
+    });
+
+    // Calculate overall ETA adjustment
+    let totalScheduledSeconds = 0;
+    let totalPredictedSeconds = 0;
+    let hasPredictions = false;
+
+    for (const segment of segmentPredictions) {
+      totalScheduledSeconds += segment.scheduledSeconds;
+      if (segment.prediction) {
+        totalPredictedSeconds += segment.prediction.predictedMinutes * 60;
+        hasPredictions = true;
+      } else {
+        totalPredictedSeconds += segment.scheduledSeconds;
+      }
+    }
+
+    // Calculate base ETA from trip data
+    const lastStop = trip.stops[trip.stops.length - 1];
+    const baseEtaSeconds = lastStop?.arrivalTime ?? null;
+    const baseEta = baseEtaSeconds ? new Date(baseEtaSeconds * 1000).toISOString() : null;
+
+    // Calculate adjusted ETA if we have predictions
+    let adjustedEtaSeconds: number | null = null;
+    let adjustedEta: string | null = null;
+    let delayRisk: "low" | "medium" | "high" | null = null;
+    let delayMinutesRange: string | null = null;
+
+    if (hasPredictions && baseEtaSeconds) {
+      const etaAdjustmentSeconds = totalPredictedSeconds - totalScheduledSeconds;
+      adjustedEtaSeconds = baseEtaSeconds + etaAdjustmentSeconds;
+      adjustedEta = new Date(adjustedEtaSeconds * 1000).toISOString();
+
+      // Calculate delay risk
+      const delayRatio = totalPredictedSeconds / totalScheduledSeconds;
+      if (delayRatio < 1.1) {
+        delayRisk = "low";
+      } else if (delayRatio < 1.3) {
+        delayRisk = "medium";
+      } else {
+        delayRisk = "high";
+      }
+
+      // Calculate delay range in minutes
+      const delayMinutes = Math.round(etaAdjustmentSeconds / 60);
+      if (delayMinutes > 0) {
+        delayMinutesRange = `+${delayMinutes} min`;
+      } else if (delayMinutes < 0) {
+        delayMinutesRange = `${delayMinutes} min`;
+      } else {
+        delayMinutesRange = "On time";
+      }
+    }
+
+    // Get route-level delay probability
+    const routeDelayProbability = getRouteDelayProbability(trip.routeId, trip.direction ?? "N");
+
+    c.header("Cache-Control", "public, max-age=30");
+    return c.json({
+      tripId: trip.tripId,
+      routeId: trip.routeId,
+      direction: trip.direction,
+      destination: trip.destination,
+      progressPercent: trip.progressPercent,
+      remainingStops: trip.remainingStops,
+      totalStops: trip.totalStops,
+      baseEta,
+      adjustedEta,
+      delayRisk,
+      delayMinutesRange,
+      routeDelayProbability,
+      segments: segmentPredictions,
+      hasPredictions,
+      generatedAt: new Date().toISOString(),
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Train positions (for line diagram)
   // -------------------------------------------------------------------------
   app.get("/api/positions/:lineId", (c) => {

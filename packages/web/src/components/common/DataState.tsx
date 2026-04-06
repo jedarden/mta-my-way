@@ -21,11 +21,14 @@
  *   >
  *     {(data) => <FavoritesList favorites={data} />}
  *   </DataState>
+ *
+ * Per plan.md Phase 4: Enhanced with ApiErrorDisplay for better error UX.
  */
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import { useEffect, useState } from "react";
 import type { DataStatus } from "../../hooks/useArrivals";
+import { ApiErrorDisplay } from "./ApiErrorDisplay";
 
 interface DataStateProps<T> {
   /** Current data fetch status */
@@ -86,36 +89,26 @@ export function DataState<T>({
   // Error with no fallback data
   if (status === "error" && isDataEmpty) {
     return (
-      <div className="rounded-lg bg-surface dark:bg-dark-surface p-4 text-center">
-        <p className="text-base text-text-primary dark:text-dark-text-primary mb-1">
-          Unable to load data
-        </p>
-        <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-3">
-          {error ?? "Something went wrong"}
-        </p>
-        {onRetry && (
-          <button
-            onClick={onRetry}
-            className="px-4 py-2 bg-mta-primary text-white rounded font-medium text-13 min-h-touch"
-          >
-            Try again
-          </button>
-        )}
-      </div>
+      <ApiErrorDisplay
+        error={error ?? "Something went wrong"}
+        errorType="unknown"
+        canRetry={!!onRetry}
+        isRetrying={false}
+        onRetry={onRetry}
+      />
     );
   }
 
   // Offline with no fallback data
   if (status === "offline" && isDataEmpty) {
     return (
-      <div className="rounded-lg bg-surface dark:bg-dark-surface p-4 text-center">
-        <p className="text-base text-text-primary dark:text-dark-text-primary mb-1">
-          You're offline
-        </p>
-        <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-          No cached data available
-        </p>
-      </div>
+      <ApiErrorDisplay
+        error={error ?? "No cached data available"}
+        errorType="offline"
+        canRetry={!!onRetry}
+        isRetrying={false}
+        onRetry={onRetry}
+      />
     );
   }
 
@@ -148,48 +141,29 @@ export function DataState<T>({
 
       {/* Offline banner when we still have stale data */}
       {status === "offline" && hasData && (
-        <div
-          className="mb-2 px-3 py-1.5 bg-warning/10 rounded text-13 text-text-secondary dark:text-dark-text-secondary flex items-center gap-1.5"
-          role="status"
-          aria-live="polite"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <line x1="1" y1="1" x2="23" y2="23" />
-            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
-            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
-            <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
-            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-            <line x1="12" y1="20" x2="12.01" y2="20" />
-          </svg>
-          Offline — showing last known data
+        <div className="mb-2">
+          <ApiErrorDisplay
+            error="Offline — showing last known data"
+            errorType="offline"
+            canRetry={!!onRetry}
+            isRetrying={false}
+            onRetry={onRetry}
+            compact
+          />
         </div>
       )}
 
       {/* Error banner when we still have stale data */}
       {status === "error" && hasData && (
-        <div className="mb-2 px-3 py-1.5 flex items-center justify-between gap-2 bg-surface dark:bg-dark-surface rounded">
-          <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
-            {error ?? "Update failed"}
-          </span>
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              className="text-13 text-mta-primary font-medium min-h-touch px-2"
-            >
-              Retry
-            </button>
-          )}
+        <div className="mb-2">
+          <ApiErrorDisplay
+            error={error ?? "Update failed"}
+            errorType="unknown"
+            canRetry={!!onRetry}
+            isRetrying={false}
+            onRetry={onRetry}
+            compact
+          />
         </div>
       )}
 
