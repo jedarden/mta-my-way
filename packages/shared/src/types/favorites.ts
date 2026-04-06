@@ -54,6 +54,8 @@ export interface Commute {
   preferredLines: string[];
   /** Whether to show transfer suggestions */
   enableTransferSuggestions: boolean;
+  /** Whether this commute is pinned for quick access (Phase: commute presets) */
+  isPinned?: boolean;
 }
 
 /**

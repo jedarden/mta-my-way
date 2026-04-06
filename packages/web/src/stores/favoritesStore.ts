@@ -20,6 +20,7 @@ interface FavoritesState {
   addCommute: (commute: Omit<Commute, "id">) => string;
   updateCommute: (id: string, updates: Partial<Commute>) => void;
   removeCommute: (id: string) => void;
+  toggleCommutePin: (id: string) => void;
 
   recordTap: (favoriteId: string) => void;
   completeOnboarding: () => void;
@@ -139,6 +140,12 @@ export const useFavoritesStore = create<FavoritesState>()(
       removeCommute: (id) => {
         set((state) => ({
           commutes: state.commutes.filter((c) => c.id !== id),
+        }));
+      },
+
+      toggleCommutePin: (id) => {
+        set((state) => ({
+          commutes: state.commutes.map((c) => (c.id === id ? { ...c, isPinned: !c.isPinned } : c)),
         }));
       },
 

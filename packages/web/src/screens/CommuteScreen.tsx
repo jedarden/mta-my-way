@@ -14,14 +14,14 @@
  */
 
 import type { Commute } from "@mta-my-way/shared";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
 import { DataState } from "../components/common/DataState";
 import { EmptyCommutes } from "../components/common/EmptyState";
 import { CommuteCardSkeleton } from "../components/common/Skeleton";
-import { CommuteCard } from "../components/commute/CommuteCard";
 import { CommuteEditor } from "../components/commute/CommuteEditor";
+import { CommutePresetCard } from "../components/commute/CommutePresetCard";
 import { RouteComparison } from "../components/commute/RouteComparison";
 import { TransferDetail } from "../components/commute/TransferDetail";
 import { WalkComparison } from "../components/commute/WalkComparison";
@@ -55,6 +55,15 @@ function CommuteList() {
 
   const [editingCommute, setEditingCommute] = useState<Commute | null>(null);
   const [showNewEditor, setShowNewEditor] = useState(false);
+
+  // Sort commutes: pinned first, then by name
+  const sortedCommutes = useMemo(() => {
+    return [...commutes].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [commutes]);
 
   const handleSaveNew = useCallback(
     (data: Omit<Commute, "id">) => {
@@ -92,7 +101,7 @@ function CommuteList() {
               id="commutes-heading"
               className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
             >
-              Saved Commutes
+              Commute Presets
             </h2>
             {commutes.length > 0 && commutes.length < MAX_COMMUTES && (
               <button
@@ -106,38 +115,10 @@ function CommuteList() {
             )}
           </div>
 
-          {commutes.length > 0 ? (
+          {sortedCommutes.length > 0 ? (
             <div className="space-y-3">
-              {commutes.map((commute) => (
-                <div key={commute.id} className="relative group">
-                  <CommuteCard commute={commute} />
-                  {/* Edit button overlay */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingCommute(commute);
-                    }}
-                    className="absolute top-3 right-3 p-2 min-h-touch min-w-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary rounded-lg opacity-60 group-hover:opacity-100 transition-opacity"
-                    aria-label={`Edit ${commute.name} commute`}
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="1" />
-                      <circle cx="19" cy="12" r="1" />
-                      <circle cx="5" cy="12" r="1" />
-                    </svg>
-                  </button>
-                </div>
+              {sortedCommutes.map((commute) => (
+                <CommutePresetCard key={commute.id} commute={commute} onEdit={setEditingCommute} />
               ))}
               {commutes.length >= MAX_COMMUTES && (
                 <p className="text-13 text-text-secondary dark:text-dark-text-secondary text-center py-1">
