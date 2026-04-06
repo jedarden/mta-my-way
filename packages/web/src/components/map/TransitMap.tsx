@@ -12,6 +12,7 @@
 
 import type { InterpolatedTrainPosition, LineDiagramData, Station } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLiveAnnouncer } from "../common/LiveAnnouncer";
 
 interface TransitMapProps {
   /** All stations to display on the map */
@@ -52,6 +53,7 @@ export function TransitMap({
 }: TransitMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { announce } = useLiveAnnouncer();
 
   // Viewport state
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
@@ -110,22 +112,29 @@ export function TransitMap({
 
   // Handle zoom buttons
   const handleZoomIn = useCallback(() => {
-    setTransform((prev) => ({
-      ...prev,
-      scale: Math.min(MAX_ZOOM, prev.scale + ZOOM_STEP),
-    }));
-  }, []);
+    setTransform((prev) => {
+      const newScale = Math.min(MAX_ZOOM, prev.scale + ZOOM_STEP);
+      // Announce zoom level change for screen readers
+      const zoomPercent = Math.round(newScale * 100);
+      announce(`Zoomed in to ${zoomPercent}%`);
+      return { ...prev, scale: newScale };
+    });
+  }, [announce]);
 
   const handleZoomOut = useCallback(() => {
-    setTransform((prev) => ({
-      ...prev,
-      scale: Math.max(MIN_ZOOM, prev.scale - ZOOM_STEP),
-    }));
-  }, []);
+    setTransform((prev) => {
+      const newScale = Math.max(MIN_ZOOM, prev.scale - ZOOM_STEP);
+      // Announce zoom level change for screen readers
+      const zoomPercent = Math.round(newScale * 100);
+      announce(`Zoomed out to ${zoomPercent}%`);
+      return { ...prev, scale: newScale };
+    });
+  }, [announce]);
 
   const handleReset = useCallback(() => {
     setTransform({ x: 0, y: 0, scale: 1 });
-  }, []);
+    announce("Map view reset to default");
+  }, [announce]);
 
   // Keyboard handler for map navigation
   const handleKeyDown = useCallback(
@@ -346,7 +355,11 @@ export function TransitMap({
 
       {/* Instructions hint */}
       {transform.scale === 1 && transform.x === 0 && transform.y === 0 && (
-        <div className="absolute top-4 left-4 bg-surface/90 dark:bg-dark-surface/90 backdrop-blur-sm px-3 py-2 rounded-lg text-xs text-text-secondary dark:text-dark-text-secondary shadow-lg">
+        <div
+          className="absolute top-4 left-4 bg-surface/90 dark:bg-dark-surface/90 backdrop-blur-sm px-3 py-2 rounded-lg text-xs text-text-secondary dark:text-dark-text-secondary shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
           <p>Drag to pan • Scroll to zoom • Arrow keys to navigate • Tap stations for details</p>
         </div>
       )}
@@ -431,6 +444,8 @@ function TrainMarker({ train, routeId, routeColor, x, y, onTap }: TrainMarkerPro
     onTap?.({ ...train, routeId });
   }, [train, routeId, onTap]);
 
+  const trainLabel = `${train.direction === "N" ? "Northbound" : "Southbound"} ${routeId} train to ${train.destination}`;
+
   return (
     <g
       role="button"
@@ -443,8 +458,10 @@ function TrainMarker({ train, routeId, routeColor, x, y, onTap }: TrainMarkerPro
         }
       }}
       className="cursor-pointer focus:outline-none"
-      aria-label={`${train.direction === "N" ? "Northbound" : "Southbound"} ${routeId} train to ${train.destination}`}
+      aria-label={trainLabel}
     >
+      {/* Screen reader title for hover */}
+      <title>{trainLabel}</title>
       {/* Pulsing ring for visibility */}
       <circle cx={x} cy={y} r={8} fill="none" stroke={routeColor} strokeWidth={2} opacity={0.4}>
         <animate

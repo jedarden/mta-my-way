@@ -104,9 +104,15 @@ export function StationDetailsModal({ station, onClose }: StationDetailsModalPro
               <h3 className="text-sm font-medium text-text-secondary dark:text-dark-text-secondary mb-2">
                 Lines
               </h3>
-              <div className="flex flex-wrap gap-2">
+              <div
+                className="flex flex-wrap gap-2"
+                role="list"
+                aria-label={`${station.lines.join(", ")} lines available`}
+              >
                 {station.lines.map((line) => (
-                  <LineBullet key={line} line={line} />
+                  <span key={line} role="listitem">
+                    <LineBullet line={line} />
+                  </span>
                 ))}
               </div>
             </div>
