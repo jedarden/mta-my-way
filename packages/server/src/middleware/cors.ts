@@ -55,7 +55,9 @@ export function cors(options: CorsOptions = {}): MiddlewareHandler {
       if (origin) {
         const requestHost = c.req.header("Host");
         const requestOrigin = new URL(origin).hostname;
-        if (requestHost && requestOrigin === requestHost) {
+        // Compare hostnames, accounting for port in Host header
+        const hostWithoutPort = requestHost?.split(":")[0];
+        if (hostWithoutPort && requestOrigin === hostWithoutPort) {
           c.res.headers.set("Access-Control-Allow-Origin", origin);
         }
       }
@@ -91,7 +93,7 @@ export function cors(options: CorsOptions = {}): MiddlewareHandler {
       c.res.headers.set("Access-Control-Max-Age", maxAge.toString());
 
       // Return early for preflight
-      return c.text("", 204);
+      return c.body(null, 204);
     }
 
     // Regular request handling

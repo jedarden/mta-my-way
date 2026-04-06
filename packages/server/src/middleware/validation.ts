@@ -15,7 +15,7 @@ interface ValidationErrorDetail {
 }
 
 interface ValidationErrorResponse {
-  error: "Validation failed";
+  error: "validation failed";
   details: ValidationErrorDetail[];
 }
 
@@ -82,7 +82,7 @@ export async function validateBody<T>(c: Context, schema: ZodSchema<T>): Promise
     body = await c.req.json();
   } catch {
     const errorResponse: ValidationErrorResponse = {
-      error: "Validation failed",
+      error: "validation failed",
       details: [{ field: "", message: "Request body must be valid JSON" }],
     };
     return c.json(errorResponse, 400);
@@ -91,7 +91,7 @@ export async function validateBody<T>(c: Context, schema: ZodSchema<T>): Promise
   const result = schema.safeParse(body);
   if (!result.success) {
     const errorResponse: ValidationErrorResponse = {
-      error: "Validation failed",
+      error: "validation failed",
       details: formatZodError(result.error),
     };
     return c.json(errorResponse, 400);

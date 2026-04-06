@@ -162,13 +162,14 @@ describe("metrics", () => {
       metrics.counter("test/invalid-name", "Test").inc(1);
 
       const exported = metrics.exportPrometheus();
-      expect(exported).toContain("test_invalid-name");
+      // Sanitization replaces / and - with _
+      expect(exported).toContain("test_invalid_name");
     });
   });
 
   describe("common metrics", () => {
     it("provides common application metrics", async () => {
-      const { metrics: m } = await import("./metrics.js");
+      const m = await import("./metrics.js");
 
       expect(m.httpRequestsTotal).toBeDefined();
       expect(m.httpRequestDuration).toBeDefined();

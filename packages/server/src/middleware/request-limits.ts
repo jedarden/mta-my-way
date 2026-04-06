@@ -51,7 +51,7 @@ export function requestSizeLimits(options: SizeLimitsOptions = {}): MiddlewareHa
 
     // Estimate header size (rough calculation)
     let headerSize = 0;
-    for (const [key, value] of c.req.header()) {
+    for (const [key, value] of c.req.raw.headers.entries()) {
       headerSize += key.length + (value?.length ?? 0) + 4; // ": " + "\r\n"
     }
     if (headerSize > maxHeaderSize) {

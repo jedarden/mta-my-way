@@ -33,7 +33,8 @@ describe("logger", () => {
   });
 
   it("logs debug messages", () => {
-    logger.debug("Debug message");
+    const debugLogger = createLogger({ level: LogLevel.DEBUG });
+    debugLogger.debug("Debug message");
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const logArg = JSON.parse(consoleLogSpy.mock.calls[0][0] as string);

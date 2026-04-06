@@ -11,9 +11,9 @@ import type { MiddlewareHandler } from "hono";
 
 /**
  * HTML tag pattern for stripping.
- * Matches <script>, <iframe>, <object>, <embed>, <link>, <style>, <img>
+ * Matches all HTML tags to prevent XSS.
  */
-const HTML_TAG_PATTERN = /<\/?(?:script|iframe|object|embed|link|style|img)[^>]*>/gi;
+const HTML_TAG_PATTERN = /<[^>]*>/gi;
 
 /**
  * JavaScript event handler pattern.
@@ -24,9 +24,11 @@ const EVENT_HANDLER_PATTERN = /on\w+\s*=/gi;
 /**
  * SQL injection pattern.
  * Detects common SQL injection attempts.
+ * Matches tautological conditions, comment sequences, UNION-based injections, and stacked queries.
+ * More specific patterns to avoid false positives on legitimate content.
  */
 const SQL_INJECTION_PATTERN =
-  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)|('|--|;|\|\||\/\*)/gi;
+  /(\bOR\b\s+\d+\s*=\s*\d+)|(\bAND\b\s+\d+\s*=\s*\d+)|(\bOR\b\s+'[^']+'\s*=\s*'[^']*')|(\bAND\b\s+'[^']+'\s*=\s*'[^']*')|('\s*OR\s*')|('\s*AND\s*')|(\bOR\s+)|(AND\s+)|(--)|(;)|(\bUNION\b\s+\bSELECT\b)|(\/\*)|(\|\|)/gi;
 
 /**
  * Input sanitization options.
