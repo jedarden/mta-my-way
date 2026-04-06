@@ -11,6 +11,7 @@ const CommuteScreen = lazy(() => import("./screens/CommuteScreen"));
 const AlertsScreen = lazy(() => import("./screens/AlertsScreen"));
 const StationScreen = lazy(() => import("./screens/StationScreen"));
 const TripScreen = lazy(() => import("./screens/TripScreen"));
+const MapScreen = lazy(() => import("./screens/MapScreen"));
 const SettingsScreen = lazy(() => import("./screens/SettingsScreen"));
 const HealthScreen = lazy(() => import("./screens/HealthScreen"));
 const LineDiagramScreen = lazy(() => import("./screens/LineDiagramScreen"));
@@ -28,6 +29,7 @@ function App() {
             <Route path="/commute" element={<CommuteScreen />} />
             <Route path="/commute/:commuteId" element={<CommuteScreen />} />
             <Route path="/alerts" element={<AlertsScreen />} />
+            <Route path="/map" element={<MapScreen />} />
             <Route path="/health" element={<HealthScreen />} />
             <Route path="/station/:stationId" element={<StationScreen />} />
             <Route path="/line/:lineId" element={<LineDiagramScreen />} />

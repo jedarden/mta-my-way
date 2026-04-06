@@ -18,12 +18,14 @@ import type {
   PushSubscribeResponse,
   PushUnsubscribeRequest,
   PushUnsubscribeResponse,
+  Route,
+  Station,
   StationAlert,
   StationArrivals,
   StationComplex,
   StationEquipmentSummary,
 } from "@mta-my-way/shared";
-import type { HealthResponse, Route, Station, TripData } from "./api";
+import type { HealthResponse, TripData } from "./api";
 
 // Re-export from base API
 export {
@@ -33,7 +35,6 @@ export {
   type Route,
   type TripData,
   type HealthResponse,
-  type AlertsResponse,
 } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
@@ -256,11 +257,6 @@ async function enhancedFetch<T>(path: string, options: FetchOptions = {}): Promi
 export type {
   Station,
   Route,
-  AlertsResponse,
-  TripStopInfo,
-  TripData,
-  FeedHealthInfo,
-  HealthResponse,
   StationComplex,
   ArrivalTime,
   CommuteAnalysis,
@@ -275,6 +271,9 @@ export type {
   StationArrivals,
   StationEquipmentSummary,
 } from "@mta-my-way/shared";
+
+// Also re-export types that are only defined in api.ts
+export type { TripStopInfo, TripData, FeedHealthInfo, HealthResponse, AlertsResponse } from "./api";
 
 // Enhanced API endpoints with retry and timeout
 export const apiEnhanced = {

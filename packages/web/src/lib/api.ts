@@ -13,6 +13,8 @@ import type {
   PushSubscribeResponse,
   PushUnsubscribeRequest,
   PushUnsubscribeResponse,
+  Route,
+  Station,
   StationAlert,
   StationArrivals,
   StationComplex,
@@ -33,6 +35,8 @@ export type {
   PushSubscribeResponse,
   PushUnsubscribeRequest,
   PushUnsubscribeResponse,
+  Route,
+  Station,
   StationAlert,
   StationArrivals,
   StationEquipmentSummary,
@@ -89,24 +93,6 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // API Types
-export interface Station {
-  id: string;
-  name: string;
-  lat: number;
-  lon: number;
-  lines: string[];
-  northStopId: string;
-  southStopId: string;
-  borough: string;
-  ada: boolean;
-}
-
-export interface Route {
-  id: string;
-  shortName: string;
-  longName: string;
-  color: string;
-}
 
 export interface AlertsResponse {
   alerts: StationAlert[];
