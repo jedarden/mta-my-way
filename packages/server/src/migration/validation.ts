@@ -184,7 +184,7 @@ export function checkForeignKeyViolations(db: Database.Database): string[] {
   try {
     const fkResult = db.pragma("foreign_key_check");
     if (fkResult && fkResult.length > 0) {
-      for (const row of fkResult as any[]) {
+      for (const row of fkResult as Array<Record<string, unknown>>) {
         violations.push(
           `FK violation: table=${row.table}, rowid=${row.rowid}, parent=${row.parent}, fkid=${row.fkid}`
         );
@@ -348,7 +348,7 @@ export function combineValidators(
 export function safeTransform(
   db: Database.Database,
   tableName: string,
-  transform: (row: any) => void,
+  transform: (row: Record<string, unknown>) => void,
   batchSize = 1000
 ): number {
   if (!tableExists(db, tableName)) {

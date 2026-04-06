@@ -8,8 +8,11 @@
 
 import type Database from "better-sqlite3";
 
+/** SQLite parameter type */
+type ParameterType = string | number | boolean | Buffer | null;
+
 /** Seed data entry */
-export interface SeedData<T = Record<string, any>> {
+export interface SeedData<T = Record<string, unknown>> {
   table: string;
   data: T[];
   uniqueKeys?: string[]; // Columns that define uniqueness
@@ -33,7 +36,7 @@ export interface SeedResult {
  * @param options - Seeding options
  * @returns Seed result with counts
  */
-export function seedData<T extends Record<string, any>>(
+export function seedData<T extends Record<string, unknown>>(
   db: Database.Database,
   table: string,
   data: T[],
@@ -78,7 +81,7 @@ export function seedData<T extends Record<string, any>>(
 
   for (const row of data) {
     try {
-      const values = columns.map((col) => (row as any)[col]);
+      const values = columns.map((col) => row[col as keyof T] as ParameterType);
       const result = stmt.run(...values);
 
       if (result.changes > 0) {
@@ -150,7 +153,7 @@ export function needsSeeding(db: Database.Database, table: string, minCount = 1)
 export function upsertRow(
   db: Database.Database,
   table: string,
-  data: Record<string, any>,
+  data: Record<string, unknown>,
   uniqueColumns: string[]
 ): boolean {
   const columns = Object.keys(data);
@@ -245,9 +248,9 @@ export function seedConfig(
 export function seedFromJSON(
   db: Database.Database,
   table: string,
-  jsonData: string | Record<string, any> | Record<string, any>[]
+  jsonData: string | Record<string, unknown> | Record<string, unknown>[]
 ): SeedResult {
-  let data: Record<string, any>[];
+  let data: Record<string, unknown>[];
 
   if (typeof jsonData === "string") {
     const parsed = JSON.parse(jsonData);
@@ -272,7 +275,7 @@ export function seedFromJSON(
  * @param factory - Function that generates data for a row
  * @returns Seed result
  */
-export function generateSeedData<T extends Record<string, any>>(
+export function generateSeedData<T extends Record<string, unknown>>(
   db: Database.Database,
   table: string,
   count: number,
@@ -314,7 +317,7 @@ export function seedTransaction(db: Database.Database, seeds: SeedData[]): SeedR
  * @param options - Options including disable foreign keys
  * @returns Seed result
  */
-export function reseedTable<T extends Record<string, any>>(
+export function reseedTable<T extends Record<string, unknown>>(
   db: Database.Database,
   table: string,
   data: T[],
