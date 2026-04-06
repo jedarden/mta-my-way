@@ -62,7 +62,11 @@ import {
 } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import { rateLimiter, securityHeaders } from "./middleware/index.js";
+import { httpMetrics } from "./middleware/metrics.js";
 import { validateBody } from "./middleware/validation.js";
+import { logger } from "./observability/logger.js";
+import { metrics } from "./observability/metrics.js";
+import { tracingMiddleware } from "./observability/tracing.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
 import {
   getSubscriptionCount,
@@ -85,10 +89,6 @@ import {
   recordTrip,
   updateTripNotes,
 } from "./trip-tracking.js";
-import { logger } from "./observability/logger.js";
-import { metrics } from "./observability/metrics.js";
-import { tracingMiddleware } from "./observability/tracing.js";
-import { httpMetrics } from "./middleware/metrics.js";
 
 /** Server start time for uptime calculation */
 const SERVER_START_MS = Date.now();
@@ -1335,20 +1335,60 @@ export function createApp(
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)
   // -------------------------------------------------------------------------
+
+  /**
+   * Cache header for non-hashed static assets (icons, images, etc.)
+   * 1 day cache with 7 day stale-while-revalidate for CDN/edge caching
+   */
+  const STATIC_ASSET_CACHE_HEADER = "public, max-age=86400, stale-while-revalidate=604800";
+
+  /**
+   * No-cache header for HTML entry points (index.html, offline.html)
+   * Ensures users always get the latest HTML which references the hashed assets
+   */
+  const HTML_CACHE_HEADER = "no-cache";
+
+  /**
+   * Determine appropriate cache header based on file path.
+   * - Hashed assets: immutable (1 year)
+   * - HTML files: no-cache
+   * - Other static assets: 1 day with stale-while-revalidate
+   */
+  function getCacheHeaderForPath(path: string): string {
+    // HTML files should not be cached (always fresh)
+    if (path.endsWith(".html")) {
+      return HTML_CACHE_HEADER;
+    }
+    // Hashed assets get immutable caching
+    if (isHashedAsset(path)) {
+      return IMMUTABLE_CACHE_HEADER;
+    }
+    // All other static assets get moderate caching
+    return STATIC_ASSET_CACHE_HEADER;
+  }
+
+  // Serve static files with appropriate cache headers
+  app.use("/*", async (c, next) => {
+    // Only apply to static file requests (not API routes)
+    if (c.req.path.startsWith("/api/")) {
+      return next();
+    }
+
+    // Determine cache header for this path
+    const cacheHeader = getCacheHeaderForPath(c.req.path);
+
+    // Set cache header before serving static content
+    c.header("Cache-Control", cacheHeader);
+
+    return next();
+  });
+
   app.use(
     "/*",
     serveStatic({
       root: webDistPath,
     })
   );
-
-  // Add immutable caching header for hashed assets
-  app.use("/assets/*", async (c, next) => {
-    await next();
-    if (isHashedAsset(c.req.path)) {
-      c.res.headers.set("Cache-Control", IMMUTABLE_CACHE_HEADER);
-    }
-  });
 
   app.get("*", async (c) => {
     const html = await readFile(join(webDistPath, "index.html"), "utf8").catch(() => null);
