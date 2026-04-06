@@ -10,11 +10,11 @@ import { registerSW } from "virtual:pwa-register";
 // Register the service worker with update handling
 registerSW({
   immediate: true, // Register immediately on app load
-  onRegistered(registration) {
+  onRegistered(registration: ServiceWorkerRegistration | undefined) {
     // Service worker successfully registered
     console.log("Service Worker registered:", registration);
   },
-  onRegisterError(error) {
+  onRegisterError(error: unknown) {
     console.error("Service Worker registration failed:", error);
   },
 });

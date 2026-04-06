@@ -28,6 +28,7 @@
 import { formatTimeAgo } from "@mta-my-way/shared";
 import { useEffect, useState } from "react";
 import type { DataStatus } from "../../hooks/useArrivals";
+import { ApiErrorType } from "../../lib/apiEnhanced";
 import { ApiErrorDisplay } from "./ApiErrorDisplay";
 
 interface DataStateProps<T> {
@@ -91,7 +92,7 @@ export function DataState<T>({
     return (
       <ApiErrorDisplay
         error={error ?? "Something went wrong"}
-        errorType="unknown"
+        errorType={ApiErrorType.UNKNOWN}
         canRetry={!!onRetry}
         isRetrying={false}
         onRetry={onRetry}
@@ -104,7 +105,7 @@ export function DataState<T>({
     return (
       <ApiErrorDisplay
         error={error ?? "No cached data available"}
-        errorType="offline"
+        errorType={ApiErrorType.OFFLINE}
         canRetry={!!onRetry}
         isRetrying={false}
         onRetry={onRetry}
@@ -144,7 +145,7 @@ export function DataState<T>({
         <div className="mb-2">
           <ApiErrorDisplay
             error="Offline — showing last known data"
-            errorType="offline"
+            errorType={ApiErrorType.OFFLINE}
             canRetry={!!onRetry}
             isRetrying={false}
             onRetry={onRetry}
@@ -158,7 +159,7 @@ export function DataState<T>({
         <div className="mb-2">
           <ApiErrorDisplay
             error={error ?? "Update failed"}
-            errorType="unknown"
+            errorType={ApiErrorType.UNKNOWN}
             canRetry={!!onRetry}
             isRetrying={false}
             onRetry={onRetry}
