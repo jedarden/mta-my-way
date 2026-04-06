@@ -19,6 +19,24 @@ const MAX_TOKENS = TOKENS_PER_MINUTE;
 
 const buckets = new Map<string, TokenBucket>();
 
+/** Test mode flag - when true, rate limiting is disabled */
+let testMode = false;
+
+/** Enable or disable test mode (useful for E2E tests) */
+export function setRateLimiterTestMode(enabled: boolean): void {
+  testMode = enabled;
+}
+
+/** Get current test mode state */
+export function getRateLimiterTestMode(): boolean {
+  return testMode;
+}
+
+/** Reset rate limiter state (useful for testing) */
+export function resetRateLimiter(): void {
+  buckets.clear();
+}
+
 // Prune stale buckets every 5 minutes
 const PRUNE_INTERVAL_MS = 300_000;
 let lastPrune = Date.now();
@@ -47,6 +65,12 @@ function refillBucket(bucket: TokenBucket, now: number): void {
  */
 export function rateLimiter(): MiddlewareHandler {
   return async (c, next) => {
+    // Skip rate limiting in test mode
+    if (testMode) {
+      await next();
+      return;
+    }
+
     const now = Date.now();
     const ip = getClientIp(c);
 

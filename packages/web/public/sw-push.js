@@ -12,6 +12,19 @@
 
 /* global self, clients */
 
+/**
+ * Handle SKIP_WAITING message from the app.
+ *
+ * When the user clicks "Update now" in ServiceWorkerUpdatePrompt, the app
+ * sends this message to tell the waiting service worker to skip the waiting
+ * state and become active immediately.
+ */
+self.addEventListener("message", function (event) {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("push", function (event) {
   if (!event.data) return;
 

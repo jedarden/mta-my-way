@@ -97,7 +97,7 @@ export default defineConfig({
     tailwindcss(),
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.svg", "icons/*.svg"],
       manifest: {
         name: "MTA My Way",

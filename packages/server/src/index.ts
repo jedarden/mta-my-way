@@ -33,6 +33,9 @@ import { getPushDatabase, initPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 import { initTripTracking } from "./trip-tracking.js";
+import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
+import { runMigrations } from "./migration/index.js";
+import { logger, createLogger, LogLevel } from "./observability/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,16 +57,19 @@ async function loadJsonFile<T>(filename: string): Promise<T> {
 }
 
 async function main(): Promise<void> {
-  console.log(
-    JSON.stringify({
-      event: "startup",
-      timestamp: new Date().toISOString(),
-      version: PACKAGE_VERSION,
-      port: PORT,
-      data_dir: DATA_DIR,
-      web_dist: WEB_DIST,
-    })
-  );
+  // Enable test mode if environment variable is set (for E2E tests)
+  const testMode = process.env["TEST_MODE"] === "true";
+  if (testMode) {
+    setRateLimiterTestMode(true);
+    logger.info("Test mode enabled");
+  }
+
+  logger.info("Server startup", {
+    version: PACKAGE_VERSION,
+    port: PORT,
+    data_dir: DATA_DIR,
+    web_dist: WEB_DIST,
+  });
 
   // Load GTFS static data in parallel
   let stations: StationIndex;
@@ -88,25 +94,16 @@ async function main(): Promise<void> {
     // Initialize delay predictor for historical pattern analysis
     initDelayPredictor(travelTimes, stations);
 
-    console.log(
-      JSON.stringify({
-        event: "static_data_loaded",
-        timestamp: new Date().toISOString(),
-        stations: Object.keys(stations).length,
-        routes: Object.keys(routes).length,
-        complexes: Object.keys(complexes).length,
-        transfers: Object.keys(transfers).length,
-      })
-    );
+    logger.info("Static data loaded", {
+      stations: Object.keys(stations).length,
+      routes: Object.keys(routes).length,
+      complexes: Object.keys(complexes).length,
+      transfers: Object.keys(transfers).length,
+    });
   } catch (err) {
-    console.error(
-      JSON.stringify({
-        event: "static_data_load_error",
-        timestamp: new Date().toISOString(),
-        error: err instanceof Error ? err.message : String(err),
-        hint: "Run: npm run process-gtfs --workspace=packages/server",
-      })
-    );
+    logger.error("Failed to load static data", err as Error, {
+      hint: "Run: npm run process-gtfs --workspace=packages/server",
+    });
     process.exit(1);
   }
 
@@ -117,6 +114,22 @@ async function main(): Promise<void> {
   const pushDbPath = process.env["PUSH_DB_PATH"] ?? join(DATA_DIR, "subscriptions.db");
   initPushDatabase(pushDbPath);
   const pushDb = getPushDatabase();
+
+  // Run database migrations
+  try {
+    const results = await runMigrations(pushDb);
+    const applied = results.filter((r) => r.applied);
+    if (applied.length > 0) {
+      logger.info("Database migrations applied", {
+        count: applied.length,
+        versions: applied.map((r) => r.version),
+      });
+    }
+  } catch (err) {
+    logger.error("Database migration failed", err as Error);
+    throw err;
+  }
+
   const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
   configureWebPush(vapidKeys);
   startPushPipeline();
@@ -139,18 +152,15 @@ async function main(): Promise<void> {
 
   // HTTP server
   serve({ fetch: app.fetch, port: PORT }, (info) => {
-    console.log(
-      JSON.stringify({
-        event: "server_started",
-        timestamp: new Date().toISOString(),
-        port: info.port,
-        pid: process.pid,
-      })
-    );
+    logger.info("Server started", {
+      port: info.port,
+      pid: process.pid,
+      uptime: 0,
+    });
   });
 }
 
 main().catch((err) => {
-  console.error(err);
+  logger.error("Server startup failed", err);
   process.exit(1);
 });

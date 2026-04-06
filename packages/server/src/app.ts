@@ -3,6 +3,7 @@
  *
  * Routes:
  *   GET /api/health                — per-feed status, circuit-breaker state
+ *   GET /api/metrics               — Prometheus metrics export
  *   GET /api/arrivals/:stationId   — real-time arrivals for one station
  *   GET /api/stations              — full GTFS static station list
  *   GET /api/stations/:id          — single station with complex expansion
@@ -84,25 +85,16 @@ import {
   recordTrip,
   updateTripNotes,
 } from "./trip-tracking.js";
+import { logger } from "./observability/logger.js";
+import { metrics } from "./observability/metrics.js";
+import { tracingMiddleware } from "./observability/tracing.js";
+import { httpMetrics } from "./middleware/metrics.js";
 
 /** Server start time for uptime calculation */
 const SERVER_START_MS = Date.now();
 
 /** Number of feeds failing >5 min before returning 503 */
 const UNHEALTHY_FEED_THRESHOLD = 3;
-
-/** Track API cache hit/miss for cache hit rate metric */
-let apiCacheHits = 0;
-let apiCacheMisses = 0;
-
-/** Record a cache hit (caller already returned cached data) */
-export function recordCacheHit(): void {
-  apiCacheHits++;
-}
-/** Record a cache miss (caller fetched fresh data) */
-export function recordCacheMiss(): void {
-  apiCacheMisses++;
-}
 
 /** Cache header for static GTFS data */
 const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-while-revalidate=${CACHE_TTLS.gtfsStaticStale}`;
@@ -322,6 +314,12 @@ export function createApp(
   // Security headers on all responses (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
   app.use("*", securityHeaders());
 
+  // Distributed tracing for all requests
+  app.use("*", tracingMiddleware);
+
+  // HTTP metrics collection for all API routes
+  app.use("/api/*", httpMetrics());
+
   // Rate limiting on all API routes (60 req/min per IP, token bucket)
   app.use("/api/*", rateLimiter());
 
@@ -365,11 +363,17 @@ export function createApp(
     const status = allFeedsOk && alertsOk ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
 
-    const totalRequests = apiCacheHits + apiCacheMisses;
-    const cacheHitRate =
-      totalRequests > 0 ? Math.round((apiCacheHits / totalRequests) * 100) / 100 : 0;
-
     const memUsage = process.memoryUsage();
+    const allMetrics = metrics.getAll();
+
+    // Get cache hit rate from metrics
+    const cacheHitsMetric = allMetrics.get("cache_hits_total");
+    const cacheMissesMetric = allMetrics.get("cache_misses_total");
+    const cacheHitsValue = cacheHitsMetric?.type === "counter" ? cacheHitsMetric.value : 0;
+    const cacheMissesValue = cacheMissesMetric?.type === "counter" ? cacheMissesMetric.value : 0;
+    const totalCacheRequests = cacheHitsValue + cacheMissesValue;
+    const cacheHitRate =
+      totalCacheRequests > 0 ? Math.round((cacheHitsValue / totalCacheRequests) * 100) / 100 : 0;
 
     return c.json(
       {
@@ -423,6 +427,15 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
+  // Metrics export endpoint (for Prometheus)
+  // -------------------------------------------------------------------------
+  app.get("/api/metrics", (c) => {
+    const metricsText = metrics.exportPrometheus();
+    c.header("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+    return c.text(metricsText);
+  });
+
+  // -------------------------------------------------------------------------
   // Real-time arrivals
   // -------------------------------------------------------------------------
   app.get("/api/arrivals/:stationId", (c) => {
@@ -430,11 +443,8 @@ export function createApp(
     const arrivals = getArrivals(stationId);
 
     if (!arrivals) {
-      apiCacheMisses++; // Track cache miss (station not in cache)
       return c.json({ error: "Station not found or no data yet" }, 404);
     }
-
-    apiCacheHits++; // Track cache hit
 
     // Inject equipment status into arrivals response
     const equipmentSummary = getEquipmentForStation(stationId);
@@ -997,24 +1007,14 @@ export function createApp(
 
       upsertSubscription(body);
 
-      console.log(
-        JSON.stringify({
-          event: "push_subscribe",
-          timestamp: new Date().toISOString(),
-          lines: body.favorites?.map((f) => f.lines).flat() ?? [],
-          total_subscriptions: getSubscriptionCount(),
-        })
-      );
+      logger.info("Push subscription registered", {
+        lines: body.favorites?.map((f) => f.lines).flat() ?? [],
+        total_subscriptions: getSubscriptionCount(),
+      });
 
       return c.json({ success: true });
     } catch (err) {
-      console.error(
-        JSON.stringify({
-          event: "push_subscribe_error",
-          timestamp: new Date().toISOString(),
-          error: err instanceof Error ? err.message : String(err),
-        })
-      );
+      logger.error("Push subscription registration failed", err as Error);
       return c.json({ error: "Failed to register subscription" }, 500);
     }
   });
@@ -1027,24 +1027,14 @@ export function createApp(
 
       const removed = removeSubscription(body.endpoint);
 
-      console.log(
-        JSON.stringify({
-          event: "push_unsubscribe",
-          timestamp: new Date().toISOString(),
-          removed,
-          total_subscriptions: getSubscriptionCount(),
-        })
-      );
+      logger.info("Push subscription removed", {
+        removed,
+        total_subscriptions: getSubscriptionCount(),
+      });
 
       return c.json({ success: true });
     } catch (err) {
-      console.error(
-        JSON.stringify({
-          event: "push_unsubscribe_error",
-          timestamp: new Date().toISOString(),
-          error: err instanceof Error ? err.message : String(err),
-        })
-      );
+      logger.error("Push subscription removal failed", err as Error);
       return c.json({ error: "Failed to remove subscription" }, 500);
     }
   });
@@ -1069,13 +1059,7 @@ export function createApp(
 
       return c.json({ success: true });
     } catch (err) {
-      console.error(
-        JSON.stringify({
-          event: "push_update_error",
-          timestamp: new Date().toISOString(),
-          error: err instanceof Error ? err.message : String(err),
-        })
-      );
+      logger.error("Push subscription update failed", err as Error);
       return c.json({ error: "Failed to update subscription" }, 500);
     }
   });
@@ -1120,7 +1104,7 @@ export function createApp(
       c.header("Cache-Control", "no-cache");
       return c.json({ success: true, trip }, 201);
     } catch (error) {
-      console.error("Trip recording error:", error);
+      logger.error("Trip recording failed", error as Error);
       return c.json(
         {
           error: "Failed to record trip",
@@ -1279,7 +1263,7 @@ export function createApp(
       c.header("Cache-Control", "no-cache");
       return c.json({ context });
     } catch (err) {
-      console.error("Context detection error:", err);
+      logger.error("Context detection failed", err as Error);
       return c.json(
         {
           error: "Failed to detect context",
@@ -1314,7 +1298,7 @@ export function createApp(
       c.header("Cache-Control", "no-cache");
       return c.json({ success: true, context: newContext });
     } catch (error) {
-      console.error("Context override error:", error);
+      logger.error("Context override failed", error as Error);
       return c.json({ error: "Failed to set context override" }, 500);
     }
   });
@@ -1343,7 +1327,7 @@ export function createApp(
 
       return c.json({ success: true, settings: getContextSettings() });
     } catch (error) {
-      console.error("Context settings update error:", error);
+      logger.error("Context settings update failed", error as Error);
       return c.json({ error: "Failed to update context settings" }, 500);
     }
   });

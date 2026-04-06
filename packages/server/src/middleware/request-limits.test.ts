@@ -110,4 +110,73 @@ describe("requestSizeLimits middleware", () => {
 
     expect(res.status).toBe(200);
   });
+
+  describe("query parameter validation", () => {
+    it("rejects requests with excessive query string length", async () => {
+      app.use("*", requestSizeLimits({ maxQueryStringLength: 50 }));
+      app.get("/api/test", (c) => c.json({ message: "ok" }));
+
+      const res = await app.request("/api/test?q=" + "a".repeat(100));
+
+      expect(res.status).toBe(414);
+      const body = await res.json();
+      expect(body.error).toContain("Query string too large");
+    });
+
+    it("rejects requests with too many query parameters", async () => {
+      app.use("*", requestSizeLimits({ maxQueryParams: 3 }));
+      app.get("/api/test", (c) => c.json({ message: "ok" }));
+
+      const params = new URLSearchParams();
+      for (let i = 0; i < 5; i++) {
+        params.set(`param${i}`, "value");
+      }
+
+      const res = await app.request(`/api/test?${params.toString()}`);
+
+      expect(res.status).toBe(413);
+      const body = await res.json();
+      expect(body.error).toContain("Too many query parameters");
+    });
+
+    it("rejects requests with query parameter value too long", async () => {
+      app.use("*", requestSizeLimits({ maxQueryParamValueLength: 50 }));
+      app.get("/api/test", (c) => c.json({ message: "ok" }));
+
+      const res = await app.request("/api/test?search=" + "a".repeat(100));
+
+      expect(res.status).toBe(413);
+      const body = await res.json();
+      expect(body.error).toContain("Query parameter value too large");
+      expect(body.parameter).toBe("search");
+    });
+
+    it("allows requests with valid query parameters", async () => {
+      app.use("*", requestSizeLimits());
+      app.get("/api/test", (c) => c.json({ message: "ok" }));
+
+      const res = await app.request("/api/test?q=test&limit=10&offset=0");
+
+      expect(res.status).toBe(200);
+    });
+
+    it("uses default query parameter limits", async () => {
+      app.use("*", requestSizeLimits());
+      app.get("/api/test", (c) => c.json({ message: "ok" }));
+
+      // Default max query string length is 512
+      const res = await app.request("/api/test?q=" + "a".repeat(500));
+
+      expect(res.status).toBe(200);
+    });
+
+    it("handles empty query string", async () => {
+      app.use("*", requestSizeLimits());
+      app.get("/api/test", (c) => c.json({ message: "ok" }));
+
+      const res = await app.request("/api/test");
+
+      expect(res.status).toBe(200);
+    });
+  });
 });

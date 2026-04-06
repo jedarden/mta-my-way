@@ -45,7 +45,7 @@ export default defineConfig({
 
   // Start the local dev server before running tests
   webServer: {
-    command: "cd ../.. && npm run start --workspace=packages/server",
+    command: "cd ../.. && TEST_MODE=true npm run start --workspace=packages/server",
     url: "http://localhost:3001",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

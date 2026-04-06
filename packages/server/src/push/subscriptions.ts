@@ -69,6 +69,14 @@ export function closePushDatabase(): void {
   }
 }
 
+/**
+ * Get the push database instance.
+ * Used by other services that need to share this database.
+ */
+export function getPushDatabase(): Database.Database {
+  return getDb();
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
