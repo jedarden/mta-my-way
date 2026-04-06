@@ -92,6 +92,21 @@ export type {
   AnnualFareSummary,
 } from "./types/fare.js";
 
+// Delay prediction types
+export type {
+  TimeBucket,
+  DayCategory,
+  WeatherCondition,
+  DelaySeverity,
+  DelayStats,
+  DelayPattern,
+  DelayPrediction,
+  DelayFactor,
+  WeatherData,
+  DelayRecord,
+  RouteDelaySummary,
+} from "./types/delays.js";
+
 // Train position types
 export type {
   VehicleStatus,
@@ -235,3 +250,15 @@ export {
 } from "./utils/carbon.js";
 
 export type { CarbonSavingsSummary } from "./utils/carbon.js";
+
+// Time bucket and pattern utilities
+export {
+  getTimeBucket,
+  getTimeBucketForTimestamp,
+  getCurrentTimeBucket,
+  getDayCategory,
+  getDayCategoryForTimestamp,
+  getCurrentDayCategory,
+  getTimeBucketLabel,
+  getDayCategoryLabel,
+} from "./utils/patterns.js";

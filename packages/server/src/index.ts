@@ -23,6 +23,7 @@ import type {
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
 import { initDelayDetector } from "./delay-detector.js";
+import { initDelayPredictor } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
@@ -81,6 +82,9 @@ async function main(): Promise<void> {
 
     // Initialize delay detector for predictive alerts
     initDelayDetector(travelTimes, routes, stations);
+
+    // Initialize delay predictor for historical pattern analysis
+    initDelayPredictor(travelTimes, stations);
 
     console.log(
       JSON.stringify({

@@ -44,6 +44,13 @@ import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
+import {
+  getDelayPredictorStatus,
+  getRouteDelayPatterns,
+  getRouteDelayProbability,
+  getRouteDelaySummary,
+  predictDelay,
+} from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import { rateLimiter, securityHeaders } from "./middleware/index.js";
 import { validateBody } from "./middleware/validation.js";
@@ -381,6 +388,7 @@ export function createApp(
           unmatchedCount: alertsStatus.unmatchedCount,
         },
         delayDetector: getDelayDetectorStatus(),
+        delayPredictor: getDelayPredictorStatus(),
         equipment: getEquipmentStatus(),
         pushSubscriptions: getSubscriptionCount(),
         cacheHitRate,
@@ -632,6 +640,143 @@ export function createApp(
 
     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
     return c.json(summary);
+  });
+
+  // -------------------------------------------------------------------------
+  // Delay prediction API
+  // -------------------------------------------------------------------------
+  app.get("/api/predictions/delay", (c) => {
+    const routeId = c.req.query("routeId");
+    const direction = c.req.query("direction")?.toUpperCase();
+
+    if (!routeId) {
+      return c.json({ error: "routeId query parameter is required" }, 400);
+    }
+    if (direction !== "N" && direction !== "S") {
+      return c.json({ error: "direction must be 'N' or 'S'" }, 400);
+    }
+
+    const probability = getRouteDelayProbability(routeId, direction as "N" | "S");
+
+    if (probability === null) {
+      return c.json({
+        routeId,
+        direction,
+        probability: null,
+        message: "Not enough data to predict delays for this route",
+      });
+    }
+
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json({
+      routeId,
+      direction,
+      probability: Math.round(probability * 100) / 100,
+      percentage: Math.round(probability * 100),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.get("/api/predictions/delay/:routeId", (c) => {
+    const routeId = c.req.param("routeId").toUpperCase();
+    const direction = c.req.query("direction")?.toUpperCase();
+
+    if (direction !== "N" && direction !== "S") {
+      // Return patterns for both directions if none specified
+      const northboundPatterns = getRouteDelayPatterns(routeId, "N");
+      const southboundPatterns = getRouteDelayPatterns(routeId, "S");
+
+      c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+      return c.json({
+        routeId,
+        northbound: northboundPatterns,
+        southbound: southboundPatterns,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const patterns = getRouteDelayPatterns(routeId, direction as "N" | "S");
+
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json({
+      routeId,
+      direction,
+      patterns,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.get("/api/predictions/delay/:routeId/summary", (c) => {
+    const routeId = c.req.param("routeId").toUpperCase();
+    const summary = getRouteDelaySummary(routeId);
+
+    if (!summary) {
+      return c.json(
+        {
+          error: "No data available for this route",
+          routeId,
+        },
+        404
+      );
+    }
+
+    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+    return c.json(summary);
+  });
+
+  app.post("/api/predictions/predict", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { routeId, direction, fromStationId, toStationId, scheduledMinutes } = body;
+
+      if (!routeId || !direction || !fromStationId || !toStationId || !scheduledMinutes) {
+        return c.json(
+          {
+            error:
+              "Missing required fields: routeId, direction, fromStationId, toStationId, scheduledMinutes",
+          },
+          400
+        );
+      }
+
+      if (direction !== "N" && direction !== "S") {
+        return c.json({ error: "direction must be 'N' or 'S'" }, 400);
+      }
+
+      const scheduledSeconds = scheduledMinutes * 60;
+      const prediction = predictDelay(
+        routeId.toUpperCase(),
+        direction,
+        fromStationId,
+        toStationId,
+        scheduledSeconds
+      );
+
+      if (!prediction) {
+        return c.json(
+          {
+            error: "Not enough data to make a prediction for this route/segment",
+            routeId,
+            direction,
+            fromStationId,
+            toStationId,
+          },
+          404
+        );
+      }
+
+      c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+      return c.json(prediction);
+    } catch (error) {
+      console.error("Delay prediction error:", error);
+      return c.json(
+        {
+          error: "Failed to generate prediction",
+          message: error instanceof Error ? error.message : "Unknown error",
+        },
+        500
+      );
+    }
   });
 
   // -------------------------------------------------------------------------

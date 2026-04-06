@@ -16,6 +16,9 @@ import type { RouteIndex, StationAlert, StationIndex, TravelTimeIndex } from "@m
 import { isADivision } from "@mta-my-way/shared";
 import { getTravelTime } from "./transfer/travel-times.js";
 
+// Import delay predictor for historical data collection
+import { recordDelay as recordDelayForPrediction } from "./delay-predictor.js";
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -367,6 +370,22 @@ export function processVehicleUpdates(
               if (!track.currentSegmentFlagged) {
                 delayedSegments.push(segment);
                 track.currentSegmentFlagged = true;
+
+                // Record delay for predictive modeling
+                try {
+                  recordDelayForPrediction(
+                    segment.routeId,
+                    segment.direction,
+                    segment.fromStationId,
+                    segment.toStationId,
+                    segment.actualSeconds,
+                    segment.scheduledSeconds,
+                    segment.tripId
+                  );
+                } catch (error) {
+                  // Don't let prediction errors affect delay detection
+                  console.error("Failed to record delay for prediction:", error);
+                }
               }
             }
           } else {
