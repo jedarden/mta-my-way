@@ -198,7 +198,11 @@ export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: Favorite
             <p className="text-13 font-medium text-text-secondary dark:text-dark-text-secondary mb-2">
               Show lines
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div
+              role="group"
+              aria-describedby="lines-help"
+              className="flex flex-wrap gap-3"
+            >
               {allLines.map((line) => {
                 const selected = selectedLines.has(line);
                 return (
@@ -233,7 +237,7 @@ export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: Favorite
                 );
               })}
             </div>
-            <p className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5">
+            <p id="lines-help" className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5">
               At least one line must be selected
             </p>
           </div>

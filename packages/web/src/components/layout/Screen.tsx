@@ -20,11 +20,19 @@ interface ScreenProps {
 export default function Screen({ children }: ScreenProps) {
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
+  const previousLocationRef = useRef<string>(location.pathname);
 
-  // Move focus to the main content area on every route change so keyboard
+  // Move focus to the main content area on route changes so keyboard
   // and screen-reader users land at the top of the new screen content.
+  // Use a ref to track previous location to avoid focus on initial mount.
   useEffect(() => {
-    mainRef.current?.focus();
+    if (previousLocationRef.current !== location.pathname) {
+      previousLocationRef.current = location.pathname;
+      const timeoutId = setTimeout(() => {
+        mainRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
   }, [location.pathname]);
 
   return (
@@ -45,8 +53,8 @@ export default function Screen({ children }: ScreenProps) {
         ref={mainRef}
         id="main-content"
         className="flex-1 overflow-y-auto pb-14"
-        role="main"
         tabIndex={-1}
+        aria-label="Main content"
       >
         {children}
       </main>

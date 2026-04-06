@@ -203,9 +203,10 @@ export function TripRecordEditor({
               value={scheduledDuration}
               onChange={(e) => setScheduledDuration(e.target.value)}
               placeholder="e.g., 25"
+              aria-describedby="scheduled-duration-help"
               className="w-full px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg text-text-primary dark:text-dark-text-primary placeholder:text-text-secondary dark:placeholder:text-dark-text-secondary min-h-touch focus:outline-none focus:ring-2 focus:ring-mta-primary"
             />
-            <p className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5">
+            <p id="scheduled-duration-help" className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5">
               Set this to compare actual vs. scheduled time
             </p>
           </div>
@@ -225,13 +226,14 @@ export function TripRecordEditor({
               placeholder="e.g., Crowded train, signal delay at 14th St..."
               rows={4}
               maxLength={500}
+              aria-describedby="trip-notes-help trip-notes-counter"
               className="w-full px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg text-text-primary dark:text-dark-text-primary placeholder:text-text-secondary dark:placeholder:text-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-mta-primary resize-none"
             />
             <div className="flex justify-between items-center mt-1.5">
-              <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
+              <p id="trip-notes-help" className="text-11 text-text-secondary dark:text-dark-text-secondary">
                 Add any notes about this trip
               </p>
-              <span className="text-11 text-text-secondary dark:text-dark-text-secondary">
+              <span id="trip-notes-counter" className="text-11 text-text-secondary dark:text-dark-text-secondary">
                 {notes.length}/500
               </span>
             </div>

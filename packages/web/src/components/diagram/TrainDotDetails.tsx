@@ -9,8 +9,9 @@
  */
 
 import type { InterpolatedTrainPosition } from "@mta-my-way/shared";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { LineBullet } from "../arrivals/LineBullet";
+import { FocusTrap } from "../common/FocusTrap";
 
 interface TrainDotDetailsProps {
   /** The train to show details for */
@@ -24,24 +25,6 @@ interface TrainDotDetailsProps {
 }
 
 export function TrainDotDetails({ train, routeId, onClose, onTrackTrip }: TrainDotDetailsProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Close on escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  // Focus trap and initial focus
-  useEffect(() => {
-    panelRef.current?.focus();
-  }, []);
-
   // Handle click outside to close
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
@@ -63,124 +46,124 @@ export function TrainDotDetails({ train, routeId, onClose, onTrackTrip }: TrainD
       aria-modal="true"
       aria-labelledby="train-details-title"
     >
-      <div
-        ref={panelRef}
-        tabIndex={-1}
-        className="w-full max-w-md bg-background dark:bg-dark-background rounded-t-2xl shadow-xl p-4 pb-8 animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <LineBullet line={routeId} size="md" />
-            <h2
-              id="train-details-title"
-              className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+      <FocusTrap active={true} onEscape={onClose}>
+        <div
+          className="w-full max-w-md bg-background dark:bg-dark-background rounded-t-2xl shadow-xl p-4 pb-8 animate-slide-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <LineBullet line={routeId} size="md" />
+              <h2
+                id="train-details-title"
+                className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+              >
+                {train.direction === "N" ? "Northbound" : "Southbound"} Train
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-touch min-w-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary"
+              aria-label="Close"
             >
-              {train.direction === "N" ? "Northbound" : "Southbound"} Train
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-touch min-w-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary"
-            aria-label="Close"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Trip details */}
-        <div className="space-y-3">
-          {/* Destination */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
-              Destination
-            </span>
-            <span className="text-sm font-medium text-text-primary dark:text-dark-text-primary">
-              {train.destination}
-            </span>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
 
-          {/* Assignment status */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
-              Status
-            </span>
-            <span
-              className={`text-sm font-medium ${
-                train.isAssigned
-                  ? "text-success dark:text-dark-success"
-                  : "text-warning dark:text-dark-warning"
-              }`}
-            >
-              {train.isAssigned ? "Assigned" : "Unassigned"}
-            </span>
-          </div>
-
-          {/* Delay */}
-          {delayText && (
+          {/* Trip details */}
+          <div className="space-y-3">
+            {/* Destination */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
-                Delay
+                Destination
+              </span>
+              <span className="text-sm font-medium text-text-primary dark:text-dark-text-primary">
+                {train.destination}
+              </span>
+            </div>
+
+            {/* Assignment status */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
+                Status
               </span>
               <span
                 className={`text-sm font-medium ${
-                  train.delay && train.delay > 300
-                    ? "text-severe dark:text-dark-severe"
+                  train.isAssigned
+                    ? "text-success dark:text-dark-success"
                     : "text-warning dark:text-dark-warning"
                 }`}
               >
-                {delayText}
+                {train.isAssigned ? "Assigned" : "Unassigned"}
               </span>
             </div>
-          )}
-        </div>
 
-        {/* Track trip button */}
-        {onTrackTrip && (
-          <button
-            type="button"
-            onClick={() => {
-              onTrackTrip(train.tripId);
-              onClose();
-            }}
-            className="w-full mt-6 py-3 px-4 bg-mta-primary text-white rounded-lg font-medium flex items-center justify-center gap-2 min-h-touch"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            {/* Delay */}
+            {delayText && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
+                  Delay
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    train.delay && train.delay > 300
+                      ? "text-severe dark:text-dark-severe"
+                      : "text-warning dark:text-dark-warning"
+                  }`}
+                >
+                  {delayText}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Track trip button */}
+          {onTrackTrip && (
+            <button
+              type="button"
+              onClick={() => {
+                onTrackTrip(train.tripId);
+                onClose();
+              }}
+              className="w-full mt-6 py-3 px-4 bg-mta-primary text-white rounded-lg font-medium flex items-center justify-center gap-2 min-h-touch"
             >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12,6 12,12 16,14" />
-            </svg>
-            Track this train
-          </button>
-        )}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12,6 12,12 16,14" />
+              </svg>
+              Track this train
+            </button>
+          )}
 
-        {/* Trip ID (small, for reference) */}
-        <p className="mt-4 text-center text-11 text-text-tertiary dark:text-dark-text-tertiary">
-          Trip ID: {train.tripId}
-        </p>
-      </div>
+          {/* Trip ID (small, for reference) */}
+          <p className="mt-4 text-center text-11 text-text-tertiary dark:text-dark-text-tertiary">
+            Trip ID: {train.tripId}
+          </p>
+        </div>
+      </FocusTrap>
     </div>
   );
 }

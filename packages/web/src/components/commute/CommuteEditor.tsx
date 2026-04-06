@@ -285,7 +285,11 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
                   (optional)
                 </span>
               </p>
-              <div className="flex flex-wrap gap-3">
+              <div
+                role="group"
+                aria-describedby="preferred-lines-help"
+                className="flex flex-wrap gap-3"
+              >
                 {originLines.map((line) => {
                   const selected = preferredLines.has(line);
                   return (
@@ -304,7 +308,7 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
                   );
                 })}
               </div>
-              <p className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5">
+              <p id="preferred-lines-help" className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5">
                 Leave empty to consider all available lines
               </p>
             </div>

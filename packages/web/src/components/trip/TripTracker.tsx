@@ -10,6 +10,7 @@
  */
 
 import type { TripStopProgress } from "../../hooks/useTripTracker";
+import { useEffect, useRef } from "react";
 
 interface TripTrackerProps {
   stops: TripStopProgress[];
@@ -26,8 +27,84 @@ export function TripTracker({
   minutesToDestination: _minutesToDestination,
   isExpired,
 }: TripTrackerProps) {
+  // Live region ref for controlled announcements
+  const liveRegionRef = useRef<HTMLDivElement>(null);
+
+  // Track previous state to detect meaningful changes for announcements
+  const previousStateRef = useRef<{
+    currentStopId: string | null;
+    nextStopId: string | null;
+    isExpired: boolean;
+  } | null>(null);
+
+  // Generate accessible description of trip status
+  const getTripStatusDescription = () => {
+    const currentStop = stops.find((s) => s.status === "current");
+    const nextStop = stops.find((s) => s.status === "next");
+    const destinationStop = stops.find((s) => s.status === "destination");
+
+    if (isExpired) {
+      return "Trip ended. This train has completed its run.";
+    }
+
+    if (currentStop) {
+      const remainingStops = stops.filter((s, i) => i >= stops.indexOf(currentStop)).length;
+      return `Currently at ${currentStop.stationName}. ${remainingStops} ${remainingStops === 1 ? "stop" : "stops"} remaining.`;
+    }
+
+    if (nextStop) {
+      const eta = nextStop.minutesAway;
+      const etaText = eta === 0 ? "now" : `${eta} ${eta === 1 ? "minute" : "minutes"}`;
+      return `Approaching ${nextStop.stationName} in ${etaText}.`;
+    }
+
+    if (destinationStop) {
+      const eta = destinationStop.minutesAway;
+      const etaText = eta === 0 ? "arriving" : `${eta} ${eta === 1 ? "minute" : "minutes"}`;
+      return `Arriving at ${destinationStop.stationName} in ${etaText}.`;
+    }
+
+    return "Trip progress tracking.";
+  };
+
+  // Announce trip status changes to screen readers
+  useEffect(() => {
+    const currentStop = stops.find((s) => s.status === "current");
+    const nextStop = stops.find((s) => s.status === "next");
+
+    const currentState = {
+      currentStopId: currentStop?.stopId ?? null,
+      nextStopId: nextStop?.stopId ?? null,
+      isExpired,
+    };
+
+    const previousState = previousStateRef.current;
+
+    // Only announce if there's a meaningful state change
+    const shouldAnnounce =
+      !previousState ||
+      currentState.currentStopId !== previousState.currentStopId ||
+      currentState.nextStopId !== previousState.nextStopId ||
+      currentState.isExpired !== previousState.isExpired;
+
+    if (shouldAnnounce && liveRegionRef.current) {
+      const message = getTripStatusDescription();
+      // Clear and set content to ensure screen readers detect the change
+      liveRegionRef.current.textContent = "";
+      void liveRegionRef.current.offsetHeight; // Force reflow
+      liveRegionRef.current.textContent = message;
+
+      previousStateRef.current = currentState;
+    }
+  }, [stops, isExpired]);
+
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col gap-0" role="region" aria-label="Trip progress">
+      {/* Screen reader announcement of trip status - only updates on meaningful changes */}
+      <div ref={liveRegionRef} className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {getTripStatusDescription()}
+      </div>
+
       {stops.map((stop, index) => (
         <StopRow
           key={stop.stopId}
@@ -39,7 +116,7 @@ export function TripTracker({
 
       {/* Expired notice */}
       {isExpired && (
-        <div className="mt-4 px-4 py-3 rounded-lg bg-warning/10 text-center">
+        <div className="mt-4 px-4 py-3 rounded-lg bg-warning/10 text-center" role="alert">
           <p className="text-sm font-medium text-text-primary dark:text-dark-text-primary">
             Trip ended
           </p>

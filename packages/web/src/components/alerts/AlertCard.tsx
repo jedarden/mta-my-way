@@ -11,7 +11,7 @@
 
 import type { AlertSeverity, StationAlert } from "@mta-my-way/shared";
 import { formatTimeAgo } from "@mta-my-way/shared";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LineBullet } from "../arrivals/LineBullet";
 import { ShuttleInfo } from "./ShuttleInfo";
 
