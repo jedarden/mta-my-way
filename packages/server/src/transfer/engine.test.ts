@@ -221,6 +221,11 @@ describe("TransferEngine.analyzeCommute", () => {
     const engine = makeEngine({ "101": [makeArrival("1")] });
     const analysis = engine.analyzeCommute("101", "103");
     expect(analysis.recommendation).toBe("direct");
+    expect(analysis.recommendationDetails.type).toBe("direct");
+    expect(analysis.recommendationDetails.confidence).toBeDefined();
+    expect(analysis.recommendationDetails.reason).toBeDefined();
+    expect(analysis.recommendationDetails.risks).toBeDefined();
+    expect(analysis.recommendationDetails.timeSavedMinutes).toBe(0);
   });
 
   it("sorts direct routes by estimated arrival time (earliest first)", () => {
@@ -246,6 +251,7 @@ describe("TransferEngine.analyzeCommute", () => {
     expect(analysis.directRoutes).toHaveLength(0);
     expect(analysis.transferRoutes.length).toBeGreaterThan(0);
     expect(analysis.recommendation).toBe("transfer");
+    expect(analysis.recommendationDetails.type).toBe("transfer");
   });
 
   it("transfer route has two legs with correct lines", () => {
@@ -313,5 +319,73 @@ describe("TransferEngine.analyzeCommute", () => {
     const engine = makeEngine({ "101": [makeArrival("1")] });
     const analysis = engine.analyzeCommute("101", "103");
     expect(analysis.timestamp).toBeGreaterThan(0);
+  });
+
+  it("includes recommendation details with confidence level", () => {
+    const engine = makeEngine({ "101": [makeArrival("1")] });
+    const analysis = engine.analyzeCommute("101", "103");
+    expect(analysis.recommendationDetails).toBeDefined();
+    expect(analysis.recommendationDetails.confidence).toMatch(/^(high|medium|low)$/);
+  });
+
+  it("includes recommendation details with reason", () => {
+    const engine = makeEngine({ "101": [makeArrival("1")] });
+    const analysis = engine.analyzeCommute("101", "103");
+    expect(analysis.recommendationDetails.reason).toBeDefined();
+    expect(typeof analysis.recommendationDetails.reason).toBe("string");
+    expect(analysis.recommendationDetails.reason.length).toBeGreaterThan(0);
+  });
+
+  it("includes recommendation details with risks array", () => {
+    const engine = makeEngine({ "101": [makeArrival("1")] });
+    const analysis = engine.analyzeCommute("101", "103");
+    expect(analysis.recommendationDetails.risks).toBeDefined();
+    expect(Array.isArray(analysis.recommendationDetails.risks)).toBe(true);
+  });
+
+  it("transfer recommendation includes B Division risk for B Division lines", () => {
+    // Create a transfer scenario with A train (B Division)
+    const engine = makeEngine({
+      "101": [makeArrival("1", 60)],
+      "102": [makeArrival("A", 300)],
+    });
+    const analysis = engine.analyzeCommute("101", "203");
+    if (analysis.recommendationDetails.type === "transfer") {
+      const hasBDivisionRisk = analysis.recommendationDetails.risks.some((risk) =>
+        risk.includes("B Division")
+      );
+      expect(hasBDivisionRisk).toBe(true);
+    }
+  });
+
+  it("recommendation details includes time saved for transfer routes", () => {
+    const engine = makeEngine({
+      "101": [makeArrival("1", 60)],
+      "102": [makeArrival("A", 300)],
+    });
+    const analysis = engine.analyzeCommute("101", "203");
+    if (analysis.recommendation === "transfer" && analysis.transferRoutes.length > 0) {
+      expect(analysis.recommendationDetails.timeSavedMinutes).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("recommendation details includes isStale flag", () => {
+    const engine = makeEngine({ "101": [makeArrival("1")] });
+    const analysis = engine.analyzeCommute("101", "103");
+    expect(analysis.recommendationDetails.isStale).toBeDefined();
+    expect(typeof analysis.recommendationDetails.isStale).toBe("boolean");
+  });
+
+  it("direct recommendation includes reason when transfer is slower", () => {
+    const engine = makeEngine({
+      "101": [makeArrival("1", 30)],
+      "103": [makeArrival("1", 300)],
+    });
+    const analysis = engine.analyzeCommute("101", "103");
+    // Direct route should be recommended
+    if (analysis.recommendation === "direct") {
+      expect(analysis.recommendationDetails.type).toBe("direct");
+      expect(analysis.recommendationDetails.reason).toContain("Direct");
+    }
   });
 });

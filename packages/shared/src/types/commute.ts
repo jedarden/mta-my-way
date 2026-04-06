@@ -56,6 +56,24 @@ export interface TransferRoute {
 }
 
 /**
+ * Enhanced recommendation details for transfer decisions
+ */
+export interface RecommendationDetails {
+  /** The recommended route type */
+  type: "direct" | "transfer" | "walk";
+  /** Human-readable reason for the recommendation */
+  reason: string;
+  /** Confidence level in the recommendation */
+  confidence: "high" | "medium" | "low";
+  /** Risk factors to consider (e.g., "B Division uncertainty", "Long wait at transfer") */
+  risks: string[];
+  /** Minutes saved by following this recommendation (0 if no savings) */
+  timeSavedMinutes: number;
+  /** Whether this recommendation is based on stale data */
+  isStale: boolean;
+}
+
+/**
  * Complete commute analysis result
  */
 export interface CommuteAnalysis {
@@ -69,8 +87,10 @@ export interface CommuteAnalysis {
   directRoutes: DirectRoute[];
   /** All transfer routes (1+ transfers) */
   transferRoutes: TransferRoute[];
-  /** Recommended route type */
+  /** Recommended route type (simplified, for backward compatibility) */
   recommendation: "direct" | "transfer";
+  /** Enhanced recommendation details with reasoning */
+  recommendationDetails: RecommendationDetails;
   /** When this analysis was computed (POSIX timestamp) */
   timestamp: number;
   /** Walking comparison for short trips (Phase 6) */

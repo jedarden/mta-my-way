@@ -18,6 +18,7 @@ import type {
   CommuteAnalysis,
   ComplexIndex,
   DirectRoute,
+  RecommendationDetails,
   RouteIndex,
   StationIndex,
   StationRef,
@@ -118,11 +119,13 @@ export class TransferEngine {
       transferRoutes
     );
 
-    // Determine recommendation
-    const recommendation = this.determineRecommendation(
+    // Determine recommendation with detailed analysis
+    const { recommendation, recommendationDetails } = this.determineRecommendation(
       directRoutes,
       transferRoutes,
-      walkingOption
+      walkingOption,
+      originId,
+      destinationId
     );
 
     // Sort routes by arrival time
@@ -138,6 +141,7 @@ export class TransferEngine {
       directRoutes: directRoutes.slice(0, 5),
       transferRoutes: transferRoutes.slice(0, MAX_TRANSFER_ROUTES),
       recommendation,
+      recommendationDetails,
       timestamp: Date.now(),
       walkingOption,
     };
@@ -560,23 +564,63 @@ export class TransferEngine {
   }
 
   /**
-   * Determine whether to recommend direct or transfer
+   * Determine whether to recommend direct or transfer with detailed analysis
    */
   private determineRecommendation(
     directRoutes: DirectRoute[],
     transferRoutes: TransferRoute[],
-    _walkingOption?: WalkingOption
-  ): "direct" | "transfer" {
+    walkingOption?: WalkingOption,
+    originId?: string,
+    destinationId?: string
+  ): { recommendation: "direct" | "transfer"; recommendationDetails: RecommendationDetails } {
+    // Check if walking is recommended
+    if (walkingOption && walkingOption.walkingIsFaster) {
+      return {
+        recommendation: "direct", // Keep simple type, walking is shown separately
+        recommendationDetails: {
+          type: "walk",
+          reason: this.getWalkingReason(walkingOption),
+          confidence: this.calculateDataConfidence(directRoutes, transferRoutes),
+          risks: walkingOption.reason === "delays" ? ["Transit delays are unpredictable"] : [],
+          timeSavedMinutes: Math.round(walkingOption.transitMinutes - walkingOption.walkingMinutes),
+          isStale: this.isDataStale(directRoutes, transferRoutes),
+        },
+      };
+    }
+
     if (directRoutes.length === 0 && transferRoutes.length === 0) {
-      return "direct"; // Default
+      return {
+        recommendation: "direct",
+        recommendationDetails: {
+          type: "direct",
+          reason: "No routes available",
+          confidence: "low",
+          risks: ["No real-time data available"],
+          timeSavedMinutes: 0,
+          isStale: true,
+        },
+      };
     }
 
     if (directRoutes.length === 0) {
-      return "transfer";
+      const bestTransfer = transferRoutes[0]!;
+      return {
+        recommendation: "transfer",
+        recommendationDetails: this.buildTransferRecommendation(
+          bestTransfer,
+          null,
+          originId,
+          destinationId
+        ),
+      };
     }
 
     if (transferRoutes.length === 0) {
-      return "direct";
+      const bestDirect = directRoutes[0]!;
+      return {
+        recommendation: "direct",
+        recommendationDetails: this.buildDirectRecommendation(bestDirect),
+      };
     }
 
     const bestDirect = directRoutes[0]!;
@@ -588,10 +632,214 @@ export class TransferEngine {
 
     // Recommend transfer if it saves at least 2 minutes
     if (bestTransfer.timeSavedVsDirect >= 120) {
-      return "transfer";
+      return {
+        recommendation: "transfer",
+        recommendationDetails: this.buildTransferRecommendation(
+          bestTransfer,
+          bestDirect,
+          originId,
+          destinationId
+        ),
+      };
     }
 
-    return "direct";
+    return {
+      recommendation: "direct",
+      recommendationDetails: this.buildDirectRecommendation(bestDirect, bestTransfer),
+    };
+  }
+
+  /**
+   * Build a recommendation for transfer route
+   */
+  private buildTransferRecommendation(
+    transferRoute: TransferRoute,
+    directRoute: DirectRoute | null,
+    _originId?: string,
+    _destinationId?: string
+  ): RecommendationDetails {
+    const timeSavedMinutes = Math.round(transferRoute.timeSavedVsDirect / 60);
+    const risks: string[] = [];
+    const firstLeg = transferRoute.legs[0];
+    const secondLeg = transferRoute.legs[1];
+
+    // Analyze risks
+    if (firstLeg && secondLeg) {
+      // Check for B Division uncertainty
+      if (isBDivision(firstLeg.line) || isBDivision(secondLeg.line)) {
+        risks.push("B Division arrival times are estimates");
+      }
+
+      // Check for long wait at transfer
+      const waitMinutes =
+        (secondLeg.nextArrival.arrivalTime - firstLeg.nextArrival.arrivalTime) / 60 -
+        firstLeg.estimatedTravelMinutes;
+      if (waitMinutes > 5) {
+        risks.push(
+          `Wait ${Math.round(waitMinutes)} min at ${transferRoute.transferStation.stationName}`
+        );
+      }
+
+      // Check for low confidence arrivals
+      if (firstLeg.nextArrival.confidence === "low" || secondLeg.nextArrival.confidence === "low") {
+        risks.push("Low confidence in arrival times");
+      }
+
+      // Check if transfer station has accessibility issues
+      const transferStation = this.stations[transferRoute.transferStation.stationId];
+      if (transferStation && !transferStation.ada) {
+        risks.push("Transfer station is not ADA accessible");
+      }
+
+      // Check if there are alerts on either line
+      const firstLegHasAlerts = firstLeg.nextArrival.isRerouted;
+      const secondLegHasAlerts = secondLeg.nextArrival.isRerouted;
+      if (firstLegHasAlerts || secondLegHasAlerts) {
+        risks.push("Service alerts affecting this route");
+      }
+    }
+
+    const reason =
+      timeSavedMinutes > 0
+        ? `Transfer saves ${timeSavedMinutes} min vs direct`
+        : "Transfer is the only available option";
+
+    return {
+      type: "transfer",
+      reason,
+      confidence: this.calculateDataConfidence([directRoute!].filter(Boolean), [transferRoute]),
+      risks,
+      timeSavedMinutes,
+      isStale: this.isDataStale([directRoute!].filter(Boolean), [transferRoute]),
+    };
+  }
+
+  /**
+   * Build a recommendation for direct route
+   */
+  private buildDirectRecommendation(
+    directRoute: DirectRoute,
+    transferRoute?: TransferRoute
+  ): RecommendationDetails {
+    const risks: string[] = [];
+    let reason = "Direct route - no transfer needed";
+
+    if (transferRoute && transferRoute.timeSavedVsDirect > 0) {
+      reason = `Direct route - only ${Math.round(transferRoute.timeSavedVsDirect / 60)} min slower than transfer`;
+    }
+
+    // Check for B Division uncertainty
+    if (isBDivision(directRoute.line)) {
+      risks.push("B Division arrival times are estimates");
+    }
+
+    // Check for low confidence
+    const firstArrival = directRoute.nextArrivals[0];
+    if (firstArrival?.confidence === "low") {
+      risks.push("Low confidence in arrival times");
+    }
+
+    // Check for reroutes
+    if (firstArrival?.isRerouted) {
+      risks.push("Service alerts affecting this line");
+    }
+
+    return {
+      type: "direct",
+      reason,
+      confidence: this.calculateDataConfidence([directRoute], transferRoute ? [transferRoute] : []),
+      risks,
+      timeSavedMinutes: 0,
+      isStale: this.isDataStale([directRoute], transferRoute ? [transferRoute] : []),
+    };
+  }
+
+  /**
+   * Calculate confidence level based on data freshness and quality
+   */
+  private calculateDataConfidence(
+    directRoutes: DirectRoute[],
+    transferRoutes: TransferRoute[]
+  ): "high" | "medium" | "low" {
+    const now = Date.now() / 1000;
+    let totalConfidence = 0;
+    let count = 0;
+
+    // Check direct routes
+    for (const route of directRoutes) {
+      for (const arrival of route.nextArrivals) {
+        const age = now - arrival.arrivalTime + arrival.minutesAway * 60;
+        if (age < 60) {
+          totalConfidence += 3; // Fresh
+        } else if (age < 180) {
+          totalConfidence += 2; // Medium
+        } else {
+          totalConfidence += 1; // Stale
+        }
+        count++;
+      }
+    }
+
+    // Check transfer routes
+    for (const route of transferRoutes) {
+      for (const leg of route.legs) {
+        const age = now - leg.nextArrival.arrivalTime + leg.nextArrival.minutesAway * 60;
+        if (age < 60) {
+          totalConfidence += 3;
+        } else if (age < 180) {
+          totalConfidence += 2;
+        } else {
+          totalConfidence += 1;
+        }
+        count++;
+      }
+    }
+
+    if (count === 0) return "low";
+
+    const avgConfidence = totalConfidence / count;
+    if (avgConfidence >= 2.5) return "high";
+    if (avgConfidence >= 1.5) return "medium";
+    return "low";
+  }
+
+  /**
+   * Check if data is stale
+   */
+  private isDataStale(directRoutes: DirectRoute[], transferRoutes: TransferRoute[]): boolean {
+    const now = Date.now() / 1000;
+    const staleThreshold = 300; // 5 minutes
+
+    // Check direct routes
+    for (const route of directRoutes) {
+      for (const arrival of route.nextArrivals) {
+        const age = now - (arrival.arrivalTime - arrival.minutesAway * 60);
+        if (age > staleThreshold) return true;
+      }
+    }
+
+    // Check transfer routes
+    for (const route of transferRoutes) {
+      for (const leg of route.legs) {
+        const age = now - (leg.nextArrival.arrivalTime - leg.nextArrival.minutesAway * 60);
+        if (age > staleThreshold) return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Get walking recommendation reason
+   */
+  private getWalkingReason(walkingOption: WalkingOption): string {
+    if (walkingOption.reason === "delays") {
+      return `Walking is faster than transit (${walkingOption.walkingMinutes} min vs ${walkingOption.transitMinutes} min)`;
+    }
+    if (walkingOption.reason === "short_trip") {
+      return `Short trip - walking takes only ${walkingOption.walkingMinutes} min`;
+    }
+    return "Walking may be faster than waiting";
   }
 
   /**
