@@ -216,6 +216,7 @@ export default function SettingsScreen() {
                   value={theme}
                   onChange={(e) => setTheme(e.target.value as "system" | "light" | "dark")}
                   className="bg-background dark:bg-dark-background text-text-primary dark:text-dark-text-primary rounded px-3 py-2 min-h-touch focus:outline-none focus:ring-2 focus:ring-mta-primary"
+                  aria-label="Select theme"
                 >
                   <option value="system">System</option>
                   <option value="light">Light</option>
@@ -245,6 +246,7 @@ export default function SettingsScreen() {
                     checked={showUnassignedTrips}
                     onChange={(e) => setShowUnassignedTrips(e.target.checked)}
                     className="w-5 h-5 accent-mta-primary focus:outline-none focus:ring-2 focus:ring-mta-primary focus:ring-offset-2"
+                    aria-label="Toggle showing unassigned trips"
                   />
                 </legend>
               </fieldset>
@@ -262,6 +264,7 @@ export default function SettingsScreen() {
                   value={refreshInterval}
                   onChange={(e) => setRefreshInterval(Number(e.target.value))}
                   className="bg-background dark:bg-dark-background text-text-primary dark:text-dark-text-primary rounded px-3 py-2 min-h-touch focus:outline-none focus:ring-2 focus:ring-mta-primary"
+                  aria-label="Set refresh interval"
                 >
                   <option value="15">15 seconds</option>
                   <option value="30">30 seconds</option>

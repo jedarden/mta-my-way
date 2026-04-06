@@ -98,7 +98,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["favicon.svg", "icons/*.svg"],
+      includeAssets: ["favicon.svg", "icons/*.svg", "offline.html"],
       manifest: {
         name: "MTA My Way",
         short_name: "MTA My Way",
@@ -133,44 +133,164 @@ export default defineConfig({
       workbox: {
         importScripts: ["/sw-push.js"],
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        // Cleanup outdated caches
+        cleanupOutdatedCaches: true,
+        // Skip waiting for faster updates
+        skipWaiting: true,
+        // Clients claim to ensure all pages are controlled immediately
+        clientsClaim: true,
         runtimeCaching: [
-          // Static station/route/complex data: CacheFirst, 24 h
+          // ---------------------------------------------------------------------------
+          // Static reference data (rarely changes) - CacheFirst with long TTL
+          // ---------------------------------------------------------------------------
           {
-            urlPattern: /\/api\/stations/,
+            urlPattern: /^https?:\/\/[^\/]+\/api\/stations$/,
             handler: "CacheFirst",
             options: {
-              cacheName: "stations-cache",
-              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
+              cacheName: "stations-static-cache",
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 days
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
-            urlPattern: /\/api\/routes/,
+            urlPattern: /^https?:\/\/[^\/]+\/api\/static\/complexes$/,
             handler: "CacheFirst",
             options: {
-              cacheName: "routes-cache",
-              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
+              cacheName: "complexes-static-cache",
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 days
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
-            urlPattern: /\/api\/complexes/,
+            urlPattern: /^https?:\/\/[^\/]+\/api\/routes$/,
             handler: "CacheFirst",
             options: {
-              cacheName: "complexes-cache",
-              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
+              cacheName: "routes-static-cache",
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 days
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
-          // Dynamic API: StaleWhileRevalidate — return cached immediately,
-          // update cache in background (arrivals, alerts, commute analysis, etc.)
+          // ---------------------------------------------------------------------------
+          // Semi-static data (changes occasionally) - StaleWhileRevalidate
+          // ---------------------------------------------------------------------------
           {
-            urlPattern: /\/api\//,
+            urlPattern: /^https?:\/\/[^\/]+\/api\/equipment/,
             handler: "StaleWhileRevalidate",
             options: {
-              cacheName: "api-cache",
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 5 },
+              cacheName: "equipment-cache",
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 30 }, // 30 minutes
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /^https?:\/\/[^\/]+\/api\/alerts/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "alerts-cache",
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 2 }, // 2 minutes
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // Real-time data (changes frequently) - NetworkFirst with short cache
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /^https?:\/\/[^\/]+\/api\/arrivals/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "arrivals-cache",
+              expiration: { maxEntries: 100, maxAgeSeconds: 30 }, // 30 seconds
+              cacheableResponse: { statuses: [0, 200] },
+              networkTimeoutSeconds: 3, // Fall back to cache after 3s
+            },
+          },
+          {
+            urlPattern: /^https?:\/\/[^\/]+\/api\/positions/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "positions-cache",
+              expiration: { maxEntries: 25, maxAgeSeconds: 30 }, // 30 seconds
+              cacheableResponse: { statuses: [0, 200] },
+              networkTimeoutSeconds: 3,
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // Health & status endpoints - balanced caching
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /^https?:\/\/[^\/]+\/api\/health/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "health-cache",
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 }, // 1 minute
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // Push notification endpoints - no caching
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /^https?:\/\/[^\/]+\/api\/push/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "push-cache",
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // Commute analysis - moderate caching
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /^https?:\/\/[^\/]+\/api\/commute/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "commute-cache",
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 5 }, // 5 minutes
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // Trip tracking - real-time with cache fallback
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /^https?:\/\/[^\/]+\/api\/trip/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "trip-cache",
+              expiration: { maxEntries: 50, maxAgeSeconds: 45 }, // 45 seconds
+              cacheableResponse: { statuses: [0, 200] },
+              networkTimeoutSeconds: 3,
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // Static assets (icons, images) - CacheFirst
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /\.(?:svg|png|jpg|jpeg|webp|ico)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "images-cache",
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 }, // 30 days
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // External fonts (if added later) - CacheFirst with long TTL
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-cache",
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 }, // 1 year
               cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],
+        // Configure which requests to handle
+        navigateFallback: "/offline.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/node_modules/],
       },
     }),
     // Bundle analysis - generates stats.html in build output

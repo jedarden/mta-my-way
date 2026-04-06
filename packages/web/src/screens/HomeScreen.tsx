@@ -182,6 +182,7 @@ export default function HomeScreen() {
               <Link
                 to="/commute"
                 className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
+                aria-label="View all commutes"
               >
                 View all
               </Link>
@@ -249,6 +250,7 @@ export default function HomeScreen() {
               <Link
                 to="/commute"
                 className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
+                aria-label="View all commutes"
               >
                 View all
               </Link>
