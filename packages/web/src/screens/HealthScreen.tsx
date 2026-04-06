@@ -122,7 +122,7 @@ export default function HealthScreen() {
                     <LineStatusTile
                       key={line.lineId}
                       line={line}
-                      onClick={() => navigate(`/line/${line.lineId}`)}
+                      onClick={() => void navigate(`/line/${line.lineId}`)}
                     />
                   ))}
                 </div>

@@ -80,7 +80,7 @@ export default function LineDiagramScreen() {
   // Handle track trip from details modal
   const handleTrackTrip = useCallback(
     (tripId: string) => {
-      navigate(`/trip/${encodeURIComponent(tripId)}`);
+      void navigate(`/trip/${encodeURIComponent(tripId)}`);
     },
     [navigate]
   );

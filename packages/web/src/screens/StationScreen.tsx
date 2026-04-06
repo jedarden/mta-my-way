@@ -254,7 +254,7 @@ export default function StationScreen() {
                     const origin = encodeURIComponent(station?.id ?? "");
                     const dest = arrival.destination ? encodeURIComponent(arrival.destination) : "";
                     const destParam = dest ? `&dest=${dest}` : "";
-                    navigate(
+                    void navigate(
                       `/trip/${encodeURIComponent(arrival.tripId)}?origin=${origin}${destParam}`
                     );
                   }}

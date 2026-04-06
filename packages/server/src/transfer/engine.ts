@@ -25,8 +25,14 @@ import type {
   TransferLeg,
   TransferRoute,
   TravelTimeIndex,
+  WalkingOption,
 } from "@mta-my-way/shared";
-import { isBDivision } from "@mta-my-way/shared";
+import {
+  haversineDistance,
+  isBDivision,
+  isWalkingViable,
+  walkingTimeFromDistance,
+} from "@mta-my-way/shared";
 import { getStationsWithBrokenElevators } from "../equipment-poller.js";
 import { buildTransferGraph, getReachableStations } from "./graph.js";
 import { calculateRouteTravelTime, determineDirection, getTravelTimes } from "./travel-times.js";
@@ -104,8 +110,20 @@ export class TransferEngine {
       accessibleMode
     );
 
+    // Compute walking option for short trips
+    const walkingOption = this.computeWalkingOption(
+      originId,
+      destinationId,
+      directRoutes,
+      transferRoutes
+    );
+
     // Determine recommendation
-    const recommendation = this.determineRecommendation(directRoutes, transferRoutes);
+    const recommendation = this.determineRecommendation(
+      directRoutes,
+      transferRoutes,
+      walkingOption
+    );
 
     // Sort routes by arrival time
     directRoutes.sort((a, b) => a.estimatedArrivalAtDestination - b.estimatedArrivalAtDestination);
@@ -121,7 +139,91 @@ export class TransferEngine {
       transferRoutes: transferRoutes.slice(0, MAX_TRANSFER_ROUTES),
       recommendation,
       timestamp: Date.now(),
+      walkingOption,
     };
+  }
+
+  /**
+   * Compute walking option for short trips or when delays are significant
+   */
+  private computeWalkingOption(
+    originId: string,
+    destinationId: string,
+    directRoutes: DirectRoute[],
+    transferRoutes: TransferRoute[]
+  ): WalkingOption | undefined {
+    const origin = this.stations[originId];
+    const destination = this.stations[destinationId];
+
+    if (!origin || !destination) {
+      return undefined;
+    }
+
+    // Calculate walking distance and time
+    const distanceKm = haversineDistance(origin.lat, origin.lon, destination.lat, destination.lon);
+    const walkingMinutes = walkingTimeFromDistance(distanceKm);
+
+    // Find best transit option (direct or transfer)
+    const bestDirect = directRoutes.length > 0 ? directRoutes[0] : null;
+    const bestTransfer = transferRoutes.length > 0 ? transferRoutes[0] : null;
+
+    // Calculate transit time (wait + ride)
+    let transitMinutes = Infinity;
+    let bestOption = "none" as "direct" | "transfer" | "none";
+
+    if (bestDirect) {
+      const waitMinutes =
+        Math.max(
+          0,
+          (bestDirect.nextArrivals[0]?.arrivalTime ?? Date.now() / 1000) - Date.now() / 1000
+        ) / 60;
+      transitMinutes = waitMinutes + bestDirect.estimatedTravelMinutes;
+      bestOption = "direct";
+    }
+
+    if (bestTransfer && bestTransfer.totalEstimatedMinutes < transitMinutes) {
+      transitMinutes = bestTransfer.totalEstimatedMinutes;
+      bestOption = "transfer";
+    }
+
+    // Determine if walking should be suggested
+    const walkingIsFaster = walkingMinutes < transitMinutes;
+
+    // Check if this is a short trip (walking under 20 min, 3 or fewer stops)
+    const route = this.routes[origin.lines.find((line) => destination.lines.includes(line)) ?? ""];
+    const stopCount = route
+      ? Math.abs(
+          (route.stops.indexOf(originId) - route.stops.indexOf(destinationId)) * -1 ||
+            route.stops.indexOf(destinationId) - route.stops.indexOf(originId)
+        ) + 1
+      : 10;
+    const isShortTrip = isWalkingViable(walkingMinutes, stopCount);
+
+    // Show walking option if:
+    // 1. It's a short trip (< 20 min walk, <= 3 stops), OR
+    // 2. Walking is faster than transit, OR
+    // 3. Transit delays are significant (5+ min wait for short trip)
+    const hasSignificantDelays =
+      bestOption !== "none" && transitMinutes - walkingMinutes > 5 && walkingMinutes < 15;
+
+    if (isShortTrip || walkingIsFaster || hasSignificantDelays) {
+      let reason: WalkingOption["reason"] = "always";
+      if (walkingIsFaster) {
+        reason = "delays";
+      } else if (isShortTrip) {
+        reason = "short_trip";
+      }
+
+      return {
+        distanceKm: Math.round(distanceKm * 10) / 10,
+        walkingMinutes,
+        transitMinutes: Math.round(transitMinutes),
+        walkingIsFaster,
+        reason,
+      };
+    }
+
+    return undefined;
   }
 
   /**
@@ -462,7 +564,8 @@ export class TransferEngine {
    */
   private determineRecommendation(
     directRoutes: DirectRoute[],
-    transferRoutes: TransferRoute[]
+    transferRoutes: TransferRoute[],
+    _walkingOption?: WalkingOption
   ): "direct" | "transfer" {
     if (directRoutes.length === 0 && transferRoutes.length === 0) {
       return "direct"; // Default

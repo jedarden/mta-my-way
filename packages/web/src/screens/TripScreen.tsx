@@ -127,7 +127,7 @@ export default function TripScreen() {
 
   const handleStopTracking = useCallback(() => {
     stopTracking();
-    navigate(-1);
+    void navigate(-1);
   }, [stopTracking, navigate]);
 
   const handleShare = useCallback(async () => {
@@ -187,7 +187,7 @@ export default function TripScreen() {
           {trip && (
             <button
               type="button"
-              onClick={handleShare}
+              onClick={() => void handleShare()}
               className="shrink-0 min-h-touch min-w-touch flex items-center justify-center text-mta-primary"
               aria-label="Share trip progress"
             >

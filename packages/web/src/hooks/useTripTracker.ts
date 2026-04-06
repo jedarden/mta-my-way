@@ -185,7 +185,7 @@ export function useTripTracker(
 
   return {
     ...state,
-    refresh: fetchTrip,
+    refresh: () => void fetchTrip(),
     stop,
   };
 }
