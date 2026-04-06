@@ -1,5 +1,6 @@
 export { DataState } from "./DataState";
 export { OfflineBanner } from "./OfflineBanner";
+export { default as LazyImage } from "./LazyImage";
 export {
   EmptyFavorites,
   EmptyCommutes,
