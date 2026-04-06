@@ -33,10 +33,10 @@ export default {
         sir: "#1D2F6F",
         // Theme colors
         primary: "#0039A6",
-        // Alert severity colors
+        // Alert severity colors (WCAG AA compliant)
         severe: "#EE352E",
-        warning: "#FCCC0A",
-        info: "#808183",
+        warning: "#B45309",
+        info: "#444444",
       },
       // UI colors - Light mode defaults (WCAG AA compliant)
       background: "#FFFFFF",
@@ -46,8 +46,8 @@ export default {
       "text-secondary": "#444444",
       // Alert colors
       severe: "#EE352E",
-      warning: "#FCCC0A",
-      info: "#808183",
+      warning: "#B45309",
+      info: "#444444",
       // Semantic
       transparent: "transparent",
       current: "currentColor",
@@ -126,6 +126,10 @@ export default {
           surface: "#1E1E1E",
           "text-primary": "#E8E8E8",
           "text-secondary": "#999999",
+          // Dark mode alert colors (WCAG AA compliant)
+          severe: "#FF6B6B",
+          warning: "#F59E0B",
+          info: "#A3A3A3",
         },
       },
       spacing: {
