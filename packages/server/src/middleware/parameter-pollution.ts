@@ -110,7 +110,27 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
   return async (c, next) => {
     // Process query parameters
     if (checkQuery) {
-      const queryParams = c.req.query();
+      // Parse raw query string to detect duplicates
+      // Hono's c.req.query() only returns the last value for duplicate keys
+      const rawUrl = c.req.raw.url;
+      const urlObj = new URL(rawUrl);
+      const rawParams = new URLSearchParams(urlObj.search);
+
+      // Convert to record with arrays to detect duplicates
+      const queryParamsWithArrays: Record<string, string[]> = {};
+      for (const [key, value] of rawParams.entries()) {
+        if (!queryParamsWithArrays[key]) {
+          queryParamsWithArrays[key] = [];
+        }
+        queryParamsWithArrays[key].push(value);
+      }
+
+      // For non-duplicate params, use single string value
+      const queryParams: Record<string, string | string[]> = {};
+      for (const [key, values] of Object.entries(queryParamsWithArrays)) {
+        queryParams[key] = values.length > 1 ? values : values[0]!;
+      }
+
       const { cleaned, hasDuplicates } = processParams(queryParams);
 
       if (strategy === "reject" && hasDuplicates) {

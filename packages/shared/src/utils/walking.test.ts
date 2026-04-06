@@ -19,7 +19,7 @@ import {
 describe("walking utilities", () => {
   describe("haversineDistance", () => {
     it("calculates distance between two points", () => {
-      // Times Square to Grand Central (approximately 1.2 km)
+      // Times Square to Grand Central (approximately 0.9 km)
       const timesSquare = { lat: 40.758, lon: -73.9855 };
       const grandCentral = { lat: 40.7527, lon: -73.9772 };
 
@@ -30,7 +30,7 @@ describe("walking utilities", () => {
         grandCentral.lon
       );
 
-      expect(distance).toBeGreaterThan(1.0);
+      expect(distance).toBeGreaterThan(0.8);
       expect(distance).toBeLessThan(1.5);
     });
 
@@ -114,7 +114,7 @@ describe("walking utilities", () => {
       const station2: StationWithCoords = { lat: 40.7527, lon: -73.9772 };
 
       const distance = walkingDistanceBetweenStations(station1, station2);
-      expect(distance).toBeGreaterThan(1.0);
+      expect(distance).toBeGreaterThan(0.8);
       expect(distance).toBeLessThan(1.5);
     });
   });

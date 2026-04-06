@@ -841,11 +841,16 @@ describe("Security headers", () => {
   });
 
   it("sets Strict-Transport-Security", async () => {
-    const res = await app.request("/api/health");
+    const res = await app.request("/api/health", {
+      headers: { "x-forwarded-proto": "https" },
+    });
 
     const header = res.headers.get("Strict-Transport-Security");
-    expect(header).toContain("max-age=31536000");
-    expect(header).toContain("includeSubDomains");
+    expect(header).toBeTruthy();
+    if (header) {
+      expect(header).toContain("max-age=31536000");
+      expect(header).toContain("includeSubDomains");
+    }
   });
 });
 

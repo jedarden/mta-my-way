@@ -147,15 +147,15 @@ describe("Cache Middleware", () => {
         );
       };
 
-      const staticCache = parseCacheControl(staticRes.headers.get("Cache-Control"));
-      expect(staticCache).toHaveProperty("public");
-      expect(staticCache).toHaveProperty("max-age");
-      expect(staticCache).toHaveProperty("stale-while-revalidate");
+      const staticCacheHeaders = parseCacheControl(staticRes.headers.get("Cache-Control"));
+      expect(staticCacheHeaders).toHaveProperty("public");
+      expect(staticCacheHeaders).toHaveProperty("max-age");
+      expect(staticCacheHeaders).toHaveProperty("stale-while-revalidate");
 
-      const realtimeCache = parseCacheControl(realtimeRes.headers.get("Cache-Control"));
-      expect(realtimeCache).toHaveProperty("public");
-      expect(realtimeCache).toHaveProperty("max-age");
-      expect(realtimeCache).toHaveProperty("stale-while-revalidate");
+      const realtimeCacheHeaders = parseCacheControl(realtimeRes.headers.get("Cache-Control"));
+      expect(realtimeCacheHeaders).toHaveProperty("public");
+      expect(realtimeCacheHeaders).toHaveProperty("max-age");
+      expect(realtimeCacheHeaders).toHaveProperty("stale-while-revalidate");
     });
   });
 });

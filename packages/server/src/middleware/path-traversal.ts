@@ -39,8 +39,6 @@ const PATH_TRAVERSAL_PATTERNS = [
 const SUSPICIOUS_PATTERNS = [
   /\.\.[\/\\]/, // ../ or ..\
   /%5c/i, // Encoded backslash
-  /%2f/i, // Encoded forward slash
-  /\.{2,}/, // Two or more dots (potential obfuscation)
   /~.*%2f/i, // Tilde with encoded slash (home directory traversal)
   /%00/i, // Null byte in URL encoding
 ];
@@ -98,9 +96,13 @@ export function pathTraversalPrevention(options: PathTraversalOptions = {}): Mid
 
   return async (c, next) => {
     // Check URL path for traversal patterns
+    // Use the raw URL path to catch traversal before route matching
     if (checkPath) {
-      const path = c.req.path;
-      if (containsPathTraversal(path, allPatterns)) {
+      const rawUrl = c.req.raw.url;
+      // Extract path from URL (remove origin and query string)
+      const urlObj = new URL(rawUrl);
+      const path = urlObj.pathname;
+      if (containsPathTraversal(decodeURIComponent(path), allPatterns)) {
         console.warn(
           JSON.stringify({
             event: "path_traversal_blocked",

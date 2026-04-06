@@ -78,7 +78,7 @@ describe("validateContentType middleware", () => {
 
     expect(res.status).toBe(415);
     const body = await res.json();
-    expect(body.error).toContain("Content-Type header is required");
+    expect(body.message).toContain("Content-Type header is required");
   });
 
   it("allows custom allowed types", async () => {

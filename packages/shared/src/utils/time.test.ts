@@ -173,8 +173,9 @@ describe("time utilities", () => {
       const weekStart = getWeekStartISO();
       expect(weekStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
-      const date = new Date(weekStart);
-      expect(date.getDay()).toBe(1); // Monday
+      // Parse with UTC to avoid timezone issues when checking day of week
+      const date = new Date(weekStart + "T00:00:00Z");
+      expect(date.getUTCDay()).toBe(1); // Monday
     });
 
     it("calculates from provided date", () => {

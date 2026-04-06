@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { matchShuttle } from "./shuttle-matcher.js";
+import { matchShuttle, resetShuttleCache } from "./shuttle-matcher.js";
 
 // Mock the fs module to avoid file I/O during tests
 vi.mock("node:fs/promises", () => ({
@@ -40,8 +40,7 @@ vi.mock("node:fs/promises", () => ({
 describe("shuttle matcher", () => {
   beforeEach(() => {
     // Clear the segments cache before each test
-    const shuttleMatcher = require("./shuttle-matcher.js");
-    shuttleMatcher.segments = null;
+    resetShuttleCache();
   });
 
   describe("matchShuttle", () => {

@@ -22,7 +22,7 @@ describe("SecurityEventLogger class", () => {
       return c.json({ ok: true });
     });
 
-    app.request("/test", {
+    void app.request("/test", {
       headers: { "CF-Connecting-IP": "1.2.3.4", "User-Agent": "test-agent" },
     });
 
@@ -46,7 +46,7 @@ describe("SecurityEventLogger class", () => {
       return c.json({ ok: true });
     });
 
-    app.request("/test");
+    void app.request("/test");
 
     expect(mockLogFn).not.toHaveBeenCalled(); // low severity < high threshold
   });
@@ -63,7 +63,7 @@ describe("SecurityEventLogger class", () => {
       return c.json({ ok: true });
     });
 
-    app.request("/api/users/123e4567-e89b-12d3-a456-426614174000");
+    void app.request("/api/users/123e4567-e89b-12d3-a456-426614174000");
 
     expect(mockLogFn).toHaveBeenCalled();
     const loggedEvent = mockLogFn.mock.calls[0]![0]!;
@@ -83,7 +83,7 @@ describe("SecurityEventLogger class", () => {
     });
 
     const testPath = "/api/users/test@example.com";
-    app.request(testPath);
+    void app.request(testPath);
 
     expect(mockLogFn).toHaveBeenCalled();
     const loggedEvent = mockLogFn.mock.calls[0]![0]!;
@@ -106,7 +106,7 @@ describe("SecurityEventLogger class", () => {
       return c.json({ ok: true });
     });
 
-    app.request("/test");
+    void app.request("/test");
 
     expect(mockLogFn).toHaveBeenCalledTimes(10);
   });
@@ -134,7 +134,7 @@ describe("SecurityEventLogger class", () => {
     mockLogFn.mockClear();
 
     // Test unknown
-    app.request("/test");
+    void app.request("/test");
     expect(mockLogFn.mock.calls[0]![0]!.ip).toBe("unknown");
   });
 
@@ -163,7 +163,7 @@ describe("SecurityEventLogger class", () => {
       return c.json({ ok: true });
     });
 
-    app.request("/test");
+    void app.request("/test");
 
     const loggedEvent = mockLogFn.mock.calls[0]![0]!;
     expect(loggedEvent.details).toBeDefined();
@@ -263,7 +263,7 @@ describe("global securityLogger instance", () => {
 
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    app.request("/test");
+    void app.request("/test");
 
     expect(consoleWarnSpy).toHaveBeenCalled();
     // The global logger uses console.warn which does JSON.stringify internally

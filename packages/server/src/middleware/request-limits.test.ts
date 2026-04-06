@@ -164,8 +164,8 @@ describe("requestSizeLimits middleware", () => {
       app.use("*", requestSizeLimits());
       app.get("/api/test", (c) => c.json({ message: "ok" }));
 
-      // Default max query string length is 512
-      const res = await app.request("/api/test?q=" + "a".repeat(500));
+      // Default max query param value length is 256, so use 200 characters
+      const res = await app.request("/api/test?q=" + "a".repeat(200));
 
       expect(res.status).toBe(200);
     });

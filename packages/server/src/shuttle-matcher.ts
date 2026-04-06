@@ -48,6 +48,11 @@ async function loadSegments(): Promise<ShuttleSegment[]> {
   return segments;
 }
 
+/** Reset the segments cache (for testing purposes) */
+export function resetShuttleCache(): void {
+  segments = null;
+}
+
 // ---------------------------------------------------------------------------
 // Matching
 // ---------------------------------------------------------------------------

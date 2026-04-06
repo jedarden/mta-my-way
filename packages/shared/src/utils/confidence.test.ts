@@ -178,8 +178,8 @@ describe("confidence utilities", () => {
       expect(getDivision("Y")).toBeUndefined();
     });
 
-    it("returns 'A' for L line (CBTC treated as A Division)", () => {
-      expect(getDivision("L")).toBe("A");
+    it("returns 'B' for L line (officially B Division despite CBTC)", () => {
+      expect(getDivision("L")).toBe("B");
     });
   });
 });
