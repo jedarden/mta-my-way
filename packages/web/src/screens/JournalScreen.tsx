@@ -2,9 +2,9 @@
  * JournalScreen - Commute journal with trip history and statistics.
  *
  * Shows:
- * - Stats summary per commute (avg, median, trend)
+ * - Stats summary per commute (avg, median, trend, delay stats)
  * - Duration sparkline chart
- * - Trip history list
+ * - Trip history list with delays and notes
  */
 
 import type { CommuteStats, TripRecord } from "@mta-my-way/shared";
@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { DataState } from "../components/common/DataState";
+import { TripRecordEditor } from "../components/journal";
 import Screen from "../components/layout/Screen";
 import { useFavoritesStore, useJournalStore } from "../stores";
 
@@ -125,30 +126,50 @@ function CommuteStatsCard({ commuteName, stats, onViewTrips, isExpanded }: Commu
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-4 gap-2 mb-3">
         <div>
           <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
             Avg
           </p>
-          <p className="text-lg font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
+          <p className="text-base font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
             {Math.round(stats.averageDurationMinutes)}
-            <span className="text-13 font-normal ml-0.5">min</span>
+            <span className="text-11 font-normal ml-0.5">min</span>
           </p>
         </div>
         <div>
           <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
             Median
           </p>
-          <p className="text-lg font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
+          <p className="text-base font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
             {Math.round(stats.medianDurationMinutes)}
-            <span className="text-13 font-normal ml-0.5">min</span>
+            <span className="text-11 font-normal ml-0.5">min</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Avg Delay
+          </p>
+          <p
+            className={`text-base font-bold tabular-nums ${
+              stats.averageDelayMinutes > 5
+                ? "text-severe"
+                : stats.averageDelayMinutes > 2
+                  ? "text-warning"
+                  : stats.averageDelayMinutes < -2
+                    ? "text-mta-primary"
+                    : "text-text-primary dark:text-dark-text-primary"
+            }`}
+          >
+            {stats.averageDelayMinutes > 0 ? "+" : ""}
+            {Math.round(stats.averageDelayMinutes)}
+            <span className="text-11 font-normal ml-0.5">min</span>
           </p>
         </div>
         <div>
           <p className="text-11 text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
             Trips
           </p>
-          <p className="text-lg font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
+          <p className="text-base font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
             {stats.totalTrips}
           </p>
         </div>
@@ -192,10 +213,12 @@ function CommuteStatsCard({ commuteName, stats, onViewTrips, isExpanded }: Commu
 // -----------------------------------------------------------------------------
 
 interface TripHistoryListProps {
+  commuteId: string;
   records: TripRecord[];
+  onEditTrip: (trip: TripRecord, commuteId: string) => void;
 }
 
-function TripHistoryList({ records }: TripHistoryListProps) {
+function TripHistoryList({ commuteId, records, onEditTrip }: TripHistoryListProps) {
   if (records.length === 0) {
     return (
       <p className="text-13 text-text-secondary dark:text-dark-text-secondary text-center py-2">
@@ -211,34 +234,69 @@ function TripHistoryList({ records }: TripHistoryListProps) {
 
   return (
     <div className="space-y-2 mt-3">
-      {sorted.slice(0, 20).map((trip) => (
-        <div
-          key={trip.id}
-          className="flex items-center justify-between py-2 px-3 bg-background dark:bg-dark-background rounded-lg"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <LineBullet line={trip.line} size="sm" />
-            <div className="min-w-0">
-              <p className="text-13 text-text-primary dark:text-dark-text-primary truncate">
-                {trip.origin.stationName} → {trip.destination.stationName}
-              </p>
-              <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
-                {formatDate(trip.date)} •{" "}
-                {trip.source === "tracked"
-                  ? "Tracked"
-                  : trip.source === "inferred"
-                    ? "Inferred"
-                    : "Manual"}
+      {sorted.slice(0, 20).map((trip) => {
+        const delayMinutes = trip.scheduledDurationMinutes
+          ? Math.round((trip.actualDurationMinutes - trip.scheduledDurationMinutes) * 10) / 10
+          : null;
+
+        const delayColor =
+          delayMinutes === null
+            ? "text-text-secondary dark:text-dark-text-secondary"
+            : delayMinutes > 5
+              ? "text-severe"
+              : delayMinutes > 2
+                ? "text-warning"
+                : delayMinutes < -2
+                  ? "text-mta-primary"
+                  : "text-text-secondary dark:text-dark-text-secondary";
+
+        return (
+          <button
+            key={trip.id}
+            type="button"
+            onClick={() => onEditTrip(trip, commuteId)}
+            className="w-full flex items-start justify-between py-2.5 px-3 bg-background dark:bg-dark-background rounded-lg text-left hover:bg-surface dark:hover:bg-dark-surface transition-colors"
+          >
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <LineBullet line={trip.line} size="sm" className="mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-13 text-text-primary dark:text-dark-text-primary truncate">
+                  {trip.origin.stationName} → {trip.destination.stationName}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
+                    {formatDate(trip.date)} •{" "}
+                    {trip.source === "tracked"
+                      ? "Tracked"
+                      : trip.source === "inferred"
+                        ? "Inferred"
+                        : "Manual"}
+                  </p>
+                  {delayMinutes !== null && (
+                    <>
+                      <span className="text-text-secondary dark:text-dark-text-secondary">•</span>
+                      <span className={`text-11 font-medium ${delayColor}`}>
+                        {delayMinutes > 0 ? "+" : ""}
+                        {delayMinutes} min
+                      </span>
+                    </>
+                  )}
+                </div>
+                {trip.notes && (
+                  <p className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1 line-clamp-2">
+                    {trip.notes}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="text-right shrink-0 ml-2">
+              <p className="text-13 font-semibold text-text-primary dark:text-dark-text-primary tabular-nums">
+                {trip.actualDurationMinutes} min
               </p>
             </div>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-13 font-semibold text-text-primary dark:text-dark-text-primary tabular-nums">
-              {trip.actualDurationMinutes} min
-            </p>
-          </div>
-        </div>
-      ))}
+          </button>
+        );
+      })}
       {sorted.length > 20 && (
         <p className="text-11 text-text-secondary dark:text-dark-text-secondary text-center py-1">
           Showing last 20 of {sorted.length} trips
@@ -275,11 +333,24 @@ function formatDate(isoDate: string): string {
 // Main Screen
 // -----------------------------------------------------------------------------
 
+interface EditorState {
+  isOpen: boolean;
+  trip: TripRecord | null;
+  commuteId: string;
+}
+
 export default function JournalScreen() {
   const navigate = useNavigate();
   const stats = useJournalStore((s) => s.stats);
   const commutes = useFavoritesStore((s) => s.commutes);
+  const updateTripRecord = useJournalStore((s) => s.updateTripRecord);
+  const removeTripRecord = useJournalStore((s) => s.removeTripRecord);
   const [expandedCommute, setExpandedCommute] = useState<string | null>(null);
+  const [editor, setEditor] = useState<EditorState>({
+    isOpen: false,
+    trip: null,
+    commuteId: "",
+  });
 
   const commuteIds = Object.keys(stats);
   const hasData = commuteIds.length > 0;
@@ -289,20 +360,45 @@ export default function JournalScreen() {
     let totalTrips = 0;
     let totalDuration = 0;
     let tripsThisWeek = 0;
+    let totalDelay = 0;
+    let delayCount = 0;
 
     for (const id of commuteIds) {
       const s = stats[id]!;
       totalTrips += s.totalTrips;
       totalDuration += s.averageDurationMinutes * s.totalTrips;
       tripsThisWeek += s.tripsThisWeek;
+      if (s.averageDelayMinutes !== 0) {
+        totalDelay += s.averageDelayMinutes * s.totalTrips;
+        delayCount += s.totalTrips;
+      }
     }
 
     return {
       totalTrips,
       averageDuration: totalTrips > 0 ? Math.round(totalDuration / totalTrips) : 0,
       tripsThisWeek,
+      averageDelay: delayCount > 0 ? Math.round(totalDelay / delayCount) : 0,
     };
   }, [stats, commuteIds]);
+
+  const handleEditTrip = (trip: TripRecord, commuteId: string) => {
+    setEditor({ isOpen: true, trip, commuteId });
+  };
+
+  const handleCloseEditor = () => {
+    setEditor({ isOpen: false, trip: null, commuteId: "" });
+  };
+
+  const handleSaveTrip = (commuteId: string, recordId: string, updates: Partial<TripRecord>) => {
+    updateTripRecord(commuteId, recordId, updates);
+    handleCloseEditor();
+  };
+
+  const handleDeleteTrip = (commuteId: string, recordId: string) => {
+    removeTripRecord(commuteId, recordId);
+    handleCloseEditor();
+  };
 
   return (
     <Screen>
@@ -368,9 +464,9 @@ export default function JournalScreen() {
         {/* Overall summary */}
         {hasData && (
           <div className="bg-mta-primary/10 rounded-lg p-4 mb-4">
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-4 gap-2 text-center">
               <div>
-                <p className="text-2xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
+                <p className="text-xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
                   {overallStats.totalTrips}
                 </p>
                 <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
@@ -378,7 +474,7 @@ export default function JournalScreen() {
                 </p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
+                <p className="text-xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
                   {overallStats.averageDuration}
                   <span className="text-13 font-normal">m</span>
                 </p>
@@ -387,7 +483,27 @@ export default function JournalScreen() {
                 </p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
+                <p
+                  className={`text-xl font-bold tabular-nums ${
+                    overallStats.averageDelay > 5
+                      ? "text-severe"
+                      : overallStats.averageDelay > 2
+                        ? "text-warning"
+                        : overallStats.averageDelay < -2
+                          ? "text-mta-primary"
+                          : "text-text-primary dark:text-dark-text-primary"
+                  }`}
+                >
+                  {overallStats.averageDelay > 0 ? "+" : ""}
+                  {overallStats.averageDelay}
+                  <span className="text-13 font-normal">m</span>
+                </p>
+                <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
+                  Avg Delay
+                </p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-text-primary dark:text-dark-text-primary tabular-nums">
                   {overallStats.tripsThisWeek}
                 </p>
                 <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
@@ -425,7 +541,13 @@ export default function JournalScreen() {
                           onViewTrips={() => setExpandedCommute(isExpanded ? null : commuteId)}
                           isExpanded={isExpanded}
                         />
-                        {isExpanded && <TripHistoryList records={commuteStats.records} />}
+                        {isExpanded && (
+                          <TripHistoryList
+                            commuteId={commuteId}
+                            records={commuteStats.records}
+                            onEditTrip={handleEditTrip}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -462,6 +584,17 @@ export default function JournalScreen() {
           </DataState>
         </section>
       </div>
+
+      {/* Trip record editor */}
+      {editor.isOpen && editor.trip && (
+        <TripRecordEditor
+          trip={editor.trip}
+          commuteId={editor.commuteId}
+          onSave={handleSaveTrip}
+          onDelete={handleDeleteTrip}
+          onClose={handleCloseEditor}
+        />
+      )}
     </Screen>
   );
 }

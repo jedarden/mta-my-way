@@ -25,8 +25,12 @@ export interface TripRecord {
   arrivalTime: number;
   /** Actual trip duration in minutes */
   actualDurationMinutes: number;
+  /** Scheduled/expected duration in minutes (for delay calculation) */
+  scheduledDurationMinutes?: number;
   /** How this trip was detected */
   source: TripSource;
+  /** Optional user notes about this trip */
+  notes?: string;
 }
 
 /**
@@ -47,6 +51,12 @@ export interface CommuteStats {
   tripsThisWeek: number;
   /** Percentage change vs prior 4-week average */
   trend: number;
+  /** Average delay in minutes (positive = late, negative = early) */
+  averageDelayMinutes: number;
+  /** Maximum delay experienced in minutes */
+  maxDelayMinutes: number;
+  /** On-time arrival percentage (within 2 minutes of schedule) */
+  onTimePercentage: number;
   /** Trip records (last 90 days, capped at 500) */
   records: TripRecord[];
 }

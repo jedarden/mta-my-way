@@ -48,6 +48,7 @@ interface JournalState {
   // Actions
   setCommuteStats: (commuteId: string, stats: CommuteStats) => void;
   addTripRecord: (commuteId: string, record: TripRecord) => void;
+  updateTripRecord: (commuteId: string, recordId: string, updates: Partial<TripRecord>) => void;
   removeTripRecord: (commuteId: string, recordId: string) => void;
   removeCommuteStats: (commuteId: string) => void;
   clearJournal: () => void;
@@ -110,9 +111,21 @@ function computeStats(records: TripRecord[]): {
   stdDev: number;
   tripsThisWeek: number;
   trend: number;
+  averageDelayMinutes: number;
+  maxDelayMinutes: number;
+  onTimePercentage: number;
 } {
   if (records.length === 0) {
-    return { average: 0, median: 0, stdDev: 0, tripsThisWeek: 0, trend: 0 };
+    return {
+      average: 0,
+      median: 0,
+      stdDev: 0,
+      tripsThisWeek: 0,
+      trend: 0,
+      averageDelayMinutes: 0,
+      maxDelayMinutes: 0,
+      onTimePercentage: 0,
+    };
   }
 
   const durations = records.map((r) => r.actualDurationMinutes);
@@ -147,7 +160,31 @@ function computeStats(records: TripRecord[]): {
     }
   }
 
-  return { average, median, stdDev, tripsThisWeek, trend };
+  // Calculate delay statistics
+  const recordsWithSchedule = records.filter((r) => r.scheduledDurationMinutes !== undefined);
+  const delays = recordsWithSchedule.map(
+    (r) => r.actualDurationMinutes - (r.scheduledDurationMinutes ?? 0)
+  );
+  const averageDelayMinutes = delays.length > 0 ? calculateMean(delays) : 0;
+  const maxDelayMinutes = delays.length > 0 ? Math.max(...delays) : 0;
+
+  // On-time percentage (within 2 minutes of schedule)
+  const onTimeCount = delays.filter((d) => Math.abs(d) <= 2).length;
+  const onTimePercentage =
+    recordsWithSchedule.length > 0
+      ? Math.round((onTimeCount / recordsWithSchedule.length) * 100)
+      : 0;
+
+  return {
+    average,
+    median,
+    stdDev,
+    tripsThisWeek,
+    trend,
+    averageDelayMinutes,
+    maxDelayMinutes,
+    onTimePercentage,
+  };
 }
 
 /** Compute day-of-week segmented stats */
@@ -215,7 +252,7 @@ function detectAnomalyImpl(
 }
 
 /** Current schema version for this store */
-const STORE_VERSION = 2;
+const STORE_VERSION = 3;
 
 /** Migration functions keyed by target version */
 const migrations = new Map<number, (state: unknown) => unknown>([
@@ -234,19 +271,69 @@ const migrations = new Map<number, (state: unknown) => unknown>([
             dayOfWeekStats[commuteId] = computeDayOfWeekStats(commuteStats.records);
 
             // Update stats with new computation
-            const { average, median, stdDev, tripsThisWeek, trend } = computeStats(
-              commuteStats.records
-            );
+            const {
+              average,
+              median,
+              stdDev,
+              tripsThisWeek,
+              trend,
+              averageDelayMinutes,
+              maxDelayMinutes,
+              onTimePercentage,
+            } = computeStats(commuteStats.records);
             commuteStats.averageDurationMinutes = average;
             commuteStats.medianDurationMinutes = median;
             commuteStats.stdDevMinutes = stdDev;
             commuteStats.tripsThisWeek = tripsThisWeek;
             commuteStats.trend = trend;
+            commuteStats.averageDelayMinutes = averageDelayMinutes;
+            commuteStats.maxDelayMinutes = maxDelayMinutes;
+            commuteStats.onTimePercentage = onTimePercentage;
           }
         }
       }
 
       return { ...prev, dayOfWeekStats } as JournalState;
+    },
+  ],
+  // Version 3: Add delay statistics (averageDelayMinutes, maxDelayMinutes, onTimePercentage)
+  [
+    3,
+    (state: unknown): JournalState => {
+      const prev = state as Partial<JournalState>;
+
+      // Recompute stats for each commute with new delay calculations
+      if (prev.stats) {
+        for (const [, commuteStats] of Object.entries(prev.stats)) {
+          if (commuteStats?.records?.length) {
+            const {
+              average,
+              median,
+              stdDev,
+              tripsThisWeek,
+              trend,
+              averageDelayMinutes,
+              maxDelayMinutes,
+              onTimePercentage,
+            } = computeStats(commuteStats.records);
+            commuteStats.averageDurationMinutes = average;
+            commuteStats.medianDurationMinutes = median;
+            commuteStats.stdDevMinutes = stdDev;
+            commuteStats.tripsThisWeek = tripsThisWeek;
+            commuteStats.trend = trend;
+            commuteStats.averageDelayMinutes = averageDelayMinutes;
+            commuteStats.maxDelayMinutes = maxDelayMinutes;
+            commuteStats.onTimePercentage = onTimePercentage;
+          } else {
+            // Initialize new fields for commutes with no records
+            commuteStats.averageDelayMinutes = 0;
+            commuteStats.maxDelayMinutes = 0;
+            commuteStats.onTimePercentage = 0;
+          }
+        }
+      }
+
+      return prev as JournalState;
     },
   ],
 ]);
@@ -295,7 +382,16 @@ export const useJournalStore = create<JournalState>()(
           }
 
           // Recompute stats
-          const { average, median, stdDev, tripsThisWeek, trend } = computeStats(records);
+          const {
+            average,
+            median,
+            stdDev,
+            tripsThisWeek,
+            trend,
+            averageDelayMinutes,
+            maxDelayMinutes,
+            onTimePercentage,
+          } = computeStats(records);
           const dayStats = computeDayOfWeekStats(records);
 
           const newStats: CommuteStats = {
@@ -306,6 +402,53 @@ export const useJournalStore = create<JournalState>()(
             totalTrips: records.length,
             tripsThisWeek,
             trend,
+            averageDelayMinutes,
+            maxDelayMinutes,
+            onTimePercentage,
+            records,
+          };
+
+          return {
+            stats: { ...state.stats, [commuteId]: newStats },
+            dayOfWeekStats: { ...state.dayOfWeekStats, [commuteId]: dayStats },
+          };
+        });
+      },
+
+      updateTripRecord: (commuteId, recordId, updates) => {
+        set((state) => {
+          const existing = state.stats[commuteId];
+          if (!existing) return state;
+
+          const records = existing.records.map((r) =>
+            r.id === recordId ? { ...r, ...updates } : r
+          );
+
+          if (records === existing.records) return state;
+
+          const {
+            average,
+            median,
+            stdDev,
+            tripsThisWeek,
+            trend,
+            averageDelayMinutes,
+            maxDelayMinutes,
+            onTimePercentage,
+          } = computeStats(records);
+          const dayStats = computeDayOfWeekStats(records);
+
+          const newStats: CommuteStats = {
+            ...existing,
+            averageDurationMinutes: average,
+            medianDurationMinutes: median,
+            stdDevMinutes: stdDev,
+            totalTrips: records.length,
+            tripsThisWeek,
+            trend,
+            averageDelayMinutes,
+            maxDelayMinutes,
+            onTimePercentage,
             records,
           };
 
@@ -324,7 +467,16 @@ export const useJournalStore = create<JournalState>()(
           const records = existing.records.filter((r) => r.id !== recordId);
           if (records.length === existing.records.length) return state;
 
-          const { average, median, stdDev, tripsThisWeek, trend } = computeStats(records);
+          const {
+            average,
+            median,
+            stdDev,
+            tripsThisWeek,
+            trend,
+            averageDelayMinutes,
+            maxDelayMinutes,
+            onTimePercentage,
+          } = computeStats(records);
           const dayStats = computeDayOfWeekStats(records);
 
           const newStats: CommuteStats = {
@@ -335,6 +487,9 @@ export const useJournalStore = create<JournalState>()(
             totalTrips: records.length,
             tripsThisWeek,
             trend,
+            averageDelayMinutes,
+            maxDelayMinutes,
+            onTimePercentage,
             records,
           };
 

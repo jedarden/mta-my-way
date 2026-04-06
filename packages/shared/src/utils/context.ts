@@ -10,7 +10,7 @@ import type {
   ContextUIHints,
   FavoriteTapEvent,
   UserContext,
-} from "../types/index.js";
+} from "../index.js";
 
 import { getCurrentDayCategory, getCurrentTimeBucket } from "./patterns.js";
 import { getCurrentDayOfWeek, getCurrentHour } from "./time.js";
