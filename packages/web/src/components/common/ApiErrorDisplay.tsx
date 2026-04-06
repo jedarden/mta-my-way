@@ -1,0 +1,162 @@
+/**
+ * ApiErrorDisplay - User-friendly error display with recovery options.
+ *
+ * Per plan.md Phase 4: Comprehensive error states.
+ *
+ * Features:
+ *   - Clear, actionable error messages
+ *   - Retry button for retryable errors
+ *   - Offline-specific messaging
+ *   - Accessibility features (ARIA live regions)
+ *   - Optional dismiss action
+ */
+
+import type { ApiErrorType } from "../../lib/apiEnhanced";
+
+interface ApiErrorDisplayProps {
+  error: string;
+  errorType?: ApiErrorType | null;
+  canRetry?: boolean;
+  isRetrying?: boolean;
+  onRetry?: () => void;
+  onDismiss?: () => void;
+  compact?: boolean;
+}
+
+const ERROR_ICONS: Record<ApiErrorType | "default", { icon: string; color: string }> = {
+  network: {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>`,
+    color: "text-warning",
+  },
+  timeout: {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    color: "text-warning",
+  },
+  server: {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`,
+    color: "text-warning",
+  },
+  offline: {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>`,
+    color: "text-text-secondary",
+  },
+  default: {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    color: "text-severe",
+  },
+};
+
+export function ApiErrorDisplay({
+  error,
+  errorType,
+  canRetry = true,
+  isRetrying = false,
+  onRetry,
+  onDismiss,
+  compact = false,
+}: ApiErrorDisplayProps) {
+  const iconData = ERROR_ICONS[errorType || "default"];
+
+  if (compact) {
+    return (
+      <div
+        className="flex items-center gap-2 px-3 py-2 bg-warning/10 rounded-lg"
+        role="alert"
+        aria-live="polite"
+      >
+        <span className={iconData.color} dangerouslySetInnerHTML={{ __html: iconData.icon }} />
+        <span className="flex-1 text-13 text-text-primary dark:text-dark-text-primary">
+          {error}
+        </span>
+        {canRetry && onRetry && !isRetrying && (
+          <button
+            onClick={onRetry}
+            className="text-13 text-mta-primary font-medium whitespace-nowrap"
+            type="button"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-lg bg-surface dark:bg-dark-surface p-4 text-center"
+      role="alert"
+      aria-live="assertive"
+    >
+      {/* Error icon */}
+      <div className={`flex justify-center mb-3 ${iconData.color}`}>
+        <span dangerouslySetInnerHTML={{ __html: iconData.icon }} />
+      </div>
+
+      {/* Error message */}
+      <p className="text-base text-text-primary dark:text-dark-text-primary mb-1">
+        {errorType === "offline" ? "You're offline" : "Unable to load"}
+      </p>
+      <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4">{error}</p>
+
+      {/* Action buttons */}
+      <div className="flex flex-col gap-2">
+        {canRetry && onRetry && (
+          <button
+            onClick={onRetry}
+            disabled={isRetrying}
+            className="w-full px-4 py-3 bg-mta-primary text-white rounded-lg font-medium min-h-touch hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            type="button"
+          >
+            {isRetrying ? (
+              <>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="animate-spin"
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                Retrying...
+              </>
+            ) : (
+              <>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                Try again
+              </>
+            )}
+          </button>
+        )}
+        {onDismiss && (
+          <button
+            onClick={onDismiss}
+            className="w-full px-4 py-3 bg-surface dark:bg-dark-surface text-text-primary dark:text-dark-text-primary border border-border dark:border-dark-border rounded-lg font-medium min-h-touch hover:bg-background dark:hover:bg-dark-background transition-colors"
+            type="button"
+          >
+            Dismiss
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default ApiErrorDisplay;

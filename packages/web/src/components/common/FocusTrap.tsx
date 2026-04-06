@@ -55,14 +55,6 @@ export function FocusTrap({ active = true, triggerRef, onEscape, children }: Foc
     }
   }, [getFocusableElements]);
 
-  // Focus the last focusable element
-  const _focusLastElement = useCallback(() => {
-    const focusable = getFocusableElements();
-    if (focusable.length > 0) {
-      focusable[focusable.length - 1]?.focus();
-    }
-  }, [getFocusableElements]);
-
   // Handle Tab key navigation
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -171,7 +163,7 @@ export function useFocusTrap(active = true) {
     document.addEventListener("keydown", handleTab, true);
 
     // Focus first element
-    const firstFocusable = containerRef.current.querySelector<HTMLElement>(focusableSelector);
+    const firstFocusable = containerRef.current?.querySelector<HTMLElement>(focusableSelector);
     firstFocusable?.focus();
 
     return () => {
