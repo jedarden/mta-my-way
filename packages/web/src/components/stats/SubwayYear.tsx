@@ -17,6 +17,7 @@
  * Shareable via Web Share API.
  */
 
+import type { TripRecord } from "@mta-my-way/shared";
 import {
   calculateCO2SavingsKg,
   formatCarbonSavings,
@@ -24,7 +25,7 @@ import {
   getLineMetadata,
   getTodayISO,
 } from "@mta-my-way/shared";
-import { html2canvas } from "html2canvas";
+import html2canvas from "html2canvas";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useFareStore } from "../../stores";
 import { useJournalStore } from "../../stores/journalStore";
@@ -54,11 +55,23 @@ export interface SubwayYearProps {
 }
 
 export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
-  const trips = useJournalStore((s) => s.records);
+  const commuteStats = useJournalStore((s) => s.stats);
   const fareTracking = useFareStore((s) => s.tracking);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = useState(false);
+
+  // Aggregate all trip records from all commutes
+  const allTrips = useMemo(() => {
+    const trips: Array<TripRecord & { dayOfWeek: number }> = [];
+    for (const stats of Object.values(commuteStats)) {
+      for (const record of stats.records) {
+        const dayOfWeek = new Date(record.date).getDay();
+        trips.push({ ...record, dayOfWeek });
+      }
+    }
+    return trips;
+  }, [commuteStats]);
 
   // Filter trips by time window
   const filteredTrips = useMemo(() => {
@@ -79,12 +92,12 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
         break;
       case "all":
       default:
-        return trips;
+        return allTrips;
     }
 
-    const startISO = startDate.toISOString().split("T")[0];
-    return trips.filter((t) => t.date >= startISO);
-  }, [trips, timeWindow, fromDate]);
+    const startISO = startDate.toISOString().split("T")[0]!;
+    return allTrips.filter((t) => t.date >= startISO);
+  }, [allTrips, timeWindow, fromDate]);
 
   // Compute all statistics
   const stats = useMemo((): SubwayYearStats => {
@@ -107,7 +120,7 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
 
     // Total trips and minutes
     const totalTrips = filteredTrips.length;
-    const totalMinutes = filteredTrips.reduce((sum, t) => sum + t.actualDurationMinutes, 0);
+    const totalMinutes = filteredTrips.reduce((sum: number, t) => sum + t.actualDurationMinutes, 0);
 
     // Estimate distance (rough approximation: 1 min ≈ 0.8 km subway speed)
     const totalDistanceKm = totalMinutes * 0.8;
@@ -142,11 +155,12 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
     // Most delayed line (from anomaly data)
     const delaysByLine = new Map<string, { totalDelay: number; count: number }>();
     for (const trip of filteredTrips) {
+      const sameLineAndDay = filteredTrips.filter(
+        (t) => t.line === trip.line && t.dayOfWeek === trip.dayOfWeek
+      );
       const baseline =
-        filteredTrips
-          .filter((t) => t.line === trip.line && t.dayOfWeek === trip.dayOfWeek)
-          .reduce((sum, t) => sum + t.actualDurationMinutes, 0) /
-        filteredTrips.filter((t) => t.line === trip.line && t.dayOfWeek === trip.dayOfWeek).length;
+        sameLineAndDay.reduce((sum: number, t) => sum + t.actualDurationMinutes, 0) /
+        sameLineAndDay.length;
       const delay = Math.max(0, trip.actualDurationMinutes - baseline);
       const existing = delaysByLine.get(trip.line) ?? { totalDelay: 0, count: 0 };
       delaysByLine.set(trip.line, {
@@ -218,7 +232,7 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
     let onTimeStreak = 0;
     const overallAvg = totalMinutes / totalTrips;
     for (let i = filteredTrips.length - 1; i >= 0; i--) {
-      const trip = filteredTrips[i];
+      const trip = filteredTrips[i]!;
       if (Math.abs(trip.actualDurationMinutes - overallAvg) / overallAvg <= 0.1) {
         onTimeStreak++;
       } else {
@@ -249,13 +263,14 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
 
   // Handle share
   const handleShare = useCallback(() => {
-    if (!cardRef.current) return;
+    const element = cardRef.current;
+    if (!element) return;
 
     setSharing(true);
 
     void (async () => {
       try {
-        const canvas = await html2canvas(cardRef.current, {
+        const canvas = await html2canvas(element, {
           backgroundColor: "#ffffff",
           scale: 2, // Retina quality
           logging: false,

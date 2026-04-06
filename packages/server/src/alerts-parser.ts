@@ -409,10 +409,7 @@ export async function parseAlerts(data: Uint8Array): Promise<ParsedAlert[]> {
 
     // Extract cause and effect
     const cause = alert.cause?.toString() || "UNKNOWN_CAUSE";
-    const effect =
-      typeof alert.effect === "number"
-        ? effectToString(alert.effect)
-        : alert.effect?.toString() || "UNKNOWN_EFFECT";
+    const effect = effectToString(typeof alert.effect === "number" ? alert.effect : undefined);
 
     // Map effect to severity
     const severity = mapEffectToSeverity(effect);

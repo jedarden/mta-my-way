@@ -229,11 +229,11 @@ export function detectBunchedTrains(
     // Find consecutive trains within threshold
     let currentGroup: InterpolatedTrainPosition[] = [];
     for (let i = 0; i < sorted.length; i++) {
-      const train = sorted[i];
+      const train = sorted[i]!;
       if (currentGroup.length === 0) {
         currentGroup.push(train);
       } else {
-        const prevTrain = currentGroup[currentGroup.length - 1];
+        const prevTrain = currentGroup[currentGroup.length - 1]!;
         const prevProgress = getOverallProgress(prevTrain);
         const currProgress = getOverallProgress(train);
 
