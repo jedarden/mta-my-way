@@ -11,11 +11,12 @@
  * - Pull-to-refresh (touch gesture) with optional haptic feedback
  * - FavoriteEditor modal for inline configuration
  * - Empty state with CTA to search/add stations
+ * - Context-aware UI adaptation (commuting, planning, reviewing, at_station)
  */
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyFavorites } from "../components/common/EmptyState";
 import { CommuteCard } from "../components/commute/CommuteCard";
@@ -24,6 +25,7 @@ import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
+import { useContextAware } from "../hooks/useContextAware";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePrefetch } from "../hooks/usePrefetch";
 import { useFavoritesStore, useSettingsStore } from "../stores";
@@ -40,6 +42,9 @@ export default function HomeScreen() {
     useFavorites();
   const commutes = useFavoritesStore((s) => s.commutes);
   const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
+
+  // Context-aware UI adaptation
+  const { context, uiHints } = useContextAware();
 
   // Start geofence-based prefetching for underground pre-fetch
   usePrefetch();
@@ -126,6 +131,24 @@ export default function HomeScreen() {
     }
   }, [editingFavorite, removeFavorite]);
 
+  // Auto-refresh based on context priority
+  useEffect(() => {
+    if (!hasFavorites) return;
+
+    // Higher priority contexts get more frequent refreshes
+    const interval = Math.max(15000 / uiHints.refreshPriority, 10000); // Min 10s
+
+    const timer = setInterval(() => {
+      triggerRefresh();
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [context, uiHints.refreshPriority, hasFavorites, triggerRefresh]);
+
+  // Determine section order based on context
+  const showCommutesFirst = context === "commuting" || context === "at_station";
+  const showFareTracker = context !== "commuting" && context !== "at_station";
+
   return (
     <Screen>
       <div
@@ -144,6 +167,31 @@ export default function HomeScreen() {
           >
             {pullY >= PULL_THRESHOLD ? "Release to refresh" : "Pull to refresh"}
           </div>
+        )}
+
+        {/* Commutes section - shown first during commute context */}
+        {showCommutesFirst && commutes.length > 0 && (
+          <section aria-labelledby="commutes-heading" className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2
+                id="commutes-heading"
+                className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
+              >
+                Your Commutes
+              </h2>
+              <Link
+                to="/commute"
+                className="text-13 text-mta-primary font-medium min-h-touch flex items-center px-2"
+              >
+                View all
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {commutes.slice(0, 3).map((commute) => (
+                <CommuteCard key={commute.id} commute={commute} forceRefreshId={forceRefreshId} />
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Favorites section */}
@@ -178,16 +226,18 @@ export default function HomeScreen() {
           )}
         </section>
 
-        {/* Fare cap tracker */}
-        <section aria-labelledby="fare-heading" className="mt-6">
-          <h2 id="fare-heading" className="sr-only">
-            OMNY Fare Cap Tracker
-          </h2>
-          <FareTracker />
-        </section>
+        {/* Fare cap tracker - hidden during active commute */}
+        {showFareTracker && (
+          <section aria-labelledby="fare-heading" className="mt-6">
+            <h2 id="fare-heading" className="sr-only">
+              OMNY Fare Cap Tracker
+            </h2>
+            <FareTracker />
+          </section>
+        )}
 
-        {/* Commutes section */}
-        {commutes.length > 0 && (
+        {/* Commutes section - shown after favorites when not commuting */}
+        {!showCommutesFirst && commutes.length > 0 && uiHints.showCommuteShortcuts && (
           <section aria-labelledby="commutes-heading" className="mt-6">
             <div className="flex items-center justify-between mb-3">
               <h2

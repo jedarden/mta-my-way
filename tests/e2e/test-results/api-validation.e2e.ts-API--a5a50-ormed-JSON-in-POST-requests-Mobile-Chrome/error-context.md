@@ -14,8 +14,8 @@
 ```
 Error: expect(received).toBe(expected) // Object.is equality
 
-Expected: "Validation failed"
-Received: "validation failed"
+Expected: 400
+Received: 429
 ```
 
 # Test source
@@ -34,11 +34,11 @@ Received: "validation failed"
   11  |       headers: { "Content-Type": "application/json" },
   12  |     });
   13  | 
-  14  |     expect(response.status()).toBe(400);
+> 14  |     expect(response.status()).toBe(400);
+      |                               ^ Error: expect(received).toBe(expected) // Object.is equality
   15  |     const body = await response.json();
   16  |     expect(body).toHaveProperty("error");
-> 17  |     expect(body.error).toBe("Validation failed");
-      |                        ^ Error: expect(received).toBe(expected) // Object.is equality
+  17  |     expect(body.error).toBe("Validation failed");
   18  |   });
   19  | 
   20  |   test("rejects missing required fields", async ({ request }) => {
@@ -136,7 +136,4 @@ Received: "validation failed"
   112 |       headers: { "Content-Type": "application/json" },
   113 |     });
   114 | 
-  115 |     expect(response.status()).toBe(200);
-  116 |     const body = await response.json();
-  117 |     expect(body).toHaveProperty("success");
 ```

@@ -6,18 +6,18 @@
 
 # Test info
 
-- Name: health.e2e.ts >> Health endpoint >> includes alerts status
-- Location: health.e2e.ts:38:3
+- Name: health.e2e.ts >> Health endpoint >> includes per-feed status for all 8 subway feeds
+- Location: health.e2e.ts:20:3
 
 # Error details
 
 ```
-Error: expect(received).toHaveProperty(path)
+Error: expect(received).toBeInstanceOf(expected)
 
-Expected path: "alerts"
-Received path: []
+Expected constructor: Array
 
-Received value: {"error": "Too many requests", "retryAfter": 60}
+Received value has no prototype
+Received value: undefined
 ```
 
 # Test source
@@ -46,7 +46,8 @@ Received value: {"error": "Too many requests", "retryAfter": 60}
   21 |     const response = await request.get("/api/health");
   22 |     const body = await response.json();
   23 | 
-  24 |     expect(body.feeds).toBeInstanceOf(Array);
+> 24 |     expect(body.feeds).toBeInstanceOf(Array);
+     |                        ^ Error: expect(received).toBeInstanceOf(expected)
   25 |     expect(body.feeds.length).toBeGreaterThanOrEqual(8);
   26 | 
   27 |     const feedIds = body.feeds.map((f: { id: string }) => f.id);
@@ -64,8 +65,7 @@ Received value: {"error": "Too many requests", "retryAfter": 60}
   39 |     const response = await request.get("/api/health");
   40 |     const body = await response.json();
   41 | 
-> 42 |     expect(body).toHaveProperty("alerts");
-     |                  ^ Error: expect(received).toHaveProperty(path)
+  42 |     expect(body).toHaveProperty("alerts");
   43 |     expect(body.alerts).toHaveProperty("count");
   44 |     expect(body.alerts).toHaveProperty("circuitOpen");
   45 |     expect(typeof body.alerts.circuitOpen).toBe("boolean");

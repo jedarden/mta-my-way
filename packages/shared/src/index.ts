@@ -129,6 +129,17 @@ export type {
   MorningScoreMap,
 } from "./types/push.js";
 
+// Context-aware detection types
+export type {
+  UserContext,
+  ContextConfidence,
+  ContextFactors,
+  ContextState,
+  ContextTransition,
+  ContextSettings,
+  ContextUIHints,
+} from "./types/context.js";
+
 // =============================================================================
 // Validation Schemas (Zod)
 // =============================================================================
@@ -262,3 +273,16 @@ export {
   getTimeBucketLabel,
   getDayCategoryLabel,
 } from "./utils/patterns.js";
+
+// Context-aware detection utilities
+export {
+  DEFAULT_CONTEXT_STATE,
+  getContextUIHints,
+  getContextLabel,
+  getContextIcon,
+  calculateTapFrequency,
+  getFrequentStationsAtCurrentTime,
+  calculatePatternConfidence,
+  detectContext,
+  shouldTriggerUIRefresh,
+} from "./utils/context.js";
