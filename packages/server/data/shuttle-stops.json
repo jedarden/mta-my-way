@@ -11,9 +11,18 @@
         "nearStationId": "L01",
         "description": "14th St & 8th Ave (NW corner, near subway entrance)"
       },
-      { "nearStationId": "L03", "description": "14th St & 6th Ave (SW corner)" },
-      { "nearStationId": "L05", "description": "14th St & 3rd Ave (NE corner)" },
-      { "nearStationId": "L08", "description": "Bedford Ave & N 7th St (SE corner)" }
+      {
+        "nearStationId": "L03",
+        "description": "14th St & 6th Ave (SW corner)"
+      },
+      {
+        "nearStationId": "L05",
+        "description": "14th St & 3rd Ave (NE corner)"
+      },
+      {
+        "nearStationId": "L08",
+        "description": "Bedford Ave & N 7th St (SE corner)"
+      }
     ],
     "frequencyMinutes": "6-10",
     "lastVerified": "2026-03-22"
@@ -26,10 +35,22 @@
     "toStation": "Bergen St",
     "description": "G train south Brooklyn",
     "stops": [
-      { "nearStationId": "G22", "description": "Church Ave & McDonald Ave (NE corner)" },
-      { "nearStationId": "G21", "description": "Ft Hamilton Pkwy & Church Ave (NW corner)" },
-      { "nearStationId": "G20", "description": "Smith-9th Sts & 9th St (east side)" },
-      { "nearStationId": "G16", "description": "Bergen St & Smith St (NE corner)" }
+      {
+        "nearStationId": "G22",
+        "description": "Church Ave & McDonald Ave (NE corner)"
+      },
+      {
+        "nearStationId": "G21",
+        "description": "Ft Hamilton Pkwy & Church Ave (NW corner)"
+      },
+      {
+        "nearStationId": "G20",
+        "description": "Smith-9th Sts & 9th St (east side)"
+      },
+      {
+        "nearStationId": "G16",
+        "description": "Bergen St & Smith St (NE corner)"
+      }
     ],
     "frequencyMinutes": "8-12",
     "lastVerified": "2026-03-22"
@@ -42,10 +63,22 @@
     "toStation": "168 St",
     "description": "A train upper Manhattan",
     "stops": [
-      { "nearStationId": "A32", "description": "207th St & Broadway (east side)" },
-      { "nearStationId": "A31", "description": "Dyckman St & Broadway (east side)" },
-      { "nearStationId": "A30", "description": "190th St & Fort Washington Ave (west side)" },
-      { "nearStationId": "A28", "description": "168th St & Broadway (near hospital entrance)" }
+      {
+        "nearStationId": "A32",
+        "description": "207th St & Broadway (east side)"
+      },
+      {
+        "nearStationId": "A31",
+        "description": "Dyckman St & Broadway (east side)"
+      },
+      {
+        "nearStationId": "A30",
+        "description": "190th St & Fort Washington Ave (west side)"
+      },
+      {
+        "nearStationId": "A28",
+        "description": "168th St & Broadway (near hospital entrance)"
+      }
     ],
     "frequencyMinutes": "10-15",
     "lastVerified": "2026-03-22"
@@ -58,10 +91,22 @@
     "toStation": "Jay St-MetroTech",
     "description": "F train central Brooklyn to downtown",
     "stops": [
-      { "nearStationId": "F15", "description": "Church Ave & Nostrand Ave (SW corner)" },
-      { "nearStationId": "F13", "description": "Bergen St & Flatbush Ave (NE corner)" },
-      { "nearStationId": "F12", "description": "7th Ave & Flatbush Ave (SE corner)" },
-      { "nearStationId": "F11", "description": "Jay St & Myrtle Ave (near MetroTech)" }
+      {
+        "nearStationId": "F15",
+        "description": "Church Ave & Nostrand Ave (SW corner)"
+      },
+      {
+        "nearStationId": "F13",
+        "description": "Bergen St & Flatbush Ave (NE corner)"
+      },
+      {
+        "nearStationId": "F12",
+        "description": "7th Ave & Flatbush Ave (SE corner)"
+      },
+      {
+        "nearStationId": "F11",
+        "description": "Jay St & Myrtle Ave (near MetroTech)"
+      }
     ],
     "frequencyMinutes": "8-12",
     "lastVerified": "2026-03-22"
@@ -74,10 +119,22 @@
     "toStation": "61 St-Woodside",
     "description": "7 train Queens main line",
     "stops": [
-      { "nearStationId": "727", "description": "Main St & Roosevelt Ave (north side)" },
-      { "nearStationId": "725", "description": "Mets-Willets Pt & Roosevelt Ave (south side)" },
-      { "nearStationId": "722", "description": "Junction Blvd & Roosevelt Ave (east side)" },
-      { "nearStationId": "716", "description": "Woodside Ave & Roosevelt Ave (west side)" }
+      {
+        "nearStationId": "727",
+        "description": "Main St & Roosevelt Ave (north side)"
+      },
+      {
+        "nearStationId": "725",
+        "description": "Mets-Willets Pt & Roosevelt Ave (south side)"
+      },
+      {
+        "nearStationId": "722",
+        "description": "Junction Blvd & Roosevelt Ave (east side)"
+      },
+      {
+        "nearStationId": "716",
+        "description": "Woodside Ave & Roosevelt Ave (west side)"
+      }
     ],
     "frequencyMinutes": "8-12",
     "lastVerified": "2026-03-22"
@@ -90,10 +147,22 @@
     "toStation": "125 St",
     "description": "B/D train upper Manhattan & Bronx",
     "stops": [
-      { "nearStationId": "D31", "description": "Bedford Park Blvd & Grand Concourse (west side)" },
-      { "nearStationId": "D29", "description": "Kingsbridge Rd & Grand Concourse (east side)" },
-      { "nearStationId": "D27", "description": "Fordham Rd & Grand Concourse (east side)" },
-      { "nearStationId": "D25", "description": "125 St & St Nicholas Ave (north side)" }
+      {
+        "nearStationId": "D31",
+        "description": "Bedford Park Blvd & Grand Concourse (west side)"
+      },
+      {
+        "nearStationId": "D29",
+        "description": "Kingsbridge Rd & Grand Concourse (east side)"
+      },
+      {
+        "nearStationId": "D27",
+        "description": "Fordham Rd & Grand Concourse (east side)"
+      },
+      {
+        "nearStationId": "D25",
+        "description": "125 St & St Nicholas Ave (north side)"
+      }
     ],
     "frequencyMinutes": "10-15",
     "lastVerified": "2026-03-22"
@@ -106,10 +175,22 @@
     "toStation": "Whitehall St",
     "description": "N train lower Manhattan",
     "stops": [
-      { "nearStationId": "N06", "description": "59th St & 5th Ave (SE corner)" },
-      { "nearStationId": "N05", "description": "Union Sq & Broadway (east side)" },
-      { "nearStationId": "N03", "description": "City Hall & Broadway (west side)" },
-      { "nearStationId": "N02", "description": "Whitehall St & Stone St (east side)" }
+      {
+        "nearStationId": "N06",
+        "description": "59th St & 5th Ave (SE corner)"
+      },
+      {
+        "nearStationId": "N05",
+        "description": "Union Sq & Broadway (east side)"
+      },
+      {
+        "nearStationId": "N03",
+        "description": "City Hall & Broadway (west side)"
+      },
+      {
+        "nearStationId": "N02",
+        "description": "Whitehall St & Stone St (east side)"
+      }
     ],
     "frequencyMinutes": "8-12",
     "lastVerified": "2026-03-22"
@@ -122,10 +203,22 @@
     "toStation": "42 St-Port Auth",
     "description": "E train midtown to lower Manhattan",
     "stops": [
-      { "nearStationId": "E01", "description": "World Trade Center & Church St (north side)" },
-      { "nearStationId": "E03", "description": "Canal St & 6th Ave (NE corner)" },
-      { "nearStationId": "E05", "description": "23rd St & 8th Ave (south side)" },
-      { "nearStationId": "E07", "description": "42nd St & 8th Ave (Port Authority south side)" }
+      {
+        "nearStationId": "E01",
+        "description": "World Trade Center & Church St (north side)"
+      },
+      {
+        "nearStationId": "E03",
+        "description": "Canal St & 6th Ave (NE corner)"
+      },
+      {
+        "nearStationId": "E05",
+        "description": "23rd St & 8th Ave (south side)"
+      },
+      {
+        "nearStationId": "E07",
+        "description": "42nd St & 8th Ave (Port Authority south side)"
+      }
     ],
     "frequencyMinutes": "6-10",
     "lastVerified": "2026-03-22"
@@ -138,10 +231,22 @@
     "toStation": "E 180 St",
     "description": "2/5 train Bronx",
     "stops": [
-      { "nearStationId": "239", "description": "241st St & White Plains Rd (east side)" },
-      { "nearStationId": "238", "description": "Nereid Ave & White Plains Rd (east side)" },
-      { "nearStationId": "235", "description": "225th St & White Plains Rd (west side)" },
-      { "nearStationId": "232", "description": "180th St & Morris Park Ave (south side)" }
+      {
+        "nearStationId": "239",
+        "description": "241st St & White Plains Rd (east side)"
+      },
+      {
+        "nearStationId": "238",
+        "description": "Nereid Ave & White Plains Rd (east side)"
+      },
+      {
+        "nearStationId": "235",
+        "description": "225th St & White Plains Rd (west side)"
+      },
+      {
+        "nearStationId": "232",
+        "description": "180th St & Morris Park Ave (south side)"
+      }
     ],
     "frequencyMinutes": "10-15",
     "lastVerified": "2026-03-22"
@@ -154,10 +259,22 @@
     "toStation": "Myrtle Ave",
     "description": "J train Brooklyn to Queens",
     "stops": [
-      { "nearStationId": "J14", "description": "121st St & Jamaica Ave (south side)" },
-      { "nearStationId": "J13", "description": "104th St & Jamaica Ave (north side)" },
-      { "nearStationId": "J11", "description": "Woodhaven Blvd & Jamaica Ave (east side)" },
-      { "nearStationId": "J10", "description": "Myrtle Ave & Wyckoff Ave (NE corner)" }
+      {
+        "nearStationId": "J14",
+        "description": "121st St & Jamaica Ave (south side)"
+      },
+      {
+        "nearStationId": "J13",
+        "description": "104th St & Jamaica Ave (north side)"
+      },
+      {
+        "nearStationId": "J11",
+        "description": "Woodhaven Blvd & Jamaica Ave (east side)"
+      },
+      {
+        "nearStationId": "J10",
+        "description": "Myrtle Ave & Wyckoff Ave (NE corner)"
+      }
     ],
     "frequencyMinutes": "10-15",
     "lastVerified": "2026-03-22"

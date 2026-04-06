@@ -88,6 +88,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs",
     division: "A",
     stops: ["101", "102", "725"],
+    isExpress: false,
   },
   A: {
     id: "A",
@@ -98,6 +99,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs-ace",
     division: "B",
     stops: ["726"],
+    isExpress: true,
   },
 };
 

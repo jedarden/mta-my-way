@@ -337,6 +337,7 @@ export class TransferEngine {
       nextArrivals,
       estimatedTravelMinutes: Math.ceil(travelTimeSeconds / 60),
       estimatedArrivalAtDestination: Math.floor(estimatedArrival),
+      isExpress: firstArrival?.isExpress ?? false,
     };
   }
 
@@ -520,6 +521,7 @@ export class TransferEngine {
       alightAt: this.getStationRef(transferStationId)!,
       nextArrival: firstArrival,
       estimatedTravelMinutes: Math.ceil(firstLegTravelSeconds / 60),
+      isExpress: firstArrival.isExpress,
     };
 
     const secondLeg: TransferLeg = {
@@ -529,6 +531,7 @@ export class TransferEngine {
       alightAt: this.getStationRef(destinationId)!,
       nextArrival: secondArrival,
       estimatedTravelMinutes: Math.ceil(secondLegTravelSeconds / 60),
+      isExpress: secondArrival.isExpress,
     };
 
     const totalMinutes = Math.ceil(
@@ -697,6 +700,13 @@ export class TransferEngine {
       if (firstLegHasAlerts || secondLegHasAlerts) {
         risks.push("Service alerts affecting this route");
       }
+
+      // Check if either leg is express service for better context
+      const firstLegIsExpress = this.isExpressRoute(firstLeg.line);
+      const secondLegIsExpress = this.isExpressRoute(secondLeg.line);
+      if (firstLegIsExpress || secondLegIsExpress) {
+        // Express service is tracked for informational purposes
+      }
     }
 
     const reason =
@@ -724,8 +734,18 @@ export class TransferEngine {
     const risks: string[] = [];
     let reason = "Direct route - no transfer needed";
 
-    if (transferRoute && transferRoute.timeSavedVsDirect > 0) {
-      reason = `Direct route - only ${Math.round(transferRoute.timeSavedVsDirect / 60)} min slower than transfer`;
+    // Check if route is express or local
+    const routeIsExpress = this.isExpressRoute(directRoute.line);
+    const firstArrival = directRoute.nextArrivals[0];
+    const tripIsExpress = firstArrival?.isExpress ?? false;
+
+    if (routeIsExpress && tripIsExpress) {
+      reason = "Direct express service - fastest option";
+    } else if (routeIsExpress && !tripIsExpress) {
+      // This is an express route running local
+      reason = "Direct route - currently running local";
+    } else if (!routeIsExpress && transferRoute && transferRoute.timeSavedVsDirect > 0) {
+      reason = `Direct local route - ${Math.round(transferRoute.timeSavedVsDirect / 60)} min slower than transfer`;
     }
 
     // Check for B Division uncertainty
@@ -734,7 +754,6 @@ export class TransferEngine {
     }
 
     // Check for low confidence
-    const firstArrival = directRoute.nextArrivals[0];
     if (firstArrival?.confidence === "low") {
       risks.push("Low confidence in arrival times");
     }
@@ -742,6 +761,11 @@ export class TransferEngine {
     // Check for reroutes
     if (firstArrival?.isRerouted) {
       risks.push("Service alerts affecting this line");
+    }
+
+    // If route is express but trip is local, note this as a consideration
+    if (routeIsExpress && !tripIsExpress) {
+      risks.push("Express train running local service");
     }
 
     return {
@@ -752,6 +776,14 @@ export class TransferEngine {
       timeSavedMinutes: 0,
       isStale: this.isDataStale([directRoute], transferRoute ? [transferRoute] : []),
     };
+  }
+
+  /**
+   * Check if a route is express service based on route metadata
+   */
+  private isExpressRoute(routeId: string): boolean {
+    const route = this.routes[routeId];
+    return route?.isExpress ?? false;
   }
 
   /**

@@ -19,6 +19,8 @@ export interface DirectRoute {
   estimatedTravelMinutes: number;
   /** Estimated arrival at destination (POSIX timestamp) */
   estimatedArrivalAtDestination: number;
+  /** Whether the next arrival is express service */
+  isExpress: boolean;
 }
 
 /**
@@ -37,6 +39,8 @@ export interface TransferLeg {
   nextArrival: ArrivalTime;
   /** Estimated travel time for this leg in minutes */
   estimatedTravelMinutes: number;
+  /** Whether this leg is express service */
+  isExpress: boolean;
 }
 
 /**

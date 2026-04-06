@@ -782,6 +782,17 @@ function processStops(stopsData, tripsData, stopTimesData) {
 }
 
 /**
+ * Determine if a route is express based on its route_long_name
+ * Express routes contain "Express" in the name (e.g., "Broadway Express", "8th Ave Express")
+ * Local routes contain "Local" or neither keyword
+ */
+function isExpressRoute(routeLongName) {
+  if (!routeLongName) return false;
+  const name = routeLongName.toLowerCase();
+  return name.includes("express");
+}
+
+/**
  * Process routes.txt into routes.json
  */
 function processRoutes(routesData, stopTimesData, tripsData) {
@@ -850,6 +861,7 @@ function processRoutes(routesData, stopTimesData, tripsData) {
       feedId: FEED_MAP[displayId] || "gtfs",
       division: A_DIVISION_ROUTES.has(displayId) ? "A" : "B",
       stops,
+      isExpress: isExpressRoute(route.route_long_name),
     };
   }
 

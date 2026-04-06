@@ -40,6 +40,7 @@ export function RouteComparison({ analysis }: RouteComparisonProps) {
       >
         <div className="flex items-center gap-1.5">
           <LineBullet line={bestDirect.line} size="sm" />
+          {bestDirect.isExpress && <ExpressBadge />}
           {recommendation === "direct" && (
             <span className="text-11 font-semibold text-mta-primary">Best</span>
           )}
@@ -70,8 +71,10 @@ export function RouteComparison({ analysis }: RouteComparisonProps) {
       >
         <div className="flex items-center gap-1 flex-wrap">
           {firstLeg && <LineBullet line={firstLeg.line} size="sm" />}
+          {firstLeg?.isExpress && <ExpressBadge />}
           <span className="text-text-secondary dark:text-dark-text-secondary text-11">→</span>
           {secondLeg && <LineBullet line={secondLeg.line} size="sm" />}
+          {secondLeg?.isExpress && <ExpressBadge />}
           {recommendation === "transfer" && (
             <span className="text-11 font-semibold text-mta-primary">Best</span>
           )}
@@ -100,3 +103,17 @@ export function RouteComparison({ analysis }: RouteComparisonProps) {
 }
 
 export default RouteComparison;
+
+// ─── Express badge ────────────────────────────────────────────────────────
+
+function ExpressBadge() {
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-mta-primary/10 text-mta-primary"
+      aria-label="Express service"
+      title="Express service — skips stops"
+    >
+      EXP
+    </span>
+  );
+}

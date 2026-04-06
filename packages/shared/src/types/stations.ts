@@ -78,6 +78,8 @@ export interface Route {
   division: Division;
   /** Ordered list of stop IDs for this route */
   stops: string[];
+  /** Whether this route is express service (based on route_long_name from GTFS) */
+  isExpress: boolean;
 }
 
 /**

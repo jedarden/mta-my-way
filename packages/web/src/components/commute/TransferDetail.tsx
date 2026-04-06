@@ -146,6 +146,7 @@ function DirectRouteDetail({ route, compact = false }: DirectRouteDetailProps) {
     return (
       <div className="flex items-center gap-3 px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg">
         <LineBullet line={route.line} size="sm" />
+        {route.isExpress && <ExpressBadge />}
         <div className="flex-1 min-w-0">
           <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
             Direct ·{" "}
@@ -171,6 +172,7 @@ function DirectRouteDetail({ route, compact = false }: DirectRouteDetailProps) {
       {/* Next arrival row */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-background dark:border-dark-background">
         <LineBullet line={route.line} size="md" />
+        {route.isExpress && <ExpressBadge />}
         <div className="flex-1 min-w-0">
           <p className="text-base font-medium text-text-primary dark:text-dark-text-primary">
             {nextArrival
@@ -214,6 +216,7 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
     return (
       <div className="flex items-center gap-2 px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg">
         <LineBullet line={firstLeg.line} size="sm" />
+        {firstLeg.isExpress && <ExpressBadge />}
         <svg
           width="12"
           height="12"
@@ -229,6 +232,7 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
           <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
         <LineBullet line={secondLeg.line} size="sm" />
+        {secondLeg.isExpress && <ExpressBadge />}
         <div className="flex-1 min-w-0">
           <span className="text-13 text-text-secondary dark:text-dark-text-secondary">
             Transfer · {route.totalEstimatedMinutes} min
@@ -267,6 +271,7 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
             {firstLeg.estimatedTravelMinutes} min ride
           </p>
         </div>
+        {firstLeg.isExpress && <ExpressBadge />}
         <ConfidenceBar confidence={firstLeg.nextArrival.confidence} lineId={firstLeg.line} />
       </div>
 
@@ -314,6 +319,7 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
             {secondLeg.estimatedTravelMinutes} min ride
           </p>
         </div>
+        {secondLeg.isExpress && <ExpressBadge />}
         <ConfidenceBar confidence={secondLeg.nextArrival.confidence} lineId={secondLeg.line} />
       </div>
 
@@ -336,3 +342,17 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
 }
 
 export default TransferDetail;
+
+// ─── Express badge ────────────────────────────────────────────────────────
+
+function ExpressBadge() {
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-mta-primary/10 text-mta-primary"
+      aria-label="Express service"
+      title="Express service — skips stops"
+    >
+      EXP
+    </span>
+  );
+}
