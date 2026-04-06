@@ -12,10 +12,12 @@
  *   - Start Trip: Opens the commute detail view for trip planning
  *
  * Used on HomeScreen and CommuteScreen for fast access to common routes.
+ * Keyboard accessible: Tab to focus card, Enter/Space to view arrivals.
  */
 
 import type { Commute } from "@mta-my-way/shared";
 import { useCallback } from "react";
+import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineBullet } from "../arrivals/LineBullet";
 
@@ -43,8 +45,25 @@ export function CommutePresetCard({ commute, onEdit }: CommutePresetCardProps) {
     [onEdit, commute]
   );
 
+  // Keyboard handler for card navigation - default to View Arrivals
+  const handleCardKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleViewArrivals();
+      }
+    },
+    [handleViewArrivals]
+  );
+
   return (
-    <article className="bg-surface dark:bg-dark-surface rounded-lg p-4 shadow-sm">
+    <article
+      className="bg-surface dark:bg-dark-surface rounded-lg p-4 shadow-sm"
+      tabIndex={0}
+      role="button"
+      aria-label={`${commute.name}: ${commute.origin.stationName} to ${commute.destination.stationName}. Press Enter to view arrivals.`}
+      onKeyDown={handleCardKeyDown}
+    >
       {/* Header with name and edit */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
@@ -73,6 +92,12 @@ export function CommutePresetCard({ commute, onEdit }: CommutePresetCardProps) {
           <button
             type="button"
             onClick={handleEdit}
+            onKeyDown={(e) => {
+              // Prevent card keyboard navigation when edit button is focused
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             className="p-2 min-h-touch min-w-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary rounded-lg shrink-0"
             aria-label={`Edit ${commute.name} commute`}
           >

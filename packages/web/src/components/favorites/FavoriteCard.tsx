@@ -8,7 +8,7 @@
  */
 
 import type { Favorite } from "@mta-my-way/shared";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useArrivals } from "../../hooks/useArrivals";
 import { useOfflineCountdown } from "../../hooks/useOfflineCountdown";
@@ -64,6 +64,17 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
     void navigate(`/station/${favorite.stationId}`);
   };
 
+  // Keyboard handler for card navigation
+  const handleCardKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleCardTap();
+      }
+    },
+    [handleCardTap]
+  );
+
   const isLoading = status === "loading" && !data;
 
   // Extract equipment info from injected arrivals data
@@ -72,7 +83,14 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
   const brokenEscalators = equipment.filter((e) => e.type === "escalator").length;
 
   return (
-    <article className="bg-surface dark:bg-dark-surface rounded-lg overflow-hidden shadow-sm">
+    <article
+      className="bg-surface dark:bg-dark-surface rounded-lg overflow-hidden shadow-sm"
+      tabIndex={0}
+      role="button"
+      aria-label={`${favorite.stationName}, ${favorite.lines.join(", ")} lines. Press Enter to view arrivals.`}
+      onKeyDown={handleCardKeyDown}
+      onClick={handleCardTap}
+    >
       {/* Station header */}
       <div className="flex items-start gap-2 px-4 pt-4 pb-2">
         <div className="flex-1 min-w-0">
@@ -123,13 +141,8 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
         </button>
       </div>
 
-      {/* Arrivals area — tappable to navigate to station */}
-      <button
-        type="button"
-        className="w-full px-4 pb-4 text-left active:bg-black/5 dark:active:bg-white/5 transition-colors"
-        onClick={handleCardTap}
-        aria-label={`View all arrivals at ${favorite.stationName}`}
-      >
+      {/* Arrivals area — visual display, card click handles navigation */}
+      <div className="w-full px-4 pb-4 text-left active:bg-black/5 dark:active:bg-white/5 transition-colors">
         <div aria-live="polite" aria-atomic="false">
           {isLoading ? (
             <div className="space-y-2" aria-busy="true" aria-label="Loading arrivals">
@@ -155,7 +168,7 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
             </div>
           )}
         </div>
-      </button>
+      </div>
     </article>
   );
 }

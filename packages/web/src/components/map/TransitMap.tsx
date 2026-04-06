@@ -7,10 +7,11 @@
  * - Real-time train positions with animations
  * - Line colors and transfer indicators
  * - Accessible keyboard navigation
+ * - Keyboard controls: Arrow keys to pan, +/- to zoom
  */
 
 import type { InterpolatedTrainPosition, LineDiagramData, Station } from "@mta-my-way/shared";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface TransitMapProps {
   /** All stations to display on the map */
@@ -125,6 +126,67 @@ export function TransitMap({
   const handleReset = useCallback(() => {
     setTransform({ x: 0, y: 0, scale: 1 });
   }, []);
+
+  // Keyboard handler for map navigation
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // Only handle keys if not focused on an interactive element
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        e.target instanceof HTMLButtonElement ||
+        (e.target as HTMLElement).getAttribute("role") === "button"
+      ) {
+        return;
+      }
+
+      const panStep = 50 / transform.scale;
+
+      switch (e.key) {
+        case "ArrowUp":
+          e.preventDefault();
+          setTransform((prev) => ({ ...prev, y: prev.y + panStep }));
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          setTransform((prev) => ({ ...prev, y: prev.y - panStep }));
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          setTransform((prev) => ({ ...prev, x: prev.x + panStep }));
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          setTransform((prev) => ({ ...prev, x: prev.x - panStep }));
+          break;
+        case "+":
+        case "=":
+          e.preventDefault();
+          handleZoomIn();
+          break;
+        case "-":
+        case "_":
+          e.preventDefault();
+          handleZoomOut();
+          break;
+        case "0":
+        case "Home":
+          e.preventDefault();
+          handleReset();
+          break;
+      }
+    },
+    [transform.scale, handleZoomIn, handleZoomOut, handleReset]
+  );
+
+  // Register keyboard listener
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   // Generate SVG path for a line's stations
   const generateLinePath = useCallback(
@@ -285,7 +347,7 @@ export function TransitMap({
       {/* Instructions hint */}
       {transform.scale === 1 && transform.x === 0 && transform.y === 0 && (
         <div className="absolute top-4 left-4 bg-surface/90 dark:bg-dark-surface/90 backdrop-blur-sm px-3 py-2 rounded-lg text-xs text-text-secondary dark:text-dark-text-secondary shadow-lg">
-          <p>Drag to pan • Scroll to zoom • Tap stations for details</p>
+          <p>Drag to pan • Scroll to zoom • Arrow keys to navigate • Tap stations for details</p>
         </div>
       )}
     </div>
