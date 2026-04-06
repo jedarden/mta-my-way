@@ -1,6 +1,13 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { ErrorBoundary, LiveRegion, PWAInstallPrompt, ServiceWorkerUpdatePrompt, useRouteChangeAnnouncer } from "./components/common";
+import {
+  ErrorBoundary,
+  LiveRegion,
+  PWAInstallPrompt,
+  ScreenErrorBoundary,
+  ServiceWorkerUpdatePrompt,
+  useRouteChangeAnnouncer,
+} from "./components/common";
 
 // HomeScreen is eagerly loaded (initial route, critical for FCP)
 import HomeScreen from "./screens/HomeScreen";
@@ -41,19 +48,110 @@ function AppRoutes() {
       <LiveRegion />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          <Route path="/" element={<HomeScreen />} />
-          <Route path="/search" element={<SearchScreen />} />
-          <Route path="/commute" element={<CommuteScreen />} />
-          <Route path="/commute/:commuteId" element={<CommuteScreen />} />
-          <Route path="/alerts" element={<AlertsScreen />} />
-          <Route path="/map" element={<MapScreen />} />
-          <Route path="/health" element={<HealthScreen />} />
-          <Route path="/station/:stationId" element={<StationScreen />} />
-          <Route path="/line/:lineId" element={<LineDiagramScreen />} />
-          <Route path="/trip/:tripId" element={<TripScreen />} />
-          <Route path="/journal" element={<JournalScreen />} />
-          <Route path="/stats" element={<StatsScreen />} />
-          <Route path="/settings" element={<SettingsScreen />} />
+          <Route
+            path="/"
+            element={
+              <ScreenErrorBoundary screenName="Home">
+                <HomeScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <ScreenErrorBoundary screenName="Search">
+                <SearchScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/commute"
+            element={
+              <ScreenErrorBoundary screenName="Commute">
+                <CommuteScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/commute/:commuteId"
+            element={
+              <ScreenErrorBoundary screenName="Commute">
+                <CommuteScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/alerts"
+            element={
+              <ScreenErrorBoundary screenName="Alerts">
+                <AlertsScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/map"
+            element={
+              <ScreenErrorBoundary screenName="Map">
+                <MapScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/health"
+            element={
+              <ScreenErrorBoundary screenName="Health">
+                <HealthScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/station/:stationId"
+            element={
+              <ScreenErrorBoundary screenName="Station">
+                <StationScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/line/:lineId"
+            element={
+              <ScreenErrorBoundary screenName="Line Diagram">
+                <LineDiagramScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/trip/:tripId"
+            element={
+              <ScreenErrorBoundary screenName="Trip">
+                <TripScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/journal"
+            element={
+              <ScreenErrorBoundary screenName="Journal">
+                <JournalScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/stats"
+            element={
+              <ScreenErrorBoundary screenName="Stats">
+                <StatsScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ScreenErrorBoundary screenName="Settings">
+                <SettingsScreen />
+              </ScreenErrorBoundary>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

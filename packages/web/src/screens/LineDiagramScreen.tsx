@@ -10,16 +10,21 @@
  */
 
 import type { InterpolatedTrainPosition } from "@mta-my-way/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
-import { DataState } from "../components/common/DataState";
+import { ComponentErrorBoundary, DataState } from "../components/common";
 import EmptyState from "../components/common/EmptyState";
 import OfflineBanner from "../components/common/OfflineBanner";
-import { TrainDiagram, TrainDotDetails } from "../components/diagram";
+import { TrainDotDetails } from "../components/diagram";
 import BottomNav from "../components/layout/BottomNav";
 import { usePositions } from "../hooks";
 import { api } from "../lib/api";
+
+// Lazy load TrainDiagram - heavy SVG component
+const TrainDiagram = lazy(() =>
+  import("../components/diagram/TrainDiagram").then((m) => ({ default: m.TrainDiagram }))
+);
 
 interface RouteInfo {
   id: string;
@@ -189,7 +194,11 @@ export default function LineDiagramScreen() {
           >
             {(diagramData) => (
               <div className="bg-surface dark:bg-dark-surface rounded-xl p-4">
-                <TrainDiagram data={diagramData} onTrainTap={handleTrainTap} className="w-full" />
+                <Suspense fallback={<DiagramSkeleton />}>
+                  <ComponentErrorBoundary componentName="TrainDiagram">
+                    <TrainDiagram data={diagramData} onTrainTap={handleTrainTap} className="w-full" />
+                  </ComponentErrorBoundary>
+                </Suspense>
 
                 {/* Legend */}
                 <div className="mt-4 pt-4 border-t border-border dark:border-dark-border">

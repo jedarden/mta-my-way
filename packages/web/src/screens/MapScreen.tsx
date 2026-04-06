@@ -10,14 +10,19 @@
  */
 
 import type { InterpolatedTrainPosition, LineDiagramData, Station } from "@mta-my-way/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { DataState } from "../components/common";
+import { ComponentErrorBoundary, DataState } from "../components/common";
 import EmptyState from "../components/common/EmptyState";
 import OfflineBanner from "../components/common/OfflineBanner";
 import BottomNav from "../components/layout/BottomNav";
-import { StationDetailsModal, TransitMap } from "../components/map";
+import { StationDetailsModal } from "../components/map";
 import { api } from "../lib/api";
+
+// Lazy load TransitMap - heavy SVG component
+const TransitMap = lazy(() =>
+  import("../components/map/TransitMap").then((m) => ({ default: m.TransitMap }))
+);
 
 interface LineInfo {
   id: string;
@@ -314,13 +319,17 @@ export default function MapScreen() {
           onRetry={handleRefresh}
         >
           {(stationsData) => (
-            <TransitMap
-              stations={stationsData}
-              lineData={filteredLineData()}
-              onStationTap={handleStationTap}
-              onTrainTap={handleTrainTap}
-              className="w-full h-full"
-            />
+            <Suspense fallback={<MapSkeleton />}>
+              <ComponentErrorBoundary componentName="TransitMap">
+                <TransitMap
+                  stations={stationsData}
+                  lineData={filteredLineData()}
+                  onStationTap={handleStationTap}
+                  onTrainTap={handleTrainTap}
+                  className="w-full h-full"
+                />
+              </ComponentErrorBoundary>
+            </Suspense>
           )}
         </DataState>
       </main>

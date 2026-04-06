@@ -18,7 +18,7 @@ import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { EmptyFavorites } from "../components/common/EmptyState";
+import { ComponentErrorBoundary, EmptyFavorites } from "../components/common";
 import { CommuteCard } from "../components/commute/CommuteCard";
 import { FareTracker } from "../components/fare/FareTracker";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
@@ -67,7 +67,9 @@ export default function HomeScreen() {
           </div>
         }
       >
-        <OnboardingFlow />
+        <ComponentErrorBoundary componentName="OnboardingFlow">
+          <OnboardingFlow />
+        </ComponentErrorBoundary>
       </Suspense>
     );
   }
