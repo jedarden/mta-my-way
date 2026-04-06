@@ -113,6 +113,7 @@ async function main(): Promise<void> {
   const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
   configureWebPush(vapidKeys);
   startPushPipeline();
+  startBriefingScheduler();
 
   // Feed poller (also triggers immediate first poll)
   initPoller(stations, routes);

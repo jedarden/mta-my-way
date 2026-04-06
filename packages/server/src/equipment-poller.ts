@@ -232,7 +232,7 @@ function transformOutages(outages: RawOutage[]): Map<string, EquipmentStatus[]> 
     // Skip upcoming outages and maintenance outages
     if (outage.isupcomingoutage === "Y") continue;
 
-    const trainLines = outage.trainno.split(/[\/\s,]+/).filter(Boolean);
+    const trainLines = outage.trainno.split(/[/\s,]+/).filter(Boolean);
 
     const stationIds = matchStationId(outage.station, trainLines);
     if (!stationIds) {

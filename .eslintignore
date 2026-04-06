@@ -1,0 +1,24 @@
+# Coverage reports
+coverage/
+**/coverage/
+*.lcov
+
+# Build outputs
+dist/
+**/dist/
+node_modules/
+
+# Scripts and tools
+scripts/
+**/scripts/*.mjs
+
+# Test fixtures
+packages/server/src/test/fixtures/feeds/*.bin
+
+# Lock files
+package-lock.json
+**/package-lock.json
+
+# Temporary files
+*.tmp
+*.temp

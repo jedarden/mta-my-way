@@ -68,7 +68,7 @@ export function buildLineDiagram(
 function interpolateTrainPositions(
   trains: TrainPosition[],
   routeStops: string[],
-  stations: StationIndex
+  _stations: StationIndex
 ): InterpolatedTrainPosition[] {
   return trains.map((train) => {
     const { lastStopIndex, nextStopIndex, progress } = interpolatePosition(train, routeStops);

@@ -12,8 +12,6 @@
 import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS } from "@mta-my-way/shared";
 import type { LinePositions, RouteIndex, StationIndex, TrainPosition } from "@mta-my-way/shared";
 import {
-  avgLatency,
-  errorCount24h,
   getAllFeedAges,
   getAllParsedFeeds,
   isCircuitOpen,

@@ -23,7 +23,6 @@ import {
   emptyFeed,
   pastArrivalsFeed,
   reroutedTrackFeed,
-  unassignedTripsFeed,
 } from "./test/fixtures.js";
 import { buildStopToStationMap, transformFeeds } from "./transformer.js";
 
