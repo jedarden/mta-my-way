@@ -36,3 +36,7 @@ export type { EstimatedArrival, OfflineCountdownState } from "./useOfflineCountd
 // Train positions for line diagram
 export { getTrainOverallProgress, usePositions } from "./usePositions";
 export type { PositionsResult, PositionsState, PositionsStatus } from "./usePositions";
+
+// Performance optimization hooks
+export { useIntersectionObserver, useLazyLoad } from "./useIntersectionObserver";
+export type { IntersectionResult, UseIntersectionObserverOptions } from "./useIntersectionObserver";

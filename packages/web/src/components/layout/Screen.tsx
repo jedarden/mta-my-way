@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { OfflineBanner } from "../common";
+import { LiveRegion, OfflineBanner } from "../common";
 import BottomNav from "./BottomNav";
 import Header from "./Header";
 
@@ -29,6 +29,9 @@ export default function Screen({ children }: ScreenProps) {
 
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
+      {/* Live region for screen reader announcements */}
+      <LiveRegion />
+
       {/* Skip link for keyboard users */}
       <a
         href="#main-content"

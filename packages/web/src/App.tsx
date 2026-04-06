@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ErrorBoundary, PWAInstallPrompt, ServiceWorkerUpdatePrompt } from "./components/common";
 
 // HomeScreen is eagerly loaded (initial route, critical for FCP)
 import HomeScreen from "./screens/HomeScreen";
@@ -18,25 +19,29 @@ const StatsScreen = lazy(() => import("./screens/StatsScreen"));
 
 function App() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route path="/" element={<HomeScreen />} />
-          <Route path="/search" element={<SearchScreen />} />
-          <Route path="/commute" element={<CommuteScreen />} />
-          <Route path="/commute/:commuteId" element={<CommuteScreen />} />
-          <Route path="/alerts" element={<AlertsScreen />} />
-          <Route path="/health" element={<HealthScreen />} />
-          <Route path="/station/:stationId" element={<StationScreen />} />
-          <Route path="/line/:lineId" element={<LineDiagramScreen />} />
-          <Route path="/trip/:tripId" element={<TripScreen />} />
-          <Route path="/journal" element={<JournalScreen />} />
-          <Route path="/stats" element={<StatsScreen />} />
-          <Route path="/settings" element={<SettingsScreen />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<HomeScreen />} />
+            <Route path="/search" element={<SearchScreen />} />
+            <Route path="/commute" element={<CommuteScreen />} />
+            <Route path="/commute/:commuteId" element={<CommuteScreen />} />
+            <Route path="/alerts" element={<AlertsScreen />} />
+            <Route path="/health" element={<HealthScreen />} />
+            <Route path="/station/:stationId" element={<StationScreen />} />
+            <Route path="/line/:lineId" element={<LineDiagramScreen />} />
+            <Route path="/trip/:tripId" element={<TripScreen />} />
+            <Route path="/journal" element={<JournalScreen />} />
+            <Route path="/stats" element={<StatsScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+      <ServiceWorkerUpdatePrompt />
+      <PWAInstallPrompt />
+    </ErrorBoundary>
   );
 }
 

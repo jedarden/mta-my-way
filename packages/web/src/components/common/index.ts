@@ -19,3 +19,10 @@ export {
   FavoritesListSkeleton,
   Skeleton,
 } from "./Skeleton";
+export { ErrorBoundary } from "./ErrorBoundary";
+export { FocusTrap, useFocusTrap } from "./FocusTrap";
+export { LiveRegion, useLiveAnnouncer, useRouteChangeAnnouncer } from "./LiveAnnouncer";
+export {
+  ServiceWorkerUpdatePrompt,
+  PWAInstallPrompt,
+} from "./ServiceWorkerUpdatePrompt";
