@@ -257,10 +257,21 @@ function CompactAlertCard({
   const rawClass = isRaw ? "border-dashed opacity-75" : "";
   const predictedClass = isPredicted ? "border-amber-500 border-dotted" : "";
 
+  // Keyboard handler for compact alert card
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      // Compact cards are not expandable, but still need keyboard feedback
+      // Could optionally expand to full card view if needed in future
+    }
+  }, []);
+
   return (
     <div
       className={`rounded-lg ${styles.bg} ${predictedClass || styles.border} ${rawClass} p-2.5`}
       role="alert"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
     >
       <div className="flex items-center gap-2">
         {/* Severity icon */}

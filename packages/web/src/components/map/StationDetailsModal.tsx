@@ -10,8 +10,9 @@
  */
 
 import type { Station } from "@mta-my-way/shared";
-import { useCallback, useEffect } from "react";
+import { useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
+import { FocusTrap } from "../common/FocusTrap";
 
 interface StationDetailsModalProps {
   /** The station to display details for */
@@ -21,6 +22,8 @@ interface StationDetailsModalProps {
 }
 
 export function StationDetailsModal({ station, onClose }: StationDetailsModalProps) {
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) {
@@ -30,21 +33,6 @@ export function StationDetailsModal({ station, onClose }: StationDetailsModalPro
     [onClose]
   );
 
-  const handleEscapeKey = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  // Register escape key handler
-  useEffect(() => {
-    window.addEventListener("keydown", handleEscapeKey);
-    return () => window.removeEventListener("keydown", handleEscapeKey);
-  }, [handleEscapeKey]);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50"
@@ -53,113 +41,118 @@ export function StationDetailsModal({ station, onClose }: StationDetailsModalPro
       aria-modal="true"
       aria-labelledby="station-details-title"
     >
-      <div className="bg-surface dark:bg-dark-surface w-full sm:max-w-md sm:rounded-t-xl sm:rounded-b-xl rounded-t-xl max-h-[80vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-surface dark:bg-dark-surface px-4 py-3 border-b border-border dark:border-dark-border flex items-center justify-between">
-          <h2
-            id="station-details-title"
-            className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
-          >
-            {station.name}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-touch min-w-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary"
-            aria-label="Close"
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
+      <FocusTrap active={true} onEscape={onClose}>
+        <div
+          ref={modalContentRef}
+          className="bg-surface dark:bg-dark-surface w-full sm:max-w-md sm:rounded-t-xl sm:rounded-b-xl rounded-t-xl max-h-[80vh] overflow-y-auto"
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-surface dark:bg-dark-surface px-4 py-3 border-b border-border dark:border-dark-border flex items-center justify-between">
+            <h2
+              id="station-details-title"
+              className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
             >
-              <line x1={18} y1={6} x2={6} y2={18} />
-              <line x1={6} y1={6} x2={18} y2={18} />
-            </svg>
-          </button>
-        </div>
+              {station.name}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-touch min-w-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary"
+              aria-label="Close"
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <line x1={18} y1={6} x2={6} y2={18} />
+                <line x1={6} y1={6} x2={18} y2={18} />
+              </svg>
+            </button>
+          </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-4">
-          {/* Borough and accessibility */}
-          <div className="flex items-center gap-3 text-sm">
-            <span className="px-2 py-1 bg-surface-hover dark:bg-dark-surface-hover rounded text-text-secondary dark:text-dark-text-secondary capitalize">
-              {station.borough.replace("statenisland", "Staten Island")}
-            </span>
-            {station.ada && (
-              <span className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <circle cx={12} cy={12} r={10} />
-                  <path d="M12 6v6M12 16h.01" />
-                </svg>
-                ADA Accessible
+          {/* Content */}
+          <div className="p-4 space-y-4">
+            {/* Borough and accessibility */}
+            <div className="flex items-center gap-3 text-sm">
+              <span className="px-2 py-1 bg-surface-hover dark:bg-dark-surface-hover rounded text-text-secondary dark:text-dark-text-secondary capitalize">
+                {station.borough.replace("statenisland", "Staten Island")}
               </span>
-            )}
-          </div>
-
-          {/* Lines */}
-          <div>
-            <h3 className="text-sm font-medium text-text-secondary dark:text-dark-text-secondary mb-2">
-              Lines
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {station.lines.map((line) => (
-                <LineBullet key={line} line={line} />
-              ))}
+              {station.ada && (
+                <span className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <circle cx={12} cy={12} r={10} />
+                    <path d="M12 6v6M12 16h.01" />
+                  </svg>
+                  ADA Accessible
+                </span>
+              )}
             </div>
-          </div>
 
-          {/* Transfers */}
-          {station.transfers.length > 0 && (
+            {/* Lines */}
             <div>
               <h3 className="text-sm font-medium text-text-secondary dark:text-dark-text-secondary mb-2">
-                Transfers
+                Lines
               </h3>
-              <ul className="space-y-2">
-                {station.transfers.map((transfer) => (
-                  <li key={transfer.toStationId} className="text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-primary dark:text-dark-text-primary">
-                        To: {transfer.toLines.join(", ")}
-                      </span>
-                      <span className="text-text-tertiary dark:text-dark-text-tertiary text-xs">
-                        {Math.floor(transfer.walkingSeconds / 60)} min walk
-                        {!transfer.accessible && " (not ADA)"}
-                      </span>
-                    </div>
-                  </li>
+              <div className="flex flex-wrap gap-2">
+                {station.lines.map((line) => (
+                  <LineBullet key={line} line={line} />
                 ))}
-              </ul>
+              </div>
             </div>
-          )}
 
-          {/* Coordinates (for debug) */}
-          <div className="pt-2 border-t border-border dark:border-dark-border">
-            <p className="text-xs text-text-tertiary dark:text-dark-text-tertiary font-mono">
-              {station.lat.toFixed(4)}, {station.lon.toFixed(4)}
-            </p>
+            {/* Transfers */}
+            {station.transfers.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-text-secondary dark:text-dark-text-secondary mb-2">
+                  Transfers
+                </h3>
+                <ul className="space-y-2">
+                  {station.transfers.map((transfer) => (
+                    <li key={transfer.toStationId} className="text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-text-primary dark:text-dark-text-primary">
+                          To: {transfer.toLines.join(", ")}
+                        </span>
+                        <span className="text-text-tertiary dark:text-dark-text-tertiary text-xs">
+                          {Math.floor(transfer.walkingSeconds / 60)} min walk
+                          {!transfer.accessible && " (not ADA)"}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Coordinates (for debug) */}
+            <div className="pt-2 border-t border-border dark:border-dark-border">
+              <p className="text-xs text-text-tertiary dark:text-dark-text-tertiary font-mono">
+                {station.lat.toFixed(4)}, {station.lon.toFixed(4)}
+              </p>
+            </div>
+
+            {/* View full station link */}
+            <Link
+              to={`/station/${station.id}`}
+              onClick={onClose}
+              className="block w-full py-3 mt-4 bg-mta-primary text-white text-center font-medium rounded-lg hover:bg-mta-primary-dark transition-colors"
+            >
+              View Full Station Details
+            </Link>
           </div>
-
-          {/* View full station link */}
-          <Link
-            to={`/station/${station.id}`}
-            onClick={onClose}
-            className="block w-full py-3 mt-4 bg-mta-primary text-white text-center font-medium rounded-lg hover:bg-mta-primary-dark transition-colors"
-          >
-            View Full Station Details
-          </Link>
         </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }
