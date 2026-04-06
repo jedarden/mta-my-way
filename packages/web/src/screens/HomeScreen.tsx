@@ -16,7 +16,7 @@
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyFavorites } from "../components/common/EmptyState";
 import { CommuteCard } from "../components/commute/CommuteCard";
@@ -24,11 +24,13 @@ import { FareTracker } from "../components/fare/FareTracker";
 import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
-import OnboardingFlow from "../components/onboarding/OnboardingFlow";
 import { useContextAware } from "../hooks/useContextAware";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePrefetch } from "../hooks/usePrefetch";
 import { useFavoritesStore, useSettingsStore } from "../stores";
+
+// Lazy load onboarding flow - only shown once to new users
+const OnboardingFlow = lazy(() => import("../components/onboarding/OnboardingFlow"));
 
 /** How often to tick the "Updated X ago" counter (ms) */
 const TIME_AGO_INTERVAL = 15_000;
@@ -51,7 +53,23 @@ export default function HomeScreen() {
 
   // Show onboarding flow for first-time users
   if (!onboardingComplete) {
-    return <OnboardingFlow />;
+    return (
+      <Suspense
+        fallback={
+          <div
+            className="flex items-center justify-center h-dvh"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading"
+          >
+            <div className="skeleton w-16 h-16 rounded-full" aria-hidden="true" />
+            <span className="sr-only">Loading...</span>
+          </div>
+        }
+      >
+        <OnboardingFlow />
+      </Suspense>
+    );
   }
 
   // Pull-to-refresh
