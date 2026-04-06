@@ -74,6 +74,7 @@ export type {
   WalkingOption,
   ServicePattern,
   TransferRecommendation,
+  RecommendationDetails,
 } from "./types/commute.js";
 
 // Equipment status types

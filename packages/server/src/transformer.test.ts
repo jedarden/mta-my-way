@@ -139,6 +139,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs",
     division: "A",
     stops: ["100", "101", "102", "103"],
+    isExpress: false,
   },
   "2": {
     id: "2",
@@ -149,6 +150,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs",
     division: "A",
     stops: ["100", "102", "103"],
+    isExpress: true,
   },
   F: {
     id: "F",
@@ -159,6 +161,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs-bdfm",
     division: "B",
     stops: ["724", "725", "726"],
+    isExpress: false,
   },
   D: {
     id: "D",
@@ -169,6 +172,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs-bdfm",
     division: "B",
     stops: ["725", "726", "730"],
+    isExpress: true,
   },
   A: {
     id: "A",
@@ -179,6 +183,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs-ace",
     division: "B",
     stops: ["101", "102"],
+    isExpress: true,
   },
   C: {
     id: "C",
@@ -189,6 +194,7 @@ const ROUTES: RouteIndex = {
     feedId: "gtfs-ace",
     division: "B",
     stops: ["101", "102"],
+    isExpress: false,
   },
 };
 
