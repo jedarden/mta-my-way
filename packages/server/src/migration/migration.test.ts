@@ -61,7 +61,9 @@ describe("migration system", () => {
 
       // Verify versions are in ascending order
       for (let i = 1; i < applied.length; i++) {
-        expect(applied[i].version).toBeGreaterThan(applied[i - 1].version);
+        const current = applied[i];
+        const previous = applied[i - 1];
+        expect(current.version).toBeGreaterThan(previous.version);
       }
     });
 
@@ -100,7 +102,7 @@ describe("migration system", () => {
         "INSERT INTO _migrations (version, name, description, appliedAt, executionTimeMs) VALUES (1, 'm1', 'M1', datetime('now'), 100), (2, 'm2', 'M2', datetime('now'), 100)"
       ).run();
 
-      await runMigrations(db, 2);
+      await runMigrations(db, {}, 2);
 
       // Should not apply any migrations beyond version 2
       const applied = db
@@ -175,7 +177,13 @@ describe("migration system", () => {
 
   describe("createMigration", () => {
     it("creates a new migration file with template", async () => {
-      const filepath = await createMigration("add-users-table", "Add users table");
+      const testMigrationsDir = join(tempDir, "migrations");
+      const filepath = await createMigration(
+        "add-users-table",
+        "Add users table",
+        false,
+        testMigrationsDir
+      );
 
       // The filename should end with the name pattern, version depends on existing migrations
       expect(filepath).toMatch(/add-users-table\.ts$/);
@@ -186,12 +194,13 @@ describe("migration system", () => {
     });
 
     it("increments version number for existing migrations", async () => {
-      const file1 = await createMigration("first", "First migration");
+      const testMigrationsDir = join(tempDir, "migrations");
+      const file1 = await createMigration("first", "First migration", false, testMigrationsDir);
 
       // The function returns the full filepath with correct naming pattern
       expect(file1).toMatch(/\d{3}-first\.ts$/);
 
-      const file2 = await createMigration("second", "Second migration");
+      const file2 = await createMigration("second", "Second migration", false, testMigrationsDir);
       // The filename format is {version}-{name}.ts with incrementing version
       expect(file2).toMatch(/\d{3}-second\.ts$/);
 
