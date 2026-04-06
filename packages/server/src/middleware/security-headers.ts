@@ -56,12 +56,7 @@ const DEFAULT_CSP =
  * Permissions-Policy, Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy.
  */
 export function securityHeaders(options: SecurityHeadersOptions = {}): MiddlewareHandler {
-  const {
-    enableCSP = true,
-    enableHSTS = true,
-    reportTo,
-    customCSP,
-  } = options;
+  const { enableCSP = true, enableHSTS = true, reportTo, customCSP } = options;
 
   return async (c, next) => {
     await next();

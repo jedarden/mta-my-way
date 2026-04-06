@@ -4,12 +4,15 @@
  * Derives a LineHealthStatus for every subway line by scanning all alerts
  * and picking the worst severity per line. No new API calls — purely
  * frontend aggregation of existing /api/alerts data.
+ * Enhanced with user-friendly error messages.
  */
 
 import type { LineHealthStatus, LineStatus, StationAlert } from "@mta-my-way/shared";
 import { getAllLineIds } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { EnhancedApiError } from "../lib/apiEnhanced";
+import { ErrorCategory, getUserErrorMessage } from "../lib/errorMessages";
 
 /** Map alert severity + effect to line status tier */
 function severityToLineStatus(severity: StationAlert["severity"], effect: string): LineStatus {
@@ -99,7 +102,16 @@ export function useSystemHealth(): SystemHealthState {
       setUpdatedAt(Date.now());
     } catch (err) {
       if (gen !== fetchGenRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to load alerts");
+      // Get user-friendly error message
+      let errorMessage = "Failed to load service alerts";
+      if (err instanceof EnhancedApiError) {
+        const userError = getUserErrorMessage(err.type, "alerts");
+        errorMessage = userError.message;
+      } else {
+        const userError = getUserErrorMessage(ErrorCategory.UNKNOWN, "alerts");
+        errorMessage = userError.message;
+      }
+      setError(errorMessage);
       setStatus("error");
     }
   }, []);

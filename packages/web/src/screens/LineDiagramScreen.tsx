@@ -196,7 +196,11 @@ export default function LineDiagramScreen() {
               <div className="bg-surface dark:bg-dark-surface rounded-xl p-4">
                 <Suspense fallback={<DiagramSkeleton />}>
                   <ComponentErrorBoundary componentName="TrainDiagram">
-                    <TrainDiagram data={diagramData} onTrainTap={handleTrainTap} className="w-full" />
+                    <TrainDiagram
+                      data={diagramData}
+                      onTrainTap={handleTrainTap}
+                      className="w-full"
+                    />
                   </ComponentErrorBoundary>
                 </Suspense>
 

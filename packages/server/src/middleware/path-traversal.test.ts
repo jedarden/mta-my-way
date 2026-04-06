@@ -4,7 +4,7 @@
 
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
-import { pathTraversalPrevention, isSafePath } from "./path-traversal.js";
+import { isSafePath, pathTraversalPrevention } from "./path-traversal.js";
 
 describe("pathTraversalPrevention middleware", () => {
   let app: Hono;

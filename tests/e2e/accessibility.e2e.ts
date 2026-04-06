@@ -11,7 +11,7 @@
  * Tests run against the live application with Playwright's accessibility helpers.
  */
 
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test.describe("Screen Reader Compatibility", () => {
   test.beforeEach(async ({ page }) => {
@@ -29,12 +29,12 @@ test.describe("Screen Reader Compatibility", () => {
       await expect(nav).toBeVisible();
 
       // Check for banner landmark
-      const banner = page.locator('role=banner');
+      const banner = page.locator("role=banner");
       await expect(banner).toBeVisible();
     });
 
     test("should have skip link for keyboard users", async ({ page }) => {
-      const skipLink = page.locator('role=link[name=/skip to main content/i]');
+      const skipLink = page.locator("role=link[name=/skip to main content/i]");
       await expect(skipLink).toBeAttached();
 
       // Skip link should be hidden by default but visible when focused
@@ -74,7 +74,7 @@ test.describe("Screen Reader Compatibility", () => {
       await page.goto("/");
 
       // Tab through bottom nav items
-      const navItems = page.locator('role=navigation').locator('role=link');
+      const navItems = page.locator("role=navigation").locator("role=link");
       const count = await navItems.count();
 
       for (let i = 0; i < count; i++) {
@@ -88,8 +88,8 @@ test.describe("Screen Reader Compatibility", () => {
       await page.goto("/");
 
       // Focus on first card (if any exist)
-      const firstCard = page.locator('role=article').first();
-      const hasCards = await firstCard.count() > 0;
+      const firstCard = page.locator("role=article").first();
+      const hasCards = (await firstCard.count()) > 0;
 
       if (hasCards) {
         await firstCard.focus();
@@ -117,7 +117,7 @@ test.describe("Screen Reader Compatibility", () => {
       await page.click('role=link[name="Alerts"]');
 
       // Check that main content is focused or focusable
-      const main = page.locator('role=main');
+      const main = page.locator("role=main");
       const tabIndex = await main.getAttribute("tabIndex");
       expect(tabIndex).toBe("-1");
 
@@ -141,7 +141,7 @@ test.describe("Screen Reader Compatibility", () => {
       await favoritesLink.click();
 
       // Look for any favorite toggle buttons (if any favorites exist)
-      const toggleButtons = page.locator('[aria-pressed]');
+      const toggleButtons = page.locator("[aria-pressed]");
       const count = await toggleButtons.count();
 
       for (let i = 0; i < count; i++) {
@@ -168,7 +168,7 @@ test.describe("Screen Reader Compatibility", () => {
       await page.goto("/search");
 
       // Check that help text exists for search
-      const searchInput = page.locator('role=searchbox');
+      const searchInput = page.locator("role=searchbox");
       const hasDescription = await searchInput.evaluate((el) =>
         el.getAttribute("aria-describedby")
       );
@@ -185,7 +185,7 @@ test.describe("Screen Reader Compatibility", () => {
 
       // Check for loading indicators
       const loadingElements = page.locator('[aria-busy="true"]');
-      const hasLoading = await loadingElements.count() > 0;
+      const hasLoading = (await loadingElements.count()) > 0;
 
       // Loading indicators should either be present or finished
       if (hasLoading) {
@@ -198,15 +198,15 @@ test.describe("Screen Reader Compatibility", () => {
       await page.goto("/search");
 
       // Type a search that will return no results
-      const searchInput = page.locator('role=searchbox');
+      const searchInput = page.locator("role=searchbox");
       await searchInput.fill("xyznonexistentstation123");
 
       // Wait for results
       await page.waitForTimeout(250);
 
       // Check for empty state announcement
-      const emptyState = page.locator('role=status', { hasText: /no stations found/i });
-      const hasEmptyState = await emptyState.count() > 0;
+      const emptyState = page.locator("role=status", { hasText: /no stations found/i });
+      const hasEmptyState = (await emptyState.count()) > 0;
 
       if (hasEmptyState) {
         await expect(emptyState).toBeVisible();
@@ -235,7 +235,7 @@ test.describe("Screen Reader Compatibility", () => {
       // For now, we verify the badge structure
 
       const alertBadge = page.locator('[aria-label*="alert"]');
-      const hasBadge = await alertBadge.count() > 0;
+      const hasBadge = (await alertBadge.count()) > 0;
 
       if (hasBadge) {
         const ariaLabel = await alertBadge.first().getAttribute("aria-label");
@@ -245,14 +245,14 @@ test.describe("Screen Reader Compatibility", () => {
 
     test("should have aria-labels on icon-only buttons", async ({ page }) => {
       // Check that icon-only buttons have accessible labels
-      const iconButtons = page.locator('button:has(svg:not([aria-label]))');
+      const iconButtons = page.locator("button:has(svg:not([aria-label]))");
       const count = await iconButtons.count();
 
       // All icon buttons should have aria-label or aria-describedby
       for (let i = 0; i < count; i++) {
         const button = iconButtons.nth(i);
-        const hasLabel = await button.evaluate((el) =>
-          el.hasAttribute("aria-label") || el.hasAttribute("aria-describedby")
+        const hasLabel = await button.evaluate(
+          (el) => el.hasAttribute("aria-label") || el.hasAttribute("aria-describedby")
         );
         expect(hasLabel).toBe(true);
       }
@@ -276,8 +276,8 @@ test.describe("Screen Reader Compatibility", () => {
       await page.goto("/alerts");
 
       // Check for alert regions
-      const alertRegion = page.locator('role=alert');
-      const hasAlerts = await alertRegion.count() > 0;
+      const alertRegion = page.locator("role=alert");
+      const hasAlerts = (await alertRegion.count()) > 0;
 
       if (hasAlerts) {
         await expect(alertRegion.first()).toBeVisible();

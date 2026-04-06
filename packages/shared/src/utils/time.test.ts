@@ -6,20 +6,20 @@ import { describe, expect, it } from "vitest";
 import {
   calculateMinutesAway,
   calculateSecondsAway,
-  formatMinutesAway,
-  formatTime,
-  formatShortDate,
-  formatFullDate,
-  formatTimeAgo,
   formatDuration,
+  formatFullDate,
+  formatMinutesAway,
+  formatShortDate,
+  formatTime,
+  formatTimeAgo,
   getCurrentDayOfWeek,
   getCurrentHour,
+  getDataAge,
+  getMonthStartISO,
   getTodayISO,
   getWeekStartISO,
-  getMonthStartISO,
   isRecent,
   isStale,
-  getDataAge,
 } from "./time.js";
 
 describe("time utilities", () => {

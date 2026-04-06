@@ -7,11 +7,11 @@
 
 import type { MiddlewareHandler } from "hono";
 import {
-  httpRequestsTotal,
+  activeConnections,
   httpRequestDuration,
   httpRequestSize,
+  httpRequestsTotal,
   httpResponseSize,
-  activeConnections,
 } from "../observability/metrics.js";
 
 interface MetricsMiddlewareOptions {

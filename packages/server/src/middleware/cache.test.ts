@@ -2,17 +2,17 @@
  * Tests for cache middleware
  */
 
-import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
+import { describe, expect, it } from "vitest";
 import {
-  staticCache,
-  semiStaticCache,
-  realtimeCache,
   apiCache,
   healthCache,
+  immutableCache,
   noCache,
   noStore,
-  immutableCache,
+  realtimeCache,
+  semiStaticCache,
+  staticCache,
 } from "./cache";
 
 describe("Cache Middleware", () => {

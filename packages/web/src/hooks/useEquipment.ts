@@ -3,11 +3,14 @@
  *
  * Uses the equipment data injected into the arrivals response when available,
  * falling back to the dedicated /api/equipment/:stationId endpoint.
+ * Enhanced with user-friendly error messages.
  */
 
 import type { EquipmentStatus, StationEquipmentSummary } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { EnhancedApiError } from "../lib/apiEnhanced";
+import { ErrorCategory, getUserErrorMessage } from "../lib/errorMessages";
 
 export interface UseEquipmentResult {
   equipment: EquipmentStatus[];
@@ -16,6 +19,7 @@ export interface UseEquipmentResult {
   hasBrokenEscalators: boolean;
   adaAccessible: boolean;
   status: "idle" | "loading" | "success" | "error";
+  error: string | null;
 }
 
 /**
@@ -30,18 +34,30 @@ export function useEquipment(
 ): UseEquipmentResult {
   const [summary, setSummary] = useState<StationEquipmentSummary | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchEquipment = useCallback(async (id: string, signal: AbortSignal) => {
     setStatus("loading");
+    setError(null);
     try {
       const data = await api.getEquipment(id);
       if (!signal.aborted) {
         setSummary(data);
         setStatus("success");
       }
-    } catch {
+    } catch (err) {
       if (!signal.aborted) {
+        // Get user-friendly error message
+        let errorMessage = "Unable to check elevator status";
+        if (err instanceof EnhancedApiError) {
+          const userError = getUserErrorMessage(err.type, "equipment");
+          errorMessage = userError.message;
+        } else {
+          const userError = getUserErrorMessage(ErrorCategory.UNKNOWN, "equipment");
+          errorMessage = userError.message;
+        }
+        setError(errorMessage);
         setStatus("error");
       }
     }
@@ -70,6 +86,7 @@ export function useEquipment(
         brokenEscalators: escalators.length,
       });
       setStatus("success");
+      setError(null);
       return;
     }
 
@@ -78,6 +95,7 @@ export function useEquipment(
     if (injectedEquipment && injectedEquipment.length === 0) {
       setSummary(null);
       setStatus("success");
+      setError(null);
       return;
     }
 
@@ -103,5 +121,6 @@ export function useEquipment(
     hasBrokenEscalators,
     adaAccessible: summary?.adaAccessible ?? true,
     status,
+    error,
   };
 }

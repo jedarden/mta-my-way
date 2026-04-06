@@ -4,7 +4,7 @@
 
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { hppProtection, getCleanedQuery } from "./parameter-pollution.js";
+import { getCleanedQuery, hppProtection } from "./parameter-pollution.js";
 
 describe("hppProtection middleware", () => {
   let app: Hono;

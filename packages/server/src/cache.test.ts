@@ -4,23 +4,23 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  isCircuitOpen,
-  recordFeedSuccess,
-  recordFeedFailure,
-  getLastGoodParsed,
-  getAllParsedFeeds,
-  getFeedAgeSeconds,
-  getAllFeedAges,
-  isFeedStale,
-  getFeedStates,
   avgLatency,
   errorCount24h,
-  updateArrivals,
-  getArrivals,
   getAllArrivals,
-  updatePositions,
-  getPositions,
+  getAllFeedAges,
+  getAllParsedFeeds,
   getAllPositions,
+  getArrivals,
+  getFeedAgeSeconds,
+  getFeedStates,
+  getLastGoodParsed,
+  getPositions,
+  isCircuitOpen,
+  isFeedStale,
+  recordFeedFailure,
+  recordFeedSuccess,
+  updateArrivals,
+  updatePositions,
 } from "./cache.js";
 
 describe("cache module", () => {
@@ -61,13 +61,7 @@ describe("cache module", () => {
 
   describe("feed state mutations", () => {
     it("records success with entity count", () => {
-      recordFeedSuccess(
-        "gtfs",
-        { header: {}, trips: [], updates: [], alerts: [] },
-        42,
-        100,
-        0
-      );
+      recordFeedSuccess("gtfs", { header: {}, trips: [], updates: [], alerts: [] }, 42, 100, 0);
 
       const states = getFeedStates();
       const gtfsState = states.find((s) => s.id === "gtfs");

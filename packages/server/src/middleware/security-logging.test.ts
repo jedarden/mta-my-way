@@ -4,7 +4,7 @@
 
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { securityLogging, SecurityEventLogger, securityLogger } from "./security-logging.js";
+import { SecurityEventLogger, securityLogger, securityLogging } from "./security-logging.js";
 
 describe("SecurityEventLogger class", () => {
   let logger: SecurityEventLogger;

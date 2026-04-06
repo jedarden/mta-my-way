@@ -125,12 +125,14 @@ async function main() {
   const command = positionals[0];
   const dbPath = getDbPath();
 
-  console.error(JSON.stringify({
-    event: "migrate_cli_start",
-    command,
-    dbPath,
-    timestamp: new Date().toISOString(),
-  }));
+  console.error(
+    JSON.stringify({
+      event: "migrate_cli_start",
+      command,
+      dbPath,
+      timestamp: new Date().toISOString(),
+    })
+  );
 
   try {
     // Import migration module from dist
@@ -154,19 +156,25 @@ async function main() {
         db = initDatabase(dbPath);
         const status = await getMigrationStatus(db);
 
-        console.log(JSON.stringify({
-          event: "migration_status",
-          currentVersion: status.currentVersion,
-          latestVersion: status.latestVersion,
-          appliedCount: status.applied.length,
-          pendingCount: status.pending.length,
-          applied: status.applied,
-          pending: status.pending.map((m) => ({
-            version: m.version,
-            name: m.name,
-            description: m.description,
-          })),
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "migration_status",
+              currentVersion: status.currentVersion,
+              latestVersion: status.latestVersion,
+              appliedCount: status.applied.length,
+              pendingCount: status.pending.length,
+              applied: status.applied,
+              pending: status.pending.map((m) => ({
+                version: m.version,
+                name: m.name,
+                description: m.description,
+              })),
+            },
+            null,
+            2
+          )
+        );
 
         db.close();
         break;
@@ -185,11 +193,17 @@ async function main() {
           backup: values.backup,
         });
 
-        console.log(JSON.stringify({
-          event: "migrations_complete",
-          dryRun: values.dryRun,
-          results,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "migrations_complete",
+              dryRun: values.dryRun,
+              results,
+            },
+            null,
+            2
+          )
+        );
 
         db.close();
         break;
@@ -213,12 +227,18 @@ async function main() {
           dryRun: values.dryRun,
         });
 
-        console.log(JSON.stringify({
-          event: "rollback_complete",
-          version,
-          success,
-          dryRun: values.dryRun,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "rollback_complete",
+              version,
+              success,
+              dryRun: values.dryRun,
+            },
+            null,
+            2
+          )
+        );
 
         db.close();
         break;
@@ -243,12 +263,18 @@ async function main() {
           backup: values.backup,
         });
 
-        console.log(JSON.stringify({
-          event: "rollback_to_version_complete",
-          targetVersion,
-          rolledBackVersions: rolledBack,
-          dryRun: values.dryRun,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "rollback_to_version_complete",
+              targetVersion,
+              rolledBackVersions: rolledBack,
+              dryRun: values.dryRun,
+            },
+            null,
+            2
+          )
+        );
 
         db.close();
         break;
@@ -266,12 +292,18 @@ async function main() {
 
         const filepath = await createMigration(name, description, values.validate);
 
-        console.log(JSON.stringify({
-          event: "migration_created",
-          filepath,
-          name,
-          description,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "migration_created",
+              filepath,
+              name,
+              description,
+            },
+            null,
+            2
+          )
+        );
         break;
       }
 
@@ -279,12 +311,18 @@ async function main() {
         db = initDatabase(dbPath);
         const validation = validateDatabase(db);
 
-        console.log(JSON.stringify({
-          event: "validation_complete",
-          valid: validation.valid,
-          errors: validation.errors,
-          warnings: validation.warnings,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "validation_complete",
+              valid: validation.valid,
+              errors: validation.errors,
+              warnings: validation.warnings,
+            },
+            null,
+            2
+          )
+        );
 
         db.close();
         process.exit(validation.valid ? 0 : 1);
@@ -294,11 +332,17 @@ async function main() {
       case "backup": {
         const backupPath = await createBackup(dbPath);
 
-        console.log(JSON.stringify({
-          event: "backup_complete",
-          backupPath,
-          dbPath,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "backup_complete",
+              backupPath,
+              dbPath,
+            },
+            null,
+            2
+          )
+        );
         break;
       }
 
@@ -312,26 +356,38 @@ async function main() {
         const backupPath = positionals[1];
         await restoreBackup(backupPath, dbPath);
 
-        console.log(JSON.stringify({
-          event: "restore_complete",
-          backupPath,
-          dbPath,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "restore_complete",
+              backupPath,
+              dbPath,
+            },
+            null,
+            2
+          )
+        );
         break;
       }
 
       case "backups": {
         const backups = await listBackups();
 
-        console.log(JSON.stringify({
-          event: "backups_listed",
-          count: backups.length,
-          backups: backups.map((b) => ({
-            path: b.path,
-            size: b.size,
-            created: b.created.toISOString(),
-          })),
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "backups_listed",
+              count: backups.length,
+              backups: backups.map((b) => ({
+                path: b.path,
+                size: b.size,
+                created: b.created.toISOString(),
+              })),
+            },
+            null,
+            2
+          )
+        );
         break;
       }
 
@@ -339,11 +395,17 @@ async function main() {
         const keepCount = parseInt(values.keep, 10);
         const deleted = await cleanupOldBackups(keepCount);
 
-        console.log(JSON.stringify({
-          event: "backups_cleanup_complete",
-          deletedCount: deleted,
-          keepCount,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              event: "backups_cleanup_complete",
+              deletedCount: deleted,
+              keepCount,
+            },
+            null,
+            2
+          )
+        );
         break;
       }
 
@@ -353,20 +415,23 @@ async function main() {
         process.exit(1);
     }
 
-    console.error(JSON.stringify({
-      event: "migrate_cli_success",
-      command,
-      timestamp: new Date().toISOString(),
-    }));
-
+    console.error(
+      JSON.stringify({
+        event: "migrate_cli_success",
+        command,
+        timestamp: new Date().toISOString(),
+      })
+    );
   } catch (error) {
-    console.error(JSON.stringify({
-      event: "migrate_cli_error",
-      command,
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString(),
-    }));
+    console.error(
+      JSON.stringify({
+        event: "migrate_cli_error",
+        command,
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+      })
+    );
 
     // Clean shutdown on error
     console.error(`Migration failed: ${error.message}`);

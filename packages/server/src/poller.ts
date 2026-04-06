@@ -10,7 +10,13 @@
  * - MTA_API_KEY env var forwarded in x-api-key header if set
  */
 
-import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS, retry, type RetryOptions } from "@mta-my-way/shared";
+import {
+  type FeedConfig,
+  POLLING_INTERVALS,
+  type RetryOptions,
+  SUBWAY_FEEDS,
+  retry,
+} from "@mta-my-way/shared";
 import type { LinePositions, RouteIndex, StationIndex, TrainPosition } from "@mta-my-way/shared";
 import {
   getAllFeedAges,
@@ -202,24 +208,23 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
     };
 
     // Fetch with retry logic
-    const response = await retry(
-      async () => {
-        const res = await fetch(config.url, {
-          headers,
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
+    const response = await retry(async () => {
+      const res = await fetch(config.url, {
+        headers,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
 
-        if (!res.ok) {
-          // Create error with status for isRetryable predicate
-          const error = new Error(`HTTP ${res.status} ${res.statusText}`) as Error & { status: number };
-          error.status = res.status;
-          throw error;
-        }
+      if (!res.ok) {
+        // Create error with status for isRetryable predicate
+        const error = new Error(`HTTP ${res.status} ${res.statusText}`) as Error & {
+          status: number;
+        };
+        error.status = res.status;
+        throw error;
+      }
 
-        return res;
-      },
-      retryOptions
-    );
+      return res;
+    }, retryOptions);
 
     const buffer = await response.arrayBuffer();
     const data = new Uint8Array(buffer);

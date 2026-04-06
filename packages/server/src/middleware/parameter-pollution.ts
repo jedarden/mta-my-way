@@ -145,7 +145,10 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
     }
 
     // Process request body (for JSON and form data)
-    if (checkBody && (c.req.method === "POST" || c.req.method === "PUT" || c.req.method === "PATCH")) {
+    if (
+      checkBody &&
+      (c.req.method === "POST" || c.req.method === "PUT" || c.req.method === "PATCH")
+    ) {
       const contentType = c.req.header("Content-Type");
 
       if (contentType?.includes("application/json")) {
@@ -159,7 +162,8 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
                 event: "hpp_rejected",
                 timestamp: new Date().toISOString(),
                 location: "body",
-                ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
+                ip:
+                  c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
               })
             );
 
@@ -198,7 +202,8 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
                 event: "hpp_rejected",
                 timestamp: new Date().toISOString(),
                 location: "form",
-                ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
+                ip:
+                  c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
               })
             );
 

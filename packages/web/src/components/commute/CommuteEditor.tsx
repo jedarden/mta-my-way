@@ -308,7 +308,10 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
                   );
                 })}
               </div>
-              <p id="preferred-lines-help" className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5">
+              <p
+                id="preferred-lines-help"
+                className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1.5"
+              >
                 Leave empty to consider all available lines
               </p>
             </div>

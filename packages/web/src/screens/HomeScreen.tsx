@@ -16,7 +16,7 @@
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ComponentErrorBoundary, EmptyFavorites } from "../components/common";
 import { CommuteCard } from "../components/commute/CommuteCard";

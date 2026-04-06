@@ -4,16 +4,16 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  haversineDistance,
-  walkingTime,
-  walkingTimeFromDistance,
-  walkingTimeBetweenStations,
-  walkingDistanceBetweenStations,
-  isWalkingViable,
+  type StationWithCoords,
   compareWalkingVsTransit,
   formatWalkingDistance,
   formatWalkingTime,
-  type StationWithCoords,
+  haversineDistance,
+  isWalkingViable,
+  walkingDistanceBetweenStations,
+  walkingTime,
+  walkingTimeBetweenStations,
+  walkingTimeFromDistance,
 } from "./walking.js";
 
 describe("walking utilities", () => {

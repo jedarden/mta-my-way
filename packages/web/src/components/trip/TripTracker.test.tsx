@@ -7,10 +7,10 @@
  * - Accessible status announcements
  */
 
-import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { TripTracker } from "./TripTracker";
+import { describe, expect, it } from "vitest";
 import type { TripStopProgress } from "../../hooks/useTripTracker";
+import { TripTracker } from "./TripTracker";
 
 const createMockStops = (overrides?: Partial<TripStopProgress>): TripStopProgress[] => [
   {

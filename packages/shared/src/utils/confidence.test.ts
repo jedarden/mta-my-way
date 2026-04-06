@@ -75,18 +75,30 @@ describe("confidence utilities", () => {
 
   describe("getConfidenceDescription", () => {
     it("returns description for high confidence", () => {
-      expect(getConfidenceDescription("high")).toBe("High confidence: ATS/CBTC tracking with reliable predictions");
-      expect(getConfidenceDescription("high", "1")).toBe("High confidence for the 1 train: ATS/CBTC tracking with reliable predictions");
+      expect(getConfidenceDescription("high")).toBe(
+        "High confidence: ATS/CBTC tracking with reliable predictions"
+      );
+      expect(getConfidenceDescription("high", "1")).toBe(
+        "High confidence for the 1 train: ATS/CBTC tracking with reliable predictions"
+      );
     });
 
     it("returns description for medium confidence", () => {
-      expect(getConfidenceDescription("medium")).toBe("Medium confidence: Predictions may vary by 1-2 minutes");
-      expect(getConfidenceDescription("medium", "A")).toBe("Medium confidence for the A train: Predictions may vary by 1-2 minutes");
+      expect(getConfidenceDescription("medium")).toBe(
+        "Medium confidence: Predictions may vary by 1-2 minutes"
+      );
+      expect(getConfidenceDescription("medium", "A")).toBe(
+        "Medium confidence for the A train: Predictions may vary by 1-2 minutes"
+      );
     });
 
     it("returns description for low confidence", () => {
-      expect(getConfidenceDescription("low")).toBe("Low confidence: Prediction uncertain, may be delayed or cancelled");
-      expect(getConfidenceDescription("low", "F")).toBe("Low confidence for the F train: Prediction uncertain, may be delayed or cancelled");
+      expect(getConfidenceDescription("low")).toBe(
+        "Low confidence: Prediction uncertain, may be delayed or cancelled"
+      );
+      expect(getConfidenceDescription("low", "F")).toBe(
+        "Low confidence for the F train: Prediction uncertain, may be delayed or cancelled"
+      );
     });
   });
 

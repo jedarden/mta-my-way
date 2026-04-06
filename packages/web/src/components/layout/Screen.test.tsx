@@ -8,9 +8,9 @@
  * - Live regions for announcements
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Screen from "./Screen";
 
 // Mock the useRouteChangeAnnouncer to prevent actual announcements during tests
@@ -205,7 +205,11 @@ describe("Screen - Screen Reader Compatibility", () => {
 
 describe("Screen - Route Change Focus", () => {
   it("should move focus to main on route change", async () => {
-    const TestComponent = () => <Screen><div>Page Content</div></Screen>;
+    const TestComponent = () => (
+      <Screen>
+        <div>Page Content</div>
+      </Screen>
+    );
 
     const { container } = render(
       <BrowserRouter>

@@ -9,8 +9,8 @@
  *   - destination: flag icon, bold text
  */
 
-import type { TripStopProgress } from "../../hooks/useTripTracker";
 import { useEffect, useRef } from "react";
+import type { TripStopProgress } from "../../hooks/useTripTracker";
 
 interface TripTrackerProps {
   stops: TripStopProgress[];
@@ -101,7 +101,13 @@ export function TripTracker({
   return (
     <div className="flex flex-col gap-0" role="region" aria-label="Trip progress">
       {/* Screen reader announcement of trip status - only updates on meaningful changes */}
-      <div ref={liveRegionRef} className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      <div
+        ref={liveRegionRef}
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {getTripStatusDescription()}
       </div>
 

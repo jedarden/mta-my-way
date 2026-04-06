@@ -40,7 +40,9 @@ describe("freshness utilities", () => {
   describe("getFreshnessTextColor", () => {
     it("returns correct Tailwind classes for each level", () => {
       expect(getFreshnessTextColor("fresh")).toBe("text-green-600 dark:text-green-400");
-      expect(getFreshnessTextColor("neutral")).toBe("text-text-tertiary dark:text-dark-text-tertiary");
+      expect(getFreshnessTextColor("neutral")).toBe(
+        "text-text-tertiary dark:text-dark-text-tertiary"
+      );
       expect(getFreshnessTextColor("amber")).toBe("text-amber-600 dark:text-amber-400");
       expect(getFreshnessTextColor("red")).toBe("text-red-600 dark:text-red-400");
     });

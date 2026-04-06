@@ -10,11 +10,14 @@
  *   offline  - device is offline
  *
  * Auto-refreshes every `refreshInterval` seconds (from settings, default 30).
+ * Enhanced with user-friendly error messages.
  */
 
 import type { CommuteAnalysis } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { EnhancedApiError } from "../lib/apiEnhanced";
+import { ErrorCategory, getUserErrorMessage } from "../lib/errorMessages";
 import { useSettingsStore } from "../stores/settingsStore";
 
 export type CommuteStatus = "idle" | "loading" | "success" | "stale" | "error" | "offline";
@@ -88,10 +91,20 @@ export function useCommute(options: UseCommuteOptions): CommuteResult {
     } catch (err) {
       if (gen !== fetchGenRef.current) return; // superseded
 
+      // Get user-friendly error message
+      let errorMessage = "Failed to analyze commute";
+      if (err instanceof EnhancedApiError) {
+        const userError = getUserErrorMessage(err.type, "commute");
+        errorMessage = userError.message;
+      } else {
+        const userError = getUserErrorMessage(ErrorCategory.UNKNOWN, "commute");
+        errorMessage = userError.message;
+      }
+
       setState({
         status: navigator.onLine ? "error" : "offline",
         data: null,
-        error: err instanceof Error ? err.message : "Failed to analyze commute",
+        error: errorMessage,
         updatedAt: null,
       });
     }

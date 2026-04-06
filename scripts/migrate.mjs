@@ -208,7 +208,11 @@ async function cmdUp(db, targetVersion, options) {
     })
   );
 
-  const results = await runMigrations(db, { dryRun: options.dryRun, force: options.force }, version);
+  const results = await runMigrations(
+    db,
+    { dryRun: options.dryRun, force: options.force },
+    version
+  );
 
   const applied = results.filter((r) => r.applied);
 

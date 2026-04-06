@@ -177,8 +177,5 @@ export function pathTraversalPrevention(options: PathTraversalOptions = {}): Mid
  * @returns true if the path is safe, false otherwise
  */
 export function isSafePath(filePath: string): boolean {
-  return !containsPathTraversal(filePath, [
-    ...PATH_TRAVERSAL_PATTERNS,
-    ...SUSPICIOUS_PATTERNS,
-  ]);
+  return !containsPathTraversal(filePath, [...PATH_TRAVERSAL_PATTERNS, ...SUSPICIOUS_PATTERNS]);
 }

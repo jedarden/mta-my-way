@@ -20,7 +20,7 @@ import type {
   StationComplex,
   StationEquipmentSummary,
 } from "@mta-my-way/shared";
-import { retry, type RetryOptions } from "@mta-my-way/shared";
+import { type RetryOptions, retry } from "@mta-my-way/shared";
 
 // Re-export for use across the frontend
 export type { StationComplex };
@@ -83,7 +83,9 @@ const RETRY_OPTIONS: RetryOptions = {
         return true;
       }
       // Retry on 5xx server errors, 429 rate limiting, and 408 timeout
-      return error.status === 408 || error.status === 429 || (error.status >= 500 && error.status < 600);
+      return (
+        error.status === 408 || error.status === 429 || (error.status >= 500 && error.status < 600)
+      );
     }
     return false;
   },
@@ -96,31 +98,28 @@ const RETRY_OPTIONS: RetryOptions = {
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
 
-  return retry(
-    async () => {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-        },
-      });
+  return retry(async () => {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
 
-      if (!response.ok) {
-        const error: ApiError = await response.json().catch(() => ({
-          message: `HTTP ${response.status}`,
-          status: response.status,
-        }));
-        throw new ApiClientError(
-          error.message || `Request failed with status ${response.status}`,
-          response.status
-        );
-      }
+    if (!response.ok) {
+      const error: ApiError = await response.json().catch(() => ({
+        message: `HTTP ${response.status}`,
+        status: response.status,
+      }));
+      throw new ApiClientError(
+        error.message || `Request failed with status ${response.status}`,
+        response.status
+      );
+    }
 
-      return response.json();
-    },
-    RETRY_OPTIONS
-  );
+    return response.json();
+  }, RETRY_OPTIONS);
 }
 
 // API Types
