@@ -43,6 +43,14 @@ import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
+import {
+  clearManualOverride,
+  detectContextFromRequest,
+  getContextSettings,
+  getContextSummary,
+  setManualContext,
+  updateContextSettings,
+} from "./context-service.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import {
   getDelayPredictorStatus,
@@ -66,6 +74,16 @@ import {
 import { getVapidPublicKey } from "./push/vapid.js";
 import { createTransferEngine } from "./transfer/index.js";
 import { lookupTrip } from "./trip-lookup.js";
+import {
+  calculateCommuteStats,
+  deleteTrip,
+  getTotalTripCount,
+  getTripById,
+  getTrips,
+  getTripsByDateRange,
+  recordTrip,
+  updateTripNotes,
+} from "./trip-tracking.js";
 
 /** Server start time for uptime calculation */
 const SERVER_START_MS = Date.now();
@@ -1059,6 +1077,274 @@ export function createApp(
         })
       );
       return c.json({ error: "Failed to update subscription" }, 500);
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Trip tracking and commute journal API (Phase 5)
+  // -------------------------------------------------------------------------
+
+  /** Record a trip in the journal */
+  app.post("/api/trips", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { date, origin, destination, line, departureTime, arrivalTime, notes } = body;
+
+      if (!origin || !destination || !line || !departureTime || !arrivalTime) {
+        return c.json(
+          {
+            error: "Missing required fields: origin, destination, line, departureTime, arrivalTime",
+          },
+          400
+        );
+      }
+
+      const actualDurationMinutes = Math.round((arrivalTime - departureTime) / 60000);
+
+      const trip = recordTrip({
+        date: date ?? new Date(departureTime).toISOString().split("T")[0]!,
+        origin,
+        destination,
+        line,
+        departureTime,
+        arrivalTime,
+        actualDurationMinutes,
+        source: "manual",
+        notes,
+      });
+
+      if (!trip) {
+        return c.json({ error: "Failed to record trip" }, 500);
+      }
+
+      c.header("Cache-Control", "no-cache");
+      return c.json({ success: true, trip }, 201);
+    } catch (error) {
+      console.error("Trip recording error:", error);
+      return c.json(
+        {
+          error: "Failed to record trip",
+          message: error instanceof Error ? error.message : "Unknown error",
+        },
+        500
+      );
+    }
+  });
+
+  /** Get trips from the journal with optional filters */
+  app.get("/api/trips", (c) => {
+    const limit = parseInt(c.req.query("limit") ?? "50", 10);
+    const offset = parseInt(c.req.query("offset") ?? "0", 10);
+    const startDate = c.req.query("startDate");
+    const endDate = c.req.query("endDate");
+    const originId = c.req.query("originId");
+    const destinationId = c.req.query("destinationId");
+    const line = c.req.query("line");
+    const source = c.req.query("source") as TripSource | undefined;
+
+    const trips = getTrips({
+      limit,
+      offset,
+      startDate,
+      endDate,
+      originId,
+      destinationId,
+      line,
+      source,
+    });
+
+    c.header("Cache-Control", "public, max-age=15");
+    return c.json({
+      trips,
+      count: trips.length,
+      limit,
+      offset,
+    });
+  });
+
+  /** Get a single trip by ID */
+  app.get("/api/trips/:tripId", (c) => {
+    const tripId = c.req.param("tripId");
+    const trip = getTripById(tripId);
+
+    if (!trip) {
+      return c.json({ error: "Trip not found" }, 404);
+    }
+
+    c.header("Cache-Control", "public, max-age=60");
+    return c.json(trip);
+  });
+
+  /** Update trip notes */
+  app.patch("/api/trips/:tripId/notes", async (c) => {
+    const tripId = c.req.param("tripId");
+    try {
+      const body = await c.req.json();
+      const { notes } = body;
+
+      if (notes === undefined) {
+        return c.json({ error: "notes field is required" }, 400);
+      }
+
+      const success = updateTripNotes(tripId, notes);
+
+      if (!success) {
+        return c.json({ error: "Trip not found" }, 404);
+      }
+
+      return c.json({ success: true });
+    } catch {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
+  });
+
+  /** Delete a trip from the journal */
+  app.delete("/api/trips/:tripId", (c) => {
+    const tripId = c.req.param("tripId");
+    const success = deleteTrip(tripId);
+
+    if (!success) {
+      return c.json({ error: "Trip not found" }, 404);
+    }
+
+    return c.json({ success: true });
+  });
+
+  /** Get commute statistics */
+  app.get("/api/journal/stats", (c) => {
+    const commuteId = c.req.query("commuteId") ?? "default";
+    const stats = calculateCommuteStats(commuteId);
+
+    c.header("Cache-Control", "public, max-age=60");
+    return c.json(stats);
+  });
+
+  /** Get trips for a specific date range */
+  app.get("/api/journal/dates/:startDate/:endDate", (c) => {
+    const startDate = c.req.param("startDate");
+    const endDate = c.req.param("endDate");
+
+    const trips = getTripsByDateRange(startDate, endDate);
+
+    c.header("Cache-Control", "public, max-age=30");
+    return c.json({
+      startDate,
+      endDate,
+      trips,
+      count: trips.length,
+    });
+  });
+
+  /** Get journal summary (recent trips + stats) */
+  app.get("/api/journal/summary", (c) => {
+    const recentTrips = getTrips({ limit: 10 });
+    const stats = calculateCommuteStats("default");
+    const totalTrips = getTotalTripCount();
+
+    c.header("Cache-Control", "public, max-age=30");
+    return c.json({
+      recentTrips,
+      stats,
+      totalTrips,
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Context-aware switching API (Phase 5)
+  // -------------------------------------------------------------------------
+
+  /** Get current context and UI hints */
+  app.get("/api/context", (c) => {
+    const summary = getContextSummary();
+
+    c.header("Cache-Control", "public, max-age=15");
+    return c.json(summary);
+  });
+
+  /** Detect context from request parameters */
+  app.post("/api/context/detect", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { latitude, longitude, tapHistory, currentScreen, screenTime, recentActions } = body;
+
+      const context = detectContextFromRequest({
+        latitude,
+        longitude,
+        tapHistory,
+        currentScreen,
+        screenTime,
+        recentActions,
+      });
+
+      c.header("Cache-Control", "no-cache");
+      return c.json({ context });
+    } catch (err) {
+      console.error("Context detection error:", err);
+      return c.json(
+        {
+          error: "Failed to detect context",
+          message: err instanceof Error ? err.message : "Unknown error",
+        },
+        500
+      );
+    }
+  });
+
+  /** Set manual context override */
+  app.post("/api/context/override", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { context } = body;
+
+      if (
+        !context ||
+        !["commuting", "planning", "reviewing", "idle", "at_station"].includes(context)
+      ) {
+        return c.json(
+          {
+            error:
+              "Invalid context. Must be one of: commuting, planning, reviewing, idle, at_station",
+          },
+          400
+        );
+      }
+
+      const newContext = setManualContext(context);
+
+      c.header("Cache-Control", "no-cache");
+      return c.json({ success: true, context: newContext });
+    } catch (error) {
+      console.error("Context override error:", error);
+      return c.json({ error: "Failed to set context override" }, 500);
+    }
+  });
+
+  /** Clear manual context override */
+  app.post("/api/context/clear", (c) => {
+    const context = clearManualOverride();
+
+    c.header("Cache-Control", "no-cache");
+    return c.json({ success: true, context });
+  });
+
+  /** Update context settings */
+  app.patch("/api/context/settings", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { enabled, showIndicator, useLocation, useTimePatterns, learnPatterns } = body;
+
+      updateContextSettings({
+        enabled,
+        showIndicator,
+        useLocation,
+        useTimePatterns,
+        learnPatterns,
+      });
+
+      return c.json({ success: true, settings: getContextSettings() });
+    } catch (error) {
+      console.error("Context settings update error:", error);
+      return c.json({ error: "Failed to update context settings" }, 500);
     }
   });
 

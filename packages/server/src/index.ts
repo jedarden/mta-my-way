@@ -22,15 +22,17 @@ import type {
 } from "@mta-my-way/shared";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
+import { initContextService } from "./context-service.js";
 import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
-import { initPushDatabase } from "./push/subscriptions.js";
+import { getPushDatabase, initPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
+import { initTripTracking } from "./trip-tracking.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -114,10 +116,17 @@ async function main(): Promise<void> {
   // Push notification subsystem
   const pushDbPath = process.env["PUSH_DB_PATH"] ?? join(DATA_DIR, "subscriptions.db");
   initPushDatabase(pushDbPath);
+  const pushDb = getPushDatabase();
   const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
   configureWebPush(vapidKeys);
   startPushPipeline();
   startBriefingScheduler();
+
+  // Initialize trip tracking and journal (Phase 5)
+  initTripTracking(pushDb, stations);
+
+  // Initialize context-aware switching service (Phase 5)
+  initContextService(pushDb, stations);
 
   // Feed poller (also triggers immediate first poll)
   initPoller(stations, routes);
