@@ -39,7 +39,6 @@ function validatePushEndpoint(endpoint: string): boolean {
     }
 
     // Check if the endpoint is from a known push service
-    const origin = `${url.protocol}//${url.host}`;
     return ALLOWED_PUSH_ENDPOINTS.some((allowed) => endpoint.startsWith(allowed));
   } catch {
     return false;

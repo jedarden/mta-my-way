@@ -286,3 +286,12 @@ export {
   detectContext,
   shouldTriggerUIRefresh,
 } from "./utils/context.js";
+
+// Retry utility with exponential backoff
+export {
+  retry,
+  retryWithBackoff,
+  createRetryFetch,
+  type RetryOptions,
+  type RetryResult,
+} from "./utils/retry.js";

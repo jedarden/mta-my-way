@@ -4,7 +4,6 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  type FreshnessLevel,
   formatFeedAge,
   getFreshnessDotColor,
   getFreshnessLevel,

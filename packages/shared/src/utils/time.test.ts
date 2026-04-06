@@ -2,7 +2,7 @@
  * Unit tests for time utilities
  */
 
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   calculateMinutesAway,
   calculateSecondsAway,

@@ -3,13 +3,14 @@
  *
  * Guarantees:
  * - Promise.allSettled so one feed failure never blocks others
+ * - Automatic retry with exponential backoff for transient failures
  * - Circuit breaker: after 3 consecutive failures, pause 60s before retry
  * - First poll fires immediately on startup (no 30s cold-start delay)
  * - Structured JSON logging on every poll (timestamp, feed, status, latency)
  * - MTA_API_KEY env var forwarded in x-api-key header if set
  */
 
-import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS } from "@mta-my-way/shared";
+import { type FeedConfig, POLLING_INTERVALS, SUBWAY_FEEDS, retry, type RetryOptions } from "@mta-my-way/shared";
 import type { LinePositions, RouteIndex, StationIndex, TrainPosition } from "@mta-my-way/shared";
 import {
   getAllFeedAges,
@@ -111,6 +112,52 @@ async function runPoll(): Promise<void> {
 // Individual feed fetch
 // ---------------------------------------------------------------------------
 
+/**
+ * Retry configuration for MTA feed fetches
+ *
+ * - maxAttempts: 3 retries (4 total attempts)
+ * - initialDelayMs: 500ms (feeds are polled every 30s, quick retry)
+ * - backoffMultiplier: 2 (exponential backoff: 500ms, 1s, 2s)
+ * - maxDelayMs: 5000ms (cap max wait time)
+ * - isRetryable: retry on network errors and 5xx status codes
+ */
+const RETRY_OPTIONS: RetryOptions = {
+  maxAttempts: 4,
+  initialDelayMs: 500,
+  backoffMultiplier: 2,
+  maxDelayMs: 5000,
+  jitter: true,
+  isRetryable: (error: unknown) => {
+    // Retry on network errors
+    if (error instanceof Error && error.name === "TypeError") {
+      return true;
+    }
+    // Retry on timeout errors
+    if (error instanceof Error && error.name === "AbortError") {
+      return true;
+    }
+    // Retry on 5xx server errors and 429 rate limiting
+    if (error instanceof Error && "status" in error) {
+      const status = (error as { status: number }).status;
+      return status === 429 || (status >= 500 && status < 600);
+    }
+    return false;
+  },
+  onRetry: (attempt, error, delayMs) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(
+      JSON.stringify({
+        event: "feed_retry",
+        timestamp: new Date().toISOString(),
+        feed: "unknown", // Will be set by fetchFeed wrapper
+        attempt,
+        delay_ms: delayMs,
+        error: message,
+      })
+    );
+  },
+};
+
 async function fetchFeed(config: FeedConfig): Promise<boolean> {
   // Circuit breaker: skip this feed until reset window expires
   if (isCircuitOpen(config.id)) {
@@ -125,22 +172,54 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
   }
 
   const start = Date.now();
-  const headers: Record<string, string> = {
-    Accept: "application/x-protobuf",
-  };
-
-  const apiKey = process.env["MTA_API_KEY"];
-  if (apiKey) headers["x-api-key"] = apiKey;
 
   try {
-    const response = await fetch(config.url, {
-      headers,
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    const headers: Record<string, string> = {
+      Accept: "application/x-protobuf",
+    };
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} ${response.statusText}`);
-    }
+    const apiKey = process.env["MTA_API_KEY"];
+    if (apiKey) headers["x-api-key"] = apiKey;
+
+    // Wrap onRetry to include feed ID
+    const retryOptions: RetryOptions = {
+      ...RETRY_OPTIONS,
+      onRetry: (attempt, error, delayMs) => {
+        RETRY_OPTIONS.onRetry?.(attempt, error, delayMs);
+        // Log with feed ID
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(
+          JSON.stringify({
+            event: "feed_retry",
+            timestamp: new Date().toISOString(),
+            feed: config.id,
+            attempt,
+            delay_ms: delayMs,
+            error: message,
+          })
+        );
+      },
+    };
+
+    // Fetch with retry logic
+    const response = await retry(
+      async () => {
+        const res = await fetch(config.url, {
+          headers,
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+
+        if (!res.ok) {
+          // Create error with status for isRetryable predicate
+          const error = new Error(`HTTP ${res.status} ${res.statusText}`) as Error & { status: number };
+          error.status = res.status;
+          throw error;
+        }
+
+        return res;
+      },
+      retryOptions
+    );
 
     const buffer = await response.arrayBuffer();
     const data = new Uint8Array(buffer);

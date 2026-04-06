@@ -1,6 +1,6 @@
 /**
  * API client for MTA My Way backend
- * Provides type-safe fetch wrapper with error handling
+ * Provides type-safe fetch wrapper with error handling and automatic retry
  */
 
 import type {
@@ -20,6 +20,7 @@ import type {
   StationComplex,
   StationEquipmentSummary,
 } from "@mta-my-way/shared";
+import { retry, type RetryOptions } from "@mta-my-way/shared";
 
 // Re-export for use across the frontend
 export type { StationComplex };
@@ -59,37 +60,67 @@ class ApiClientError extends Error {
   }
 }
 
+/**
+ * Retry configuration for API client requests
+ *
+ * - maxAttempts: 3 retries (4 total attempts)
+ * - initialDelayMs: 1000ms (user-facing, slower initial retry)
+ * - backoffMultiplier: 2 (exponential backoff: 1s, 2s, 4s)
+ * - maxDelayMs: 10000ms (cap max wait time)
+ * - isRetryable: retry on network errors, timeouts, 5xx, and 429
+ */
+const RETRY_OPTIONS: RetryOptions = {
+  maxAttempts: 4,
+  initialDelayMs: 1000,
+  backoffMultiplier: 2,
+  maxDelayMs: 10000,
+  jitter: true,
+  isRetryable: (error: unknown) => {
+    // Retry on network errors
+    if (error instanceof ApiClientError) {
+      if (error.status === 0) {
+        // Network error (status 0 indicates fetch failure)
+        return true;
+      }
+      // Retry on 5xx server errors, 429 rate limiting, and 408 timeout
+      return error.status === 408 || error.status === 429 || (error.status >= 500 && error.status < 600);
+    }
+    return false;
+  },
+  onRetry: (attempt, error, delayMs) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`API retry attempt ${attempt} after ${delayMs}ms: ${message}`);
+  },
+};
+
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
+  return retry(
+    async () => {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const error: ApiError = await response.json().catch(() => ({
-        message: `HTTP ${response.status}`,
-        status: response.status,
-      }));
-      throw new ApiClientError(
-        error.message || `Request failed with status ${response.status}`,
-        response.status
-      );
-    }
+      if (!response.ok) {
+        const error: ApiError = await response.json().catch(() => ({
+          message: `HTTP ${response.status}`,
+          status: response.status,
+        }));
+        throw new ApiClientError(
+          error.message || `Request failed with status ${response.status}`,
+          response.status
+        );
+      }
 
-    return response.json();
-  } catch (error) {
-    if (error instanceof ApiClientError) {
-      throw error;
-    }
-    // Network error
-    throw new ApiClientError("Network error - please check your connection", 0);
-  }
+      return response.json();
+    },
+    RETRY_OPTIONS
+  );
 }
 
 // API Types
