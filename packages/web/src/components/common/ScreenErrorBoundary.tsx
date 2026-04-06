@@ -8,19 +8,13 @@
  *   - Allows navigation away from failed screens
  *   - Provides screen-specific error recovery
  *   - Logs errors for debugging
+ *   - Enhanced with user-friendly error messages
  */
 
-import type { ErrorInfo, ReactNode } from "react";
+import type { ErrorInfo } from "react";
 import { Component } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiErrorDisplay } from "./ApiErrorDisplay";
-
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-  screenName?: string;
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
-}
 
 interface State {
   hasError: boolean;
@@ -92,14 +86,76 @@ function ScreenErrorFallback({ error, screenName, onReset }: ScreenErrorFallback
     onReset();
   };
 
+  // Get user-friendly error message based on screen context
+  const getScreenErrorMessage = (): { title: string; message: string } => {
+    if (!screenName) {
+      return {
+        title: "Something went wrong",
+        message: "This screen encountered an unexpected error.",
+      };
+    }
+
+    const screenLower = screenName.toLowerCase();
+
+    // Screen-specific error messages
+    if (screenLower.includes("station") || screenLower.includes("arrival")) {
+      return {
+        title: "Unable to load station data",
+        message: "We couldn't fetch the latest information for this station.",
+      };
+    }
+    if (screenLower.includes("trip") || screenLower.includes("tracking")) {
+      return {
+        title: "Unable to track trip",
+        message: "We couldn't fetch the current status of this train.",
+      };
+    }
+    if (screenLower.includes("commute")) {
+      return {
+        title: "Unable to load commute",
+        message: "We couldn't analyze your commute right now.",
+      };
+    }
+    if (screenLower.includes("alert") || screenLower.includes("health")) {
+      return {
+        title: "Unable to load service alerts",
+        message: "We couldn't fetch the latest service updates.",
+      };
+    }
+    if (screenLower.includes("map")) {
+      return {
+        title: "Unable to load map",
+        message: "We couldn't load the subway map.",
+      };
+    }
+    if (screenLower.includes("journal") || screenLower.includes("stats")) {
+      return {
+        title: "Unable to load your data",
+        message: "We couldn't load your trip history and statistics.",
+      };
+    }
+    if (screenLower.includes("setting")) {
+      return {
+        title: "Unable to load settings",
+        message: "We couldn't load your settings.",
+      };
+    }
+
+    // Default message
+    return {
+      title: "Something went wrong",
+      message: `The ${screenName} screen encountered an error.`,
+    };
+  };
+
+  const { message } = getScreenErrorMessage();
+  const displayMessage = error?.message ? `${message} ${error.message}` : message;
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-background dark:bg-dark-background p-4">
       <div className="max-w-md w-full">
         <ApiErrorDisplay
-          error={
-            error?.message ||
-            `The ${screenName || "screen"} encountered an error. Please try again.`
-          }
+          error={displayMessage}
           canRetry={true}
           isRetrying={false}
           onRetry={handleRetry}

@@ -38,6 +38,10 @@ interface DataStateProps<T> {
   data: T | null;
   /** Error message if status is 'error' */
   error?: string | null;
+  /** Error type for better error messages */
+  errorType?: ApiErrorType | null;
+  /** Context for more specific error messages (e.g., "trip", "equipment", "alerts") */
+  errorContext?: string;
   /** Rendered while loading with no data (no cached fallback) */
   skeleton?: React.ReactNode;
   /** Rendered when status is success/stale but data is empty array */
@@ -54,6 +58,8 @@ export function DataState<T>({
   status,
   data,
   error,
+  errorType,
+  errorContext,
   skeleton,
   empty,
   staleTimestamp,
@@ -92,7 +98,8 @@ export function DataState<T>({
     return (
       <ApiErrorDisplay
         error={error ?? "Something went wrong"}
-        errorType={ApiErrorType.UNKNOWN}
+        errorType={errorType ?? ApiErrorType.UNKNOWN}
+        context={errorContext}
         canRetry={!!onRetry}
         isRetrying={false}
         onRetry={onRetry}
@@ -106,6 +113,7 @@ export function DataState<T>({
       <ApiErrorDisplay
         error={error ?? "No cached data available"}
         errorType={ApiErrorType.OFFLINE}
+        context={errorContext}
         canRetry={!!onRetry}
         isRetrying={false}
         onRetry={onRetry}
@@ -146,6 +154,7 @@ export function DataState<T>({
           <ApiErrorDisplay
             error="Offline — showing last known data"
             errorType={ApiErrorType.OFFLINE}
+            context={errorContext}
             canRetry={!!onRetry}
             isRetrying={false}
             onRetry={onRetry}
@@ -159,7 +168,8 @@ export function DataState<T>({
         <div className="mb-2">
           <ApiErrorDisplay
             error={error ?? "Update failed"}
-            errorType={ApiErrorType.UNKNOWN}
+            errorType={errorType ?? ApiErrorType.UNKNOWN}
+            context={errorContext}
             canRetry={!!onRetry}
             isRetrying={false}
             onRetry={onRetry}

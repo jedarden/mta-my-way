@@ -9,9 +9,11 @@
  *   - Offline-specific messaging
  *   - Accessibility features (ARIA live regions)
  *   - Optional dismiss action
+ *   - Uses getUserErrorMessage for consistent, contextual error messages
  */
 
 import type { ApiErrorType } from "../../lib/apiEnhanced";
+import { type UserErrorMessage, getUserErrorMessage } from "../../lib/errorMessages";
 
 interface ApiErrorDisplayProps {
   error: string;
@@ -21,6 +23,8 @@ interface ApiErrorDisplayProps {
   onRetry?: () => void;
   onDismiss?: () => void;
   compact?: boolean;
+  /** Optional context for more specific error messages (e.g., "trip", "equipment", "alerts") */
+  context?: string;
 }
 
 const ERROR_ICONS: Record<ApiErrorType | "default", { icon: string; color: string }> = {
@@ -70,7 +74,18 @@ export function ApiErrorDisplay({
   onRetry,
   onDismiss,
   compact = false,
+  context,
 }: ApiErrorDisplayProps) {
+  // Get user-friendly error message based on error type and context
+  const userError: UserErrorMessage = errorType
+    ? getUserErrorMessage(errorType, context)
+    : {
+        title: "Something went wrong",
+        message: error,
+        retryable: canRetry,
+        category: "unknown" as const,
+      };
+
   const iconData = ERROR_ICONS[errorType || "default"];
 
   if (compact) {
@@ -82,9 +97,9 @@ export function ApiErrorDisplay({
       >
         <span className={iconData.color} dangerouslySetInnerHTML={{ __html: iconData.icon }} />
         <span className="flex-1 text-13 text-text-primary dark:text-dark-text-primary">
-          {error}
+          {userError.message}
         </span>
-        {canRetry && onRetry && !isRetrying && (
+        {userError.retryable && onRetry && !isRetrying && (
           <button
             onClick={onRetry}
             className="text-13 text-mta-primary font-medium whitespace-nowrap"
@@ -110,13 +125,20 @@ export function ApiErrorDisplay({
 
       {/* Error message */}
       <p className="text-base text-text-primary dark:text-dark-text-primary mb-1">
-        {errorType === "offline" ? "You're offline" : "Unable to load"}
+        {userError.title}
       </p>
-      <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4">{error}</p>
+      <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4">
+        {userError.message}
+      </p>
+      {userError.suggestion && (
+        <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-4 italic">
+          {userError.suggestion}
+        </p>
+      )}
 
       {/* Action buttons */}
       <div className="flex flex-col gap-2">
-        {canRetry && onRetry && (
+        {userError.retryable && onRetry && (
           <button
             onClick={onRetry}
             disabled={isRetrying}

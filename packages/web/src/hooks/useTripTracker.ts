@@ -5,11 +5,14 @@
  * Handles trip expiration (404 = trip left the feed).
  * Provides stop-by-stop progress derived from the raw trip data.
  * Enhanced with delay predictions for ETA adjustment.
+ * Enhanced with user-friendly error messages.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TripData } from "../lib/api";
 import { api } from "../lib/api";
+import { EnhancedApiError } from "../lib/apiEnhanced";
+import { ErrorCategory, getUserErrorMessage } from "../lib/errorMessages";
 
 export type DelayRisk = "low" | "medium" | "high" | null;
 
@@ -188,10 +191,22 @@ export function useTripTracker(
       const isExpired =
         err instanceof Error && "status" in err && (err as { status: number }).status === 404;
 
+      // Get user-friendly error message
+      let errorMessage = "Failed to load trip";
+      if (isExpired) {
+        errorMessage = "This train is no longer in the system. It may have completed its trip.";
+      } else if (err instanceof EnhancedApiError) {
+        const userError = getUserErrorMessage(err.type, "trip");
+        errorMessage = userError.message;
+      } else if (err instanceof Error) {
+        const userError = getUserErrorMessage(ErrorCategory.UNKNOWN, "trip");
+        errorMessage = userError.message;
+      }
+
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: isExpired ? null : err instanceof Error ? err.message : "Failed to load trip",
+        error: isExpired ? null : errorMessage,
         isExpired,
         isActive: !isExpired,
       }));
