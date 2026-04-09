@@ -12,17 +12,16 @@
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import type { ArrivalTime, Favorite } from "@mta-my-way/shared";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
 import { ArrivalList } from "../components/arrivals/ArrivalList";
 import { LineBullet } from "../components/arrivals/LineBullet";
-import { DataState } from "../components/common/DataState";
+import { DataState, Skeleton } from "../components/common";
 import { EmptyArrivals } from "../components/common/EmptyState";
 import OfflineBanner from "../components/common/OfflineBanner";
 import { ArrivalListSkeleton } from "../components/common/Skeleton";
 import { EquipmentBanner } from "../components/equipment";
-import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FreshnessFooter } from "../components/freshness";
 import BottomNav from "../components/layout/BottomNav";
 import { useAlertsForStation } from "../hooks/useAlerts";
@@ -30,6 +29,11 @@ import { useArrivals } from "../hooks/useArrivals";
 import { useEquipment } from "../hooks/useEquipment";
 import { useFavorites } from "../hooks/useFavorites";
 import { type Station, api } from "../lib/api";
+
+// Lazy load modal component - only loaded when needed
+const FavoriteEditor = lazy(() =>
+  import("../components/favorites/FavoriteEditor").then((m) => ({ default: m.FavoriteEditor }))
+);
 
 export default function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
@@ -283,20 +287,22 @@ export default function StationScreen() {
       <BottomNav />
 
       {/* FavoriteEditor modal */}
-      {editingFavorite && (
-        <FavoriteEditor
-          favorite={editingFavorite}
-          onSave={(updates) => {
-            updateFavorite(editingFavorite.id, updates);
-            setEditingFavorite(null);
-          }}
-          onDelete={() => {
-            removeFavorite(editingFavorite.id);
-            setEditingFavorite(null);
-          }}
-          onClose={() => setEditingFavorite(null)}
-        />
-      )}
+      <Suspense fallback={<Skeleton className="w-full h-64" />}>
+        {editingFavorite && (
+          <FavoriteEditor
+            favorite={editingFavorite}
+            onSave={(updates) => {
+              updateFavorite(editingFavorite.id, updates);
+              setEditingFavorite(null);
+            }}
+            onDelete={() => {
+              removeFavorite(editingFavorite.id);
+              setEditingFavorite(null);
+            }}
+            onClose={() => setEditingFavorite(null)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

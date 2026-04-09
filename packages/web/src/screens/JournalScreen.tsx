@@ -8,13 +8,17 @@
  */
 
 import type { CommuteStats, TripRecord } from "@mta-my-way/shared";
-import { useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
-import { DataState } from "../components/common/DataState";
-import { TripRecordEditor } from "../components/journal";
+import { DataState, Skeleton } from "../components/common";
 import Screen from "../components/layout/Screen";
 import { useFavoritesStore, useJournalStore } from "../stores";
+
+// Lazy load modal component - only loaded when needed
+const TripRecordEditor = lazy(() =>
+  import("../components/journal/TripRecordEditor").then((m) => ({ default: m.TripRecordEditor }))
+);
 
 // -----------------------------------------------------------------------------
 // Sparkline Component
@@ -586,15 +590,17 @@ export default function JournalScreen() {
       </div>
 
       {/* Trip record editor */}
-      {editor.isOpen && editor.trip && (
-        <TripRecordEditor
-          trip={editor.trip}
-          commuteId={editor.commuteId}
-          onSave={handleSaveTrip}
-          onDelete={handleDeleteTrip}
-          onClose={handleCloseEditor}
-        />
-      )}
+      <Suspense fallback={<Skeleton className="w-full h-64" />}>
+        {editor.isOpen && editor.trip && (
+          <TripRecordEditor
+            trip={editor.trip}
+            commuteId={editor.commuteId}
+            onSave={handleSaveTrip}
+            onDelete={handleDeleteTrip}
+            onClose={handleCloseEditor}
+          />
+        )}
+      </Suspense>
     </Screen>
   );
 }

@@ -18,10 +18,9 @@ import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ComponentErrorBoundary, EmptyFavorites } from "../components/common";
+import { ComponentErrorBoundary, EmptyFavorites, Skeleton } from "../components/common";
 import { CommuteCard } from "../components/commute/CommuteCard";
 import { FareTracker } from "../components/fare/FareTracker";
-import { FavoriteEditor } from "../components/favorites/FavoriteEditor";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
 import { useContextAware } from "../hooks/useContextAware";
@@ -31,6 +30,11 @@ import { useFavoritesStore, useSettingsStore } from "../stores";
 
 // Lazy load onboarding flow - only shown once to new users
 const OnboardingFlow = lazy(() => import("../components/onboarding/OnboardingFlow"));
+
+// Lazy load modal components - only loaded when needed
+const FavoriteEditor = lazy(() =>
+  import("../components/favorites/FavoriteEditor").then((m) => ({ default: m.FavoriteEditor }))
+);
 
 /** How often to tick the "Updated X ago" counter (ms) */
 const TIME_AGO_INTERVAL = 15_000;
@@ -295,14 +299,16 @@ export default function HomeScreen() {
         )}
 
         {/* FavoriteEditor modal */}
-        {editingFavorite && (
-          <FavoriteEditor
-            favorite={editingFavorite}
-            onSave={handleSave}
-            onDelete={handleDelete}
-            onClose={() => setEditingFavorite(null)}
-          />
-        )}
+        <Suspense fallback={<Skeleton className="w-full h-64" />}>
+          {editingFavorite && (
+            <FavoriteEditor
+              favorite={editingFavorite}
+              onSave={handleSave}
+              onDelete={handleDelete}
+              onClose={() => setEditingFavorite(null)}
+            />
+          )}
+        </Suspense>
       </div>
     </Screen>
   );

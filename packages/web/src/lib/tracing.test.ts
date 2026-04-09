@@ -41,27 +41,27 @@ describe("ClientTracer", () => {
       const traceParent = headers.traceparent;
       expect(traceParent).toBeDefined();
 
-      const parts = traceParent.split("-");
-      expect(parts[0]).toBe("00"); // version
-      expect(parts[1]).toHaveLength(32); // traceId
-      expect(/^[a-f0-9]{32}$/.test(parts[1])).toBe(true);
+      const parts = traceParent?.split("-");
+      expect(parts?.[0]).toBe("00"); // version
+      expect(parts?.[1]).toHaveLength(32); // traceId
+      expect(/^[a-f0-9]{32}$/.test(parts?.[1] || "")).toBe(true);
     });
 
     it("should generate valid span IDs (16 hex chars)", () => {
       const headers = getTraceHeaders();
       const traceParent = headers.traceparent;
 
-      const parts = traceParent.split("-");
-      expect(parts[2]).toHaveLength(16); // spanId
-      expect(/^[a-f0-9]{16}$/.test(parts[2])).toBe(true);
+      const parts = traceParent?.split("-");
+      expect(parts?.[2]).toHaveLength(16); // spanId
+      expect(/^[a-f0-9]{16}$/.test(parts?.[2] || "")).toBe(true);
     });
 
     it("should set sampled flag to 01 by default", () => {
       const headers = getTraceHeaders();
       const traceParent = headers.traceparent;
 
-      const parts = traceParent.split("-");
-      expect(parts[3]).toBe("01"); // sampled
+      const parts = traceParent?.split("-");
+      expect(parts?.[3]).toBe("01"); // sampled
     });
   });
 
@@ -102,8 +102,8 @@ describe("ClientTracer", () => {
 
       const completed = tracer.getCompletedSpans();
       expect(completed).toHaveLength(2);
-      expect(completed[0].name).toBe("child");
-      expect(completed[1].name).toBe("parent");
+      expect(completed[0]?.name).toBe("child");
+      expect(completed[1]?.name).toBe("parent");
     });
   });
 
@@ -128,8 +128,8 @@ describe("ClientTracer", () => {
 
       const span = tracer.activeSpan();
       expect(span?.events).toHaveLength(1);
-      expect(span?.events[0].name).toBe("test-event");
-      expect(span?.events[0].attributes).toEqual({ data: "value" });
+      expect(span?.events[0]?.name).toBe("test-event");
+      expect(span?.events[0]?.attributes).toEqual({ data: "value" });
 
       tracer.endSpan();
     });
@@ -202,11 +202,11 @@ describe("ClientTracer", () => {
 
       expect(result).toBe("result");
       expect(capturedSpan).toBeDefined();
-      expect(capturedSpan.name).toBe("async-operation");
+      expect(capturedSpan?.name).toBe("async-operation");
 
       const completed = tracer.getCompletedSpans();
       expect(completed).toHaveLength(1);
-      expect(completed[0].name).toBe("async-operation");
+      expect(completed[0]?.name).toBe("async-operation");
     });
 
     it("should set attributes on span", async () => {

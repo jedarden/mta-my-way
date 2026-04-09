@@ -14,13 +14,12 @@
  */
 
 import type { Commute } from "@mta-my-way/shared";
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
-import { DataState } from "../components/common/DataState";
+import { DataState, Skeleton } from "../components/common";
 import { EmptyCommutes } from "../components/common/EmptyState";
 import { CommuteCardSkeleton } from "../components/common/Skeleton";
-import { CommuteEditor } from "../components/commute/CommuteEditor";
 import { CommutePresetCard } from "../components/commute/CommutePresetCard";
 import { RouteComparison } from "../components/commute/RouteComparison";
 import { TransferDetail } from "../components/commute/TransferDetail";
@@ -30,6 +29,11 @@ import { useAlertsForStation } from "../hooks/useAlerts";
 import { useCommute } from "../hooks/useCommute";
 import { useWalkComparison } from "../hooks/useWalkComparison";
 import { useFavoritesStore } from "../stores";
+
+// Lazy load modal components - only loaded when needed
+const CommuteEditor = lazy(() =>
+  import("../components/commute/CommuteEditor").then((m) => ({ default: m.CommuteEditor }))
+);
 
 const MAX_COMMUTES = 10;
 
@@ -171,17 +175,19 @@ function CommuteList() {
         </section>
 
         {/* CommuteEditor modals */}
-        {editingCommute && (
-          <CommuteEditor
-            commute={editingCommute}
-            onSave={handleSaveEdit}
-            onDelete={handleDelete}
-            onClose={() => setEditingCommute(null)}
-          />
-        )}
-        {showNewEditor && (
-          <CommuteEditor onSave={handleSaveNew} onClose={() => setShowNewEditor(false)} />
-        )}
+        <Suspense fallback={<Skeleton className="w-full h-64" />}>
+          {editingCommute && (
+            <CommuteEditor
+              commute={editingCommute}
+              onSave={handleSaveEdit}
+              onDelete={handleDelete}
+              onClose={() => setEditingCommute(null)}
+            />
+          )}
+          {showNewEditor && (
+            <CommuteEditor onSave={handleSaveNew} onClose={() => setShowNewEditor(false)} />
+          )}
+        </Suspense>
       </div>
     </Screen>
   );
