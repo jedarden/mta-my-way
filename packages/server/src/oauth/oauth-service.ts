@@ -10,14 +10,8 @@
  */
 
 import { Buffer } from "node:buffer";
+import type { OAuthProvider, OAuthState } from "../middleware/authentication.js";
 import { logger } from "../observability/logger.js";
-import { securityLogger } from "../middleware/security-logging.js";
-import type {
-  AuthContext,
-  AuthSession,
-  OAuthProvider,
-  OAuthState,
-} from "../middleware/authentication.js";
 
 // ============================================================================
 // Types
@@ -162,10 +156,7 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
 /**
  * Create OAuth state for CSRF protection.
  */
-function createOAuthState(
-  providerId: string,
-  redirectUrl?: string
-): OAuthState {
+function createOAuthState(providerId: string, redirectUrl?: string): OAuthState {
   const stateId = generateRandomString(32);
   const codeVerifier = generateRandomString(64);
   const nonce = generateRandomString(32);
@@ -184,12 +175,15 @@ function createOAuthState(
   oauthStates.set(stateId, state);
 
   // Clean up expired states every hour
-  setTimeout(() => {
-    const s = oauthStates.get(stateId);
-    if (s && s.expiresAt < Date.now()) {
-      oauthStates.delete(stateId);
-    }
-  }, 60 * 60 * 1000);
+  setTimeout(
+    () => {
+      const s = oauthStates.get(stateId);
+      if (s && s.expiresAt < Date.now()) {
+        oauthStates.delete(stateId);
+      }
+    },
+    60 * 60 * 1000
+  );
 
   return state;
 }
@@ -197,9 +191,7 @@ function createOAuthState(
 /**
  * Validate and consume OAuth state.
  */
-function validateOAuthState(
-  stateId: string
-): OAuthState | { error: string } {
+function validateOAuthState(stateId: string): OAuthState | { error: string } {
   const state = oauthStates.get(stateId);
 
   if (!state) {
@@ -345,10 +337,7 @@ async function fetchUserProfile(
     const data = await response.json();
 
     // Normalize profile based on provider
-    const profile: OAuthUserProfile = normalizeUserProfile(
-      provider.providerId,
-      data
-    );
+    const profile: OAuthUserProfile = normalizeUserProfile(provider.providerId, data);
 
     return profile;
   } catch (error) {
@@ -360,10 +349,7 @@ async function fetchUserProfile(
 /**
  * Normalize user profile from provider-specific format.
  */
-function normalizeUserProfile(
-  providerId: string,
-  data: Record<string, unknown>
-): OAuthUserProfile {
+function normalizeUserProfile(providerId: string, data: Record<string, unknown>): OAuthUserProfile {
   const profile: OAuthUserProfile = {
     providerId,
     providerUserId: "",
@@ -476,10 +462,7 @@ export async function handleOAuthCallback(
   // Validate state
   const stateValidation = validateOAuthState(stateId);
   if ("error" in stateValidation) {
-    securityLogger.logAuthFailure(
-      { ip: clientIp, userAgent: userAgent ?? "" },
-      "oauth_invalid_state"
-    );
+    logger.warn("OAuth callback: Invalid or expired state", { clientIp, userAgent });
     return {
       success: false,
       error: stateValidation.error,
@@ -490,10 +473,7 @@ export async function handleOAuthCallback(
   const provider = getOAuthProvider(state.providerId);
 
   if (!provider) {
-    securityLogger.logAuthFailure(
-      { ip: clientIp, userAgent: userAgent ?? "" },
-      "oauth_provider_not_found"
-    );
+    logger.warn("OAuth callback: Provider not found", { clientIp, providerId: state.providerId });
     return {
       success: false,
       error: "Provider not found",
@@ -501,17 +481,13 @@ export async function handleOAuthCallback(
   }
 
   // Exchange code for token
-  const tokenResult = await exchangeCodeForToken(
-    provider,
-    code,
-    state.codeVerifier
-  );
+  const tokenResult = await exchangeCodeForToken(provider, code, state.codeVerifier);
 
   if ("error" in tokenResult) {
-    securityLogger.logAuthFailure(
-      { ip: clientIp, userAgent: userAgent ?? "" },
-      "oauth_token_exchange_failed"
-    );
+    logger.warn("OAuth callback: Token exchange failed", {
+      clientIp,
+      providerId: state.providerId,
+    });
     return {
       success: false,
       error: tokenResult.error,
@@ -524,10 +500,10 @@ export async function handleOAuthCallback(
   const profileResult = await fetchUserProfile(provider, token.access_token);
 
   if ("error" in profileResult) {
-    securityLogger.logAuthFailure(
-      { ip: clientIp, userAgent: userAgent ?? "" },
-      "oauth_profile_fetch_failed"
-    );
+    logger.warn("OAuth callback: User profile fetch failed", {
+      clientIp,
+      providerId: state.providerId,
+    });
     return {
       success: false,
       error: profileResult.error,
@@ -537,18 +513,13 @@ export async function handleOAuthCallback(
   const profile = profileResult;
 
   // Create session
-  const sessionResult = await createOAuthSession(
-    profile,
-    clientIp,
-    userAgent,
-    createSessionFn
-  );
+  const sessionResult = await createOAuthSession(profile, clientIp, userAgent, createSessionFn);
 
   if ("error" in sessionResult) {
-    securityLogger.logAuthFailure(
-      { ip: clientIp, userAgent: userAgent ?? "" },
-      "oauth_session_creation_failed"
-    );
+    logger.warn("OAuth callback: Session creation failed", {
+      clientIp,
+      profileProviderId: profile.providerId,
+    });
     return {
       success: false,
       error: sessionResult.error,
@@ -639,7 +610,9 @@ export function initializeDefaultProviders(): void {
   }
 
   if (!googleClientId && !githubClientId) {
-    logger.warn("No OAuth providers configured. Set GOOGLE_OAUTH_CLIENT_ID/SECRET or GITHUB_OAUTH_CLIENT_ID/SECRET environment variables.");
+    logger.warn(
+      "No OAuth providers configured. Set GOOGLE_OAUTH_CLIENT_ID/SECRET or GITHUB_OAUTH_CLIENT_ID/SECRET environment variables."
+    );
   }
 }
 

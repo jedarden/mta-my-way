@@ -10,7 +10,7 @@
  * - Error handling throughout the flow
  */
 
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useOAuth } from "./useOAuth";
 
@@ -311,13 +311,12 @@ describe("useOAuth Hook", () => {
 
       const { result } = renderHook(() => useOAuth());
 
-      let callbackResult;
-      await act(async () => {
-        callbackResult = await result.current.handleCallback(mockSearchParams);
+      const callbackResult = await act(async () => {
+        return await result.current.handleCallback(mockSearchParams);
       });
 
-      expect(callbackResult.success).toBe(false);
-      expect(callbackResult.error).toBe("Invalid state");
+      expect(callbackResult?.success).toBe(false);
+      expect(callbackResult?.error).toBe("Invalid state");
       expect(result.current.error).toBe("Invalid state");
     });
 
@@ -339,13 +338,12 @@ describe("useOAuth Hook", () => {
 
       const { result } = renderHook(() => useOAuth());
 
-      let callbackResult;
-      await act(async () => {
-        callbackResult = await result.current.handleCallback(mockSearchParams);
+      const callbackResult = await act(async () => {
+        return await result.current.handleCallback(mockSearchParams);
       });
 
-      expect(callbackResult.success).toBe(false);
-      expect(callbackResult.error).toBe("Network error");
+      expect(callbackResult?.success).toBe(false);
+      expect(callbackResult?.error).toBe("Network error");
       expect(result.current.error).toBe("Network error");
     });
   });

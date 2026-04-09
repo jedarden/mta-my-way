@@ -274,12 +274,7 @@ describe("createSafeRedirect", () => {
       redirect: (url: string) => new Response(null, { status: 302, headers: { Location: url } }),
     } as unknown as Context;
 
-    const response = await createSafeRedirect(
-      mockContext,
-      "javascript:alert(1)",
-      {},
-      "/default"
-    );
+    const response = await createSafeRedirect(mockContext, "javascript:alert(1)", {}, "/default");
 
     expect(response.status).toBe(302);
   });

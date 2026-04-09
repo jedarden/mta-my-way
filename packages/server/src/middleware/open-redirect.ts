@@ -269,10 +269,7 @@ export function extractRedirectUrls(
   options: OpenRedirectOptions = {}
 ): Map<string, string> {
   const redirects = new Map<string, string>();
-  const {
-    redirectParams = DEFAULT_REDIRECT_PARAMS,
-    checkQueryParams = true,
-  } = options;
+  const { redirectParams = DEFAULT_REDIRECT_PARAMS, checkQueryParams = true } = options;
 
   // Check query parameters
   if (checkQueryParams) {

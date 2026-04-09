@@ -516,7 +516,7 @@ describe("Authentication Middleware", () => {
       expect(enabled).toBe(true);
     });
 
-    it("should verify TOTP code", () => {
+    it("should verify TOTP code", async () => {
       setupTotp("test_key_123");
       enableTotp("test_key_123");
 
@@ -525,17 +525,17 @@ describe("Authentication Middleware", () => {
       const { backupCodes } = setupTotp("test_key_123");
       enableTotp("test_key_123");
 
-      const result = verifyTotpCode("test_key_123", backupCodes[0]!);
+      const result = await verifyTotpCode("test_key_123", backupCodes[0]!);
       expect(result.valid).toBe(true);
       expect(result.usedBackupCode).toBe(true);
       expect(result.remainingBackupCodes).toBe(9);
     });
 
-    it("should reject invalid TOTP code", () => {
+    it("should reject invalid TOTP code", async () => {
       setupTotp("test_key_123");
       enableTotp("test_key_123");
 
-      const result = verifyTotpCode("test_key_123", "000000");
+      const result = await verifyTotpCode("test_key_123", "000000");
       expect(result.valid).toBe(false);
     });
 
@@ -561,7 +561,7 @@ describe("Authentication Middleware", () => {
       enableTotp("admin_key_789");
 
       // Verify MFA with backup code
-      const result = verifyMfaForSession(sessionId, backupCodes[0]!);
+      const result = await verifyMfaForSession(sessionId, backupCodes[0]!);
 
       expect(result.valid).toBe(true);
       expect(result.newSessionId).not.toBe(sessionId);
@@ -635,65 +635,65 @@ describe("Authentication Middleware", () => {
   });
 
   describe("password policy validation", () => {
-    it("should validate strong password", () => {
-      const result = validatePassword("StrongP@ssw0rd123");
+    it("should validate strong password", async () => {
+      const result = await validatePassword("StrongP@ssw0rd123");
 
       expect(result.valid).toBe(true);
       expect(result.strength).toBeGreaterThan(50);
     });
 
-    it("should reject password that is too short", () => {
-      const result = validatePassword("Short1!");
+    it("should reject password that is too short", async () => {
+      const result = await validatePassword("Short1!");
 
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Password must be at least 12 characters long");
     });
 
-    it("should reject password without uppercase", () => {
-      const result = validatePassword("lowercase123!");
+    it("should reject password without uppercase", async () => {
+      const result = await validatePassword("lowercase123!");
 
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Password must contain at least one uppercase letter");
     });
 
-    it("should reject password without lowercase", () => {
-      const result = validatePassword("UPPERCASE123!");
+    it("should reject password without lowercase", async () => {
+      const result = await validatePassword("UPPERCASE123!");
 
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Password must contain at least one lowercase letter");
     });
 
-    it("should reject password without numbers", () => {
-      const result = validatePassword("NoNumbers!");
+    it("should reject password without numbers", async () => {
+      const result = await validatePassword("NoNumbers!");
 
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Password must contain at least one number");
     });
 
-    it("should reject password without special characters", () => {
-      const result = validatePassword("NoSpecialChars123");
+    it("should reject password without special characters", async () => {
+      const result = await validatePassword("NoSpecialChars123");
 
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Password must contain at least one special character");
     });
 
-    it("should reject common weak passwords", () => {
-      const result = validatePassword("password123");
+    it("should reject common weak passwords", async () => {
+      const result = await validatePassword("password123");
 
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Password is too common or weak");
     });
 
-    it("should reject password with excessive repetition", () => {
-      const result = validatePassword("AAAAaaa111!!!");
+    it("should reject password with excessive repetition", async () => {
+      const result = await validatePassword("AAAAaaa111!!!");
 
       expect(result.valid).toBe(false);
       expect(result.errors.some((e) => e.includes("same character more than"))).toBe(true);
     });
 
-    it("should calculate password strength correctly", () => {
-      const weakPassword = validatePassword("weak1!");
-      const strongPassword = validatePassword("VeryStr0ng!Passw0rd@2024");
+    it("should calculate password strength correctly", async () => {
+      const weakPassword = await validatePassword("weak1!");
+      const strongPassword = await validatePassword("VeryStr0ng!Passw0rd@2024");
 
       expect(weakPassword.strength).toBeLessThan(strongPassword.strength);
       expect(strongPassword.strength).toBe(100);

@@ -83,7 +83,6 @@ function createMockFeed(
             trip: {
               tripId,
               routeId,
-              // @ts-expect-error - nyct extension
               ".transit_realtime.nyctTripDescriptor": {
                 isAssigned: true,
                 trainId: "123",

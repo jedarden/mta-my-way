@@ -65,9 +65,7 @@ export default function OAuthCallbackScreen() {
             />
           </svg>
         </div>
-        <p className="text-text-secondary dark:text-dark-text-secondary">
-          Completing sign in...
-        </p>
+        <p className="text-text-secondary dark:text-dark-text-secondary">Completing sign in...</p>
       </div>
     </div>
   );

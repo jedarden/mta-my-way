@@ -6,7 +6,7 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useDebounce, useDebouncedCallback, useThrottle, useRefetch } from "./useDebounce";
+import { useDebounce, useDebouncedCallback, useRefetch, useThrottle } from "./useDebounce";
 
 describe("useDebounce", () => {
   beforeEach(() => {
@@ -20,10 +20,9 @@ describe("useDebounce", () => {
     });
 
     it("debounces value updates", async () => {
-      const { result, rerender } = renderHook(
-        ({ value, delay }) => useDebounce(value, delay),
-        { initialProps: { value: "initial", delay: 300 } }
-      );
+      const { result, rerender } = renderHook(({ value, delay }) => useDebounce(value, delay), {
+        initialProps: { value: "initial", delay: 300 },
+      });
 
       expect(result.current).toBe("initial");
 
@@ -43,10 +42,9 @@ describe("useDebounce", () => {
     });
 
     it("resets delay on each value change", async () => {
-      const { result, rerender } = renderHook(
-        ({ value, delay }) => useDebounce(value, delay),
-        { initialProps: { value: "initial", delay: 300 } }
-      );
+      const { result, rerender } = renderHook(({ value, delay }) => useDebounce(value, delay), {
+        initialProps: { value: "initial", delay: 300 },
+      });
 
       // First update
       rerender({ value: "update1", delay: 300 });
@@ -133,10 +131,9 @@ describe("useDebounce", () => {
     });
 
     it("throttles value updates", async () => {
-      const { result, rerender } = renderHook(
-        ({ value, delay }) => useThrottle(value, delay),
-        { initialProps: { value: "initial", delay: 100 } }
-      );
+      const { result, rerender } = renderHook(({ value, delay }) => useThrottle(value, delay), {
+        initialProps: { value: "initial", delay: 100 },
+      });
 
       expect(result.current).toBe("initial");
 
@@ -162,10 +159,9 @@ describe("useDebounce", () => {
     });
 
     it("allows updates after delay period", async () => {
-      const { result, rerender } = renderHook(
-        ({ value, delay }) => useThrottle(value, delay),
-        { initialProps: { value: "initial", delay: 100 } }
-      );
+      const { result, rerender } = renderHook(({ value, delay }) => useThrottle(value, delay), {
+        initialProps: { value: "initial", delay: 100 },
+      });
 
       await act(async () => {
         rerender({ value: "update1", delay: 100 });

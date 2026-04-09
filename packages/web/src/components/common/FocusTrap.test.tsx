@@ -4,7 +4,7 @@
  * Per plan.md Phase 4: WCAG accessibility compliance.
  */
 
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FocusTrap } from "./FocusTrap";
 

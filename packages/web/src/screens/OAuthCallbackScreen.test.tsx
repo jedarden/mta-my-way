@@ -9,9 +9,9 @@
  * - Error handling
  */
 
-import { render, screen, cleanup } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OAuthCallbackScreen from "./OAuthCallbackScreen";
 
 // Mock the useOAuth hook
@@ -237,9 +237,11 @@ describe("OAuthCallbackScreen Component", () => {
 
   describe("loading state", () => {
     it("should display loading spinner while processing", () => {
-      const mockHandleCallback = vi.fn().mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ success: true }), 1000))
-      );
+      const mockHandleCallback = vi
+        .fn()
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve({ success: true }), 1000))
+        );
 
       vi.mocked(useOAuth).mockReturnValue({
         isLoading: true,

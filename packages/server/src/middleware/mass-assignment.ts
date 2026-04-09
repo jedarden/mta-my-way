@@ -265,9 +265,7 @@ export function validateMassAssignment(
 
   // Determine if validation passed
   // When stripUnknown is true, unknown_field violations don't cause failure
-  const hasBlockingViolation = violations.some(
-    (v) => v.type !== "unknown_field" || !stripUnknown
-  );
+  const hasBlockingViolation = violations.some((v) => v.type !== "unknown_field" || !stripUnknown);
 
   return {
     valid: result.valid && !hasBlockingViolation,

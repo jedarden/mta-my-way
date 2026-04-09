@@ -84,8 +84,18 @@ import {
 } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import {
-  auditLogAccess,
   createSession,
+  disableTotp,
+  enableTotp,
+  getAuthContext,
+  refreshSession,
+  revokeSession,
+  setupTotp,
+  verifyMfaForSession,
+  verifyTotpCode,
+} from "./middleware/authentication.js";
+import {
+  auditLogAccess,
   csrfProtection,
   getCsrfToken,
   hostHeaderProtection,
@@ -110,10 +120,6 @@ import {
   recordStationSearchDuration,
   recordStationSearchRequest,
 } from "./middleware/metrics.js";
-import { logger } from "./observability/logger.js";
-import { metrics } from "./observability/metrics.js";
-import { tracingMiddleware } from "./observability/tracing.js";
-import { buildLineDiagram } from "./positions-interpolator.js";
 import {
   cleanupExpiredStates,
   createAuthorizationUrl,
@@ -121,6 +127,10 @@ import {
   handleOAuthCallback,
   initializeDefaultProviders,
 } from "./oauth/index.js";
+import { logger } from "./observability/logger.js";
+import { metrics } from "./observability/metrics.js";
+import { tracingMiddleware } from "./observability/tracing.js";
+import { buildLineDiagram } from "./positions-interpolator.js";
 import {
   getSubscriptionCount,
   removeSubscription,
@@ -416,6 +426,10 @@ export function createApp(
         "/api/push/vapid-public-key",
         "/api/journal",
         "/api/context",
+        "/api/auth/oauth",
+        "/api/auth/mfa",
+        "/api/auth/session",
+        "/api/csrf-token",
       ],
     })
   );
@@ -1604,9 +1618,12 @@ export function createApp(
   initializeDefaultProviders();
 
   // Clean up expired OAuth states every hour
-  setInterval(() => {
-    cleanupExpiredStates();
-  }, 60 * 60 * 1000);
+  setInterval(
+    () => {
+      cleanupExpiredStates();
+    },
+    60 * 60 * 1000
+  );
 
   /** Get available OAuth providers */
   app.get("/api/auth/oauth/providers", (c) => {
@@ -1696,13 +1713,11 @@ export function createApp(
       userAgent,
       async (keyId, ip, ua, metadata) => {
         // Create session with OAuth type
-        const sessionResult = await createSession(
-          keyId,
-          ip,
-          ua,
-          metadata,
-          { type: "oauth", ipBinding: true, createRefreshToken: true }
-        );
+        const sessionResult = await createSession(keyId, ip, ua, metadata, {
+          type: "oauth",
+          ipBinding: true,
+          createRefreshToken: true,
+        });
 
         if ("sessionId" in sessionResult) {
           return {
@@ -1744,6 +1759,265 @@ export function createApp(
         name: result.profile?.name,
         picture: result.profile?.picture,
       },
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Multi-Factor Authentication (MFA) - TOTP
+  // -------------------------------------------------------------------------
+
+  // Apply same-origin protection to all MFA operations
+  app.use("/api/auth/mfa/*", requireSameOrigin());
+
+  /** Get MFA status for the current session */
+  app.get("/api/auth/mfa/status", async (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    // Check if MFA is configured for this user
+    const totpEnabled = true; // In production, check database for TOTP config
+    const mfaVerified = auth.mfaVerified ?? false;
+
+    return c.json({
+      enabled: totpEnabled,
+      verified: mfaVerified,
+    });
+  });
+
+  /** Initiate TOTP setup - returns secret and QR code URL */
+  app.post("/api/auth/mfa/setup", requireResourceAccess("admin", "create"), async (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    const result = setupTotp(auth.keyId);
+
+    logger.info("TOTP setup initiated", { keyId: auth.keyId });
+
+    return c.json({
+      secret: result.secret,
+      backupCodes: result.backupCodes,
+      qrCodeUrl: result.qrCodeUrl,
+      message: "Scan the QR code with your authenticator app, then verify a code to enable MFA",
+    });
+  });
+
+  /** Enable TOTP after initial verification */
+  app.post("/api/auth/mfa/enable", requireResourceAccess("admin", "update"), async (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    try {
+      const body = await c.req.json();
+      const code = body.code;
+
+      if (!code || typeof code !== "string") {
+        return c.json({ error: "TOTP code is required" }, 400);
+      }
+
+      // Verify the code before enabling
+      const result = await verifyTotpCode(auth.keyId, code);
+
+      if (!result.valid) {
+        return c.json({ error: "Invalid TOTP code" }, 400);
+      }
+
+      // Enable TOTP
+      enableTotp(auth.keyId);
+
+      logger.info("TOTP enabled", { keyId: auth.keyId });
+
+      return c.json({
+        success: true,
+        message: "MFA enabled successfully",
+        remainingBackupCodes: result.remainingBackupCodes,
+      });
+    } catch (error) {
+      logger.error("TOTP enable failed", error as Error);
+      return c.json({ error: "Failed to enable MFA" }, 500);
+    }
+  });
+
+  /** Disable TOTP for the current user */
+  app.post("/api/auth/mfa/disable", requireResourceAccess("admin", "delete"), async (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    const disabled = disableTotp(auth.keyId);
+
+    if (!disabled) {
+      return c.json({ error: "MFA not configured" }, 400);
+    }
+
+    logger.info("TOTP disabled", { keyId: auth.keyId });
+
+    return c.json({
+      success: true,
+      message: "MFA disabled successfully",
+    });
+  });
+
+  /** Verify MFA for a session (after login, before sensitive operations) */
+  app.post("/api/auth/mfa/verify", async (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    if (!auth.sessionId) {
+      return c.json({ error: "Session required" }, 400);
+    }
+
+    try {
+      const body = await c.req.json();
+      const code = body.code;
+
+      if (!code || typeof code !== "string") {
+        return c.json({ error: "TOTP code is required" }, 400);
+      }
+
+      const result = await verifyMfaForSession(auth.sessionId, code);
+
+      if (!result.valid) {
+        return c.json({ error: "Invalid TOTP code" }, 400);
+      }
+
+      // Set new session cookie
+      if (result.newSessionId) {
+        const isSecure = process.env["NODE_ENV"] === "production";
+        c.header(
+          "Set-Cookie",
+          `session_id=${result.newSessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
+        );
+      }
+
+      logger.info("MFA verified for session", { keyId: auth.keyId });
+
+      return c.json({
+        success: true,
+        message: "MFA verified successfully",
+      });
+    } catch (error) {
+      logger.error("MFA verification failed", error as Error);
+      return c.json({ error: "Failed to verify MFA" }, 500);
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Session Management
+  // -------------------------------------------------------------------------
+
+  // Apply same-origin protection to session operations
+  app.use("/api/auth/session/*", requireSameOrigin());
+
+  /** Get current session info */
+  app.get("/api/auth/session", (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      return c.json({ authenticated: false });
+    }
+
+    return c.json({
+      authenticated: true,
+      keyId: auth.keyId,
+      scope: auth.scope,
+      authMethod: auth.authMethod,
+      oauthProvider: auth.oauthProvider,
+      mfaVerified: auth.mfaVerified,
+    });
+  });
+
+  /** Refresh session using refresh token */
+  app.post("/api/auth/session/refresh", async (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    try {
+      const body = await c.req.json();
+      const refreshToken = body.refreshToken;
+
+      if (!refreshToken || typeof refreshToken !== "string") {
+        return c.json({ error: "Refresh token is required" }, 400);
+      }
+
+      const clientIp =
+        c.req.header("x-forwarded-for")?.split(",")[0] ??
+        c.req.header("cf-connecting-ip") ??
+        "unknown";
+
+      const result = refreshSession(refreshToken, clientIp);
+
+      if (!result) {
+        return c.json({ error: "Invalid or expired refresh token" }, 401);
+      }
+
+      // Set new session cookie
+      const isSecure = process.env["NODE_ENV"] === "production";
+      c.header(
+        "Set-Cookie",
+        `session_id=${result.sessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
+      );
+
+      logger.info("Session refreshed", { keyId: auth.keyId });
+
+      return c.json({
+        success: true,
+        sessionId: result.sessionId,
+        newRefreshToken: result.newRefreshToken,
+      });
+    } catch (error) {
+      logger.error("Session refresh failed", error as Error);
+      return c.json({ error: "Failed to refresh session" }, 500);
+    }
+  });
+
+  /** Revoke current session (logout) */
+  app.post("/api/auth/session/revoke", (c) => {
+    const auth = getAuthContext(c);
+
+    if (!auth || !auth.sessionId) {
+      return c.json({ error: "No active session" }, 400);
+    }
+
+    const clientIp =
+      c.req.header("x-forwarded-for")?.split(",")[0] ??
+      c.req.header("cf-connecting-ip") ??
+      "unknown";
+
+    const revoked = revokeSession(auth.sessionId, clientIp);
+
+    if (!revoked) {
+      return c.json({ error: "Failed to revoke session" }, 500);
+    }
+
+    // Clear session cookie
+    const isSecure = process.env["NODE_ENV"] === "production";
+    c.header(
+      "Set-Cookie",
+      `session_id=; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=0`
+    );
+
+    logger.info("Session revoked", { keyId: auth.keyId });
+
+    return c.json({
+      success: true,
+      message: "Session revoked successfully",
     });
   });
 

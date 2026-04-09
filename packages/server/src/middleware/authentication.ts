@@ -1932,14 +1932,14 @@ export function disableTotp(keyId: string): boolean {
 /**
  * Verify MFA for a session.
  */
-export function verifyMfaForSession(
+export async function verifyMfaForSession(
   sessionId: string,
   code: string
-): { valid: boolean; newSessionId?: string } {
+): Promise<{ valid: boolean; newSessionId?: string }> {
   const session = sessions.get(sessionId);
   if (!session) return { valid: false };
 
-  const result = verifyTotpCode(session.keyId, code);
+  const result = await verifyTotpCode(session.keyId, code);
   if (!result.valid) return { valid: false };
 
   // Regenerate session after MFA verification

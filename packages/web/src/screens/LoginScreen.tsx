@@ -72,8 +72,8 @@ export default function LoginScreen() {
 
         {/* Privacy Note */}
         <p className="mt-6 text-xs text-center text-text-secondary dark:text-dark-text-secondary">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
-          We use secure OAuth authentication and never store your password.
+          By signing in, you agree to our Terms of Service and Privacy Policy. We use secure OAuth
+          authentication and never store your password.
         </p>
       </div>
     </Screen>
@@ -86,7 +86,9 @@ interface OAuthLoginButtonsProps {
 }
 
 function OAuthLoginButtons({ onLogin, isLoading }: OAuthLoginButtonsProps) {
-  const [providers, setProviders] = useState<Array<{ providerId: string; displayName: string }>>([]);
+  const [providers, setProviders] = useState<Array<{ providerId: string; displayName: string }>>(
+    []
+  );
 
   useEffect(() => {
     // Fetch available providers

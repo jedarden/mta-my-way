@@ -10,7 +10,7 @@
  * - Accessibility features
  */
 
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,7 +36,7 @@ vi.mock("../hooks/useOAuth", () => ({
   useOAuth: vi.fn(),
 }));
 
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { useOAuth } from "../hooks/useOAuth";
 import LoginScreen from "./LoginScreen";
 
@@ -69,9 +69,7 @@ describe("LoginScreen Component", () => {
       );
 
       expect(screen.getByText("Welcome to MTA My Way")).toBeInTheDocument();
-      expect(
-        screen.getByText("Sign in to save your commutes and track trips")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Sign in to save your commutes and track trips")).toBeInTheDocument();
     });
 
     it("should render OAuth provider buttons", async () => {
@@ -158,9 +156,7 @@ describe("LoginScreen Component", () => {
       expect(
         screen.getByText(/By signing in, you agree to our Terms of Service/)
       ).toBeInTheDocument();
-      expect(
-        screen.getByText(/We use secure OAuth authentication/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/We use secure OAuth authentication/)).toBeInTheDocument();
     });
 
     it("should show no providers message when none available", async () => {
@@ -188,9 +184,7 @@ describe("LoginScreen Component", () => {
       );
 
       await waitFor(() => {
-        expect(
-          screen.getByText("No authentication providers available.")
-        ).toBeInTheDocument();
+        expect(screen.getByText("No authentication providers available.")).toBeInTheDocument();
       });
     });
   });
@@ -204,9 +198,9 @@ describe("LoginScreen Component", () => {
         error: null,
         isAuthenticated: false,
         userProfile: null,
-        getProviders: vi.fn().mockResolvedValue([
-          { providerId: "google", displayName: "Google", active: true },
-        ]),
+        getProviders: vi
+          .fn()
+          .mockResolvedValue([{ providerId: "google", displayName: "Google", active: true }]),
         initiateOAuth: mockInitiateOAuth,
         handleCallback: vi.fn(),
         logout: vi.fn(),
@@ -215,7 +209,9 @@ describe("LoginScreen Component", () => {
       // Mock fetch to return providers
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ providers: [{ providerId: "google", displayName: "Google", active: true }] }),
+        json: async () => ({
+          providers: [{ providerId: "google", displayName: "Google", active: true }],
+        }),
       } as Response);
 
       const user = userEvent.setup();
@@ -238,18 +234,18 @@ describe("LoginScreen Component", () => {
     });
 
     it("should disable provider buttons during loading", async () => {
-      const mockInitiateOAuth = vi.fn().mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
-      );
+      const mockInitiateOAuth = vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 1000)));
 
       vi.mocked(useOAuth).mockReturnValue({
         isLoading: true,
         error: null,
         isAuthenticated: false,
         userProfile: null,
-        getProviders: vi.fn().mockResolvedValue([
-          { providerId: "google", displayName: "Google", active: true },
-        ]),
+        getProviders: vi
+          .fn()
+          .mockResolvedValue([{ providerId: "google", displayName: "Google", active: true }]),
         initiateOAuth: mockInitiateOAuth,
         handleCallback: vi.fn(),
         logout: vi.fn(),
@@ -258,7 +254,9 @@ describe("LoginScreen Component", () => {
       // Mock fetch to return providers
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ providers: [{ providerId: "google", displayName: "Google", active: true }] }),
+        json: async () => ({
+          providers: [{ providerId: "google", displayName: "Google", active: true }],
+        }),
       } as Response);
 
       render(
@@ -279,9 +277,9 @@ describe("LoginScreen Component", () => {
         error: null,
         isAuthenticated: false,
         userProfile: null,
-        getProviders: vi.fn().mockResolvedValue([
-          { providerId: "google", displayName: "Google", active: true },
-        ]),
+        getProviders: vi
+          .fn()
+          .mockResolvedValue([{ providerId: "google", displayName: "Google", active: true }]),
         initiateOAuth: vi.fn(),
         handleCallback: vi.fn(),
         logout: vi.fn(),
@@ -290,7 +288,9 @@ describe("LoginScreen Component", () => {
       // Mock fetch to return providers
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ providers: [{ providerId: "google", displayName: "Google", active: true }] }),
+        json: async () => ({
+          providers: [{ providerId: "google", displayName: "Google", active: true }],
+        }),
       } as Response);
 
       render(
@@ -388,9 +388,9 @@ describe("LoginScreen Component", () => {
         error: null,
         isAuthenticated: false,
         userProfile: null,
-        getProviders: vi.fn().mockResolvedValue([
-          { providerId: "google", displayName: "Google", active: true },
-        ]),
+        getProviders: vi
+          .fn()
+          .mockResolvedValue([{ providerId: "google", displayName: "Google", active: true }]),
         initiateOAuth: vi.fn(),
         handleCallback: vi.fn(),
         logout: vi.fn(),
@@ -399,7 +399,9 @@ describe("LoginScreen Component", () => {
       // Mock fetch to return providers
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ providers: [{ providerId: "google", displayName: "Google", active: true }] }),
+        json: async () => ({
+          providers: [{ providerId: "google", displayName: "Google", active: true }],
+        }),
       } as Response);
 
       render(
@@ -420,9 +422,9 @@ describe("LoginScreen Component", () => {
         error: null,
         isAuthenticated: false,
         userProfile: null,
-        getProviders: vi.fn().mockResolvedValue([
-          { providerId: "google", displayName: "Google", active: true },
-        ]),
+        getProviders: vi
+          .fn()
+          .mockResolvedValue([{ providerId: "google", displayName: "Google", active: true }]),
         initiateOAuth: vi.fn(),
         handleCallback: vi.fn(),
         logout: vi.fn(),
@@ -431,7 +433,9 @@ describe("LoginScreen Component", () => {
       // Mock fetch to return providers
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ providers: [{ providerId: "google", displayName: "Google", active: true }] }),
+        json: async () => ({
+          providers: [{ providerId: "google", displayName: "Google", active: true }],
+        }),
       } as Response);
 
       render(

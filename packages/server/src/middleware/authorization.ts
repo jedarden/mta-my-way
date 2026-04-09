@@ -278,7 +278,7 @@ export function enforceRateLimitTier(maxTier?: number): MiddlewareHandler {
  */
 export function requireSameOrigin(): MiddlewareHandler {
   return async (c, next) => {
-    const method = c.req.method();
+    const method = c.req.method;
 
     // Only apply to state-changing methods
     if (!["POST", "DELETE", "PATCH", "PUT"].includes(method)) {

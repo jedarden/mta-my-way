@@ -89,6 +89,8 @@ function extractClientIp(c: Context): string {
  * Extract user agent from request headers.
  */
 function extractUserAgent(c: Context): string | undefined {
+  // Handle cases where context might be incomplete (e.g., utility functions)
+  if (!c?.req?.header) return undefined;
   return c.req.header("User-Agent") || undefined;
 }
 

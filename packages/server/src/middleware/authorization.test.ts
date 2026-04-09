@@ -23,9 +23,14 @@ import {
 describe("Authorization Middleware", () => {
   let app: Hono;
   let testApiKey: string;
+  let apiKeyAuth: any;
 
   beforeEach(async () => {
     app = new Hono();
+
+    // Import apiKeyAuth middleware
+    const authModule = await import("./authentication.js");
+    apiKeyAuth = authModule.apiKeyAuth;
 
     // Register a test API key with different scopes
     const { hash, salt } = await import("./authentication.js").then((m) =>
@@ -81,7 +86,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should deny read-only key for write action", async () => {
-      app.use("/api/test", requireResourceAccess("trip", "create"));
+      app.use("/api/test", apiKeyAuth(), requireResourceAccess("trip", "create"));
       app.get("/api/test", (c) => c.json({ success: true }));
 
       const res = await app.request("/api/test", {
@@ -96,7 +101,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should allow write key for create action", async () => {
-      app.use("/api/test", requireResourceAccess("trip", "create"));
+      app.use("/api/test", apiKeyAuth(), requireResourceAccess("trip", "create"));
       app.get("/api/test", (c) => c.json({ success: true }));
 
       const writeKey = "test-key-write:test-secret-key";
@@ -112,7 +117,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should allow admin key with adminBypass", async () => {
-      app.use("/api/test", requireResourceAccess("trip", "delete"));
+      app.use("/api/test", apiKeyAuth(), requireResourceAccess("trip", "delete"));
       app.get("/api/test", (c) => c.json({ success: true }));
 
       const adminKey = "test-key-admin:test-secret-key";
@@ -130,6 +135,7 @@ describe("Authorization Middleware", () => {
 
       app.use(
         "/api/test",
+        apiKeyAuth(),
         requireResourceAccess("subscription", "update", {
           customCheck,
         })
@@ -159,7 +165,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should deny read-only key", async () => {
-      app.use("/api/admin", requireAdmin());
+      app.use("/api/admin", apiKeyAuth(), requireAdmin());
       app.get("/api/admin", (c) => c.json({ success: true }));
 
       const res = await app.request("/api/admin", {
@@ -174,7 +180,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should deny write key", async () => {
-      app.use("/api/admin", requireAdmin());
+      app.use("/api/admin", apiKeyAuth(), requireAdmin());
       app.get("/api/admin", (c) => c.json({ success: true }));
 
       const writeKey = "test-key-write:test-secret-key";
@@ -188,7 +194,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should allow admin key", async () => {
-      app.use("/api/admin", requireAdmin());
+      app.use("/api/admin", apiKeyAuth(), requireAdmin());
       app.get("/api/admin", (c) => c.json({ success: true }));
 
       const adminKey = "test-key-admin:test-secret-key";
@@ -213,7 +219,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should deny read-only key", async () => {
-      app.use("/api/write", requireWrite());
+      app.use("/api/write", apiKeyAuth(), requireWrite());
       app.post("/api/write", (c) => c.json({ success: true }));
 
       const res = await app.request("/api/write", {
@@ -227,7 +233,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should allow write key", async () => {
-      app.use("/api/write", requireWrite());
+      app.use("/api/write", apiKeyAuth(), requireWrite());
       app.post("/api/write", (c) => c.json({ success: true }));
 
       const writeKey = "test-key-write:test-secret-key";
@@ -242,7 +248,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should allow admin key", async () => {
-      app.use("/api/write", requireWrite());
+      app.use("/api/write", apiKeyAuth(), requireWrite());
       app.post("/api/write", (c) => c.json({ success: true }));
 
       const adminKey = "test-key-admin:test-secret-key";
@@ -259,7 +265,7 @@ describe("Authorization Middleware", () => {
 
   describe("enforceRateLimitTier", () => {
     it("should allow requests within tier limit", async () => {
-      app.use("/api/tier", enforceRateLimitTier(50));
+      app.use("/api/tier", apiKeyAuth(), enforceRateLimitTier(50));
       app.get("/api/tier", (c) => c.json({ success: true }));
 
       const writeKey = "test-key-write:test-secret-key";
@@ -273,7 +279,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should deny requests exceeding tier limit", async () => {
-      app.use("/api/tier", enforceRateLimitTier(5));
+      app.use("/api/tier", apiKeyAuth(), enforceRateLimitTier(5));
       app.get("/api/tier", (c) => c.json({ success: true }));
 
       const writeKey = "test-key-write:test-secret-key";
@@ -360,7 +366,7 @@ describe("Authorization Middleware", () => {
 
   describe("validateDataAccess", () => {
     it("should prevent accessing other users' data without admin", async () => {
-      app.use("/api/data", validateDataAccess("subscription"));
+      app.use("/api/data", apiKeyAuth(), validateDataAccess("subscription"));
       app.get("/api/data", (c) => c.json({ success: true }));
 
       const res = await app.request("/api/data?userId=other-user", {
@@ -373,7 +379,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should allow admin to access any user's data", async () => {
-      app.use("/api/data", validateDataAccess("subscription"));
+      app.use("/api/data", apiKeyAuth(), validateDataAccess("subscription"));
       app.get("/api/data", (c) => c.json({ success: true }));
 
       const adminKey = "test-key-admin:test-secret-key";
@@ -387,7 +393,7 @@ describe("Authorization Middleware", () => {
     });
 
     it("should allow accessing own data", async () => {
-      app.use("/api/data", validateDataAccess("subscription"));
+      app.use("/api/data", apiKeyAuth(), validateDataAccess("subscription"));
       app.get("/api/data", (c) => c.json({ success: true }));
 
       const res = await app.request("/api/data", {
@@ -403,7 +409,7 @@ describe("Authorization Middleware", () => {
   describe("checkAuthorization", () => {
     it("should return denial for unauthenticated request", () => {
       const c = {
-        get: vi.fn().returns(undefined),
+        get: vi.fn().mockReturnValue(undefined),
       } as unknown as Context;
 
       const result = checkAuthorization(c, "trip", "create");
@@ -421,7 +427,7 @@ describe("Authorization Middleware", () => {
       };
 
       const c = {
-        get: vi.fn().returns(auth),
+        get: vi.fn().mockReturnValue(auth),
       } as unknown as Context;
 
       const result = checkAuthorization(c, "trip", "create");
@@ -440,7 +446,7 @@ describe("Authorization Middleware", () => {
       };
 
       const c = {
-        get: vi.fn().returns(auth),
+        get: vi.fn().mockReturnValue(auth),
       } as unknown as Context;
 
       const result = checkAuthorization(c, "trip", "create");
@@ -460,7 +466,10 @@ describe("Authorization Middleware", () => {
     });
 
     it("should deny requests without MFA verification", async () => {
-      app.use("/api/mfa", requireMfa());
+      // Import apiKeyAuth to set up auth context
+      const { apiKeyAuth } = await import("./authentication.js");
+
+      app.use("/api/mfa", apiKeyAuth(), requireMfa());
       app.post("/api/mfa", (c) => c.json({ success: true }));
 
       const writeKey = "test-key-write:test-secret-key";
@@ -536,7 +545,7 @@ describe("Authorization Middleware", () => {
       for (const resourceType of resourceTypes) {
         for (const action of actions) {
           const c = {
-            get: vi.fn().returns(undefined),
+            get: vi.fn().mockReturnValue(undefined),
           } as unknown as Context;
 
           const result = checkAuthorization(c, resourceType, action);

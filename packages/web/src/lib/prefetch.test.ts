@@ -5,7 +5,13 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearPrefetchCache, getPrefetchedArrivals, getPrefetchedStationIds, prefetchStation, prefetchStations } from "./prefetch";
+import {
+  clearPrefetchCache,
+  getPrefetchedArrivals,
+  getPrefetchedStationIds,
+  prefetchStation,
+  prefetchStations,
+} from "./prefetch";
 
 // Mock Cache API
 const mockCache = new Map<string, { response: Response; prefetchedAt: number }>();
@@ -74,14 +80,16 @@ describe("prefetch utilities", () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        blob: vi.fn().mockResolvedValue(new Blob([JSON.stringify(mockResponse)], { type: "application/json" })),
+        blob: vi
+          .fn()
+          .mockResolvedValue(
+            new Blob([JSON.stringify(mockResponse)], { type: "application/json" })
+          ),
       } as unknown as Response);
 
       await prefetchStation("123");
 
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/arrivals/123")
-      );
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/arrivals/123"));
       expect(mockCacheInstance.put).toHaveBeenCalled();
     });
 
@@ -146,7 +154,11 @@ describe("prefetch utilities", () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        blob: vi.fn().mockResolvedValue(new Blob([JSON.stringify(mockResponse)], { type: "application/json" })),
+        blob: vi
+          .fn()
+          .mockResolvedValue(
+            new Blob([JSON.stringify(mockResponse)], { type: "application/json" })
+          ),
       } as unknown as Response);
 
       await prefetchStations(["123", "456", "789"]);

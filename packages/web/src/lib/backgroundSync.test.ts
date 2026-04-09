@@ -135,7 +135,8 @@ describe("BackgroundSyncManager", () => {
 
     it.skip("handles missing Service Worker support", () => {
       // Temporarily remove service worker mock
-      const originalServiceWorker = (globalThis as { navigator?: { serviceWorker?: unknown } }).navigator?.serviceWorker;
+      const originalServiceWorker = (globalThis as { navigator?: { serviceWorker?: unknown } })
+        .navigator?.serviceWorker;
       vi.stubGlobal("navigator", { serviceWorker: undefined });
 
       const m = new BackgroundSyncManager();
@@ -224,8 +225,22 @@ describe("BackgroundSyncManager", () => {
 
     it("retrieves all queued requests", async () => {
       const mockRequests = [
-        { id: "1", url: "/api/test1", method: "GET", timestamp: Date.now(), retryCount: 0, maxRetries: 3 },
-        { id: "2", url: "/api/test2", method: "POST", timestamp: Date.now(), retryCount: 1, maxRetries: 3 },
+        {
+          id: "1",
+          url: "/api/test1",
+          method: "GET",
+          timestamp: Date.now(),
+          retryCount: 0,
+          maxRetries: 3,
+        },
+        {
+          id: "2",
+          url: "/api/test2",
+          method: "POST",
+          timestamp: Date.now(),
+          retryCount: 1,
+          maxRetries: 3,
+        },
       ];
 
       mockObjectStore.getAll.mockImplementation(() => {
@@ -296,8 +311,22 @@ describe("BackgroundSyncManager", () => {
 
     it("returns number of queued requests", async () => {
       const mockRequests = [
-        { id: "1", url: "/api/test1", method: "GET", timestamp: Date.now(), retryCount: 0, maxRetries: 3 },
-        { id: "2", url: "/api/test2", method: "POST", timestamp: Date.now(), retryCount: 1, maxRetries: 3 },
+        {
+          id: "1",
+          url: "/api/test1",
+          method: "GET",
+          timestamp: Date.now(),
+          retryCount: 0,
+          maxRetries: 3,
+        },
+        {
+          id: "2",
+          url: "/api/test2",
+          method: "POST",
+          timestamp: Date.now(),
+          retryCount: 1,
+          maxRetries: 3,
+        },
       ];
 
       mockObjectStore.getAll.mockImplementation(() => {
@@ -342,7 +371,14 @@ describe("BackgroundSyncManager", () => {
 
     it("processes and deletes successful requests", async () => {
       const mockRequests = [
-        { id: "1", url: "/api/test1", method: "GET", timestamp: Date.now(), retryCount: 0, maxRetries: 3 },
+        {
+          id: "1",
+          url: "/api/test1",
+          method: "GET",
+          timestamp: Date.now(),
+          retryCount: 0,
+          maxRetries: 3,
+        },
       ];
 
       mockObjectStore.getAll.mockImplementation(() => {
@@ -381,7 +417,14 @@ describe("BackgroundSyncManager", () => {
 
     it("increments retry count on failure", async () => {
       const mockRequests = [
-        { id: "1", url: "/api/test1", method: "GET", timestamp: Date.now(), retryCount: 0, maxRetries: 3 },
+        {
+          id: "1",
+          url: "/api/test1",
+          method: "GET",
+          timestamp: Date.now(),
+          retryCount: 0,
+          maxRetries: 3,
+        },
       ];
 
       mockObjectStore.getAll.mockImplementation(() => {
@@ -420,7 +463,14 @@ describe("BackgroundSyncManager", () => {
 
     it("removes requests exceeding max retries", async () => {
       const mockRequests = [
-        { id: "1", url: "/api/test1", method: "GET", timestamp: Date.now(), retryCount: 3, maxRetries: 3 },
+        {
+          id: "1",
+          url: "/api/test1",
+          method: "GET",
+          timestamp: Date.now(),
+          retryCount: 3,
+          maxRetries: 3,
+        },
       ];
 
       mockObjectStore.getAll.mockImplementation(() => {
