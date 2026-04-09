@@ -16,12 +16,18 @@ import { ComponentErrorBoundary, DataState } from "../components/common";
 import EmptyState from "../components/common/EmptyState";
 import OfflineBanner from "../components/common/OfflineBanner";
 import BottomNav from "../components/layout/BottomNav";
-import { StationDetailsModal } from "../components/map";
 import { api } from "../lib/api";
 
 // Lazy load TransitMap - heavy SVG component
 const TransitMap = lazy(() =>
   import("../components/map/TransitMap").then((m) => ({ default: m.TransitMap }))
+);
+
+// Lazy load StationDetailsModal - only shown on station tap
+const StationDetailsModal = lazy(() =>
+  import("../components/map/StationDetailsModal").then((m) => ({
+    default: m.StationDetailsModal,
+  }))
 );
 
 interface LineInfo {
@@ -338,7 +344,9 @@ export default function MapScreen() {
 
       {/* Station details modal */}
       {selectedStation && (
-        <StationDetailsModal station={selectedStation} onClose={() => setSelectedStation(null)} />
+        <Suspense fallback={null}>
+          <StationDetailsModal station={selectedStation} onClose={() => setSelectedStation(null)} />
+        </Suspense>
       )}
     </div>
   );

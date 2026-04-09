@@ -16,7 +16,6 @@ import { LineBullet } from "../components/arrivals/LineBullet";
 import { ComponentErrorBoundary, DataState } from "../components/common";
 import EmptyState from "../components/common/EmptyState";
 import OfflineBanner from "../components/common/OfflineBanner";
-import { TrainDotDetails } from "../components/diagram";
 import BottomNav from "../components/layout/BottomNav";
 import { usePositions } from "../hooks";
 import { api } from "../lib/api";
@@ -24,6 +23,13 @@ import { api } from "../lib/api";
 // Lazy load TrainDiagram - heavy SVG component
 const TrainDiagram = lazy(() =>
   import("../components/diagram/TrainDiagram").then((m) => ({ default: m.TrainDiagram }))
+);
+
+// Lazy load TrainDotDetails - only shown on train tap
+const TrainDotDetails = lazy(() =>
+  import("../components/diagram/TrainDotDetails").then((m) => ({
+    default: m.TrainDotDetails,
+  }))
 );
 
 interface RouteInfo {
@@ -252,12 +258,14 @@ export default function LineDiagramScreen() {
 
       {/* Train details modal */}
       {selectedTrain && (
-        <TrainDotDetails
-          train={selectedTrain}
-          routeId={lineId ?? ""}
-          onClose={() => setSelectedTrain(null)}
-          onTrackTrip={handleTrackTrip}
-        />
+        <Suspense fallback={null}>
+          <TrainDotDetails
+            train={selectedTrain}
+            routeId={lineId ?? ""}
+            onClose={() => setSelectedTrain(null)}
+            onTrackTrip={handleTrackTrip}
+          />
+        </Suspense>
       )}
     </div>
   );

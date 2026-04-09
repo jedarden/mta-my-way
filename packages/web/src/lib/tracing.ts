@@ -17,7 +17,7 @@ interface SpanContext {
   sampled: boolean;
 }
 
-interface Span {
+export interface Span {
   name: string;
   context: SpanContext;
   startTime: number;
@@ -91,8 +91,8 @@ class ClientTracer {
 
     const [, traceId, spanId, sampled] = parts;
     return {
-      traceId,
-      spanId,
+      traceId: traceId as string,
+      spanId: spanId as string,
       sampled: sampled === "01",
     };
   }

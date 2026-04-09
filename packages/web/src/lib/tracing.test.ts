@@ -3,6 +3,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Span } from "./tracing";
 import {
   getCurrentTraceId,
   getTraceHeaders,
@@ -216,8 +217,8 @@ describe("ClientTracer", () => {
 
       const completed = tracer.getCompletedSpans();
       const span = completed[0];
-      expect(span.attributes["custom.attr"]).toBe("value");
-      expect(span.attributes.number).toBe(123);
+      expect(span?.attributes["custom.attr"]).toBe("value");
+      expect(span?.attributes.number).toBe(123);
     });
 
     it("should handle errors and set error attributes", async () => {
@@ -228,8 +229,8 @@ describe("ClientTracer", () => {
       ).rejects.toThrow("Test error");
 
       const completed = tracer.getCompletedSpans();
-      expect(completed[0].attributes.error).toBe(true);
-      expect(completed[0].attributes["error.message"]).toBe("Test error");
+      expect(completed[0]?.attributes.error).toBe(true);
+      expect(completed[0]?.attributes["error.message"]).toBe("Test error");
     });
   });
 
@@ -259,13 +260,13 @@ describe("ClientTracer", () => {
       const exported = tracer.exportSpans();
       expect(exported).toHaveLength(2);
 
-      expect(exported[0].name).toBe("span1");
-      expect(exported[0].duration).toBeGreaterThanOrEqual(0);
-      expect(exported[0].traceId).toBeDefined();
-      expect(exported[0].spanId).toBeDefined();
+      expect(exported[0]?.name).toBe("span1");
+      expect(exported[0]?.duration).toBeGreaterThanOrEqual(0);
+      expect(exported[0]?.traceId).toBeDefined();
+      expect(exported[0]?.spanId).toBeDefined();
 
-      expect(exported[1].name).toBe("span2");
-      expect(exported[1].attributes.key).toBe("value");
+      expect(exported[1]?.name).toBe("span2");
+      expect(exported[1]?.attributes.key).toBe("value");
     });
   });
 
