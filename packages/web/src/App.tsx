@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import {
   ErrorBoundary,
   LiveRegion,
+  OfflineBanner,
   PWAInstallPrompt,
   ScreenErrorBoundary,
   ServiceWorkerUpdatePrompt,
@@ -29,6 +30,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <OfflineBanner />
         <AppRoutes />
       </BrowserRouter>
       <ServiceWorkerUpdatePrompt />
