@@ -98,7 +98,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["favicon.svg", "icons/*.svg", "offline.html"],
+      includeAssets: ["favicon.svg", "icons/*.svg", "offline.html", "**/*.css"],
       manifest: {
         name: "MTA My Way",
         short_name: "MTA My Way",
@@ -261,6 +261,18 @@ export default defineConfig({
               expiration: { maxEntries: 50, maxAgeSeconds: 45 }, // 45 seconds
               cacheableResponse: { statuses: [0, 200] },
               networkTimeoutSeconds: 3,
+            },
+          },
+          // ---------------------------------------------------------------------------
+          // Static assets (CSS, JS) - CacheFirst for offline availability
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /\.(?:css|js)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "static-resources-cache",
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 }, // 30 days
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
           // ---------------------------------------------------------------------------
