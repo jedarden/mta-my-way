@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import webpush from "web-push";
+import { logger } from "../observability/logger.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,13 +53,7 @@ export async function loadOrGenerateVapidKeys(dataDir?: string): Promise<VapidKe
   const envPrivateKey = process.env["VAPID_PRIVATE_KEY"];
 
   if (envPublicKey && envPrivateKey) {
-    console.log(
-      JSON.stringify({
-        event: "vapid_keys_loaded",
-        source: "environment",
-        timestamp: new Date().toISOString(),
-      })
-    );
+    logger.info("VAPID keys loaded", { source: "environment" });
     return {
       publicKey: envPublicKey,
       privateKey: envPrivateKey,
@@ -73,23 +68,11 @@ export async function loadOrGenerateVapidKeys(dataDir?: string): Promise<VapidKe
         const raw = await readFile(keysPath, "utf8");
         const keys = JSON.parse(raw) as VapidKeys;
         if (keys.publicKey && keys.privateKey) {
-          console.log(
-            JSON.stringify({
-              event: "vapid_keys_loaded",
-              source: "file",
-              timestamp: new Date().toISOString(),
-            })
-          );
+          logger.info("VAPID keys loaded", { source: "file" });
           return keys;
         }
       } catch (err) {
-        console.error(
-          JSON.stringify({
-            event: "vapid_keys_load_error",
-            timestamp: new Date().toISOString(),
-            error: err instanceof Error ? err.message : String(err),
-          })
-        );
+        logger.error("VAPID keys load error", err instanceof Error ? err : undefined);
       }
     }
 
@@ -97,39 +80,25 @@ export async function loadOrGenerateVapidKeys(dataDir?: string): Promise<VapidKe
     const keys = generateVapidKeys();
     try {
       await writeFile(keysPath, JSON.stringify(keys, null, 2));
-      console.log(
-        JSON.stringify({
-          event: "vapid_keys_generated",
-          source: "generated",
-          saved_to: keysPath,
-          timestamp: new Date().toISOString(),
-          // Log public key so it can be set as VITE_VAPID_PUBLIC_KEY
-          public_key: keys.publicKey,
-        })
-      );
+      logger.info("VAPID keys generated", {
+        source: "generated",
+        saved_to: keysPath,
+        // Log public key so it can be set as VITE_VAPID_PUBLIC_KEY
+        public_key: keys.publicKey,
+      });
     } catch (err) {
-      console.error(
-        JSON.stringify({
-          event: "vapid_keys_save_error",
-          timestamp: new Date().toISOString(),
-          error: err instanceof Error ? err.message : String(err),
-        })
-      );
+      logger.error("VAPID keys save error", err instanceof Error ? err : undefined);
     }
     return keys;
   }
 
   // Generate ephemeral keys (will be lost on restart)
   const keys = generateVapidKeys();
-  console.log(
-    JSON.stringify({
-      event: "vapid_keys_generated",
-      source: "ephemeral",
-      timestamp: new Date().toISOString(),
-      public_key: keys.publicKey,
-      warning: "Keys not persisted - set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY env vars",
-    })
-  );
+  logger.info("VAPID keys generated", {
+    source: "ephemeral",
+    public_key: keys.publicKey,
+    warning: "Keys not persisted - set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY env vars",
+  });
   return keys;
 }
 
@@ -153,13 +122,7 @@ export function configureWebPush(keys: VapidKeys, subject?: string): void {
 
   webpush.setVapidDetails(vapidSubject, keys.publicKey, keys.privateKey);
 
-  console.log(
-    JSON.stringify({
-      event: "web_push_configured",
-      timestamp: new Date().toISOString(),
-      subject: vapidSubject,
-    })
-  );
+  logger.info("Web push configured", { subject: vapidSubject });
 }
 
 /**

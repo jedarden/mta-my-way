@@ -10,6 +10,7 @@
 
 import type { CommuteStats, StationIndex, TripRecord, TripSource } from "@mta-my-way/shared";
 import type Database from "better-sqlite3";
+import { logger } from "./observability/logger.js";
 
 // Default commute ID when no specific commute is configured
 const DEFAULT_COMMUTE_ID = "default";
@@ -28,16 +29,14 @@ export function initTripTracking(database: Database.Database, stationData: Stati
   // Run migrations
   void import("./migration/index.js").then(({ runMigrations }) => {
     runMigrations(db!).catch((err) => {
-      console.error("Failed to run trip tracking migrations:", err);
+      logger.error(
+        "Failed to run trip tracking migrations",
+        err instanceof Error ? err : undefined
+      );
     });
   });
 
-  console.log(
-    JSON.stringify({
-      event: "trip_tracking_init",
-      timestamp: new Date().toISOString(),
-    })
-  );
+  logger.info("Trip tracking initialized");
 }
 
 // ============================================================================
@@ -83,20 +82,16 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
     // Invalidate commute stats cache
     invalidateCommuteStats(DEFAULT_COMMUTE_ID);
 
-    console.log(
-      JSON.stringify({
-        event: "trip_recorded",
-        timestamp: new Date().toISOString(),
-        tripId: id,
-        origin: trip.origin.name,
-        destination: trip.destination.name,
-        source: trip.source,
-      })
-    );
+    logger.info("Trip recorded", {
+      tripId: id,
+      origin: trip.origin.name,
+      destination: trip.destination.name,
+      source: trip.source,
+    });
 
     return { ...trip, id };
   } catch (error) {
-    console.error("Failed to record trip:", error);
+    logger.error("Failed to record trip", error instanceof Error ? error : undefined);
     return null;
   }
 }
@@ -149,7 +144,7 @@ export function updateTripNotes(tripId: string, notes: string): boolean {
 
     return result.changes > 0;
   } catch (error) {
-    console.error("Failed to update trip notes:", error);
+    logger.error("Failed to update trip notes", error instanceof Error ? error : undefined);
     return false;
   }
 }
@@ -165,18 +160,12 @@ export function deleteTrip(tripId: string): boolean {
 
     if (result.changes > 0) {
       invalidateCommuteStats(DEFAULT_COMMUTE_ID);
-      console.log(
-        JSON.stringify({
-          event: "trip_deleted",
-          timestamp: new Date().toISOString(),
-          tripId,
-        })
-      );
+      logger.info("Trip deleted", { tripId });
       return true;
     }
     return false;
   } catch (error) {
-    console.error("Failed to delete trip:", error);
+    logger.error("Failed to delete trip", error instanceof Error ? error : undefined);
     return false;
   }
 }
@@ -548,14 +537,10 @@ export function cleanupOldTrips(): number {
       )
       .run(cutoffDate, toDelete);
 
-    console.log(
-      JSON.stringify({
-        event: "trips_cleanup",
-        timestamp: new Date().toISOString(),
-        deletedCount: result.changes,
-        remainingCount: getTotalTripCount(),
-      })
-    );
+    logger.info("Trips cleanup completed", {
+      deletedCount: result.changes,
+      remainingCount: getTotalTripCount(),
+    });
 
     return result.changes;
   }

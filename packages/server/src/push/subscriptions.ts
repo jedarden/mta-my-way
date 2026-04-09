@@ -14,6 +14,7 @@ import type {
   PushSubscriptionRecord,
 } from "@mta-my-way/shared";
 import Database from "better-sqlite3";
+import { logger } from "../observability/logger.js";
 
 // ---------------------------------------------------------------------------
 // Database singleton
@@ -50,13 +51,7 @@ export function initPushDatabase(dbPath: string): void {
       ON push_subscriptions(updated_at);
   `);
 
-  console.log(
-    JSON.stringify({
-      event: "push_db_initialized",
-      timestamp: new Date().toISOString(),
-      path: dbPath,
-    })
-  );
+  logger.info("Push database initialized", { path: dbPath });
 }
 
 /**

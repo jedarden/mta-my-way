@@ -11,6 +11,7 @@
 
 import type { PushNotificationPayload, PushSubscriptionRecord } from "@mta-my-way/shared";
 import webpush from "web-push";
+import { logger } from "../observability/logger.js";
 import { removeSubscription } from "./subscriptions.js";
 import { isWebPushConfigured } from "./vapid.js";
 
@@ -47,13 +48,7 @@ export async function sendPushNotification(
         : null;
 
     if (statusCode === 410 || statusCode === 404) {
-      console.log(
-        JSON.stringify({
-          event: "push_subscription_expired",
-          timestamp: new Date().toISOString(),
-          status: statusCode,
-        })
-      );
+      logger.info("Push subscription expired", { status: statusCode });
       removeSubscription(record.endpoint);
       return false;
     }

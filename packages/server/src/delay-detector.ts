@@ -15,6 +15,7 @@
 import type { RouteIndex, StationAlert, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
 import { isADivision } from "@mta-my-way/shared";
 import { getTravelTime } from "./transfer/travel-times.js";
+import { logger } from "./observability/logger.js";
 
 // Import delay predictor for historical data collection
 import { recordDelay as recordDelayForPrediction } from "./delay-predictor.js";
@@ -136,14 +137,10 @@ export function initDelayDetector(
       detectorConfig?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
   };
 
-  console.log(
-    JSON.stringify({
-      event: "delay_detector_init",
-      timestamp: new Date().toISOString(),
-      threshold_multiplier: config.thresholdMultiplier,
-      min_trains_for_line_alert: config.minTrainsForLineAlert,
-    })
-  );
+  logger.info("Delay detector initialized", {
+    thresholdMultiplier: config.thresholdMultiplier,
+    minTrainsForLineAlert: config.minTrainsForLineAlert,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +381,7 @@ export function processVehicleUpdates(
                   );
                 } catch (error) {
                   // Don't let prediction errors affect delay detection
-                  console.error("Failed to record delay for prediction:", error);
+                  logger.error("Failed to record delay for prediction", error instanceof Error ? error : undefined);
                 }
               }
             }
@@ -484,17 +481,13 @@ function generateAlerts(segments: DelayedSegment[]): void {
         activePredictedAlerts.set(alertId, alert);
         newAlerts.push(alert);
 
-        console.log(
-          JSON.stringify({
-            event: "predicted_line_alert",
-            timestamp: new Date().toISOString(),
-            routeId,
-            direction,
-            segments: uniqueSegments.size,
-            trains: lineSegments.length,
-            max_ratio: Math.round(maxSegment.ratio * 100) / 100,
-          })
-        );
+        logger.info("Predicted line alert generated", {
+          routeId,
+          direction,
+          segments: uniqueSegments.size,
+          trains: lineSegments.length,
+          maxRatio: Math.round(maxSegment.ratio * 100) / 100,
+        });
       } else {
         // Update existing alert
         existingAlert.description = `Multiple ${directionLabel.toLowerCase()} ${lineName} trains are experiencing significant delays. Worst segment: ${fromStation} to ${toStation} (${Math.round(maxSegment.ratio)}x scheduled time). Division: ${division} Division.`;
@@ -525,18 +518,14 @@ function generateAlerts(segments: DelayedSegment[]): void {
         activePredictedAlerts.set(alertId, alert);
         newAlerts.push(alert);
 
-        console.log(
-          JSON.stringify({
-            event: "predicted_train_alert",
-            timestamp: new Date().toISOString(),
-            routeId,
-            direction,
-            tripId: seg.tripId,
-            ratio: Math.round(seg.ratio * 100) / 100,
-            from: seg.fromStationId,
-            to: seg.toStationId,
-          })
-        );
+        logger.debug("Predicted train alert generated", {
+          routeId,
+          direction,
+          tripId: seg.tripId,
+          ratio: Math.round(seg.ratio * 100) / 100,
+          from: seg.fromStationId,
+          to: seg.toStationId,
+        });
       }
     }
   }
@@ -631,14 +620,10 @@ function pruneStaleAlerts(now: number): void {
     if (alertAge > staleThreshold) {
       activePredictedAlerts.delete(alertId);
 
-      console.log(
-        JSON.stringify({
-          event: "predicted_alert_expired",
-          timestamp: new Date().toISOString(),
-          alertId,
-          age_seconds: Math.floor(alertAge / 1000),
-        })
-      );
+      logger.debug("Predicted alert expired", {
+        alertId,
+        ageSeconds: Math.floor(alertAge / 1000),
+      });
     }
   }
 }

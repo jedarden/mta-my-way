@@ -8,6 +8,7 @@
 import type { PushNotificationPayload, PushSubscriptionRecord } from "@mta-my-way/shared";
 import type { AlertChange } from "../alerts-poller.js";
 import { onAlertChange } from "../alerts-poller.js";
+import { logger } from "../observability/logger.js";
 import { matchAlertToSubscriptions } from "./matcher.js";
 import { sendPushNotification } from "./sender.js";
 import { getAllSubscriptions } from "./subscriptions.js";
@@ -47,32 +48,17 @@ export function startPushPipeline(): void {
         const failed = results.length - sent;
 
         if (sent > 0) {
-          console.log(
-            JSON.stringify({
-              event: "push_batch_complete",
-              timestamp: new Date().toISOString(),
-              sent,
-              failed,
-              total: allMatches.length,
-            })
-          );
+          logger.info("Push batch complete", {
+            sent,
+            failed,
+            total: allMatches.length,
+          });
         }
       } catch (err) {
-        console.error(
-          JSON.stringify({
-            event: "push_pipeline_error",
-            timestamp: new Date().toISOString(),
-            error: err instanceof Error ? err.message : String(err),
-          })
-        );
+        logger.error("Push pipeline error", err instanceof Error ? err : undefined);
       }
     })();
   });
 
-  console.log(
-    JSON.stringify({
-      event: "push_pipeline_started",
-      timestamp: new Date().toISOString(),
-    })
-  );
+  logger.info("Push pipeline started");
 }

@@ -30,6 +30,7 @@ import {
   getContextUIHints,
   shouldTriggerUIRefresh,
 } from "@mta-my-way/shared";
+import { logger } from "./observability/logger.js";
 
 // Database instance
 let db: Database.Database | null = null;
@@ -81,13 +82,9 @@ export function initContextService(database: Database.Database, stationData: Sta
   // Load most recent context from database
   loadCurrentContext();
 
-  console.log(
-    JSON.stringify({
-      event: "context_service_init",
-      timestamp: new Date().toISOString(),
-      currentContext: currentContext?.context ?? "none",
-    })
-  );
+  logger.info("Context service initialized", {
+    currentContext: currentContext?.context ?? "none",
+  });
 }
 
 /**
@@ -123,7 +120,7 @@ function loadCurrentContext(): void {
         isManualOverride: row.is_manual_override === 1,
       };
     } catch (error) {
-      console.error("Failed to parse stored context:", error);
+      logger.error("Failed to parse stored context", error instanceof Error ? error : undefined);
       currentContext = { ...DEFAULT_CONTEXT };
     }
   } else {
@@ -144,13 +141,9 @@ export function getCurrentContext(): ContextState {
 export function updateContextSettings(settings: Partial<ContextSettings>): void {
   currentSettings = { ...currentSettings, ...settings };
 
-  console.log(
-    JSON.stringify({
-      event: "context_settings_updated",
-      timestamp: new Date().toISOString(),
-      settings: currentSettings,
-    })
-  );
+  logger.info("Context settings updated", {
+    settings: currentSettings,
+  });
 }
 
 /**
@@ -195,16 +188,12 @@ export function detectAndUpdateContext(params: {
 
   // Log significant transitions
   if (contextChanged && shouldTriggerUIRefresh(previousContext, detected.context)) {
-    console.log(
-      JSON.stringify({
-        event: "context_transition",
-        timestamp: new Date().toISOString(),
-        from: previousContext,
-        to: detected.context,
-        confidence: detected.confidence,
-        trigger: transition?.trigger,
-      })
-    );
+    logger.info("Context transition", {
+      from: previousContext,
+      to: detected.context,
+      confidence: detected.confidence,
+      trigger: transition?.trigger,
+    });
   }
 
   return { context: detected, transition };

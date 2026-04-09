@@ -28,6 +28,7 @@ import type { constants as Constants } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
+import { logger } from "../observability/logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, "migrations");
@@ -138,13 +139,7 @@ export async function createBackup(dbPath: string): Promise<string> {
 
   await copyFile(dbPath, backupPath, (constants as typeof Constants).COPYFILE_EXCL);
 
-  console.log(
-    JSON.stringify({
-      event: "backup_created",
-      backupPath,
-      timestamp,
-    })
-  );
+  logger.info("Backup created", { backupPath });
 
   return backupPath;
 }
@@ -189,13 +184,7 @@ export async function restoreBackup(backupPath: string, targetPath: string): Pro
   const { copyFile } = await import("node:fs/promises");
   await copyFile(backupPath, targetPath);
 
-  console.log(
-    JSON.stringify({
-      event: "backup_restored",
-      backupPath,
-      targetPath,
-    })
-  );
+  logger.info("Backup restored", { backupPath, targetPath });
 }
 
 /**
@@ -218,18 +207,17 @@ export async function cleanupOldBackups(keepCount: number = 10): Promise<number>
       await unlink(backup.path);
       deletedCount++;
     } catch (err) {
-      console.warn(`Failed to delete backup ${backup.path}:`, err);
+      logger.warn("Failed to delete backup", err instanceof Error ? err : undefined, {
+        backupPath: backup.path,
+      });
     }
   }
 
   if (deletedCount > 0) {
-    console.log(
-      JSON.stringify({
-        event: "backups_cleaned",
-        deletedCount,
-        remainingCount: backups.length - deletedCount,
-      })
-    );
+    logger.info("Backups cleaned", {
+      deletedCount,
+      remainingCount: backups.length - deletedCount,
+    });
   }
 
   return deletedCount;
@@ -269,12 +257,14 @@ async function loadMigrations(customDir?: string): Promise<Migration[]> {
           });
         }
       } catch (err) {
-        console.error(`Failed to load migration ${file}:`, err);
+        logger.error("Failed to load migration", err instanceof Error ? err : undefined, {
+          file,
+        });
       }
     }
   } catch {
     // Migrations directory doesn't exist yet
-    console.debug("No migrations directory found");
+    logger.debug("No migrations directory found");
   }
 
   return migrations.sort((a, b) => a.version - b.version);
@@ -344,15 +334,12 @@ export async function runMigrations(
       try {
         if (dryRun) {
           // In dry-run mode, just log what would be done
-          console.log(
-            JSON.stringify({
-              event: "migration_dry_run",
-              version: migration.version,
-              name: migration.name,
-              description: migration.description,
-              validationErrors,
-            })
-          );
+          logger.info("Migration dry run", {
+            version: migration.version,
+            name: migration.name,
+            description: migration.description,
+            validationErrors,
+          });
 
           results.push({
             version: migration.version,
@@ -388,26 +375,20 @@ export async function runMigrations(
             executionTimeMs: Date.now() - startTime,
           });
 
-          console.log(
-            JSON.stringify({
-              event: "migration_applied",
-              version: migration.version,
-              name: migration.name,
-              description: migration.description,
-              executionTimeMs: Date.now() - startTime,
-            })
-          );
+          logger.info("Migration applied", {
+            version: migration.version,
+            name: migration.name,
+            description: migration.description,
+            executionTimeMs: Date.now() - startTime,
+          });
         }
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
-        console.error(
-          JSON.stringify({
-            event: "migration_failed",
-            version: migration.version,
-            name: migration.name,
-            error,
-          })
-        );
+        logger.error("Migration failed", err instanceof Error ? err : undefined, {
+          version: migration.version,
+          name: migration.name,
+          error,
+        });
 
         results.push({
           version: migration.version,
@@ -456,13 +437,7 @@ export async function rollbackMigration(
     const applied = getAppliedMigrations(db);
 
     if (!applied.has(version)) {
-      console.warn(
-        JSON.stringify({
-          event: "rollback_not_applied",
-          version,
-          message: "Migration not found in applied migrations",
-        })
-      );
+      logger.warn("Rollback: migration not applied", { version });
       return false;
     }
 
@@ -470,26 +445,17 @@ export async function rollbackMigration(
     const migration = migrations.find((m) => m.version === version);
 
     if (!migration) {
-      console.error(
-        JSON.stringify({
-          event: "rollback_not_found",
-          version,
-          message: "Migration file not found",
-        })
-      );
+      logger.error("Rollback: migration file not found", undefined, { version });
       return false;
     }
 
     const startTime = Date.now();
 
     if (dryRun) {
-      console.log(
-        JSON.stringify({
-          event: "rollback_dry_run",
-          version: migration.version,
-          name: migration.name,
-        })
-      );
+      logger.info("Rollback dry run", {
+        version: migration.version,
+        name: migration.name,
+      });
       return true;
     }
 
@@ -502,25 +468,18 @@ export async function rollbackMigration(
         db.prepare("DELETE FROM _migrations WHERE version = ?").run(version);
       })();
 
-      console.log(
-        JSON.stringify({
-          event: "migration_rolled_back",
-          version: migration.version,
-          name: migration.name,
-          executionTimeMs: Date.now() - startTime,
-        })
-      );
+      logger.info("Migration rolled back", {
+        version: migration.version,
+        name: migration.name,
+        executionTimeMs: Date.now() - startTime,
+      });
 
       return true;
     } catch (err) {
-      console.error(
-        JSON.stringify({
-          event: "rollback_failed",
-          version: migration.version,
-          name: migration.name,
-          error: err instanceof Error ? err.message : String(err),
-        })
-      );
+      logger.error("Rollback failed", err instanceof Error ? err : undefined, {
+        version: migration.version,
+        name: migration.name,
+      });
       throw err;
     }
   } finally {
@@ -558,24 +517,17 @@ export async function rollbackToVersion(
     const toRollback = applied.filter((m) => m.version > targetVersion);
 
     if (toRollback.length === 0) {
-      console.log(
-        JSON.stringify({
-          event: "rollback_to_version_nothing",
-          targetVersion,
-          message: "No migrations to rollback",
-        })
-      );
+      logger.info("Rollback to version: no migrations to rollback", {
+        targetVersion,
+      });
       return [];
     }
 
     if (dryRun) {
-      console.log(
-        JSON.stringify({
-          event: "rollback_to_version_dry_run",
-          targetVersion,
-          migrationsToRollback: toRollback.map((m) => m.version),
-        })
-      );
+      logger.info("Rollback to version dry run", {
+        targetVersion,
+        migrationsToRollback: toRollback.map((m) => m.version),
+      });
       return toRollback.map((m) => m.version);
     }
 
@@ -591,13 +543,10 @@ export async function rollbackToVersion(
       }
     }
 
-    console.log(
-      JSON.stringify({
-        event: "rollback_to_version_complete",
-        targetVersion,
-        rolledBackVersions: rolledBack,
-      })
-    );
+    logger.info("Rollback to version complete", {
+      targetVersion,
+      rolledBackVersions: rolledBack,
+    });
 
     return rolledBack;
   } finally {
@@ -714,14 +663,11 @@ export function down(db: Database.Database): void {
   const { writeFile } = await import("node:fs/promises");
   await writeFile(filepath, template, "utf-8");
 
-  console.log(
-    JSON.stringify({
-      event: "migration_created",
-      filepath,
-      version: nextVersion,
-      name,
-    })
-  );
+  logger.info("Migration created", {
+    filepath,
+    version: nextVersion,
+    name,
+  });
 
   return filepath;
 }

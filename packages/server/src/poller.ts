@@ -28,6 +28,7 @@ import {
   updatePositions,
 } from "./cache.js";
 import { extractVehiclePositions, processVehicleUpdates } from "./delay-detector.js";
+import { logger } from "./observability/logger.js";
 import { parseFeed } from "./parser.js";
 import { buildStopToStationMap, transformFeeds } from "./transformer.js";
 
@@ -101,17 +102,13 @@ async function runPoll(): Promise<void> {
   const arrivals = transformFeeds(parsedFeeds, stations, routes, stopToStation, feedAges);
   updateArrivals(arrivals);
 
-  console.log(
-    JSON.stringify({
-      event: "poll_complete",
-      timestamp: new Date().toISOString(),
-      elapsed_ms: Date.now() - cycleStart,
-      feeds_ok: feedsOk,
-      feeds_failed: feedsFailed,
-      station_count: arrivals.size,
-      train_count: allVehiclePositions.length,
-    })
-  );
+  logger.info("Poll complete", {
+    elapsed_ms: Date.now() - cycleStart,
+    feeds_ok: feedsOk,
+    feeds_failed: feedsFailed,
+    station_count: arrivals.size,
+    train_count: allVehiclePositions.length,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -151,29 +148,19 @@ const RETRY_OPTIONS: RetryOptions = {
   },
   onRetry: (attempt, error, delayMs) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.log(
-      JSON.stringify({
-        event: "feed_retry",
-        timestamp: new Date().toISOString(),
-        feed: "unknown", // Will be set by fetchFeed wrapper
-        attempt,
-        delay_ms: delayMs,
-        error: message,
-      })
-    );
+    logger.warn("Feed retry", {
+      feed: "unknown", // Will be set by fetchFeed wrapper
+      attempt,
+      delay_ms: delayMs,
+      error: message,
+    });
   },
 };
 
 async function fetchFeed(config: FeedConfig): Promise<boolean> {
   // Circuit breaker: skip this feed until reset window expires
   if (isCircuitOpen(config.id)) {
-    console.log(
-      JSON.stringify({
-        event: "feed_circuit_open",
-        timestamp: new Date().toISOString(),
-        feed: config.id,
-      })
-    );
+    logger.warn("Feed circuit open", { feed: config.id });
     return false;
   }
 
@@ -194,16 +181,12 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
         RETRY_OPTIONS.onRetry?.(attempt, error, delayMs);
         // Log with feed ID
         const message = error instanceof Error ? error.message : String(error);
-        console.log(
-          JSON.stringify({
-            event: "feed_retry",
-            timestamp: new Date().toISOString(),
-            feed: config.id,
-            attempt,
-            delay_ms: delayMs,
-            error: message,
-          })
-        );
+        logger.warn("Feed retry", {
+          feed: config.id,
+          attempt,
+          delay_ms: delayMs,
+          error: message,
+        });
       },
     };
 
@@ -232,32 +215,21 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
 
     recordFeedSuccess(config.id, parsed, parsed.entityCount, Date.now() - start);
 
-    console.log(
-      JSON.stringify({
-        event: "feed_ok",
-        timestamp: new Date().toISOString(),
-        feed: config.id,
-        status: "ok",
-        latency_ms: Date.now() - start,
-        entities: parsed.entityCount,
-        parseErrors: 0, // Protobuf decode either succeeds or throws
-      })
-    );
+    logger.debug("Feed fetched successfully", {
+      feed: config.id,
+      latency_ms: Date.now() - start,
+      entities: parsed.entityCount,
+    });
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     recordFeedFailure(config.id, message, Date.now() - start);
 
-    console.log(
-      JSON.stringify({
-        event: "feed_error",
-        timestamp: new Date().toISOString(),
-        feed: config.id,
-        status: "error",
-        latency_ms: Date.now() - start,
-        error: message,
-      })
-    );
+    logger.error("Feed fetch failed", err as Error, {
+      feed: config.id,
+      latency_ms: Date.now() - start,
+      error: message,
+    });
     return false;
   }
 }

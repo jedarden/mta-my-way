@@ -11,7 +11,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { validateBody } from "./validation.js";
+import { validateBody, validateParams, validateQuery } from "./validation.js";
 
 describe("validateBody middleware", () => {
   let app: Hono;
@@ -265,5 +265,238 @@ describe("validateBody middleware", () => {
     });
 
     expect(res.status).toBe(400);
+  });
+
+  describe("Body sanitization", () => {
+    it("sanitizes HTML tags in request body", async () => {
+      const schema = z.object({
+        comment: z.string(),
+      });
+
+      app.post("/test", async (c, _next) => {
+        const body = await validateBody(c, schema);
+        if (body instanceof Response) return body;
+        return c.json({ validated: true, data: body });
+      });
+
+      const res = await app.request("/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: "<script>alert('xss')</script>Hello" }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.data.comment).not.toContain("<script>");
+      expect(data.data.comment).toContain("Hello");
+    });
+
+    it("sanitizes SQL injection patterns in request body", async () => {
+      const schema = z.object({
+        search: z.string(),
+      });
+
+      app.post("/test", async (c, _next) => {
+        const body = await validateBody(c, schema);
+        if (body instanceof Response) return body;
+        return c.json({ validated: true, data: body });
+      });
+
+      const res = await app.request("/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ search: "test' OR '1'='1" }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.data.search).not.toContain("'");
+      expect(data.data.search).not.toContain("OR");
+    });
+
+    it("sanitizes nested objects", async () => {
+      const schema = z.object({
+        user: z.object({
+          name: z.string(),
+          bio: z.string(),
+        }),
+      });
+
+      app.post("/test", async (c, _next) => {
+        const body = await validateBody(c, schema);
+        if (body instanceof Response) return body;
+        return c.json({ validated: true, data: body });
+      });
+
+      const res = await app.request("/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: {
+            name: "John",
+            bio: "<b>Bold</b> <script>evil()</script>",
+          },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.data.user.name).toBe("John");
+      expect(data.data.user.bio).not.toContain("<script>");
+    });
+
+    it("sanitizes arrays in request body", async () => {
+      const schema = z.object({
+        tags: z.array(z.string()),
+      });
+
+      app.post("/test", async (c, _next) => {
+        const body = await validateBody(c, schema);
+        if (body instanceof Response) return body;
+        return c.json({ validated: true, data: body });
+      });
+
+      const res = await app.request("/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tags: ["<script>alert(1)</script>tag1", "<b>tag2</b>"],
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.data.tags[0]).not.toContain("<script>");
+      expect(data.data.tags[1]).not.toContain("<b>");
+    });
+  });
+});
+
+describe("validateQuery middleware", () => {
+  let app: Hono;
+
+  beforeEach(() => {
+    app = new Hono();
+  });
+
+  it("validates query parameters", async () => {
+    const schema = z.object({
+      limit: z.coerce.number().min(1).max(100),
+      offset: z.coerce.number().min(0).default(0),
+    });
+
+    app.get("/test", (c) => {
+      const query = validateQuery(c, schema);
+      if (query instanceof Response) return query;
+      return c.json({ validated: true, data: query });
+    });
+
+    const res = await app.request("/test?limit=10&offset=5");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toEqual({ limit: 10, offset: 5 });
+  });
+
+  it("returns 400 for invalid query parameters", async () => {
+    const schema = z.object({
+      limit: z.coerce.number().min(1).max(100),
+    });
+
+    app.get("/test", (c) => {
+      const query = validateQuery(c, schema);
+      if (query instanceof Response) return query;
+      return c.json({ validated: true });
+    });
+
+    const res = await app.request("/test?limit=abc");
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("validateParams middleware", () => {
+  let app: Hono;
+
+  beforeEach(() => {
+    app = new Hono();
+  });
+
+  it("validates path parameters", async () => {
+    const schema = z.object({
+      id: z.string().regex(/^\d+$/),
+    });
+
+    app.get("/test/:id", (c) => {
+      const params = validateParams(c, schema);
+      if (params instanceof Response) return params;
+      return c.json({ validated: true, data: params });
+    });
+
+    const res = await app.request("/test/123");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toEqual({ id: "123" });
+  });
+
+  it("sanitizes path parameters", async () => {
+    const schema = z.object({
+      id: z.string(),
+    });
+
+    app.get("/test/:id", (c) => {
+      const params = validateParams(c, schema);
+      if (params instanceof Response) return params;
+      return c.json({ validated: true, data: params });
+    });
+
+    // Test with HTML tags that should be sanitized from path params
+    // Note: we can't test path traversal easily because Hono's router
+    // handles path segments separately
+    const res = await app.request("/test/..%2Ftest");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // The sanitization should have removed the path traversal pattern
+    expect(body.data.id).not.toContain("../");
+  });
+
+  it("returns 400 for invalid path parameters", async () => {
+    const schema = z.object({
+      id: z.string().regex(/^\d+$/, { message: "ID must be numeric" }),
+    });
+
+    app.get("/test/:id", (c) => {
+      const params = validateParams(c, schema);
+      if (params instanceof Response) return params;
+      return c.json({ validated: true });
+    });
+
+    const res = await app.request("/test/abc");
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("validation");
+  });
+
+  it("sanitizes path traversal attempts", async () => {
+    const schema = z.object({
+      path: z.string(),
+    });
+
+    app.get("/files/:path", (c) => {
+      const params = validateParams(c, schema);
+      if (params instanceof Response) return params;
+      return c.json({ validated: true, data: params });
+    });
+
+    // Use URL-encoded dot-dot-slash to test path traversal sanitization
+    const res = await app.request("/files/..%2Fetc%2Fpasswd");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // The sanitized value should have the dangerous patterns removed
+    expect(body.data.path).not.toContain("..");
   });
 });

@@ -1,6 +1,11 @@
 export { rateLimiter } from "./rate-limiter.js";
-export { securityHeaders } from "./security-headers.js";
-export { validateBody } from "./validation.js";
+export {
+  securityHeaders,
+  generateCspNonce,
+  getDefaultCsp,
+  getStrictCsp,
+} from "./security-headers.js";
+export { validateBody, validateQuery, validateParams } from "./validation.js";
 export { cors } from "./cors.js";
 export { requestSizeLimits } from "./request-limits.js";
 export { inputSanitization, getSanitizedQuery } from "./input-sanitization.js";
@@ -13,6 +18,11 @@ export {
 } from "./parameter-pollution.js";
 export { validateContentType, requireJson, requireFormData } from "./content-type.js";
 export {
+  headerValidation,
+  strictHeaderValidation,
+  type HeaderValidationOptions,
+} from "./header-validation.js";
+export {
   staticCache,
   semiStaticCache,
   realtimeCache,
@@ -24,3 +34,64 @@ export {
   conditionalGet,
   immutableCache,
 } from "./cache.js";
+export {
+  apiKeyAuth,
+  signedRequestAuth,
+  optionalAuth,
+  requireScope,
+  getAuthContext,
+  isAuthenticated,
+  registerApiKey,
+  createSession,
+  invalidateSession,
+  invalidateAllSessionsForKey,
+  type ApiKey,
+  type AuthContext,
+  type ApiKeyScope,
+  type AuthSession,
+} from "./authentication.js";
+export {
+  csrfProtection,
+  validateCsrf,
+  generateCsrfToken,
+  generateSessionCsrfToken,
+  validateCsrfToken,
+  markCsrfTokenUsed,
+  revokeCsrfToken,
+  getCsrfToken,
+} from "./csrf-protection.js";
+export {
+  ssrfProtection,
+  validateUrl,
+  safeFetch,
+  createMtaFeedAllowList,
+  validateMtaFeedUrl,
+  type SsrfProtectionOptions,
+  type UrlValidationResult,
+} from "./ssrf-protection.js";
+export {
+  hostHeaderProtection,
+  validateHostHeader,
+  getValidatedHost,
+  type HostHeaderProtectionOptions,
+  type HostValidationResult,
+} from "./host-header-protection.js";
+export {
+  securityCheckOnStartup,
+  auditDependencies,
+  generateSecurityReport,
+  isPackageSecure,
+  getSecurityRecommendations,
+  type SecurityReport,
+  type Vulnerability,
+  type DependencyInfo,
+} from "./dependency-security.js";
+export {
+  generateSriHash,
+  validateSriHash,
+  generateSriAttributes,
+  validateSriAttributes,
+  type SriHashAlgorithm,
+  type SriHash,
+  type SriAttributes,
+} from "./subresource-integrity.js";

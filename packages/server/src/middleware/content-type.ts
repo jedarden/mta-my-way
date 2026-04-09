@@ -6,6 +6,7 @@
  */
 
 import type { MiddlewareHandler } from "hono";
+import { logger } from "../observability/logger.js";
 
 /**
  * Supported content types.
@@ -90,15 +91,11 @@ export function validateContentType(options: ContentTypeOptions = {}): Middlewar
       }
 
       if (requireForBody) {
-        console.warn(
-          JSON.stringify({
-            event: "missing_content_type",
-            timestamp: new Date().toISOString(),
-            method,
-            path: c.req.path,
-            ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-          })
-        );
+        logger.warn("Missing Content-Type header", {
+          method,
+          path: c.req.path,
+          ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
+        });
 
         return c.json(
           {
@@ -119,16 +116,12 @@ export function validateContentType(options: ContentTypeOptions = {}): Middlewar
       });
 
       if (!isAllowed) {
-        console.warn(
-          JSON.stringify({
-            event: "invalid_content_type",
-            timestamp: new Date().toISOString(),
-            method,
-            path: c.req.path,
-            contentType,
-            ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-          })
-        );
+        logger.warn("Invalid Content-Type header", {
+          method,
+          path: c.req.path,
+          contentType,
+          ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
+        });
 
         return c.json(
           {

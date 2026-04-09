@@ -71,19 +71,19 @@ function createMockFeed(
             trip: {
               tripId,
               routeId,
-              // @ts-ignore - nyct extension
+              // @ts-expect-error - nyct extension
               ".transit_realtime.nyctTripDescriptor": {
                 isAssigned: true,
                 trainId: "123",
               },
             },
-            stopTimeUpdate: stops.map((s, i) => ({
+            stopTimeUpdate: stops.map((s) => ({
               stopId: s.stopId,
               arrival: s.arrivalTime ? { time: { toNumber: () => s.arrivalTime } } : undefined,
               departure: s.departureTime
                 ? { time: { toNumber: () => s.departureTime } }
                 : undefined,
-              // @ts-ignore - nyct extension
+              // @ts-expect-error - nyct extension
               ".transit_realtime.nyctStopTimeUpdate": {
                 scheduledTrack: s.scheduledTrack ?? null,
                 actualTrack: s.actualTrack ?? null,
@@ -99,8 +99,6 @@ function createMockFeed(
 describe("lookupTrip", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear tripFirstSeen Map by setting a new trip to expire old entries
-    const now = Date.now();
     // The tripFirstSeen Map is module-private, so we can't directly clear it
     // We'll work around this by using unique trip IDs in each test
   });
@@ -326,8 +324,6 @@ describe("lookupTrip", () => {
   });
 
   it("handles null arrival/departure times", () => {
-    const now = Math.floor(Date.now() / 1000);
-
     const mockFeed = createMockFeed("trip-null-times", "1", [
       {
         stopId: "R01N",

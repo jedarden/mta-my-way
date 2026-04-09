@@ -18,6 +18,7 @@ import {
   parseAlerts,
   toStationAlert,
 } from "./alerts-parser.js";
+import { logger } from "./observability/logger.js";
 
 const POLL_INTERVAL_MS = POLLING_INTERVALS.alerts * 1000; // 60,000 ms
 const FETCH_TIMEOUT_MS = 15_000;
@@ -90,12 +91,7 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
       cache.circuitOpenAt = null;
       cache.consecutiveFailures = 0;
     } else {
-      console.log(
-        JSON.stringify({
-          event: "alerts_circuit_open",
-          timestamp: new Date().toISOString(),
-        })
-      );
+      logger.warn("Alerts circuit breaker is open");
       return null;
     }
   }
@@ -131,17 +127,13 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
 
     const matchedCount = alerts.filter((a) => a.patternMatched).length;
 
-    console.log(
-      JSON.stringify({
-        event: "alerts_fetch_ok",
-        timestamp: new Date().toISOString(),
-        latency_ms: Date.now() - start,
-        alert_count: alerts.length,
-        match_rate: Math.round(cache.matchRate * 100) / 100,
-        matched_count: matchedCount,
-        unmatched_count: alerts.length - matchedCount,
-      })
-    );
+    logger.info("Alerts fetched successfully", {
+      latency_ms: Date.now() - start,
+      alert_count: alerts.length,
+      match_rate: Math.round(cache.matchRate * 100) / 100,
+      matched_count: matchedCount,
+      unmatched_count: alerts.length - matchedCount,
+    });
 
     return alerts;
   } catch (err) {
@@ -153,16 +145,12 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
       cache.circuitOpenAt = Date.now();
     }
 
-    console.log(
-      JSON.stringify({
-        event: "alerts_fetch_error",
-        timestamp: new Date().toISOString(),
-        latency_ms: Date.now() - start,
-        error: message,
-        consecutive_failures: cache.consecutiveFailures,
-        circuit_open: cache.circuitOpen,
-      })
-    );
+    logger.error("Alerts fetch failed", err instanceof Error ? err : undefined, {
+      latency_ms: Date.now() - start,
+      error: message,
+      consecutive_failures: cache.consecutiveFailures,
+      circuit_open: cache.circuitOpen,
+    });
 
     return null;
   }
@@ -226,13 +214,9 @@ function notifyListeners(changes: AlertChange[]): void {
     try {
       listener(changes);
     } catch (err) {
-      console.error(
-        JSON.stringify({
-          event: "alert_change_listener_error",
-          timestamp: new Date().toISOString(),
-          error: err instanceof Error ? err.message : String(err),
-        })
-      );
+      logger.error("Alert change listener error", err instanceof Error ? err : undefined, {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 }
@@ -264,15 +248,11 @@ async function runPoll(): Promise<void> {
     const updatedCount = changes.filter((c) => c.type === "updated").length;
     const resolvedCount = changes.filter((c) => c.type === "resolved").length;
 
-    console.log(
-      JSON.stringify({
-        event: "alerts_changed",
-        timestamp: new Date().toISOString(),
-        new: newCount,
-        updated: updatedCount,
-        resolved: resolvedCount,
-      })
-    );
+    logger.info("Alerts changed", {
+      new: newCount,
+      updated: updatedCount,
+      resolved: resolvedCount,
+    });
 
     // Notify listeners
     notifyListeners(changes);
@@ -291,13 +271,9 @@ export function startAlertsPoller(): void {
   void runPoll();
   pollTimer = setInterval(() => void runPoll(), POLL_INTERVAL_MS);
 
-  console.log(
-    JSON.stringify({
-      event: "alerts_poller_started",
-      timestamp: new Date().toISOString(),
-      interval_ms: POLL_INTERVAL_MS,
-    })
-  );
+  logger.info("Alerts poller started", {
+    interval_ms: POLL_INTERVAL_MS,
+  });
 }
 
 /**

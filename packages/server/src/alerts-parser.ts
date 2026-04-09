@@ -25,6 +25,7 @@ import type {
 } from "@mta-my-way/shared";
 import { transit_realtime } from "./proto/compiled.js";
 import { matchShuttle } from "./shuttle-matcher.js";
+import { logger } from "./observability/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -223,13 +224,9 @@ function matchPatterns(text: string, patterns: AlertPattern[]): PatternMatchResu
       }
     } catch (e) {
       // Invalid regex pattern - log and skip
-      console.error(
-        JSON.stringify({
-          event: "alert_pattern_error",
-          patternId: pattern.id,
-          error: e instanceof Error ? e.message : String(e),
-        })
-      );
+      logger.error("Alert pattern error", e instanceof Error ? e : undefined, {
+        patternId: pattern.id,
+      });
     }
   }
 

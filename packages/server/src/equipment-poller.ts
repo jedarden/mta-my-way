@@ -15,6 +15,7 @@ import type {
   StationEquipmentSummary,
   StationIndex,
 } from "@mta-my-way/shared";
+import { logger } from "./observability/logger.js";
 
 const POLL_INTERVAL_MS = POLLING_INTERVALS.equipment * 1000; // 300,000 ms (5 min)
 const FETCH_TIMEOUT_MS = 15_000;
@@ -262,15 +263,11 @@ function transformOutages(outages: RawOutage[]): Map<string, EquipmentStatus[]> 
   }
 
   if (unmatched > 0) {
-    console.log(
-      JSON.stringify({
-        event: "equipment_unmatched_stations",
-        timestamp: new Date().toISOString(),
-        unmatched_count: unmatched,
-        matched_count: matched,
-        unmatched_stations: [...unmatchedStations].slice(0, 10),
-      })
-    );
+    logger.warn("Unmatched equipment stations", {
+      unmatched_count: unmatched,
+      matched_count: matched,
+      unmatched_stations: [...unmatchedStations].slice(0, 10),
+    });
   }
 
   return map;
@@ -288,12 +285,7 @@ async function fetchEquipment(): Promise<Map<string, EquipmentStatus[]> | null> 
       status.circuitOpenAt = null;
       status.consecutiveFailures = 0;
     } else {
-      console.log(
-        JSON.stringify({
-          event: "equipment_circuit_open",
-          timestamp: new Date().toISOString(),
-        })
-      );
+      logger.warn("Equipment circuit breaker is open");
       return null;
     }
   }
@@ -324,15 +316,11 @@ async function fetchEquipment(): Promise<Map<string, EquipmentStatus[]> | null> 
     status.circuitOpenAt = null;
     status.lastSuccessAt = Date.now();
 
-    console.log(
-      JSON.stringify({
-        event: "equipment_fetch_ok",
-        timestamp: new Date().toISOString(),
-        latency_ms: Date.now() - start,
-        outage_count: outages.length,
-        station_count: equipment.size,
-      })
-    );
+    logger.info("Equipment feed fetched successfully", {
+      latency_ms: Date.now() - start,
+      outage_count: outages.length,
+      station_count: equipment.size,
+    });
 
     return equipment;
   } catch (err) {
@@ -344,16 +332,12 @@ async function fetchEquipment(): Promise<Map<string, EquipmentStatus[]> | null> 
       status.circuitOpenAt = Date.now();
     }
 
-    console.log(
-      JSON.stringify({
-        event: "equipment_fetch_error",
-        timestamp: new Date().toISOString(),
-        latency_ms: Date.now() - start,
-        error: message,
-        consecutive_failures: status.consecutiveFailures,
-        circuit_open: status.circuitOpen,
-      })
-    );
+    logger.error("Equipment feed fetch failed", err instanceof Error ? err : undefined, {
+      latency_ms: Date.now() - start,
+      error: message,
+      consecutive_failures: status.consecutiveFailures,
+      circuit_open: status.circuitOpen,
+    });
 
     return null;
   }
@@ -380,13 +364,9 @@ export function startEquipmentPoller(): void {
   void runPoll();
   pollTimer = setInterval(() => void runPoll(), POLL_INTERVAL_MS);
 
-  console.log(
-    JSON.stringify({
-      event: "equipment_poller_started",
-      timestamp: new Date().toISOString(),
-      interval_ms: POLL_INTERVAL_MS,
-    })
-  );
+  logger.info("Equipment poller started", {
+    interval_ms: POLL_INTERVAL_MS,
+  });
 }
 
 /**

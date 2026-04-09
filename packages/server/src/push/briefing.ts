@@ -15,6 +15,7 @@ import type {
   PushNotificationPayload,
 } from "@mta-my-way/shared";
 import { getAllAlerts } from "../alerts-poller.js";
+import { logger } from "../observability/logger.js";
 import { sendPushNotification } from "./sender.js";
 import { getAllSubscriptions } from "./subscriptions.js";
 
@@ -233,23 +234,15 @@ export function startBriefingScheduler(): void {
     }
 
     if (sentToday.size > 0) {
-      console.log(
-        JSON.stringify({
-          event: "morning_briefing_sent",
-          timestamp: new Date().toISOString(),
-          sent_count: sentToday.size,
-          total_subscriptions: subscriptions.length,
-        })
-      );
+      logger.info("Morning briefing sent", {
+        sent_count: sentToday.size,
+        total_subscriptions: subscriptions.length,
+      });
     }
   }, CHECK_INTERVAL_MS);
 
-  console.log(
-    JSON.stringify({
-      event: "briefing_scheduler_started",
-      timestamp: new Date().toISOString(),
-      briefing_time: `${String(BRIEFING_HOUR).padStart(2, "0")}:${String(BRIEFING_MINUTE).padStart(2, "0")}`,
-      check_interval_ms: CHECK_INTERVAL_MS,
-    })
-  );
+  logger.info("Briefing scheduler started", {
+    briefing_time: `${String(BRIEFING_HOUR).padStart(2, "0")}:${String(BRIEFING_MINUTE).padStart(2, "0")}`,
+    check_interval_ms: CHECK_INTERVAL_MS,
+  });
 }

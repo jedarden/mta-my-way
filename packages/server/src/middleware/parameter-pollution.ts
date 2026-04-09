@@ -12,6 +12,7 @@
  */
 
 import type { MiddlewareHandler } from "hono";
+import { logger } from "../observability/logger.js";
 
 /**
  * HPP protection strategy.
@@ -142,14 +143,10 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
           }
         }
 
-        console.warn(
-          JSON.stringify({
-            event: "hpp_rejected",
-            timestamp: new Date().toISOString(),
-            duplicates,
-            ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-          })
-        );
+        logger.warn("HPP rejected in query parameters", {
+          duplicates,
+          ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
+        });
 
         return c.json(
           {
@@ -177,15 +174,9 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
           const { cleaned, hasDuplicates } = processParams(body);
 
           if (strategy === "reject" && hasDuplicates) {
-            console.warn(
-              JSON.stringify({
-                event: "hpp_rejected",
-                timestamp: new Date().toISOString(),
-                location: "body",
-                ip:
-                  c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-              })
-            );
+            logger.warn("HPP rejected in request body", {
+              ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
+            });
 
             return c.json({ error: rejectMessage }, 400);
           }
@@ -217,15 +208,9 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
           const { cleaned, hasDuplicates } = processParams(params);
 
           if (strategy === "reject" && hasDuplicates) {
-            console.warn(
-              JSON.stringify({
-                event: "hpp_rejected",
-                timestamp: new Date().toISOString(),
-                location: "form",
-                ip:
-                  c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-              })
-            );
+            logger.warn("HPP rejected in form data", {
+              ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
+            });
 
             return c.json({ error: rejectMessage }, 400);
           }

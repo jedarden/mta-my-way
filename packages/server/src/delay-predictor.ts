@@ -28,6 +28,7 @@ import type {
   TravelTimeIndex,
   WeatherCondition,
 } from "@mta-my-way/shared";
+import { logger } from "./observability/logger.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -169,14 +170,10 @@ export function initDelayPredictor(
     persistencePath: predictorConfig?.persistencePath ?? "",
   };
 
-  console.log(
-    JSON.stringify({
-      event: "delay_predictor_init",
-      timestamp: new Date().toISOString(),
-      maxRecords: config.maxRecords,
-      minObservations: config.minObservations,
-    })
-  );
+  logger.info("Delay predictor initialized", {
+    maxRecords: config.maxRecords,
+    minObservations: config.minObservations,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -226,18 +223,14 @@ export function recordDelay(
   // Update aggregated stats
   updateAggregatedStats(record);
 
-  console.log(
-    JSON.stringify({
-      event: "delay_recorded",
-      timestamp: new Date().toISOString(),
-      routeId,
-      direction,
-      from: fromStationId,
-      to: toStationId,
-      delayRatio: Math.round(delayRatio * 100) / 100,
-      totalRecords: delayRecords.length,
-    })
-  );
+  logger.debug("Delay recorded", {
+    routeId,
+    direction,
+    from: fromStationId,
+    to: toStationId,
+    delayRatio: Math.round(delayRatio * 100) / 100,
+    totalRecords: delayRecords.length,
+  });
 }
 
 /**

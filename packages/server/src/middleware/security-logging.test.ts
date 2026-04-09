@@ -119,17 +119,17 @@ describe("SecurityEventLogger class", () => {
     });
 
     // Test CF-Connecting-IP
-    app.request("/test", { headers: { "CF-Connecting-IP": "1.2.3.4" } });
+    void app.request("/test", { headers: { "CF-Connecting-IP": "1.2.3.4" } });
     expect(mockLogFn.mock.calls[0]![0]!.ip).toBe("1.2.3.4");
     mockLogFn.mockClear();
 
     // Test X-Forwarded-For
-    app.request("/test", { headers: { "X-Forwarded-For": "5.6.7.8, 9.10.11.12" } });
+    void app.request("/test", { headers: { "X-Forwarded-For": "5.6.7.8, 9.10.11.12" } });
     expect(mockLogFn.mock.calls[0]![0]!.ip).toBe("5.6.7.8");
     mockLogFn.mockClear();
 
     // Test X-Real-IP
-    app.request("/test", { headers: { "X-Real-IP": "13.14.15.16" } });
+    void app.request("/test", { headers: { "X-Real-IP": "13.14.15.16" } });
     expect(mockLogFn.mock.calls[0]![0]!.ip).toBe("13.14.15.16");
     mockLogFn.mockClear();
 
@@ -150,7 +150,7 @@ describe("SecurityEventLogger class", () => {
       return c.json({ ok: true });
     });
 
-    app.request("/test", { headers: { "User-Agent": "test-agent" } });
+    void app.request("/test", { headers: { "User-Agent": "test-agent" } });
 
     const loggedEvent = mockLogFn.mock.calls[0]![0]!;
     expect(loggedEvent.userAgent).toBeUndefined();

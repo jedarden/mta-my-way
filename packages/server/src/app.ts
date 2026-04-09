@@ -35,10 +35,32 @@ import type {
   TransferConnection,
 } from "@mta-my-way/shared";
 import {
+  alertsQuerySchema,
   commuteAnalyzeRequestSchema,
+  commuteIdQuerySchema,
+  complexIdParamsSchema,
+  contextClearRequestSchema,
+  contextDetectRequestSchema,
+  contextOverrideRequestSchema,
+  contextSettingsUpdateRequestSchema,
+  dateRangeParamsSchema,
+  delayPatternsQuerySchema,
+  delayPredictionRequestSchema,
+  delayProbabilityQuerySchema,
+  emptyQuerySchema,
+  equipmentQuerySchema,
+  lineIdParamsSchema,
+  positionsQuerySchema,
   pushSubscribeRequestSchema,
   pushUnsubscribeRequestSchema,
   pushUpdateRequestSchema,
+  routeIdParamsSchema,
+  stationIdParamsSchema,
+  stationSearchQuerySchema,
+  tripCreateRequestSchema,
+  tripIdParamsSchema,
+  tripNotesUpdateRequestSchema,
+  tripQuerySchema,
 } from "@mta-my-way/shared";
 import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
@@ -61,9 +83,16 @@ import {
   predictDelay,
 } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
-import { rateLimiter, securityHeaders } from "./middleware/index.js";
+import {
+  inputSanitization,
+  rateLimiter,
+  requestSizeLimits,
+  securityHeaders,
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "./middleware/index.js";
 import { httpMetrics } from "./middleware/metrics.js";
-import { validateBody } from "./middleware/validation.js";
 import { logger } from "./observability/logger.js";
 import { metrics } from "./observability/metrics.js";
 import { tracingMiddleware } from "./observability/tracing.js";
@@ -317,6 +346,12 @@ export function createApp(
   // Distributed tracing for all requests
   app.use("*", tracingMiddleware);
 
+  // Request size limits for all routes (DoS protection)
+  app.use("*", requestSizeLimits());
+
+  // Input sanitization for all API routes (XSS, SQL injection prevention)
+  app.use("/api/*", inputSanitization());
+
   // HTTP metrics collection for all API routes
   app.use("/api/*", httpMetrics());
 
@@ -345,6 +380,9 @@ export function createApp(
   // Health endpoint
   // -------------------------------------------------------------------------
   app.get("/api/health", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
     const feedStates = getFeedStates();
     const alertsStatus = getAlertsStatus();
     const allFeedsOk = feedStates.every(
@@ -430,6 +468,10 @@ export function createApp(
   // Metrics export endpoint (for Prometheus)
   // -------------------------------------------------------------------------
   app.get("/api/metrics", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
     const metricsText = metrics.exportPrometheus();
     c.header("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
     return c.text(metricsText);
@@ -439,7 +481,10 @@ export function createApp(
   // Real-time arrivals
   // -------------------------------------------------------------------------
   app.get("/api/arrivals/:stationId", (c) => {
-    const stationId = c.req.param("stationId");
+    const params = validateParams(c, stationIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { id: stationId } = params;
     const arrivals = getArrivals(stationId);
 
     if (!arrivals) {
@@ -466,13 +511,11 @@ export function createApp(
   });
 
   app.get("/api/stations/search", (c) => {
-    const query = c.req.query("q");
+    const query = validateQuery(c, stationSearchQuerySchema);
+    if (query instanceof Response) return query;
 
-    if (!query || query.trim().length === 0) {
-      return c.json({ error: "Query parameter 'q' is required" }, 400);
-    }
-
-    const trimmedQuery = query.trim();
+    const { q } = query;
+    const trimmedQuery = q.trim();
     const normalizedQuery = normalizeForSearch(trimmedQuery);
 
     const results = Object.values(stations)
@@ -489,7 +532,10 @@ export function createApp(
   });
 
   app.get("/api/stations/:id", (c) => {
-    const id = c.req.param("id");
+    const params = validateParams(c, stationIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { id } = params;
     const station = stations[id];
 
     if (!station) {
@@ -535,7 +581,10 @@ export function createApp(
   });
 
   app.get("/api/routes/:id", (c) => {
-    const id = c.req.param("id");
+    const params = validateParams(c, routeIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { id } = params;
     const route = routes[id];
 
     if (!route) {
@@ -555,7 +604,10 @@ export function createApp(
   });
 
   app.get("/api/static/complexes/:id", (c) => {
-    const id = c.req.param("id");
+    const params = validateParams(c, complexIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { id } = params;
     const complex = complexes[id];
 
     if (!complex) {
@@ -600,7 +652,7 @@ export function createApp(
       c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
       return c.json(analysis);
     } catch (error) {
-      console.error("Commute analysis error:", error);
+      logger.error("Commute analysis error", error instanceof Error ? error : undefined);
       return c.json(
         {
           error: "Failed to analyze commute",
@@ -615,7 +667,19 @@ export function createApp(
   // Alerts
   // -------------------------------------------------------------------------
   app.get("/api/alerts", (c) => {
-    const officialAlerts = getAllAlerts();
+    // Validate query parameters to prevent injection attacks
+    const query = validateQuery(c, alertsQuerySchema);
+    if (query instanceof Response) return query;
+
+    // Apply filtering if query parameters are provided
+    let officialAlerts = getAllAlerts();
+    if (query.lineId) {
+      officialAlerts = getAlertsForLine(query.lineId);
+    }
+    if (query.activeOnly) {
+      officialAlerts = officialAlerts.filter((a) => a.isActive);
+    }
+
     const predictedAlerts = getPredictedAlerts();
     const status = getAlertsStatus();
     const delayDetector = getDelayDetectorStatus();
@@ -640,7 +704,10 @@ export function createApp(
   });
 
   app.get("/api/alerts/:lineId", (c) => {
-    const lineId = c.req.param("lineId").toUpperCase();
+    const params = validateParams(c, lineIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { lineId } = params;
     const officialAlerts = getAlertsForLine(lineId);
     const predictedAlerts = getPredictedAlerts().filter((a) => a.affectedLines.includes(lineId));
     const alerts = [...officialAlerts, ...predictedAlerts];
@@ -653,13 +720,31 @@ export function createApp(
   // Equipment (elevator/escalator outages)
   // -------------------------------------------------------------------------
   app.get("/api/equipment", (c) => {
-    const summaries = getAllEquipment();
+    // Validate query parameters to prevent injection attacks
+    const query = validateQuery(c, equipmentQuerySchema);
+    if (query instanceof Response) return query;
+
+    // Apply filtering if query parameters are provided
+    let summaries = getAllEquipment();
+    if (query.stationId) {
+      const summary = getEquipmentForStation(query.stationId);
+      return c.json(summary ? { stations: [summary], count: 1 } : { stations: [], count: 0 });
+    }
+    if (query.type && query.type !== "all") {
+      summaries = summaries.filter((s) =>
+        s.equipment.some((e) => e.type.toLowerCase() === query.type!.toLowerCase())
+      );
+    }
+
     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
     return c.json({ stations: summaries, count: summaries.length });
   });
 
   app.get("/api/equipment/:stationId", (c) => {
-    const stationId = c.req.param("stationId");
+    const params = validateParams(c, stationIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { id: stationId } = params;
     const summary = getEquipmentForStation(stationId);
 
     if (!summary) {
@@ -674,17 +759,12 @@ export function createApp(
   // Delay prediction API
   // -------------------------------------------------------------------------
   app.get("/api/predictions/delay", (c) => {
-    const routeId = c.req.query("routeId");
-    const direction = c.req.query("direction")?.toUpperCase();
+    const query = validateQuery(c, delayProbabilityQuerySchema);
+    if (query instanceof Response) return query;
 
-    if (!routeId) {
-      return c.json({ error: "routeId query parameter is required" }, 400);
-    }
-    if (direction !== "N" && direction !== "S") {
-      return c.json({ error: "direction must be 'N' or 'S'" }, 400);
-    }
+    const { routeId, direction } = query;
 
-    const probability = getRouteDelayProbability(routeId, direction as "N" | "S");
+    const probability = getRouteDelayProbability(routeId, direction as "N" | "S" | undefined);
 
     if (probability === null) {
       return c.json({
@@ -706,8 +786,14 @@ export function createApp(
   });
 
   app.get("/api/predictions/delay/:routeId", (c) => {
-    const routeId = c.req.param("routeId").toUpperCase();
-    const direction = c.req.query("direction")?.toUpperCase();
+    const params = validateParams(c, lineIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const query = validateQuery(c, delayPatternsQuerySchema);
+    if (query instanceof Response) return query;
+
+    const { lineId: routeId } = params;
+    const { direction } = query;
 
     if (direction !== "N" && direction !== "S") {
       // Return patterns for both directions if none specified
@@ -735,7 +821,10 @@ export function createApp(
   });
 
   app.get("/api/predictions/delay/:routeId/summary", (c) => {
-    const routeId = c.req.param("routeId").toUpperCase();
+    const params = validateParams(c, lineIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { lineId: routeId } = params;
     const summary = getRouteDelaySummary(routeId);
 
     if (!summary) {
@@ -754,26 +843,14 @@ export function createApp(
 
   app.post("/api/predictions/predict", async (c) => {
     try {
-      const body = await c.req.json();
+      const body = await validateBody(c, delayPredictionRequestSchema);
+      if (body instanceof Response) return body;
+
       const { routeId, direction, fromStationId, toStationId, scheduledMinutes } = body;
-
-      if (!routeId || !direction || !fromStationId || !toStationId || !scheduledMinutes) {
-        return c.json(
-          {
-            error:
-              "Missing required fields: routeId, direction, fromStationId, toStationId, scheduledMinutes",
-          },
-          400
-        );
-      }
-
-      if (direction !== "N" && direction !== "S") {
-        return c.json({ error: "direction must be 'N' or 'S'" }, 400);
-      }
 
       const scheduledSeconds = scheduledMinutes * 60;
       const prediction = predictDelay(
-        routeId.toUpperCase(),
+        routeId,
         direction,
         fromStationId,
         toStationId,
@@ -796,7 +873,7 @@ export function createApp(
       c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
       return c.json(prediction);
     } catch (error) {
-      console.error("Delay prediction error:", error);
+      logger.error("Delay prediction error", error instanceof Error ? error : undefined);
       return c.json(
         {
           error: "Failed to generate prediction",
@@ -811,12 +888,10 @@ export function createApp(
   // Live trip tracking
   // -------------------------------------------------------------------------
   app.get("/api/trip/:tripId", (c) => {
-    const tripId = c.req.param("tripId");
+    const params = validateParams(c, tripIdParamsSchema);
+    if (params instanceof Response) return params;
 
-    if (!tripId) {
-      return c.json({ error: "tripId is required" }, 400);
-    }
-
+    const { tripId } = params;
     const trip = lookupTrip(tripId, stations);
 
     if (!trip) {
@@ -832,12 +907,10 @@ export function createApp(
   // Trip ETA prediction with delay modeling
   // -------------------------------------------------------------------------
   app.get("/api/trip/:tripId/predict", (c) => {
-    const tripId = c.req.param("tripId");
+    const params = validateParams(c, tripIdParamsSchema);
+    if (params instanceof Response) return params;
 
-    if (!tripId) {
-      return c.json({ error: "tripId is required" }, 400);
-    }
-
+    const { tripId } = params;
     const trip = lookupTrip(tripId, stations);
 
     if (!trip) {
@@ -966,7 +1039,10 @@ export function createApp(
   // Train positions (for line diagram)
   // -------------------------------------------------------------------------
   app.get("/api/positions/:lineId", (c) => {
-    const lineId = c.req.param("lineId").toUpperCase();
+    const params = validateParams(c, lineIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { lineId } = params;
     const positions = getPositions(lineId);
 
     if (!positions) {
@@ -1071,22 +1147,15 @@ export function createApp(
   /** Record a trip in the journal */
   app.post("/api/trips", async (c) => {
     try {
-      const body = await c.req.json();
-      const { date, origin, destination, line, departureTime, arrivalTime, notes } = body;
+      const body = await validateBody(c, tripCreateRequestSchema);
+      if (body instanceof Response) return body;
 
-      if (!origin || !destination || !line || !departureTime || !arrivalTime) {
-        return c.json(
-          {
-            error: "Missing required fields: origin, destination, line, departureTime, arrivalTime",
-          },
-          400
-        );
-      }
+      const { date, origin, destination, line, departureTime, arrivalTime, notes } = body;
 
       const actualDurationMinutes = Math.round((arrivalTime - departureTime) / 60000);
 
       const trip = recordTrip({
-        date: date ?? new Date(departureTime).toISOString().split("T")[0]!,
+        date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
         origin,
         destination,
         line,
@@ -1117,38 +1186,26 @@ export function createApp(
 
   /** Get trips from the journal with optional filters */
   app.get("/api/trips", (c) => {
-    const limit = parseInt(c.req.query("limit") ?? "50", 10);
-    const offset = parseInt(c.req.query("offset") ?? "0", 10);
-    const startDate = c.req.query("startDate");
-    const endDate = c.req.query("endDate");
-    const originId = c.req.query("originId");
-    const destinationId = c.req.query("destinationId");
-    const line = c.req.query("line");
-    const source = c.req.query("source") as TripSource | undefined;
+    const query = validateQuery(c, tripQuerySchema);
+    if (query instanceof Response) return query;
 
-    const trips = getTrips({
-      limit,
-      offset,
-      startDate,
-      endDate,
-      originId,
-      destinationId,
-      line,
-      source,
-    });
+    const trips = getTrips(query);
 
     c.header("Cache-Control", "public, max-age=15");
     return c.json({
       trips,
       count: trips.length,
-      limit,
-      offset,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
     });
   });
 
   /** Get a single trip by ID */
   app.get("/api/trips/:tripId", (c) => {
-    const tripId = c.req.param("tripId");
+    const params = validateParams(c, tripIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { tripId } = params;
     const trip = getTripById(tripId);
 
     if (!trip) {
@@ -1161,30 +1218,30 @@ export function createApp(
 
   /** Update trip notes */
   app.patch("/api/trips/:tripId/notes", async (c) => {
-    const tripId = c.req.param("tripId");
-    try {
-      const body = await c.req.json();
-      const { notes } = body;
+    const params = validateParams(c, tripIdParamsSchema);
+    if (params instanceof Response) return params;
 
-      if (notes === undefined) {
-        return c.json({ error: "notes field is required" }, 400);
-      }
+    const body = await validateBody(c, tripNotesUpdateRequestSchema);
+    if (body instanceof Response) return body;
 
-      const success = updateTripNotes(tripId, notes);
+    const { tripId } = params;
+    const { notes } = body;
 
-      if (!success) {
-        return c.json({ error: "Trip not found" }, 404);
-      }
+    const success = updateTripNotes(tripId, notes);
 
-      return c.json({ success: true });
-    } catch {
-      return c.json({ error: "Invalid request body" }, 400);
+    if (!success) {
+      return c.json({ error: "Trip not found" }, 404);
     }
+
+    return c.json({ success: true });
   });
 
   /** Delete a trip from the journal */
   app.delete("/api/trips/:tripId", (c) => {
-    const tripId = c.req.param("tripId");
+    const params = validateParams(c, tripIdParamsSchema);
+    if (params instanceof Response) return params;
+
+    const { tripId } = params;
     const success = deleteTrip(tripId);
 
     if (!success) {
@@ -1196,7 +1253,10 @@ export function createApp(
 
   /** Get commute statistics */
   app.get("/api/journal/stats", (c) => {
-    const commuteId = c.req.query("commuteId") ?? "default";
+    const query = validateQuery(c, commuteIdQuerySchema);
+    if (query instanceof Response) return query;
+
+    const commuteId = query.commuteId ?? "default";
     const stats = calculateCommuteStats(commuteId);
 
     c.header("Cache-Control", "public, max-age=60");
@@ -1205,9 +1265,10 @@ export function createApp(
 
   /** Get trips for a specific date range */
   app.get("/api/journal/dates/:startDate/:endDate", (c) => {
-    const startDate = c.req.param("startDate");
-    const endDate = c.req.param("endDate");
+    const params = validateParams(c, dateRangeParamsSchema);
+    if (params instanceof Response) return params;
 
+    const { startDate, endDate } = params;
     const trips = getTripsByDateRange(startDate, endDate);
 
     c.header("Cache-Control", "public, max-age=30");
@@ -1221,6 +1282,10 @@ export function createApp(
 
   /** Get journal summary (recent trips + stats) */
   app.get("/api/journal/summary", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
     const recentTrips = getTrips({ limit: 10 });
     const stats = calculateCommuteStats("default");
     const totalTrips = getTotalTripCount();
@@ -1239,6 +1304,10 @@ export function createApp(
 
   /** Get current context and UI hints */
   app.get("/api/context", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
     const summary = getContextSummary();
 
     c.header("Cache-Control", "public, max-age=15");
@@ -1248,17 +1317,10 @@ export function createApp(
   /** Detect context from request parameters */
   app.post("/api/context/detect", async (c) => {
     try {
-      const body = await c.req.json();
-      const { latitude, longitude, tapHistory, currentScreen, screenTime, recentActions } = body;
+      const body = await validateBody(c, contextDetectRequestSchema);
+      if (body instanceof Response) return body;
 
-      const context = detectContextFromRequest({
-        latitude,
-        longitude,
-        tapHistory,
-        currentScreen,
-        screenTime,
-        recentActions,
-      });
+      const context = detectContextFromRequest(body);
 
       c.header("Cache-Control", "no-cache");
       return c.json({ context });
@@ -1277,22 +1339,10 @@ export function createApp(
   /** Set manual context override */
   app.post("/api/context/override", async (c) => {
     try {
-      const body = await c.req.json();
+      const body = await validateBody(c, contextOverrideRequestSchema);
+      if (body instanceof Response) return body;
+
       const { context } = body;
-
-      if (
-        !context ||
-        !["commuting", "planning", "reviewing", "idle", "at_station"].includes(context)
-      ) {
-        return c.json(
-          {
-            error:
-              "Invalid context. Must be one of: commuting, planning, reviewing, idle, at_station",
-          },
-          400
-        );
-      }
-
       const newContext = setManualContext(context);
 
       c.header("Cache-Control", "no-cache");
@@ -1304,7 +1354,10 @@ export function createApp(
   });
 
   /** Clear manual context override */
-  app.post("/api/context/clear", (c) => {
+  app.post("/api/context/clear", async (c) => {
+    const body = await validateBody(c, contextClearRequestSchema);
+    if (body instanceof Response) return body;
+
     const context = clearManualOverride();
 
     c.header("Cache-Control", "no-cache");
@@ -1314,16 +1367,10 @@ export function createApp(
   /** Update context settings */
   app.patch("/api/context/settings", async (c) => {
     try {
-      const body = await c.req.json();
-      const { enabled, showIndicator, useLocation, useTimePatterns, learnPatterns } = body;
+      const body = await validateBody(c, contextSettingsUpdateRequestSchema);
+      if (body instanceof Response) return body;
 
-      updateContextSettings({
-        enabled,
-        showIndicator,
-        useLocation,
-        useTimePatterns,
-        learnPatterns,
-      });
+      updateContextSettings(body);
 
       return c.json({ success: true, settings: getContextSettings() });
     } catch (error) {
