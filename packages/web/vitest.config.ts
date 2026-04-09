@@ -13,4 +13,9 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.d.ts"],
     },
   },
+  resolve: {
+    alias: {
+      "virtual:pwa-register": "/src/test/mocks/pwa-register.ts",
+    },
+  },
 });

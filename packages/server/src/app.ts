@@ -85,6 +85,7 @@ import {
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import {
   auditLogAccess,
+  createSession,
   csrfProtection,
   getCsrfToken,
   hostHeaderProtection,
@@ -113,6 +114,13 @@ import { logger } from "./observability/logger.js";
 import { metrics } from "./observability/metrics.js";
 import { tracingMiddleware } from "./observability/tracing.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
+import {
+  cleanupExpiredStates,
+  createAuthorizationUrl,
+  getActiveOAuthProviders,
+  handleOAuthCallback,
+  initializeDefaultProviders,
+} from "./oauth/index.js";
 import {
   getSubscriptionCount,
   removeSubscription,
@@ -1587,6 +1595,157 @@ export function createApp(
       }
     }
   );
+
+  // -------------------------------------------------------------------------
+  // OAuth 2.0 Authentication
+  // -------------------------------------------------------------------------
+
+  // Initialize OAuth providers on startup
+  initializeDefaultProviders();
+
+  // Clean up expired OAuth states every hour
+  setInterval(() => {
+    cleanupExpiredStates();
+  }, 60 * 60 * 1000);
+
+  /** Get available OAuth providers */
+  app.get("/api/auth/oauth/providers", (c) => {
+    const providers = getActiveOAuthProviders();
+
+    // Return only safe provider information (no secrets)
+    const safeProviders = providers.map((p) => ({
+      providerId: p.providerId,
+      displayName: p.displayName,
+      active: p.active,
+    }));
+
+    c.header("Cache-Control", "public, max-age=300");
+    return c.json({ providers: safeProviders });
+  });
+
+  /** Initiate OAuth authorization flow */
+  app.get("/api/auth/oauth/authorize/:providerId", async (c) => {
+    const providerId = c.req.param("providerId");
+    const redirectUrl = c.req.query("redirect_url");
+
+    if (!providerId) {
+      return c.json({ error: "Provider ID is required" }, 400);
+    }
+
+    const result = await createAuthorizationUrl(providerId, redirectUrl);
+
+    if ("error" in result) {
+      return c.json({ error: result.error }, 400);
+    }
+
+    // Return authorization URL and state
+    return c.json({
+      authorizationUrl: result.url,
+      stateId: result.stateId,
+    });
+  });
+
+  /** OAuth callback endpoint */
+  app.get("/api/auth/oauth/callback/:providerId", async (c) => {
+    const providerId = c.req.param("providerId");
+    const state = c.req.query("state");
+    const code = c.req.query("code");
+    const error = c.req.query("error");
+    const errorDescription = c.req.query("error_description");
+
+    // Handle OAuth errors from provider
+    if (error) {
+      logger.warn("OAuth callback error", {
+        providerId,
+        error,
+        errorDescription,
+      });
+      return c.json(
+        {
+          success: false,
+          error: error || "OAuth authorization failed",
+          errorDescription,
+        },
+        400
+      );
+    }
+
+    // Validate required parameters
+    if (!state || !code) {
+      return c.json(
+        {
+          success: false,
+          error: "Missing required parameters: state and code",
+        },
+        400
+      );
+    }
+
+    // Get client info for logging and session creation
+    const clientIp =
+      c.req.header("x-forwarded-for")?.split(",")[0] ??
+      c.req.header("cf-connecting-ip") ??
+      "unknown";
+    const userAgent = c.req.header("user-agent");
+
+    // Handle the callback
+    const result = await handleOAuthCallback(
+      state,
+      code,
+      clientIp,
+      userAgent,
+      async (keyId, ip, ua, metadata) => {
+        // Create session with OAuth type
+        const sessionResult = await createSession(
+          keyId,
+          ip,
+          ua,
+          metadata,
+          { type: "oauth", ipBinding: true, createRefreshToken: true }
+        );
+
+        if ("sessionId" in sessionResult) {
+          return {
+            sessionId: sessionResult.sessionId,
+            csrfToken: getCsrfToken(c) || sessionResult.refreshToken || "",
+          };
+        }
+
+        return { error: "Failed to create session" };
+      }
+    );
+
+    if (!result.success) {
+      return c.json(
+        {
+          success: false,
+          error: result.error,
+          errorDescription: result.errorDescription,
+        },
+        400
+      );
+    }
+
+    // Set session cookie
+    if (result.sessionId) {
+      const isSecure = process.env["NODE_ENV"] === "production";
+      c.header(
+        "Set-Cookie",
+        `session_id=${result.sessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
+      );
+    }
+
+    // Return success with profile (excluding sensitive data)
+    return c.json({
+      success: true,
+      profile: {
+        providerId: result.profile?.providerId,
+        email: result.profile?.email,
+        name: result.profile?.name,
+        picture: result.profile?.picture,
+      },
+    });
+  });
 
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)
