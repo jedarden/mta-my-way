@@ -20,12 +20,7 @@
  *      if the tab was backgrounded.
  */
 
-import type {
-  MorningScoreMap,
-  PushFavoriteTuple,
-  PushSubscribeRequest,
-  PushUpdateRequest,
-} from "@mta-my-way/shared";
+import type { MorningScoreMap, PushFavoriteTuple, PushSubscribeRequest } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useFavoritesStore } from "../stores/favoritesStore";

@@ -11,7 +11,7 @@
  */
 
 import type { InterpolatedTrainPosition, LineDiagramData, Station } from "@mta-my-way/shared";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { memo } from "react";
 import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { useLiveAnnouncer } from "../common/LiveAnnouncer";

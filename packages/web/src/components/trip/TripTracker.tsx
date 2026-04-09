@@ -9,7 +9,7 @@
  *   - destination: flag icon, bold text
  */
 
-import { useEffect, useRef, memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import type { TripStopProgress } from "../../hooks/useTripTracker";
 
 interface TripTrackerProps {
@@ -220,7 +220,7 @@ const StopRow = memo(function StopRow({ stop, isFirst, isLast }: StopRowProps) {
 
 // ─── Status dots ────────────────────────────────────────────────────────
 
-const PassedDot = memo(const PassedDot = memo(function PassedDot() {
+const PassedDot = memo(function PassedDot() {
   return <div className="w-3 h-3 rounded-full bg-mta-primary" aria-label="Passed" />;
 });
 
@@ -266,4 +266,4 @@ const DestinationDot = memo(function DestinationDot() {
       <line x1="4" y1="22" x2="4" y2="15" />
     </svg>
   );
-}
+});
