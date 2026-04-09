@@ -193,7 +193,7 @@ describe("ClientTracer", () => {
 
   describe("withChildSpan helper", () => {
     it("should execute function within a span", async () => {
-      let capturedSpan: any = null;
+      let capturedSpan: Span | null = null;
       const result = await withChildSpan("async-operation", (span) => {
         capturedSpan = span;
         return "result";

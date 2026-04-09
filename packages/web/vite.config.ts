@@ -98,7 +98,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["favicon.svg", "icons/*.svg", "offline.html", "**/*.css"],
+      includeAssets: ["favicon.svg", "icons/*.svg", "offline.html", "sw-push.js"],
       manifest: {
         name: "MTA My Way",
         short_name: "MTA My Way",
@@ -299,10 +299,33 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          // ---------------------------------------------------------------------------
+          // App shell - index.html and manifest for offline PWA functionality
+          // ---------------------------------------------------------------------------
+          {
+            urlPattern: /\/(?:index\.html?|manifest\.webmanifest)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "app-shell-cache",
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 days
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
         // Configure which requests to handle
         navigateFallback: "/offline.html",
         navigateFallbackDenylist: [/^\/api/, /^\/node_modules/],
+        // Precache the manifest for offline PWA installation
+        manifestTransforms: [
+          async (entries) => {
+            // Ensure manifest.webmanifest is precached with high priority
+            const manifestEntry = entries.find((e) => e.url.endsWith("webmanifest"));
+            if (manifestEntry) {
+              manifestEntry.revision = `${Date.now()}`;
+            }
+            return { manifest: entries, warnings: [] };
+          },
+        ],
       },
     }),
     // Bundle analysis - generates stats.html in build output
