@@ -141,11 +141,15 @@ describe("useDebounce", () => {
       expect(result.current).toBe("initial");
 
       // First update - should go through immediately
-      rerender({ value: "update1", delay: 100 });
+      await act(async () => {
+        rerender({ value: "update1", delay: 100 });
+      });
       expect(result.current).toBe("update1");
 
       // Immediate second update - should be throttled
-      rerender({ value: "update2", delay: 100 });
+      await act(async () => {
+        rerender({ value: "update2", delay: 100 });
+      });
       expect(result.current).toBe("update1"); // Still update1
 
       // Wait for throttle period
@@ -163,7 +167,9 @@ describe("useDebounce", () => {
         { initialProps: { value: "initial", delay: 100 } }
       );
 
-      rerender({ value: "update1", delay: 100 });
+      await act(async () => {
+        rerender({ value: "update1", delay: 100 });
+      });
       expect(result.current).toBe("update1");
 
       // Wait for throttle period
@@ -172,7 +178,9 @@ describe("useDebounce", () => {
       });
 
       // Should now allow new update
-      rerender({ value: "update2", delay: 100 });
+      await act(async () => {
+        rerender({ value: "update2", delay: 100 });
+      });
       expect(result.current).toBe("update2");
     });
   });

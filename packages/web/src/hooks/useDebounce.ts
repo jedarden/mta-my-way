@@ -15,7 +15,7 @@
  *   // debouncedSearch will update 300ms after searchTerm stops changing
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useOnlineStatus } from "./useOnlineStatus";
 
 interface UseDebounceOptions {
@@ -188,16 +188,21 @@ function useEffectDebouncedCallback<T extends (...args: unknown[]) => void>(
 export function useThrottle<T>(value: T, delay: number = 100): T {
   const [throttledValue, setThrottledValue] = useState<T>(value);
   const lastExecutedRef = useRef<number>(0);
+  const lastValueRef = useRef<T>(value);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const now = Date.now();
     const timeSinceLastExecution = now - lastExecutedRef.current;
+    const hasValueChanged = lastValueRef.current !== value;
 
-    if (timeSinceLastExecution >= delay) {
-      // Enough time has passed, update immediately
+    // Update the ref to track the current value
+    lastValueRef.current = value;
+
+    if (hasValueChanged && (!lastExecutedRef.current || timeSinceLastExecution >= delay)) {
+      // First value change or enough time has passed, update immediately
       lastExecutedRef.current = now;
       setThrottledValue(value);
-    } else {
+    } else if (hasValueChanged) {
       // Not enough time, schedule update for remaining time
       const timeoutId = setTimeout(() => {
         lastExecutedRef.current = Date.now();

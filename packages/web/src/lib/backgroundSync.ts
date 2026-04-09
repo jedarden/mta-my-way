@@ -32,9 +32,9 @@ const STORE_NAME = "queued-requests";
  * BackgroundSyncManager - Manages offline request queue and background sync
  */
 export class BackgroundSyncManager {
-  private db: IDBDatabase | null = null;
-  private syncRegistration: SyncRegistration | null = null;
-  private isSupported: boolean;
+  db: IDBDatabase | null = null;
+  syncRegistration: SyncRegistration | null = null;
+  isSupported: boolean;
 
   constructor() {
     // Check if Background Sync API is supported
@@ -59,7 +59,7 @@ export class BackgroundSyncManager {
   /**
    * Open IndexedDB database for queued requests
    */
-  private openDB(): Promise<IDBDatabase> {
+  openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -79,7 +79,7 @@ export class BackgroundSyncManager {
   /**
    * Register background sync with service worker
    */
-  private async registerSync(): Promise<void> {
+  async registerSync(): Promise<void> {
     if (!("serviceWorker" in navigator)) return;
 
     try {
@@ -97,7 +97,7 @@ export class BackgroundSyncManager {
     url: string,
     options: RequestInit = {},
     maxRetries: number = 3
-  ): Promise<void> {
+  ): Promise<string> {
     if (!this.db) {
       await this.init();
     }
@@ -124,12 +124,14 @@ export class BackgroundSyncManager {
         console.warn("Failed to trigger background sync:", error);
       }
     }
+
+    return request.id;
   }
 
   /**
    * Store a request in IndexedDB
    */
-  private async storeRequest(request: QueuedRequest): Promise<void> {
+  async storeRequest(request: QueuedRequest): Promise<void> {
     if (!this.db) {
       throw new Error("Database not initialized");
     }
@@ -206,7 +208,7 @@ export class BackgroundSyncManager {
   /**
    * Retry a single queued request
    */
-  private async retryRequest(request: QueuedRequest): Promise<Response> {
+  async retryRequest(request: QueuedRequest): Promise<Response> {
     const options: RequestInit = {
       method: request.method,
       headers: request.headers,
