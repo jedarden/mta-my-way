@@ -293,8 +293,8 @@ describe("lookupTrip", () => {
 
     const mockFeed = createMockFeed("trip-age", "1", [{ stopId: "R01N", departureTime: feedTime }]);
 
-    // Update feed timestamp
-    mockFeed.feedTimestamp = feedTime;
+    // Update feed timestamp in the header (not feedTimestamp which doesn't exist)
+    mockFeed.message.header.timestamp = feedTime;
 
     vi.mocked(getAllParsedFeeds).mockReturnValue(new Map([["feed1", mockFeed]]));
 
