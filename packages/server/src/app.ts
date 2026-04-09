@@ -84,6 +84,7 @@ import {
 } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import {
+  hppProtection,
   inputSanitization,
   rateLimiter,
   requestSizeLimits,
@@ -93,6 +94,14 @@ import {
   validateQuery,
 } from "./middleware/index.js";
 import { httpMetrics } from "./middleware/metrics.js";
+import {
+  recordCommuteAnalysisDuration,
+  recordCommuteAnalysisRequest,
+  recordDelayPredictionDuration,
+  recordDelayPredictionRequest,
+  recordStationSearchDuration,
+  recordStationSearchRequest,
+} from "./middleware/metrics.js";
 import { logger } from "./observability/logger.js";
 import { metrics } from "./observability/metrics.js";
 import { tracingMiddleware } from "./observability/tracing.js";
@@ -352,6 +361,9 @@ export function createApp(
   // Input sanitization for all API routes (XSS, SQL injection prevention)
   app.use("/api/*", inputSanitization());
 
+  // HPP protection for all API routes (prevents parameter pollution attacks)
+  app.use("/api/*", hppProtection({ strategy: "first" }));
+
   // HTTP metrics collection for all API routes
   app.use("/api/*", httpMetrics());
 
@@ -404,11 +416,25 @@ export function createApp(
     const memUsage = process.memoryUsage();
     const allMetrics = metrics.getAll();
 
-    // Get cache hit rate from metrics
-    const cacheHitsMetric = allMetrics.get("cache_hits_total");
-    const cacheMissesMetric = allMetrics.get("cache_misses_total");
-    const cacheHitsValue = cacheHitsMetric?.type === "counter" ? cacheHitsMetric.value : 0;
-    const cacheMissesValue = cacheMissesMetric?.type === "counter" ? cacheMissesMetric.value : 0;
+    // Get cache hit rate from metrics (sum across all label combinations)
+    let cacheHitsValue = 0;
+    let cacheMissesValue = 0;
+    const cacheHitsMap = allMetrics.get("cache_hits_total");
+    const cacheMissesMap = allMetrics.get("cache_misses_total");
+    if (cacheHitsMap) {
+      for (const labeled of cacheHitsMap.values()) {
+        if (labeled.metric.type === "counter") {
+          cacheHitsValue += labeled.metric.value;
+        }
+      }
+    }
+    if (cacheMissesMap) {
+      for (const labeled of cacheMissesMap.values()) {
+        if (labeled.metric.type === "counter") {
+          cacheMissesValue += labeled.metric.value;
+        }
+      }
+    }
     const totalCacheRequests = cacheHitsValue + cacheMissesValue;
     const cacheHitRate =
       totalCacheRequests > 0 ? Math.round((cacheHitsValue / totalCacheRequests) * 100) / 100 : 0;
@@ -506,11 +532,16 @@ export function createApp(
   // GTFS static station data
   // -------------------------------------------------------------------------
   app.get("/api/stations", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
     c.header("Cache-Control", STATIC_CACHE_HEADER);
     return c.json(Object.values(stations));
   });
 
   app.get("/api/stations/search", (c) => {
+    const startTime = Date.now();
     const query = validateQuery(c, stationSearchQuerySchema);
     if (query instanceof Response) return query;
 
@@ -526,6 +557,10 @@ export function createApp(
       }))
       .sort((a, b) => b.score - a.score)
       .map(({ station }) => station);
+
+    const duration = (Date.now() - startTime) / 1000;
+    recordStationSearchDuration(duration);
+    recordStationSearchRequest(results.length);
 
     c.header("Cache-Control", STATIC_CACHE_HEADER);
     return c.json(results);
@@ -576,6 +611,10 @@ export function createApp(
   // GTFS static route data
   // -------------------------------------------------------------------------
   app.get("/api/routes", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
     c.header("Cache-Control", STATIC_CACHE_HEADER);
     return c.json(Object.values(routes));
   });
@@ -599,6 +638,10 @@ export function createApp(
   // Static GTFS data (complexes)
   // -------------------------------------------------------------------------
   app.get("/api/static/complexes", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
     c.header("Cache-Control", STATIC_CACHE_HEADER);
     return c.json(Object.values(complexes));
   });
@@ -622,6 +665,11 @@ export function createApp(
   // Commute analysis
   // -------------------------------------------------------------------------
   app.post("/api/commute/analyze", async (c) => {
+    const startTime = Date.now();
+    let success = false;
+    let hasTransfers = false;
+    let accessibleMode = false;
+
     try {
       const body = await validateBody(c, commuteAnalyzeRequestSchema);
       if (body instanceof Response) return body;
@@ -631,8 +679,10 @@ export function createApp(
         destinationId,
         preferredLines = [],
         commuteId = "default",
-        accessibleMode = false,
+        accessibleMode: accessible,
       } = body;
+
+      accessibleMode = accessible;
 
       if (!stations[originId]) {
         return c.json({ error: `Origin station not found: ${originId}` }, 404);
@@ -649,10 +699,22 @@ export function createApp(
         accessibleMode
       );
 
+      hasTransfers = analysis.routes.some((r) => r.transfers.length > 0);
+      success = true;
+
+      const duration = (Date.now() - startTime) / 1000;
+      recordCommuteAnalysisDuration(duration);
+      recordCommuteAnalysisRequest(success, hasTransfers, accessibleMode);
+
       c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
       return c.json(analysis);
     } catch (error) {
       logger.error("Commute analysis error", error instanceof Error ? error : undefined);
+
+      const duration = (Date.now() - startTime) / 1000;
+      recordCommuteAnalysisDuration(duration);
+      recordCommuteAnalysisRequest(false, false, accessibleMode);
+
       return c.json(
         {
           error: "Failed to analyze commute",
@@ -842,6 +904,10 @@ export function createApp(
   });
 
   app.post("/api/predictions/predict", async (c) => {
+    const startTime = Date.now();
+    let success = false;
+    let hasData = false;
+
     try {
       const body = await validateBody(c, delayPredictionRequestSchema);
       if (body instanceof Response) return body;
@@ -858,6 +924,10 @@ export function createApp(
       );
 
       if (!prediction) {
+        const duration = (Date.now() - startTime) / 1000;
+        recordDelayPredictionDuration(duration);
+        recordDelayPredictionRequest(false, false);
+
         return c.json(
           {
             error: "Not enough data to make a prediction for this route/segment",
@@ -870,10 +940,22 @@ export function createApp(
         );
       }
 
+      hasData = true;
+      success = true;
+
+      const duration = (Date.now() - startTime) / 1000;
+      recordDelayPredictionDuration(duration);
+      recordDelayPredictionRequest(success, hasData);
+
       c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
       return c.json(prediction);
     } catch (error) {
       logger.error("Delay prediction error", error instanceof Error ? error : undefined);
+
+      const duration = (Date.now() - startTime) / 1000;
+      recordDelayPredictionDuration(duration);
+      recordDelayPredictionRequest(false, false);
+
       return c.json(
         {
           error: "Failed to generate prediction",
@@ -1042,6 +1124,9 @@ export function createApp(
     const params = validateParams(c, lineIdParamsSchema);
     if (params instanceof Response) return params;
 
+    const query = validateQuery(c, positionsQuerySchema);
+    if (query instanceof Response) return query;
+
     const { lineId } = params;
     const positions = getPositions(lineId);
 
@@ -1066,6 +1151,10 @@ export function createApp(
 
   /** Return the VAPID public key so the browser can create a push subscription */
   app.get("/api/push/vapid-public-key", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
     const publicKey = getVapidPublicKey();
     if (!publicKey) {
       return c.json({ error: "Push notifications not configured" }, 503);
