@@ -132,7 +132,7 @@ export default defineConfig({
       },
       workbox: {
         importScripts: ["/sw-push.js"],
-        globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,webp,jpg,jpeg}"],
         // Cleanup outdated caches
         cleanupOutdatedCaches: true,
         // Skip waiting for faster updates
