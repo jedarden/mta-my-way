@@ -3,6 +3,12 @@
  *
  * Provides span creation and trace context propagation for observability.
  * Compatible with OpenTelemetry concepts (can be swapped for full OTel implementation).
+ *
+ * Features:
+ * - W3C tracecontext format (traceparent header)
+ * - Async context tracking with span stack
+ * - HTTP request/response propagation
+ * - Integration with structured logging
  */
 
 interface SpanContext {
@@ -23,7 +29,7 @@ interface Span {
 }
 
 /**
- * Generate a random trace ID.
+ * Generate a random trace ID (16 bytes, 32 hex chars).
  */
 function generateTraceId(): string {
   return Array.from({ length: 16 }, () =>
@@ -34,7 +40,7 @@ function generateTraceId(): string {
 }
 
 /**
- * Generate a random span ID.
+ * Generate a random span ID (8 bytes, 16 hex chars).
  */
 function generateSpanId(): string {
   return Array.from({ length: 8 }, () =>
@@ -53,6 +59,7 @@ class Tracer {
 
   /**
    * Extract trace context from headers.
+   * Supports W3C traceparent format: 00-traceId-spanId-sampled
    */
   extractContext(headers: Headers): SpanContext | null {
     const traceParent = headers.get("traceparent");
@@ -75,11 +82,57 @@ class Tracer {
   }
 
   /**
-   * Inject trace context into headers.
+   * Extract trace context from a plain object (e.g., incoming request headers).
+   */
+  extractContextFromPlain(headers: Record<string, string | undefined>): SpanContext | null {
+    const traceParent = headers["traceparent"] || headers["TraceParent"];
+    if (!traceParent) {
+      return null;
+    }
+
+    const h = new Headers();
+    h.set("traceparent", traceParent);
+    return this.extractContext(h);
+  }
+
+  /**
+   * Inject trace context into headers (W3C traceparent format).
    */
   injectContext(context: SpanContext, headers: Headers): void {
     const sampled = context.sampled ? "01" : "00";
     headers.set("traceparent", `00-${context.traceId}-${context.spanId}-${sampled}`);
+  }
+
+  /**
+   * Get trace context as a plain object for use with fetch.
+   */
+  getTraceContextHeaders(): Record<string, string> {
+    const span = this.activeSpan();
+    if (!span) {
+      return {};
+    }
+
+    const headers: Record<string, string> = {};
+    this.injectContext(span.context, new Headers({}));
+    headers["traceparent"] =
+      `00-${span.context.traceId}-${span.context.spanId}-${span.context.sampled ? "01" : "00"}`;
+    return headers;
+  }
+
+  /**
+   * Get the current trace ID from the active span.
+   */
+  getCurrentTraceId(): string | null {
+    const span = this.activeSpan();
+    return span ? span.context.traceId : null;
+  }
+
+  /**
+   * Get the current span ID from the active span.
+   */
+  getCurrentSpanId(): string | null {
+    const span = this.activeSpan();
+    return span ? span.context.spanId : null;
   }
 
   /**
@@ -235,13 +288,17 @@ class Tracer {
  */
 export const tracer = new Tracer();
 
+// ============================================================================
+// Hono Middleware
+// ============================================================================
+
+import type { MiddlewareHandler } from "hono";
+
 /**
  * Hono middleware for automatic request tracing.
+ * Extracts incoming trace context, creates a span, and injects trace context into response.
  */
-export async function tracingMiddleware(
-  c: { req: { header: (name: string) => string | undefined | null }; method: string; url: string },
-  next: () => Promise<unknown>
-): Promise<void> {
+export const tracingMiddleware: MiddlewareHandler = async (c, next) => {
   // Extract incoming trace context
   const headers = new Headers();
   const traceParent = c.req.header("traceparent");
@@ -252,24 +309,122 @@ export async function tracingMiddleware(
   const parentContext = tracer.extractContext(headers);
 
   // Start a span for this request
-  const spanName = `${c.method} ${new URL(c.req.url || c.url).pathname}`;
+  const path = c.req.path;
+  const spanName = `${c.req.method} ${path}`;
+
   await tracer.withSpan(
     spanName,
     async (span) => {
       span.attributes = {
-        "http.method": c.method,
-        "http.url": c.req.url || c.url,
+        "http.method": c.req.method,
+        "http.target": path,
+        "http.url": c.req.url,
       };
 
       try {
         await next();
-        span.attributes["http.status_code"] = 200;
+        // Response status will be set by Hono
+        span.attributes["http.status_code"] = c.res.status;
       } catch (error) {
         span.attributes["http.status_code"] = 500;
         span.attributes["error.message"] = error instanceof Error ? error.message : String(error);
         throw error;
+      } finally {
+        // Inject trace context into response headers for downstream services
+        if (span.context.sampled) {
+          const sampled = span.context.sampled ? "01" : "00";
+          c.header("traceparent", `00-${span.context.traceId}-${span.context.spanId}-${sampled}`);
+          c.header("x-trace-id", span.context.traceId);
+        }
       }
     },
     parentContext
   );
+};
+
+// ============================================================================
+// HTTP Request Utilities
+// ============================================================================
+
+/**
+ * Wrap fetch with automatic trace context propagation.
+ * Creates a child span for the outbound request and injects trace context.
+ */
+export async function tracedFetch(
+  url: string | URL,
+  options?: RequestInit & { spanName?: string }
+): Promise<Response> {
+  const spanName =
+    options?.spanName || `HTTP ${typeof url === "string" ? url.split("/")[1] : url.hostname}`;
+  const fetchOptions = { ...options };
+  delete fetchOptions.spanName;
+
+  // Add trace context to request headers
+  const traceHeaders = tracer.getTraceContextHeaders();
+  if (Object.keys(traceHeaders).length > 0) {
+    fetchOptions.headers = {
+      ...(fetchOptions.headers || {}),
+      ...traceHeaders,
+    };
+  }
+
+  return tracer.withSpan(spanName, async (span) => {
+    span.attributes = {
+      "http.method": fetchOptions.method || "GET",
+      "http.url": typeof url === "string" ? url : url.href,
+    };
+
+    try {
+      const response = await fetch(url, fetchOptions);
+      span.attributes["http.status_code"] = response.status;
+      return response;
+    } catch (error) {
+      span.attributes["error.message"] = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
+  });
+}
+
+// ============================================================================
+// Span Utilities
+// ============================================================================
+
+/**
+ * Create a child span for an async operation.
+ * Automatically links to the current active span.
+ */
+export async function withChildSpan<T>(
+  name: string,
+  fn: (span: Span) => Promise<T> | T,
+  attributes?: Record<string, string | number | boolean>
+): Promise<T> {
+  return tracer.withSpan(name, async (span) => {
+    if (attributes) {
+      Object.entries(attributes).forEach(([k, v]) => {
+        span.attributes[k] = v;
+      });
+    }
+    return fn(span);
+  });
+}
+
+/**
+ * Record an event on the current span.
+ */
+export function recordEvent(name: string, attributes?: Record<string, unknown>): void {
+  tracer.addEvent(name, attributes);
+}
+
+/**
+ * Set an attribute on the current span.
+ */
+export function setSpanAttribute(key: string, value: string | number | boolean): void {
+  tracer.setAttribute(key, value);
+}
+
+/**
+ * Get the current trace ID for logging correlation.
+ */
+export function getCurrentTraceId(): string | null {
+  return tracer.getCurrentTraceId();
 }

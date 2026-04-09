@@ -10,6 +10,12 @@
 
 import type { CommuteStats, StationIndex, TripRecord, TripSource } from "@mta-my-way/shared";
 import type Database from "better-sqlite3";
+import {
+  recordTripCreated,
+  recordTripQueried,
+  recordTripQueryDuration,
+  setActiveTripsCount,
+} from "./middleware/metrics.js";
 import { logger } from "./observability/logger.js";
 
 // Default commute ID when no specific commute is configured
@@ -36,7 +42,11 @@ export function initTripTracking(database: Database.Database, stationData: Stati
     });
   });
 
-  logger.info("Trip tracking initialized");
+  // Set initial active trips count
+  const totalTrips = getTotalTripCount();
+  setActiveTripsCount(totalTrips);
+
+  logger.info("Trip tracking initialized", { totalTrips });
 }
 
 // ============================================================================
@@ -81,6 +91,9 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
 
     // Invalidate commute stats cache
     invalidateCommuteStats(DEFAULT_COMMUTE_ID);
+
+    // Record trip created metric
+    recordTripCreated(trip.source, trip.line);
 
     logger.info("Trip recorded", {
       tripId: id,
@@ -187,7 +200,13 @@ export function getTrips(params: {
   line?: string;
   source?: TripSource;
 }): TripRecord[] {
-  if (!db) return [];
+  const startTime = Date.now();
+
+  if (!db) {
+    recordTripQueryDuration(0);
+    recordTripQueried(false);
+    return [];
+  }
 
   const {
     limit = 50,
@@ -245,6 +264,10 @@ export function getTrips(params: {
     )
     .all(...sqlParams) as TripRecordRow[];
 
+  const duration = (Date.now() - startTime) / 1000;
+  recordTripQueryDuration(duration);
+  recordTripQueried(true);
+
   return rows.map(rowToTripRecord);
 }
 
@@ -285,7 +308,13 @@ function rowToTripRecord(row: TripRecordRow): TripRecord {
  * Get a single trip by ID.
  */
 export function getTripById(tripId: string): TripRecord | null {
-  if (!db) return null;
+  const startTime = Date.now();
+
+  if (!db) {
+    recordTripQueryDuration(0);
+    recordTripQueried(false);
+    return null;
+  }
 
   const row = db
     .prepare(
@@ -299,6 +328,10 @@ export function getTripById(tripId: string): TripRecord | null {
       WHERE id = ?`
     )
     .get(tripId) as TripRecordRow | undefined;
+
+  const duration = (Date.now() - startTime) / 1000;
+  recordTripQueryDuration(duration);
+  recordTripQueried(!!row);
 
   return row ? rowToTripRecord(row) : null;
 }

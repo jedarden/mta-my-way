@@ -30,6 +30,11 @@ import {
   getContextUIHints,
   shouldTriggerUIRefresh,
 } from "@mta-my-way/shared";
+import {
+  recordContextDetection,
+  recordContextOverride,
+  recordContextTransition as recordContextTransitionMetric,
+} from "./middleware/metrics.js";
 import { logger } from "./observability/logger.js";
 
 // Database instance
@@ -171,6 +176,9 @@ export function detectAndUpdateContext(params: {
   // Use utility function to detect context
   const detected = detectContextUtil(params);
 
+  // Record context detection metric
+  recordContextDetection(detected.context, detected.confidence);
+
   // Check if context changed
   const contextChanged = previousContext !== detected.context;
 
@@ -181,6 +189,13 @@ export function detectAndUpdateContext(params: {
   let transition: ContextTransition | null = null;
   if (contextChanged) {
     transition = recordContextTransition(previousContext, detected.context, params);
+    // Record transition metric
+    recordContextTransitionMetric(previousContext, detected.context);
+  }
+
+  // Record manual override metric
+  if (params.manualOverride !== undefined) {
+    recordContextOverride(params.manualOverride);
   }
 
   // Update in-memory state

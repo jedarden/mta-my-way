@@ -173,7 +173,7 @@ export function validateHostHeader(
   }
 
   // Extract hostname (remove port if present)
-  let hostname = host.split(":")[0]!.toLowerCase();
+  const hostname = host.split(":")[0]!.toLowerCase();
 
   // Validate hostname format
   if (!validateHostnameFormat(hostname)) {

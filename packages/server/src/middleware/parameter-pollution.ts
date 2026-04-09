@@ -12,7 +12,7 @@
  */
 
 import type { MiddlewareHandler } from "hono";
-import { logger } from "../observability/logger.js";
+import { securityLogger } from "./security-logging.js";
 
 /**
  * HPP protection strategy.
@@ -143,10 +143,7 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
           }
         }
 
-        logger.warn("HPP rejected in query parameters", {
-          duplicates,
-          ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-        });
+        securityLogger.logHPPBlocked(c, duplicates);
 
         return c.json(
           {
@@ -174,10 +171,7 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
           const { cleaned, hasDuplicates } = processParams(body);
 
           if (strategy === "reject" && hasDuplicates) {
-            logger.warn("HPP rejected in request body", {
-              ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-            });
-
+            securityLogger.logHPPBlocked(c, []);
             return c.json({ error: rejectMessage }, 400);
           }
 
@@ -208,10 +202,7 @@ export function hppProtection(options: HppProtectionOptions = {}): MiddlewareHan
           const { cleaned, hasDuplicates } = processParams(params);
 
           if (strategy === "reject" && hasDuplicates) {
-            logger.warn("HPP rejected in form data", {
-              ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-            });
-
+            securityLogger.logHPPBlocked(c, []);
             return c.json({ error: rejectMessage }, 400);
           }
 

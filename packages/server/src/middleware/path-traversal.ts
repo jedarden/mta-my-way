@@ -7,7 +7,7 @@
  */
 
 import type { MiddlewareHandler } from "hono";
-import { logger } from "../observability/logger.js";
+import { securityLogger } from "./security-logging.js";
 
 /**
  * Path traversal patterns to detect.
@@ -104,10 +104,7 @@ export function pathTraversalPrevention(options: PathTraversalOptions = {}): Mid
       const urlObj = new URL(rawUrl);
       const path = urlObj.pathname;
       if (containsPathTraversal(decodeURIComponent(path), allPatterns)) {
-        logger.warn("Path traversal blocked", {
-          path,
-          ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-        });
+        securityLogger.logPathTraversalBlocked(c, path);
         return c.json({ error: "Invalid request path" }, 400);
       }
     }
@@ -117,18 +114,12 @@ export function pathTraversalPrevention(options: PathTraversalOptions = {}): Mid
       const queryParams = c.req.query();
       for (const [key, value] of Object.entries(queryParams)) {
         if (value && containsPathTraversal(value, allPatterns)) {
-          logger.warn("Path traversal blocked in query parameter", {
-            parameter: key,
-            ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-          });
+          securityLogger.logPathTraversalBlocked(c, `query parameter: ${key}`);
           return c.json({ error: "Invalid request parameter" }, 400);
         }
         // Also check parameter names
         if (containsPathTraversal(key, allPatterns)) {
-          logger.warn("Path traversal blocked in query parameter name", {
-            parameter: key,
-            ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-          });
+          securityLogger.logPathTraversalBlocked(c, `query parameter name: ${key}`);
           return c.json({ error: "Invalid request parameter" }, 400);
         }
       }
@@ -138,10 +129,7 @@ export function pathTraversalPrevention(options: PathTraversalOptions = {}): Mid
     if (checkHeaders) {
       for (const [key, value] of c.req.raw.headers.entries()) {
         if (value && containsPathTraversal(value, allPatterns)) {
-          logger.warn("Path traversal blocked in header", {
-            header: key,
-            ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-          });
+          securityLogger.logPathTraversalBlocked(c, `header: ${key}`);
           return c.json({ error: "Invalid request header" }, 400);
         }
       }

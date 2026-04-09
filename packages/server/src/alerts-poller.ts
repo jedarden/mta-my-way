@@ -18,7 +18,15 @@ import {
   parseAlerts,
   toStationAlert,
 } from "./alerts-parser.js";
+import {
+  recordAlertsChange,
+  recordFeedError,
+  recordFeedPollDuration,
+  setAlertsActive,
+  setAlertsMatchRate,
+} from "./middleware/metrics.js";
 import { logger } from "./observability/logger.js";
+import { tracedFetch, withChildSpan } from "./observability/tracing.js";
 
 const POLL_INTERVAL_MS = POLLING_INTERVALS.alerts * 1000; // 60,000 ms
 const FETCH_TIMEOUT_MS = 15_000;
@@ -105,9 +113,11 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
   if (apiKey) headers["x-api-key"] = apiKey;
 
   try {
-    const response = await fetch(MTA_ALERTS_FEED_URL, {
+    const response = await tracedFetch(MTA_ALERTS_FEED_URL, {
+      method: "GET",
       headers,
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      spanName: "MTA Alerts Feed",
     });
 
     if (!response.ok) {
@@ -116,7 +126,9 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
 
     const buffer = await response.arrayBuffer();
     const data = new Uint8Array(buffer);
-    const alerts = await parseAlerts(data);
+    const alerts = await withChildSpan("parse-alerts", () => parseAlerts(data), {
+      "alert.count": data.length,
+    });
 
     // Success - reset failure count
     cache.consecutiveFailures = 0;
@@ -125,10 +137,19 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
     cache.lastSuccessAt = Date.now();
     cache.matchRate = calculateMatchRate(alerts);
 
+    const latencyMs = Date.now() - start;
+
+    // Record alerts feed poll duration metric
+    recordFeedPollDuration(latencyMs / 1000, "alerts");
+
     const matchedCount = alerts.filter((a) => a.patternMatched).length;
 
+    // Update alert metrics
+    setAlertsActive(alerts.length);
+    setAlertsMatchRate(cache.matchRate);
+
     logger.info("Alerts fetched successfully", {
-      latency_ms: Date.now() - start,
+      latency_ms: latencyMs,
       alert_count: alerts.length,
       match_rate: Math.round(cache.matchRate * 100) / 100,
       matched_count: matchedCount,
@@ -138,6 +159,7 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
     return alerts;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const latencyMs = Date.now() - start;
     cache.consecutiveFailures++;
 
     if (cache.consecutiveFailures >= CIRCUIT_OPEN_AFTER && !cache.circuitOpen) {
@@ -145,8 +167,29 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
       cache.circuitOpenAt = Date.now();
     }
 
+    // Record alerts feed poll duration and error metrics
+    recordFeedPollDuration(latencyMs / 1000, "alerts");
+
+    // Determine error type for metric labeling
+    let errorType: string;
+    if (err instanceof Error) {
+      if (err.name === "AbortError") {
+        errorType = "timeout";
+      } else if (err.name === "TypeError") {
+        errorType = "network";
+      } else if ("status" in err) {
+        const status = (err as { status: number }).status;
+        errorType = status === 429 ? "rate_limited" : status >= 500 ? "server_error" : "http_error";
+      } else {
+        errorType = "unknown";
+      }
+    } else {
+      errorType = "unknown";
+    }
+    recordFeedError("alerts", errorType);
+
     logger.error("Alerts fetch failed", err instanceof Error ? err : undefined, {
-      latency_ms: Date.now() - start,
+      latency_ms: latencyMs,
       error: message,
       consecutive_failures: cache.consecutiveFailures,
       circuit_open: cache.circuitOpen,
@@ -253,6 +296,11 @@ async function runPoll(): Promise<void> {
       updated: updatedCount,
       resolved: resolvedCount,
     });
+
+    // Record alert change metrics
+    if (newCount > 0) recordAlertsChange("new");
+    if (updatedCount > 0) recordAlertsChange("updated");
+    if (resolvedCount > 0) recordAlertsChange("resolved");
 
     // Notify listeners
     notifyListeners(changes);

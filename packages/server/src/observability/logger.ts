@@ -3,7 +3,12 @@
  *
  * Provides JSON-formatted logging with levels and context support.
  * Compatible with pino for production (can be swapped in).
+ *
+ * Integrates with distributed tracing to include trace IDs in all log entries,
+ * enabling correlation of logs across services and requests.
  */
+
+import { tracer } from "./tracing.js";
 
 export enum LogLevel {
   DEBUG = "debug",
@@ -16,6 +21,8 @@ interface LogEntry {
   level: LogLevel;
   message: string;
   timestamp: string;
+  traceId?: string;
+  spanId?: string;
   context?: Record<string, unknown>;
   error?: {
     name: string;
@@ -48,11 +55,18 @@ const DEFAULT_CONFIG: LoggerConfig = {
 
 class Logger {
   private config: Required<LoggerConfig>;
-  private hostname: string;
 
   constructor(config: LoggerConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config } as Required<LoggerConfig>;
-    this.hostname = "";
+  }
+
+  /**
+   * Get current trace context from the tracer.
+   */
+  private getTraceContext(): { traceId?: string; spanId?: string } {
+    const traceId = tracer.getCurrentTraceId();
+    const spanId = tracer.getCurrentSpanId();
+    return { traceId: traceId ?? undefined, spanId: spanId ?? undefined };
   }
 
   /**
@@ -68,6 +82,7 @@ class Logger {
       level,
       message,
       timestamp: new Date().toISOString(),
+      ...this.getTraceContext(),
     };
 
     if (context) {

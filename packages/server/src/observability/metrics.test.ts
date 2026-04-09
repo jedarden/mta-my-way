@@ -17,11 +17,33 @@ describe("metrics", () => {
       counter.inc(5);
 
       const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_counter");
+      const metricMap = allMetrics.get("test_counter");
+      expect(metricMap).toBeDefined();
 
-      expect(metric?.type).toBe("counter");
-      if (metric?.type === "counter") {
-        expect(metric.value).toBe(6);
+      const defaultKey = "";
+      const metric = metricMap?.get(defaultKey);
+      expect(metric?.metric.type).toBe("counter");
+      if (metric?.metric.type === "counter") {
+        expect(metric.metric.value).toBe(6);
+      }
+    });
+
+    it("increments counter with labels", () => {
+      const counter = metrics.counter("test_counter", "Test counter");
+      counter.inc(1, { method: "GET" });
+      counter.inc(2, { method: "POST" });
+
+      const allMetrics = metrics.getAll();
+      const metricMap = allMetrics.get("test_counter");
+
+      const getMetric = metricMap?.get('method="GET"');
+      const postMetric = metricMap?.get('method="POST"');
+
+      if (getMetric?.metric.type === "counter") {
+        expect(getMetric.metric.value).toBe(1);
+      }
+      if (postMetric?.metric.type === "counter") {
+        expect(postMetric.metric.value).toBe(2);
       }
     });
 
@@ -31,22 +53,12 @@ describe("metrics", () => {
       counter.reset();
 
       const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_counter");
+      const metricMap = allMetrics.get("test_counter");
+      const defaultKey = "";
+      const metric = metricMap?.get(defaultKey);
 
-      if (metric?.type === "counter") {
-        expect(metric.value).toBe(0);
-      }
-    });
-
-    it("stores labels", () => {
-      const counter = metrics.counter("test_counter", "Test counter");
-      counter.inc(1, { method: "GET", path: "/api/test" });
-
-      const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_counter");
-
-      if (metric?.type === "counter") {
-        expect(metric.labels).toEqual({ method: "GET", path: "/api/test" });
+      if (metric?.metric.type === "counter") {
+        expect(metric.metric.value).toBe(0);
       }
     });
   });
@@ -57,10 +69,12 @@ describe("metrics", () => {
       gauge.set(42);
 
       const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_gauge");
+      const metricMap = allMetrics.get("test_gauge");
+      const defaultKey = "";
+      const metric = metricMap?.get(defaultKey);
 
-      if (metric?.type === "gauge") {
-        expect(metric.value).toBe(42);
+      if (metric?.metric.type === "gauge") {
+        expect(metric.metric.value).toBe(42);
       }
     });
 
@@ -70,10 +84,12 @@ describe("metrics", () => {
       gauge.inc(3);
 
       const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_gauge");
+      const metricMap = allMetrics.get("test_gauge");
+      const defaultKey = "";
+      const metric = metricMap?.get(defaultKey);
 
-      if (metric?.type === "gauge") {
-        expect(metric.value).toBe(8);
+      if (metric?.metric.type === "gauge") {
+        expect(metric.metric.value).toBe(8);
       }
     });
 
@@ -83,10 +99,12 @@ describe("metrics", () => {
       gauge.dec(3);
 
       const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_gauge");
+      const metricMap = allMetrics.get("test_gauge");
+      const defaultKey = "";
+      const metric = metricMap?.get(defaultKey);
 
-      if (metric?.type === "gauge") {
-        expect(metric.value).toBe(7);
+      if (metric?.metric.type === "gauge") {
+        expect(metric.metric.value).toBe(7);
       }
     });
   });
@@ -99,10 +117,12 @@ describe("metrics", () => {
       histogram.observe(1.5);
 
       const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_histogram");
+      const metricMap = allMetrics.get("test_histogram");
+      const defaultKey = "";
+      const metric = metricMap?.get(defaultKey);
 
-      if (metric?.type === "histogram") {
-        expect(metric.values).toEqual([0.1, 0.5, 1.5]);
+      if (metric?.metric.type === "histogram") {
+        expect(metric.metric.values).toEqual([0.1, 0.5, 1.5]);
       }
     });
 
@@ -112,10 +132,12 @@ describe("metrics", () => {
       histogram.reset();
 
       const allMetrics = metrics.getAll();
-      const metric = allMetrics.get("test_histogram");
+      const metricMap = allMetrics.get("test_histogram");
+      const defaultKey = "";
+      const metric = metricMap?.get(defaultKey);
 
-      if (metric?.type === "histogram") {
-        expect(metric.values).toEqual([]);
+      if (metric?.metric.type === "histogram") {
+        expect(metric.metric.values).toEqual([]);
       }
     });
   });
@@ -165,6 +187,67 @@ describe("metrics", () => {
       // Sanitization replaces / and - with _
       expect(exported).toContain("test_invalid_name");
     });
+
+    it("exports multiple labeled metrics", () => {
+      const counter = metrics.counter("api_requests", "API requests");
+      counter.inc(5, { method: "GET", route: "/api/stations" });
+      counter.inc(3, { method: "POST", route: "/api/trips" });
+
+      const exported = metrics.exportPrometheus();
+
+      expect(exported).toContain('api_requests{method="GET",route="/api/stations"} 5');
+      expect(exported).toContain('api_requests{method="POST",route="/api/trips"} 3');
+    });
+
+    it("exports histogram buckets with labels", () => {
+      const histogram = metrics.histogram("response_time", "Response time");
+      histogram.observe(0.05, { endpoint: "/api/health" });
+      histogram.observe(0.15, { endpoint: "/api/health" });
+      histogram.observe(0.5, { endpoint: "/api/stations" });
+
+      const exported = metrics.exportPrometheus();
+
+      // Check that labels are included in bucket exports
+      expect(exported).toContain('response_time_bucket{endpoint="/api/health",le="0.001"}');
+      expect(exported).toContain('response_time_bucket{endpoint="/api/health",le="0.005"}');
+      expect(exported).toContain('response_time_bucket{endpoint="/api/health",le="+Inf"}');
+    });
+  });
+
+  describe("default labels", () => {
+    it("merges default labels with provided labels", () => {
+      metrics.setDefaultLabels({ service: "mta-my-way", environment: "production" });
+
+      const counter = metrics.counter("test_counter", "Test counter");
+      counter.inc(1, { method: "GET" });
+
+      const allMetrics = metrics.getAll();
+      const metricMap = allMetrics.get("test_counter");
+
+      // Should have both default and provided labels
+      const metric = metricMap?.values().next().value;
+      expect(metric?.labels).toEqual({
+        service: "mta-my-way",
+        environment: "production",
+        method: "GET",
+      });
+    });
+
+    it("allows provided labels to override default labels", () => {
+      metrics.setDefaultLabels({ service: "mta-my-way", environment: "production" });
+
+      const counter = metrics.counter("test_counter", "Test counter");
+      counter.inc(1, { environment: "staging" });
+
+      const allMetrics = metrics.getAll();
+      const metricMap = allMetrics.get("test_counter");
+
+      const metric = metricMap?.values().next().value;
+      expect(metric?.labels).toEqual({
+        service: "mta-my-way",
+        environment: "staging", // Provided label overrides default
+      });
+    });
   });
 
   describe("common metrics", () => {
@@ -179,6 +262,10 @@ describe("metrics", () => {
       expect(m.feedErrors).toBeDefined();
       expect(m.pushNotificationsSent).toBeDefined();
       expect(m.pushNotificationsFailed).toBeDefined();
+      expect(m.tripsCreated).toBeDefined();
+      expect(m.tripsActive).toBeDefined();
+      expect(m.alertsActive).toBeDefined();
+      expect(m.equipmentOutages).toBeDefined();
     });
   });
 });

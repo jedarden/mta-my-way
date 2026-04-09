@@ -11,6 +11,7 @@
 
 import type { PushNotificationPayload, PushSubscriptionRecord } from "@mta-my-way/shared";
 import webpush from "web-push";
+import { recordPushNotificationFailed, recordPushNotificationSent } from "../middleware/metrics.js";
 import { logger } from "../observability/logger.js";
 import { removeSubscription } from "./subscriptions.js";
 import { isWebPushConfigured } from "./vapid.js";
@@ -39,6 +40,11 @@ export async function sendPushNotification(
     await webpush.sendNotification(pushSubscription, JSON.stringify(payload), {
       TTL: 60 * 60, // 1 hour — deliver within 1 hour if user is offline
     });
+
+    // Record push notification sent metric
+    const lines = payload.lines ?? [];
+    recordPushNotificationSent(lines);
+
     return true;
   } catch (err) {
     // 410 Gone / 404: subscription has been revoked or no longer exists
@@ -50,8 +56,16 @@ export async function sendPushNotification(
     if (statusCode === 410 || statusCode === 404) {
       logger.info("Push subscription expired", { status: statusCode });
       removeSubscription(record.endpoint);
+
+      // Record push notification failed metric for expired subscription
+      recordPushNotificationFailed(`subscription_expired_${statusCode}`);
+
       return false;
     }
+
+    // Record push notification failed metric for other errors
+    const reason = err instanceof Error ? err.name : "unknown";
+    recordPushNotificationFailed(reason);
 
     throw err;
   }

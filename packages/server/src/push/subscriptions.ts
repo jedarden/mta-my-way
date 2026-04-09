@@ -14,6 +14,7 @@ import type {
   PushSubscriptionRecord,
 } from "@mta-my-way/shared";
 import Database from "better-sqlite3";
+import { setPushSubscriptionsActive } from "../middleware/metrics.js";
 import { logger } from "../observability/logger.js";
 
 // ---------------------------------------------------------------------------
@@ -131,6 +132,9 @@ export function upsertSubscription(request: PushSubscribeRequest): {
     now
   );
 
+  // Update push subscriptions active metric
+  setPushSubscriptionsActive(getSubscriptionCount());
+
   return { success: true, endpointHash };
 }
 
@@ -143,6 +147,11 @@ export function removeSubscription(endpoint: string): boolean {
 
   const stmt = database.prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ?");
   const result = stmt.run(endpointHash);
+
+  if (result.changes > 0) {
+    // Update push subscriptions active metric
+    setPushSubscriptionsActive(getSubscriptionCount());
+  }
 
   return result.changes > 0;
 }

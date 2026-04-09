@@ -14,8 +14,9 @@
 
 import type { RouteIndex, StationAlert, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
 import { isADivision } from "@mta-my-way/shared";
-import { getTravelTime } from "./transfer/travel-times.js";
+import { recordAlertsChange, setAlertsActive, setAlertsMatchRate } from "./middleware/metrics.js";
 import { logger } from "./observability/logger.js";
+import { getTravelTime } from "./transfer/travel-times.js";
 
 // Import delay predictor for historical data collection
 import { recordDelay as recordDelayForPrediction } from "./delay-predictor.js";
@@ -381,7 +382,10 @@ export function processVehicleUpdates(
                   );
                 } catch (error) {
                   // Don't let prediction errors affect delay detection
-                  logger.error("Failed to record delay for prediction", error instanceof Error ? error : undefined);
+                  logger.error(
+                    "Failed to record delay for prediction",
+                    error instanceof Error ? error : undefined
+                  );
                 }
               }
             }
@@ -542,7 +546,12 @@ function generateAlerts(segments: DelayedSegment[]): void {
         // Swallow listener errors
       }
     }
+    // Record alert changes metric
+    recordAlertsChange("predicted");
   }
+
+  // Update active alerts count metric
+  setAlertsActive(activePredictedAlerts.size);
 }
 
 // ---------------------------------------------------------------------------

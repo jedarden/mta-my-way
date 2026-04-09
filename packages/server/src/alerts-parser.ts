@@ -23,9 +23,9 @@ import type {
   ShuttleBusInfo,
   StationAlert,
 } from "@mta-my-way/shared";
+import { logger } from "./observability/logger.js";
 import { transit_realtime } from "./proto/compiled.js";
 import { matchShuttle } from "./shuttle-matcher.js";
-import { logger } from "./observability/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

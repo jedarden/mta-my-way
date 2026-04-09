@@ -28,7 +28,13 @@ import {
   updatePositions,
 } from "./cache.js";
 import { extractVehiclePositions, processVehicleUpdates } from "./delay-detector.js";
+import {
+  recordFeedEntitiesProcessed,
+  recordFeedError,
+  recordFeedPollDuration,
+} from "./middleware/metrics.js";
 import { logger } from "./observability/logger.js";
+import { setSpanAttribute, tracedFetch, withChildSpan } from "./observability/tracing.js";
 import { parseFeed } from "./parser.js";
 import { buildStopToStationMap, transformFeeds } from "./transformer.js";
 
@@ -69,45 +75,52 @@ export function stopPoller(): void {
 // ---------------------------------------------------------------------------
 
 async function runPoll(): Promise<void> {
-  const cycleStart = Date.now();
+  return withChildSpan("feed_poll_cycle", async () => {
+    const cycleStart = Date.now();
 
-  // Fetch all feeds in parallel; never let one failure abort the others
-  const results = await Promise.allSettled(SUBWAY_FEEDS.map((feed) => fetchFeed(feed)));
+    // Fetch all feeds in parallel; never let one failure abort the others
+    const results = await Promise.allSettled(SUBWAY_FEEDS.map((feed) => fetchFeed(feed)));
 
-  let feedsOk = 0;
-  let feedsFailed = 0;
-  for (const r of results) {
-    if (r.status === "fulfilled" && r.value) feedsOk++;
-    else feedsFailed++;
-  }
+    let feedsOk = 0;
+    let feedsFailed = 0;
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value) feedsOk++;
+      else feedsFailed++;
+    }
 
-  // Rebuild arrivals from all currently-good feeds
-  const parsedFeeds = getAllParsedFeeds();
-  const feedAges = getAllFeedAges();
+    // Rebuild arrivals from all currently-good feeds
+    const parsedFeeds = getAllParsedFeeds();
+    const feedAges = getAllFeedAges();
 
-  // Extract VehiclePositions for delay detection (Phase 5) and positions cache (Phase 6)
-  const allVehiclePositions: ReturnType<typeof extractVehiclePositions> = [];
-  for (const [feedId, parsed] of parsedFeeds) {
-    const positions = extractVehiclePositions(feedId, parsed.message);
-    allVehiclePositions.push(...positions);
-  }
-  if (allVehiclePositions.length > 0) {
-    processVehicleUpdates(allVehiclePositions);
-  }
+    // Extract VehiclePositions for delay detection (Phase 5) and positions cache (Phase 6)
+    const allVehiclePositions: ReturnType<typeof extractVehiclePositions> = [];
+    for (const [feedId, parsed] of parsedFeeds) {
+      const positions = extractVehiclePositions(feedId, parsed.message);
+      allVehiclePositions.push(...positions);
+    }
+    if (allVehiclePositions.length > 0) {
+      processVehicleUpdates(allVehiclePositions);
+    }
 
-  // Build and cache positions for train diagram
-  const positionsMap = buildPositionsMap(allVehiclePositions, stations);
-  updatePositions(positionsMap, cycleStart);
+    // Build and cache positions for train diagram
+    const positionsMap = buildPositionsMap(allVehiclePositions, stations);
+    updatePositions(positionsMap, cycleStart);
 
-  const arrivals = transformFeeds(parsedFeeds, stations, routes, stopToStation, feedAges);
-  updateArrivals(arrivals);
+    const arrivals = transformFeeds(parsedFeeds, stations, routes, stopToStation, feedAges);
+    updateArrivals(arrivals);
 
-  logger.info("Poll complete", {
-    elapsed_ms: Date.now() - cycleStart,
-    feeds_ok: feedsOk,
-    feeds_failed: feedsFailed,
-    station_count: arrivals.size,
-    train_count: allVehiclePositions.length,
+    setSpanAttribute("feed_poll.feeds_ok", feedsOk);
+    setSpanAttribute("feed_poll.feeds_failed", feedsFailed);
+    setSpanAttribute("feed_poll.station_count", arrivals.size);
+    setSpanAttribute("feed_poll.train_count", allVehiclePositions.length);
+
+    logger.info("Poll complete", {
+      elapsed_ms: Date.now() - cycleStart,
+      feeds_ok: feedsOk,
+      feeds_failed: feedsFailed,
+      station_count: arrivals.size,
+      train_count: allVehiclePositions.length,
+    });
   });
 }
 
@@ -158,80 +171,128 @@ const RETRY_OPTIONS: RetryOptions = {
 };
 
 async function fetchFeed(config: FeedConfig): Promise<boolean> {
-  // Circuit breaker: skip this feed until reset window expires
-  if (isCircuitOpen(config.id)) {
-    logger.warn("Feed circuit open", { feed: config.id });
-    return false;
-  }
-
-  const start = Date.now();
-
-  try {
-    const headers: Record<string, string> = {
-      Accept: "application/x-protobuf",
-    };
-
-    const apiKey = process.env["MTA_API_KEY"];
-    if (apiKey) headers["x-api-key"] = apiKey;
-
-    // Wrap onRetry to include feed ID
-    const retryOptions: RetryOptions = {
-      ...RETRY_OPTIONS,
-      onRetry: (attempt, error, delayMs) => {
-        RETRY_OPTIONS.onRetry?.(attempt, error, delayMs);
-        // Log with feed ID
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn("Feed retry", {
-          feed: config.id,
-          attempt,
-          delay_ms: delayMs,
-          error: message,
-        });
-      },
-    };
-
-    // Fetch with retry logic
-    const response = await retry(async () => {
-      const res = await fetch(config.url, {
-        headers,
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-
-      if (!res.ok) {
-        // Create error with status for isRetryable predicate
-        const error = new Error(`HTTP ${res.status} ${res.statusText}`) as Error & {
-          status: number;
-        };
-        error.status = res.status;
-        throw error;
+  return withChildSpan(
+    `fetch_feed_${config.id}`,
+    async () => {
+      // Circuit breaker: skip this feed until reset window expires
+      if (isCircuitOpen(config.id)) {
+        logger.warn("Feed circuit open", { feed: config.id });
+        setSpanAttribute("feed.circuit_open", true);
+        return false;
       }
 
-      return res;
-    }, retryOptions);
+      const start = Date.now();
 
-    const buffer = await response.arrayBuffer();
-    const data = new Uint8Array(buffer);
-    const parsed = parseFeed(config.id, data);
+      try {
+        const headers: Record<string, string> = {
+          Accept: "application/x-protobuf",
+        };
 
-    recordFeedSuccess(config.id, parsed, parsed.entityCount, Date.now() - start);
+        const apiKey = process.env["MTA_API_KEY"];
+        if (apiKey) headers["x-api-key"] = apiKey;
 
-    logger.debug("Feed fetched successfully", {
-      feed: config.id,
-      latency_ms: Date.now() - start,
-      entities: parsed.entityCount,
-    });
-    return true;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    recordFeedFailure(config.id, message, Date.now() - start);
+        // Wrap onRetry to include feed ID
+        const retryOptions: RetryOptions = {
+          ...RETRY_OPTIONS,
+          onRetry: (attempt, error, delayMs) => {
+            RETRY_OPTIONS.onRetry?.(attempt, error, delayMs);
+            // Log with feed ID
+            const message = error instanceof Error ? error.message : String(error);
+            logger.warn("Feed retry", {
+              feed: config.id,
+              attempt,
+              delay_ms: delayMs,
+              error: message,
+            });
+            setSpanAttribute("feed.retry_attempt", attempt);
+          },
+        };
 
-    logger.error("Feed fetch failed", err as Error, {
-      feed: config.id,
-      latency_ms: Date.now() - start,
-      error: message,
-    });
-    return false;
-  }
+        // Fetch with retry logic and trace propagation
+        const response = await retry(async () => {
+          return tracedFetch(config.url, {
+            headers,
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            method: "GET",
+            spanName: `HTTP ${config.id}`,
+          });
+        }, retryOptions);
+
+        if (!response.ok) {
+          // Create error with status for isRetryable predicate
+          const error = new Error(`HTTP ${response.status} ${response.statusText}`) as Error & {
+            status: number;
+          };
+          error.status = response.status;
+          throw error;
+        }
+
+        const buffer = await response.arrayBuffer();
+        const data = new Uint8Array(buffer);
+        const parsed = parseFeed(config.id, data);
+
+        const latencyMs = Date.now() - start;
+        recordFeedSuccess(config.id, parsed, parsed.entityCount, latencyMs);
+
+        // Record feed poll duration metric
+        recordFeedPollDuration(latencyMs / 1000, config.id);
+
+        // Record feed entities processed metric
+        recordFeedEntitiesProcessed(config.id, parsed.entityCount);
+
+        // Add span attributes
+        setSpanAttribute("feed.latency_ms", latencyMs);
+        setSpanAttribute("feed.entity_count", parsed.entityCount);
+        setSpanAttribute("feed.status", "success");
+
+        logger.debug("Feed fetched successfully", {
+          feed: config.id,
+          latency_ms: latencyMs,
+          entities: parsed.entityCount,
+        });
+        return true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const latencyMs = Date.now() - start;
+        recordFeedFailure(config.id, message, latencyMs);
+
+        // Record feed poll duration and error metrics
+        recordFeedPollDuration(latencyMs / 1000, config.id);
+
+        // Determine error type for metric labeling
+        let errorType: string;
+        if (err instanceof Error) {
+          if (err.name === "AbortError") {
+            errorType = "timeout";
+          } else if (err.name === "TypeError") {
+            errorType = "network";
+          } else if ("status" in err) {
+            const status = (err as { status: number }).status;
+            errorType =
+              status === 429 ? "rate_limited" : status >= 500 ? "server_error" : "http_error";
+          } else {
+            errorType = "unknown";
+          }
+        } else {
+          errorType = "unknown";
+        }
+        recordFeedError(config.id, errorType);
+
+        // Add error attributes to span
+        setSpanAttribute("feed.latency_ms", latencyMs);
+        setSpanAttribute("feed.error_type", errorType);
+        setSpanAttribute("feed.status", "error");
+
+        logger.error("Feed fetch failed", err as Error, {
+          feed: config.id,
+          latency_ms: latencyMs,
+          error: message,
+        });
+        return false;
+      }
+    },
+    { feed_id: config.id }
+  );
 }
 
 // ---------------------------------------------------------------------------

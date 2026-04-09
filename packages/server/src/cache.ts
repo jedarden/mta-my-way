@@ -17,6 +17,7 @@
 
 import { SUBWAY_FEEDS } from "@mta-my-way/shared";
 import type { LinePositions, StationArrivals } from "@mta-my-way/shared";
+import { recordCacheHitMetric, recordCacheMissMetric } from "./middleware/metrics.js";
 import type { ParsedFeed } from "./parser.js";
 
 /** Number of consecutive failures before the circuit opens */
@@ -156,7 +157,13 @@ export function recordFeedFailure(feedId: string, error: string, latencyMs: numb
 // ---------------------------------------------------------------------------
 
 export function getLastGoodParsed(feedId: string): ParsedFeed | null {
-  return feedStates.get(feedId)?.parsedFeed ?? null;
+  const result = feedStates.get(feedId)?.parsedFeed ?? null;
+  if (result) {
+    recordCacheHitMetric("parsed_feed");
+  } else {
+    recordCacheMissMetric("parsed_feed");
+  }
+  return result;
 }
 
 /** Returns all feeds that have at least one successful parse */
@@ -234,7 +241,13 @@ export function updateArrivals(arrivals: Map<string, StationArrivals>): void {
 }
 
 export function getArrivals(stationId: string): StationArrivals | null {
-  return arrivalsCache.get(stationId) ?? null;
+  const result = arrivalsCache.get(stationId);
+  if (result) {
+    recordCacheHitMetric("arrivals");
+  } else {
+    recordCacheMissMetric("arrivals");
+  }
+  return result ?? null;
 }
 
 export function getAllArrivals(): Map<string, StationArrivals> {
@@ -258,7 +271,12 @@ export function updatePositions(positions: Map<string, LinePositions>, fetchedAt
 
 export function getPositions(routeId: string): LinePositions | null {
   const positions = positionsCache.get(routeId.toUpperCase());
-  if (!positions) return null;
+  if (!positions) {
+    recordCacheMissMetric("positions");
+    return null;
+  }
+
+  recordCacheHitMetric("positions");
 
   // Update feedAge based on current time
   const feedAge = Math.floor((Date.now() - positionsFetchedAt) / 1000);

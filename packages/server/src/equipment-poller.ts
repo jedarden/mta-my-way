@@ -16,6 +16,7 @@ import type {
   StationIndex,
 } from "@mta-my-way/shared";
 import { logger } from "./observability/logger.js";
+import { tracedFetch, withChildSpan } from "./observability/tracing.js";
 
 const POLL_INTERVAL_MS = POLLING_INTERVALS.equipment * 1000; // 300,000 ms (5 min)
 const FETCH_TIMEOUT_MS = 15_000;
@@ -297,9 +298,11 @@ async function fetchEquipment(): Promise<Map<string, EquipmentStatus[]> | null> 
   if (apiKey) headers["x-api-key"] = apiKey;
 
   try {
-    const response = await fetch(ENE_FEED_URL, {
+    const response = await tracedFetch(ENE_FEED_URL, {
+      method: "GET",
       headers,
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      spanName: "MTA ENE Feed",
     });
 
     if (!response.ok) {
@@ -307,8 +310,12 @@ async function fetchEquipment(): Promise<Map<string, EquipmentStatus[]> | null> 
     }
 
     const xml = await response.text();
-    const outages = parseENEFeed(xml);
-    const equipment = transformOutages(outages);
+    const outages = await withChildSpan("parse-ene-feed", () => parseENEFeed(xml));
+    const equipment = await withChildSpan(
+      "transform-outages",
+      () => transformOutages(outages),
+      { "outage.count": outages.length }
+    );
 
     // Success
     status.consecutiveFailures = 0;

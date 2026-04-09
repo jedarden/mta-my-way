@@ -89,26 +89,30 @@ export const pushFavoriteTupleSchema = z.object({
 });
 
 /** POST /api/push/subscribe */
-export const pushSubscribeRequestSchema = z.object({
-  subscription: z.object({
-    endpoint: pushEndpointSchema,
-    keys: pushKeysSchema,
-  }),
-  favorites: z.array(pushFavoriteTupleSchema).max(50), // Limit favorites to prevent abuse
-  quietHours: z
-    .object({
-      enabled: z.boolean(),
-      startHour: z.number().int().min(0).max(23),
-      endHour: z.number().int().min(0).max(23),
-    })
-    .optional(),
-  morningScores: z.record(z.string().max(50), z.number().int().min(0).max(100)).optional(),
-});
+export const pushSubscribeRequestSchema = z
+  .object({
+    subscription: z.object({
+      endpoint: pushEndpointSchema,
+      keys: pushKeysSchema,
+    }),
+    favorites: z.array(pushFavoriteTupleSchema).max(50), // Limit favorites to prevent abuse
+    quietHours: z
+      .object({
+        enabled: z.boolean(),
+        startHour: z.number().int().min(0).max(23),
+        endHour: z.number().int().min(0).max(23),
+      })
+      .optional(),
+    morningScores: z.record(z.string().max(50), z.number().int().min(0).max(100)).optional(),
+  })
+  .strict();
 
 /** DELETE /api/push/unsubscribe */
-export const pushUnsubscribeRequestSchema = z.object({
-  endpoint: pushEndpointSchema,
-});
+export const pushUnsubscribeRequestSchema = z
+  .object({
+    endpoint: pushEndpointSchema,
+  })
+  .strict();
 
 /** PATCH /api/push/subscription */
 export const pushUpdateRequestSchema = z
