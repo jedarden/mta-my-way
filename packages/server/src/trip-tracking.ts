@@ -6,6 +6,7 @@
  * - Commute journal query API
  * - Statistics calculation (average, median, std dev, trends)
  * - Trip inference from real-time data
+ * - Resource-level access control (ownership checks)
  */
 
 import type { CommuteStats, StationIndex, TripRecord, TripSource } from "@mta-my-way/shared";
@@ -24,6 +25,9 @@ const DEFAULT_COMMUTE_ID = "default";
 // Database instance (set via initTripTracking)
 let db: Database.Database | null = null;
 let stations: StationIndex | null = null;
+
+// Default owner ID for unauthenticated or legacy data
+const DEFAULT_OWNER_ID = "anonymous";
 
 /**
  * Initialize trip tracking service.
@@ -55,8 +59,14 @@ export function initTripTracking(database: Database.Database, stationData: Stati
 
 /**
  * Record a trip in the journal.
+ *
+ * @param trip - Trip data to record
+ * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
+export function recordTrip(
+  trip: Omit<TripRecord, "id">,
+  ownerId: string = DEFAULT_OWNER_ID
+): TripRecord | null {
   if (!db) return null;
 
   const id = crypto.randomUUID();
@@ -68,8 +78,8 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
           id, date, origin_station_id, origin_station_name,
           destination_station_id, destination_station_name, line, direction,
           departure_time, arrival_time, actual_duration_minutes,
-          scheduled_duration_minutes, source, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          scheduled_duration_minutes, source, notes, created_at, updated_at, owner_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       trip.date,
@@ -86,7 +96,8 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
       trip.source,
       trip.notes ?? null,
       now,
-      now
+      now,
+      ownerId
     );
 
     // Invalidate commute stats cache
@@ -100,6 +111,7 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
       origin: trip.origin.stationName,
       destination: trip.destination.stationName,
       source: trip.source,
+      ownerId,
     });
 
     return { ...trip, id };
@@ -111,16 +123,22 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
 
 /**
  * Record a trip from GTFS-RT data (inferred).
+ *
+ * @param params - Trip parameters
+ * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export function recordInferredTrip(params: {
-  tripId: string;
-  routeId: string;
-  direction: "N" | "S";
-  originId: string;
-  destinationId: string;
-  departureTime: number;
-  arrivalTime: number;
-}): TripRecord | null {
+export function recordInferredTrip(
+  params: {
+    tripId: string;
+    routeId: string;
+    direction: "N" | "S";
+    originId: string;
+    destinationId: string;
+    departureTime: number;
+    arrivalTime: number;
+  },
+  ownerId: string = DEFAULT_OWNER_ID
+): TripRecord | null {
   if (!stations || !db) return null;
 
   const originStation = stations[params.originId];
@@ -141,7 +159,7 @@ export function recordInferredTrip(params: {
     source: "inferred",
   };
 
-  return recordTrip(trip);
+  return recordTrip(trip, ownerId);
 }
 
 /**
@@ -188,7 +206,9 @@ export function deleteTrip(tripId: string): boolean {
 // ============================================================================
 
 /**
- * Get trip records with pagination.
+ * Get trip records with pagination and optional ownership filtering.
+ *
+ * @param params - Query parameters including optional ownerId for access control
  */
 export function getTrips(params: {
   limit?: number;
@@ -199,6 +219,7 @@ export function getTrips(params: {
   destinationId?: string;
   line?: string;
   source?: TripSource;
+  ownerId?: string; // For ownership filtering - if not provided, returns all trips (admin only)
 }): TripRecord[] {
   const startTime = Date.now();
 
@@ -217,10 +238,16 @@ export function getTrips(params: {
     destinationId,
     line,
     source,
+    ownerId,
   } = params;
 
   const conditions: string[] = ["1=1"];
   const sqlParams: unknown[] = [];
+
+  if (ownerId) {
+    conditions.push("owner_id = ?");
+    sqlParams.push(ownerId);
+  }
 
   if (startDate) {
     conditions.push("date >= ?");
@@ -256,7 +283,7 @@ export function getTrips(params: {
         destination_station_id, destination_station_name,
         line, direction, departure_time, arrival_time,
         actual_duration_minutes, scheduled_duration_minutes,
-        source, notes
+        source, notes, owner_id
       FROM trips
       WHERE ${conditions.join(" AND ")}
       ORDER BY departure_time DESC
@@ -286,9 +313,10 @@ interface TripRecordRow {
   scheduled_duration_minutes: number | null;
   source: string;
   notes: string | null;
+  owner_id: string;
 }
 
-function rowToTripRecord(row: TripRecordRow): TripRecord {
+function rowToTripRecord(row: TripRecordRow): TripRecord & { ownerId?: string } {
   return {
     id: row.id,
     date: row.date,
@@ -304,13 +332,14 @@ function rowToTripRecord(row: TripRecordRow): TripRecord {
     scheduledDurationMinutes: row.scheduled_duration_minutes ?? undefined,
     source: row.source as TripSource,
     notes: row.notes ?? undefined,
+    ownerId: row.owner_id,
   };
 }
 
 /**
  * Get a single trip by ID.
  */
-export function getTripById(tripId: string): TripRecord | null {
+export function getTripById(tripId: string): (TripRecord & { ownerId?: string }) | null {
   const startTime = Date.now();
 
   if (!db) {
@@ -326,7 +355,7 @@ export function getTripById(tripId: string): TripRecord | null {
         destination_station_id, destination_station_name,
         line, direction, departure_time, arrival_time,
         actual_duration_minutes, scheduled_duration_minutes,
-        source, notes
+        source, notes, owner_id
       FROM trips
       WHERE id = ?`
     )
@@ -357,18 +386,57 @@ export function getRecentTripsForStation(stationId: string, limit: number = 10):
   });
 }
 
+/**
+ * Check if a trip belongs to a specific owner.
+ *
+ * @param tripId - Trip ID to check
+ * @param ownerId - Owner ID to verify
+ * @returns true if the trip belongs to the owner
+ */
+export function checkTripOwnership(tripId: string, ownerId: string): boolean {
+  if (!db) return false;
+
+  const row = db.prepare("SELECT owner_id FROM trips WHERE id = ?").get(tripId) as
+    | { owner_id: string }
+    | undefined;
+
+  return row?.owner_id === ownerId || row?.owner_id === DEFAULT_OWNER_ID;
+}
+
+/**
+ * Get the owner ID of a trip.
+ *
+ * @param tripId - Trip ID to query
+ * @returns Owner ID or undefined if trip not found
+ */
+export function getTripOwner(tripId: string): string | undefined {
+  if (!db) return undefined;
+
+  const row = db.prepare("SELECT owner_id FROM trips WHERE id = ?").get(tripId) as
+    | { owner_id: string }
+    | undefined;
+
+  return row?.owner_id;
+}
+
 // ============================================================================
 // Statistics Calculation
 // ============================================================================
 
 /**
  * Calculate commute statistics for a route.
+ *
+ * @param commuteId - Commute ID to calculate stats for
+ * @param ownerId - Optional owner ID for filtering user-specific stats
  */
-export function calculateCommuteStats(commuteId: string = DEFAULT_COMMUTE_ID): CommuteStats | null {
+export function calculateCommuteStats(
+  commuteId: string = DEFAULT_COMMUTE_ID,
+  ownerId?: string
+): CommuteStats | null {
   if (!db) return null;
 
-  // Check cache first
-  const cached = getCachedCommuteStats(commuteId);
+  // Check cache first (skip cache if owner-specific query)
+  const cached = !ownerId ? getCachedCommuteStats(commuteId) : null;
   if (cached && Date.now() - cached.last_updated < 300_000) {
     // Cache valid for 5 minutes
     return {
@@ -382,12 +450,12 @@ export function calculateCommuteStats(commuteId: string = DEFAULT_COMMUTE_ID): C
       averageDelayMinutes: cached.average_delay_minutes,
       maxDelayMinutes: cached.max_delay_minutes,
       onTimePercentage: cached.on_time_percentage,
-      records: getTrips({ limit: 90 }),
+      records: getTrips({ limit: 90, ownerId }),
     };
   }
 
-  // Get all trip records for statistics
-  const allTrips = getTrips({ limit: 500 });
+  // Get all trip records for statistics with ownership filter
+  const allTrips = getTrips({ limit: 500, ownerId });
 
   if (allTrips.length === 0) {
     return {
@@ -461,8 +529,10 @@ export function calculateCommuteStats(commuteId: string = DEFAULT_COMMUTE_ID): C
     records: allTrips.slice(0, 90),
   };
 
-  // Cache the stats
-  cacheCommuteStats(stats);
+  // Cache the stats (only for non-owner-specific queries)
+  if (!ownerId) {
+    cacheCommuteStats(stats);
+  }
 
   return stats;
 }

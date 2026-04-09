@@ -49,6 +49,9 @@ import {
   delayProbabilityQuerySchema,
   emptyQuerySchema,
   equipmentQuerySchema,
+  getContextIcon,
+  getContextLabel,
+  getContextUIHints,
   lineIdParamsSchema,
   positionsQuerySchema,
   pushSubscribeRequestSchema,
@@ -67,10 +70,15 @@ import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
 import {
+  checkContextOwnership,
   clearManualOverride,
+  detectAndUpdateContextWithOwner,
   detectContextFromRequest,
+  getContextByOwner,
+  getContextOwner,
   getContextSettings,
   getContextSummary,
+  getContextTransitionsForOwner,
   setManualContext,
   updateContextSettings,
 } from "./context-service.js";
@@ -121,6 +129,11 @@ import {
   recordStationSearchRequest,
 } from "./middleware/metrics.js";
 import {
+  type RbacAuthContext,
+  getRbacAuthContext,
+  requireOwnershipOrAdmin,
+} from "./middleware/rbac.js";
+import {
   cleanupExpiredStates,
   createAuthorizationUrl,
   getActiveOAuthProviders,
@@ -133,6 +146,7 @@ import { tracingMiddleware } from "./observability/tracing.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
 import {
   getSubscriptionCount,
+  getSubscriptionOwner,
   removeSubscription,
   updateSubscriptionFavorites,
   updateSubscriptionMorningScores,
@@ -147,6 +161,7 @@ import {
   deleteTrip,
   getTotalTripCount,
   getTripById,
+  getTripOwner,
   getTrips,
   getTripsByDateRange,
   recordTrip,
@@ -1266,14 +1281,18 @@ export function createApp(
     auditLogAccess("subscription", "create"),
     async (c) => {
       try {
+        const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushSubscribeRequestSchema);
         if (body instanceof Response) return body;
 
-        upsertSubscription(body);
+        // Use the authenticated user's keyId as the owner
+        const ownerId = auth?.keyId || "anonymous";
+        upsertSubscription(body, ownerId);
 
         logger.info("Push subscription registered", {
           lines: body.favorites?.map((f) => f.lines).flat() ?? [],
           total_subscriptions: getSubscriptionCount(),
+          ownerId,
         });
 
         return c.json({ success: true });
@@ -1287,18 +1306,29 @@ export function createApp(
   /** Remove a push subscription */
   app.delete(
     "/api/push/unsubscribe",
-    requireResourceAccess("subscription", "delete", { adminBypass: false }),
+    requireOwnershipOrAdmin("subscriptions", {
+      getOwnerId: async (c) => {
+        const body = await c.req.json().catch(() => ({}));
+        return getSubscriptionOwner(body.endpoint) || "";
+      },
+      adminBypass: true,
+    }),
+    requireResourceAccess("subscription", "delete", { adminBypass: true }),
     auditLogAccess("subscription", "delete"),
     async (c) => {
       try {
+        const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushUnsubscribeRequestSchema);
         if (body instanceof Response) return body;
 
-        const removed = removeSubscription(body.endpoint);
+        // Use the authenticated user's keyId as the owner
+        const ownerId = auth?.keyId || "anonymous";
+        const removed = removeSubscription(body.endpoint, ownerId);
 
         logger.info("Push subscription removed", {
           removed,
           total_subscriptions: getSubscriptionCount(),
+          ownerId,
         });
 
         return c.json({ success: true });
@@ -1312,23 +1342,33 @@ export function createApp(
   /** Update favorites or quiet hours for an existing push subscription */
   app.patch(
     "/api/push/subscription",
-    requireResourceAccess("subscription", "update", { adminBypass: false }),
+    requireOwnershipOrAdmin("subscriptions", {
+      getOwnerId: async (c) => {
+        const body = await c.req.json().catch(() => ({}));
+        return getSubscriptionOwner(body.endpoint) || "";
+      },
+      adminBypass: true,
+    }),
+    requireResourceAccess("subscription", "update", { adminBypass: true }),
     auditLogAccess("subscription", "update"),
     async (c) => {
       try {
+        const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushUpdateRequestSchema);
         if (body instanceof Response) return body;
 
+        const ownerId = auth?.keyId || "anonymous";
+
         if (body.favorites) {
-          updateSubscriptionFavorites(body.endpoint, body.favorites);
+          updateSubscriptionFavorites(body.endpoint, body.favorites, ownerId);
         }
 
         if (body.quietHours) {
-          updateSubscriptionQuietHours(body.endpoint, body.quietHours);
+          updateSubscriptionQuietHours(body.endpoint, body.quietHours, ownerId);
         }
 
         if (body.morningScores) {
-          updateSubscriptionMorningScores(body.endpoint, body.morningScores);
+          updateSubscriptionMorningScores(body.endpoint, body.morningScores, ownerId);
         }
 
         return c.json({ success: true });
@@ -1354,6 +1394,7 @@ export function createApp(
     auditLogAccess("trip", "create"),
     async (c) => {
       try {
+        const auth = getRbacAuthContext(c);
         const body = await validateBody(c, tripCreateRequestSchema);
         if (body instanceof Response) return body;
 
@@ -1361,17 +1402,22 @@ export function createApp(
 
         const actualDurationMinutes = Math.round((arrivalTime - departureTime) / 60000);
 
-        const trip = recordTrip({
-          date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
-          origin,
-          destination,
-          line,
-          departureTime,
-          arrivalTime,
-          actualDurationMinutes,
-          source: "manual",
-          notes,
-        });
+        // Use authenticated user's keyId as owner
+        const ownerId = auth?.keyId || "anonymous";
+        const trip = recordTrip(
+          {
+            date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
+            origin,
+            destination,
+            line,
+            departureTime,
+            arrivalTime,
+            actualDurationMinutes,
+            source: "manual",
+            notes,
+          },
+          ownerId
+        );
 
         if (!trip) {
           return c.json({ error: "Failed to record trip" }, 500);
@@ -1397,7 +1443,13 @@ export function createApp(
     const query = validateQuery(c, tripQuerySchema);
     if (query instanceof Response) return query;
 
-    const trips = getTrips(query);
+    const auth = getRbacAuthContext(c);
+
+    // Non-admin users can only see their own trips
+    const trips = getTrips({
+      ...query,
+      ownerId: auth?.role === "admin" ? undefined : auth?.keyId || "anonymous",
+    });
 
     c.header("Cache-Control", "public, max-age=15");
     return c.json({
@@ -1409,27 +1461,46 @@ export function createApp(
   });
 
   /** Get a single trip by ID */
-  app.get("/api/trips/:tripId", (c) => {
-    const params = validateParams(c, tripIdParamsSchema);
-    if (params instanceof Response) return params;
+  app.get(
+    "/api/trips/:tripId",
+    requireOwnershipOrAdmin("trips", {
+      getOwnerId: (c) => {
+        const tripId = c.req.param("tripId");
+        const trip = getTripById(tripId);
+        return trip?.ownerId || "";
+      },
+      adminBypass: true,
+    }),
+    (c) => {
+      const params = validateParams(c, tripIdParamsSchema);
+      if (params instanceof Response) return params;
 
-    const { tripId } = params;
-    const trip = getTripById(tripId);
+      const { tripId } = params;
+      const trip = getTripById(tripId);
 
-    if (!trip) {
-      return c.json({ error: "Trip not found" }, 404);
+      if (!trip) {
+        return c.json({ error: "Trip not found" }, 404);
+      }
+
+      c.header("Cache-Control", "public, max-age=60");
+      return c.json(trip);
     }
-
-    c.header("Cache-Control", "public, max-age=60");
-    return c.json(trip);
-  });
+  );
 
   /** Update trip notes */
   app.patch(
     "/api/trips/:tripId/notes",
+    requireOwnershipOrAdmin("trips", {
+      getOwnerId: (c) => {
+        const tripId = c.req.param("tripId");
+        const trip = getTripById(tripId);
+        return trip?.ownerId || "";
+      },
+    }),
     requireResourceAccess("trip", "update"),
     auditLogAccess("trip", "update"),
     async (c) => {
+      const auth = getRbacAuthContext(c);
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
 
@@ -1439,7 +1510,9 @@ export function createApp(
       const { tripId } = params;
       const { notes } = body;
 
-      const success = updateTripNotes(tripId, notes);
+      // Pass ownerId for defense-in-depth check (middleware already validated)
+      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+      const success = updateTripNotes(tripId, notes, ownerId);
 
       if (!success) {
         return c.json({ error: "Trip not found" }, 404);
@@ -1452,14 +1525,25 @@ export function createApp(
   /** Delete a trip from the journal */
   app.delete(
     "/api/trips/:tripId",
+    requireOwnershipOrAdmin("trips", {
+      getOwnerId: (c) => {
+        const tripId = c.req.param("tripId");
+        const trip = getTripById(tripId);
+        return trip?.ownerId || "";
+      },
+    }),
     requireResourceAccess("trip", "delete"),
     auditLogAccess("trip", "delete"),
     (c) => {
+      const auth = getRbacAuthContext(c);
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
 
       const { tripId } = params;
-      const success = deleteTrip(tripId);
+
+      // Pass ownerId for defense-in-depth check (middleware already validated)
+      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+      const success = deleteTrip(tripId, ownerId);
 
       if (!success) {
         return c.json({ error: "Trip not found" }, 404);
@@ -1474,8 +1558,14 @@ export function createApp(
     const query = validateQuery(c, commuteIdQuerySchema);
     if (query instanceof Response) return query;
 
+    const auth = getRbacAuthContext(c);
     const commuteId = query.commuteId ?? "default";
-    const stats = calculateCommuteStats(commuteId);
+
+    // Non-admin users can only see their own stats
+    const stats = calculateCommuteStats(
+      commuteId,
+      auth?.role === "admin" ? undefined : auth?.keyId || "anonymous"
+    );
 
     c.header("Cache-Control", "public, max-age=60");
     return c.json(stats);
@@ -1486,8 +1576,12 @@ export function createApp(
     const params = validateParams(c, dateRangeParamsSchema);
     if (params instanceof Response) return params;
 
+    const auth = getRbacAuthContext(c);
     const { startDate, endDate } = params;
-    const trips = getTripsByDateRange(startDate, endDate);
+
+    // Non-admin users can only see their own trips
+    const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+    const trips = getTrips({ startDate, endDate, limit: 1000, ownerId });
 
     c.header("Cache-Control", "public, max-age=30");
     return c.json({
@@ -1504,9 +1598,15 @@ export function createApp(
     const query = validateQuery(c, emptyQuerySchema);
     if (query instanceof Response) return query;
 
-    const recentTrips = getTrips({ limit: 10 });
-    const stats = calculateCommuteStats("default");
-    const totalTrips = getTotalTripCount();
+    const auth = getRbacAuthContext(c);
+    const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+
+    const recentTrips = getTrips({ limit: 10, ownerId });
+    const stats = calculateCommuteStats("default", ownerId);
+
+    // Non-admin users only get their own trip count
+    const totalTrips =
+      auth?.role === "admin" ? getTotalTripCount() : getTrips({ limit: 1000000, ownerId }).length;
 
     c.header("Cache-Control", "public, max-age=30");
     return c.json({
@@ -1529,22 +1629,88 @@ export function createApp(
     const query = validateQuery(c, emptyQuerySchema);
     if (query instanceof Response) return query;
 
+    const auth = getRbacAuthContext(c);
+
+    // Non-admin users get a generic summary without specific context data
+    // This prevents leaking other users' context information
     const summary = getContextSummary();
 
+    // Filter transitions to only show the user's own context (unless admin)
+    const filteredSummary =
+      auth?.role === "admin"
+        ? summary
+        : {
+            ...summary,
+            recentTransitions: [], // Don't expose other users' transitions
+          };
+
     c.header("Cache-Control", "public, max-age=15");
-    return c.json(summary);
+    return c.json(filteredSummary);
   });
+
+  /** Get context for a specific owner with ownership check */
+  app.get(
+    "/api/context/owner/:ownerId",
+    requireOwnershipOrAdmin("context", {
+      getOwnerId: (c) => {
+        return c.req.param("ownerId") || "";
+      },
+      adminBypass: true,
+    }),
+    (c) => {
+      const ownerId = c.req.param("ownerId");
+
+      if (!ownerId) {
+        return c.json({ error: "Owner ID is required" }, 400);
+      }
+
+      const contextState = getContextByOwner(ownerId);
+      const transitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
+
+      if (!contextState) {
+        return c.json({ error: "Context not found" }, 404);
+      }
+
+      c.header("Cache-Control", "public, max-age=15");
+      return c.json({
+        current: contextState,
+        settings: getContextSettings(),
+        uiHints: getContextUIHints(contextState.context),
+        label: getContextLabel(contextState.context),
+        icon: getContextIcon(contextState.context),
+        recentTransitions: transitions || [],
+      });
+    }
+  );
 
   /** Detect context from request parameters */
   app.post("/api/context/detect", requireResourceAccess("context", "create"), async (c) => {
     try {
+      const auth = getRbacAuthContext(c);
       const body = await validateBody(c, contextDetectRequestSchema);
       if (body instanceof Response) return body;
 
+      // Get owner ID from auth context
+      const ownerId = auth?.keyId || "anonymous";
+
       const context = detectContextFromRequest(body);
 
+      // Store context with ownership
+      const { context: detectedContext } = detectAndUpdateContextWithOwner(
+        {
+          nearStation: context.factors.location.nearStation,
+          nearStationId: context.factors.location.stationId,
+          distanceToStation: context.factors.location.distance,
+          tapHistory: body.tapHistory || [],
+          currentScreen: body.currentScreen || "home",
+          screenTime: body.screenTime || 0,
+          recentActions: body.recentActions || [],
+        },
+        ownerId
+      );
+
       c.header("Cache-Control", "no-cache");
-      return c.json({ context });
+      return c.json({ context: detectedContext });
     } catch (err) {
       logger.error("Context detection failed", err as Error);
       return c.json(
@@ -1564,11 +1730,25 @@ export function createApp(
     auditLogAccess("context", "update"),
     async (c) => {
       try {
+        const auth = getRbacAuthContext(c);
         const body = await validateBody(c, contextOverrideRequestSchema);
         if (body instanceof Response) return body;
 
         const { context } = body;
-        const newContext = setManualContext(context);
+        const ownerId = auth?.keyId || "anonymous";
+
+        // Store context with ownership
+        const { context: newContext } = detectAndUpdateContextWithOwner(
+          {
+            nearStation: false,
+            tapHistory: [],
+            currentScreen: "home",
+            screenTime: 0,
+            recentActions: [],
+            manualOverride: context,
+          },
+          ownerId
+        );
 
         c.header("Cache-Control", "no-cache");
         return c.json({ success: true, context: newContext });

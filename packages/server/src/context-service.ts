@@ -41,6 +41,9 @@ import { logger } from "./observability/logger.js";
 let db: Database.Database | null = null;
 let stations: StationIndex | null = null;
 
+// Default owner ID for unauthenticated or legacy data
+const DEFAULT_OWNER_ID = "anonymous";
+
 // Current context state (in-memory cache)
 let currentContext: ContextState | null = null;
 let currentSettings: ContextSettings = {
@@ -160,6 +163,7 @@ export function getContextSettings(): ContextSettings {
 
 /**
  * Detect and update context based on provided factors.
+ * Uses default owner ID for backward compatibility.
  */
 export function detectAndUpdateContext(params: {
   nearStation: boolean;
@@ -171,47 +175,7 @@ export function detectAndUpdateContext(params: {
   recentActions: string[];
   manualOverride?: UserContext;
 }): { context: ContextState; transition: ContextTransition | null } {
-  const previousContext = currentContext?.context ?? "idle";
-
-  // Use utility function to detect context
-  const detected = detectContextUtil(params);
-
-  // Record context detection metric
-  recordContextDetection(detected.context, detected.confidence);
-
-  // Check if context changed
-  const contextChanged = previousContext !== detected.context;
-
-  // Store context in database
-  saveContextState(detected);
-
-  // Record transition if context changed
-  let transition: ContextTransition | null = null;
-  if (contextChanged) {
-    transition = recordContextTransition(previousContext, detected.context, params);
-    // Record transition metric
-    recordContextTransitionMetric(previousContext, detected.context);
-  }
-
-  // Record manual override metric
-  if (params.manualOverride !== undefined) {
-    recordContextOverride(params.manualOverride);
-  }
-
-  // Update in-memory state
-  currentContext = detected;
-
-  // Log significant transitions
-  if (contextChanged && shouldTriggerUIRefresh(previousContext, detected.context)) {
-    logger.info("Context transition", {
-      from: previousContext,
-      to: detected.context,
-      confidence: detected.confidence,
-      trigger: transition?.trigger,
-    });
-  }
-
-  return { context: detected, transition };
+  return detectAndUpdateContextWithOwner(params, DEFAULT_OWNER_ID);
 }
 
 /**
@@ -525,4 +489,202 @@ export function resetContextService(): void {
     useTimePatterns: true,
     learnPatterns: true,
   };
+}
+
+// ============================================================================
+// Resource Ownership Support
+// ============================================================================
+
+/**
+ * Check if a context state belongs to a specific owner.
+ *
+ * @param contextId - Context ID to check
+ * @param ownerId - Owner ID to verify
+ * @returns true if the context belongs to the owner
+ */
+export function checkContextOwnership(contextId: string, ownerId: string): boolean {
+  if (!db) return false;
+
+  const row = db.prepare("SELECT owner_id FROM user_context WHERE id = ?").get(contextId) as
+    | { owner_id: string }
+    | undefined;
+
+  return row?.owner_id === ownerId || row?.owner_id === DEFAULT_OWNER_ID;
+}
+
+/**
+ * Get the owner ID of a context state.
+ *
+ * @param contextId - Context ID to query
+ * @returns Owner ID or undefined if context not found
+ */
+export function getContextOwner(contextId: string): string | undefined {
+  if (!db) return undefined;
+
+  const row = db.prepare("SELECT owner_id FROM user_context WHERE id = ?").get(contextId) as
+    | { owner_id: string }
+    | undefined;
+
+  return row?.owner_id;
+}
+
+/**
+ * Save context state to database with owner ID.
+ *
+ * @param state - Context state to save
+ * @param ownerId - Owner ID for access control (defaults to "anonymous")
+ */
+function saveContextState(state: ContextState, ownerId: string = DEFAULT_OWNER_ID): void {
+  if (!db) return;
+
+  const id = crypto.randomUUID();
+  const now = Date.now();
+
+  db.prepare(
+    `INSERT INTO user_context (
+      id, context, confidence, factors_json,
+      detected_at, is_manual_override, created_at, updated_at, owner_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    state.context,
+    state.confidence,
+    JSON.stringify(state.factors),
+    now,
+    state.isManualOverride ? 1 : 0,
+    now,
+    now,
+    ownerId
+  );
+
+  // Clean up old context states (keep last 100)
+  db.prepare(
+    `DELETE FROM user_context
+     WHERE id NOT IN (
+       SELECT id FROM user_context
+       ORDER BY detected_at DESC
+       LIMIT 100
+     )`
+  ).run();
+}
+
+/**
+ * Override saveContextState to use the version with owner ID.
+ */
+function saveContextStateLegacy(state: ContextState): void {
+  saveContextState(state, DEFAULT_OWNER_ID);
+}
+
+/**
+ * Detect and update context based on provided factors with owner ID.
+ *
+ * @param params - Detection parameters
+ * @param ownerId - Owner ID for access control (defaults to "anonymous")
+ */
+export function detectAndUpdateContextWithOwner(
+  params: {
+    nearStation: boolean;
+    nearStationId?: string;
+    distanceToStation?: number;
+    tapHistory: FavoriteTapEvent[];
+    currentScreen: string;
+    screenTime: number;
+    recentActions: string[];
+    manualOverride?: UserContext;
+  },
+  ownerId: string = DEFAULT_OWNER_ID
+): { context: ContextState; transition: ContextTransition | null } {
+  const previousContext = currentContext?.context ?? "idle";
+
+  // Use utility function to detect context
+  const detected = detectContextUtil(params);
+
+  // Record context detection metric
+  recordContextDetection(detected.context, detected.confidence);
+
+  // Check if context changed
+  const contextChanged = previousContext !== detected.context;
+
+  // Store context in database with owner ID
+  saveContextState(detected, ownerId);
+
+  // Record transition if context changed
+  let transition: ContextTransition | null = null;
+  if (contextChanged) {
+    transition = recordContextTransition(previousContext, detected.context, params);
+    // Record transition metric
+    recordContextTransitionMetric(previousContext, detected.context);
+  }
+
+  // Record manual override metric
+  if (params.manualOverride !== undefined) {
+    recordContextOverride(params.manualOverride);
+  }
+
+  // Update in-memory state
+  currentContext = detected;
+
+  // Log significant transitions
+  if (contextChanged && shouldTriggerUIRefresh(previousContext, detected.context)) {
+    logger.info("Context transition", {
+      from: previousContext,
+      to: detected.context,
+      confidence: detected.confidence,
+      trigger: transition?.trigger,
+      ownerId,
+    });
+  }
+
+  return { context: detected, transition };
+}
+
+/**
+ * Get context transitions for a specific owner.
+ *
+ * @param ownerId - Owner ID to filter by
+ * @param limit - Maximum number of transitions to return
+ * @returns Array of context transitions
+ */
+export function getContextTransitionsByOwner(
+  ownerId: string,
+  limit: number = 20
+): ContextTransition[] {
+  if (!db) return [];
+
+  const rows = db
+    .prepare(
+      `SELECT ct.from_context, ct.to_context, ct.triggered_at, ct.trigger
+       FROM context_transitions ct
+       JOIN user_context uc ON ct.triggered_at >= uc.detected_at
+       WHERE uc.owner_id = ?
+       ORDER BY ct.triggered_at DESC
+       LIMIT ?`
+    )
+    .all(ownerId, limit) as Array<{
+    from_context: string;
+    to_context: string;
+    triggered_at: number;
+    trigger: string;
+  }>;
+
+  return rows.map((row) => ({
+    from: row.from_context as UserContext,
+    to: row.to_context as UserContext,
+    at: new Date(row.triggered_at).toISOString(),
+    trigger: row.trigger as ContextTransition["trigger"],
+  }));
+}
+
+/**
+ * Delete context states for a specific owner.
+ *
+ * @param ownerId - Owner ID whose contexts should be deleted
+ * @returns Number of deleted records
+ */
+export function deleteContextsByOwner(ownerId: string): number {
+  if (!db) return 0;
+
+  const result = db.prepare("DELETE FROM user_context WHERE owner_id = ?").run(ownerId);
+  logger.info("Contexts deleted for owner", { ownerId, count: result.changes });
+  return result.changes;
 }

@@ -4,6 +4,8 @@
  * Subscriptions are keyed by SHA-256 hash of the endpoint URL.
  * No PII is stored — just the push subscription keys and the user's
  * favorite station/line/direction tuples.
+ *
+ * Resource ownership: Each subscription has an owner_id for access control.
  */
 
 import { createHash } from "node:crypto";
@@ -22,6 +24,9 @@ import { logger } from "../observability/logger.js";
 // ---------------------------------------------------------------------------
 
 let db: Database.Database | null = null;
+
+// Default owner ID for unauthenticated or legacy data
+const DEFAULT_OWNER_ID = "anonymous";
 
 /**
  * Initialize the push subscriptions database.
@@ -45,11 +50,15 @@ export function initPushDatabase(dbPath: string): void {
       quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
       morning_scores TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
     );
 
     CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
       ON push_subscriptions(updated_at);
+
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
+      ON push_subscriptions(owner_id);
   `);
 
   logger.info("Push database initialized", { path: dbPath });
@@ -98,8 +107,14 @@ function getDb(): Database.Database {
 /**
  * Upsert a push subscription. If a subscription with the same endpoint hash
  * exists, it is updated (favorites and keys may change).
+ *
+ * @param request - Subscription request data
+ * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export function upsertSubscription(request: PushSubscribeRequest): {
+export function upsertSubscription(
+  request: PushSubscribeRequest,
+  ownerId: string = DEFAULT_OWNER_ID
+): {
   success: boolean;
   endpointHash: string;
 } {
@@ -109,8 +124,8 @@ export function upsertSubscription(request: PushSubscribeRequest): {
   const now = new Date().toISOString();
 
   const stmt = database.prepare(`
-    INSERT INTO push_subscriptions (endpoint_hash, endpoint, p256dh, auth, favorites, quiet_hours, morning_scores, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO push_subscriptions (endpoint_hash, endpoint, p256dh, auth, favorites, quiet_hours, morning_scores, updated_at, owner_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(endpoint_hash) DO UPDATE SET
       endpoint = excluded.endpoint,
       p256dh = excluded.p256dh,
@@ -118,7 +133,8 @@ export function upsertSubscription(request: PushSubscribeRequest): {
       favorites = excluded.favorites,
       quiet_hours = excluded.quiet_hours,
       morning_scores = excluded.morning_scores,
-      updated_at = excluded.updated_at
+      updated_at = excluded.updated_at,
+      owner_id = excluded.owner_id
   `);
 
   stmt.run(
@@ -129,31 +145,55 @@ export function upsertSubscription(request: PushSubscribeRequest): {
     JSON.stringify(favorites),
     JSON.stringify(quietHours ?? { enabled: false, startHour: 22, endHour: 7 }),
     JSON.stringify(morningScores ?? {}),
-    now
+    now,
+    ownerId
   );
 
   // Update push subscriptions active metric
   setPushSubscriptionsActive(getSubscriptionCount());
+
+  logger.info("Push subscription upserted", {
+    endpointHash,
+    ownerId,
+  });
 
   return { success: true, endpointHash };
 }
 
 /**
  * Remove a push subscription by endpoint.
+ *
+ * @param endpoint - Subscription endpoint
+ * @param ownerId - Owner ID for access control (if not provided, any owner can delete)
  */
-export function removeSubscription(endpoint: string): boolean {
+export function removeSubscription(endpoint: string, ownerId?: string): boolean {
   const database = getDb();
   const endpointHash = hashEndpoint(endpoint);
 
-  const stmt = database.prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ?");
-  const result = stmt.run(endpointHash);
+  let stmt: Database.Statement;
+  if (ownerId) {
+    stmt = database.prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ? AND owner_id = ?");
+    const result = stmt.run(endpointHash, ownerId);
 
-  if (result.changes > 0) {
-    // Update push subscriptions active metric
-    setPushSubscriptionsActive(getSubscriptionCount());
+    if (result.changes > 0) {
+      // Update push subscriptions active metric
+      setPushSubscriptionsActive(getSubscriptionCount());
+      logger.info("Push subscription removed", { endpointHash, ownerId });
+    }
+
+    return result.changes > 0;
+  } else {
+    stmt = database.prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ?");
+    const result = stmt.run(endpointHash);
+
+    if (result.changes > 0) {
+      // Update push subscriptions active metric
+      setPushSubscriptionsActive(getSubscriptionCount());
+      logger.info("Push subscription removed (admin)", { endpointHash });
+    }
+
+    return result.changes > 0;
   }
-
-  return result.changes > 0;
 }
 
 /**
@@ -182,57 +222,72 @@ export function getSubscriptionCount(): number {
 /**
  * Update the favorites tuples for an existing subscription.
  * Called when the user's favorites change.
+ *
+ * @param endpoint - Subscription endpoint
+ * @param favorites - New favorites
+ * @param ownerId - Owner ID for access control
  */
 export function updateSubscriptionFavorites(
   endpoint: string,
-  favorites: PushFavoriteTuple[]
+  favorites: PushFavoriteTuple[],
+  ownerId: string
 ): boolean {
   const database = getDb();
   const endpointHash = hashEndpoint(endpoint);
   const now = new Date().toISOString();
 
   const stmt = database.prepare(
-    "UPDATE push_subscriptions SET favorites = ?, updated_at = ? WHERE endpoint_hash = ?"
+    "UPDATE push_subscriptions SET favorites = ?, updated_at = ? WHERE endpoint_hash = ? AND owner_id = ?"
   );
-  const result = stmt.run(JSON.stringify(favorites), now, endpointHash);
+  const result = stmt.run(JSON.stringify(favorites), now, endpointHash, ownerId);
 
   return result.changes > 0;
 }
 
 /**
  * Update quiet hours for an existing subscription.
+ *
+ * @param endpoint - Subscription endpoint
+ * @param quietHours - New quiet hours settings
+ * @param ownerId - Owner ID for access control
  */
 export function updateSubscriptionQuietHours(
   endpoint: string,
-  quietHours: { enabled: boolean; startHour: number; endHour: number }
+  quietHours: { enabled: boolean; startHour: number; endHour: number },
+  ownerId: string
 ): boolean {
   const database = getDb();
   const endpointHash = hashEndpoint(endpoint);
   const now = new Date().toISOString();
 
   const stmt = database.prepare(
-    "UPDATE push_subscriptions SET quiet_hours = ?, updated_at = ? WHERE endpoint_hash = ?"
+    "UPDATE push_subscriptions SET quiet_hours = ?, updated_at = ? WHERE endpoint_hash = ? AND owner_id = ?"
   );
-  const result = stmt.run(JSON.stringify(quietHours), now, endpointHash);
+  const result = stmt.run(JSON.stringify(quietHours), now, endpointHash, ownerId);
 
   return result.changes > 0;
 }
 
 /**
  * Update morning scores for an existing subscription.
+ *
+ * @param endpoint - Subscription endpoint
+ * @param morningScores - New morning scores
+ * @param ownerId - Owner ID for access control
  */
 export function updateSubscriptionMorningScores(
   endpoint: string,
-  morningScores: MorningScoreMap
+  morningScores: MorningScoreMap,
+  ownerId: string
 ): boolean {
   const database = getDb();
   const endpointHash = hashEndpoint(endpoint);
   const now = new Date().toISOString();
 
   const stmt = database.prepare(
-    "UPDATE push_subscriptions SET morning_scores = ?, updated_at = ? WHERE endpoint_hash = ?"
+    "UPDATE push_subscriptions SET morning_scores = ?, updated_at = ? WHERE endpoint_hash = ? AND owner_id = ?"
   );
-  const result = stmt.run(JSON.stringify(morningScores), now, endpointHash);
+  const result = stmt.run(JSON.stringify(morningScores), now, endpointHash, ownerId);
 
   return result.changes > 0;
 }
@@ -251,4 +306,39 @@ export function purgeStaleSubscriptions(maxAgeDays: number = 60): number {
 
   const result = stmt.run(maxAgeDays);
   return result.changes;
+}
+
+/**
+ * Check if a subscription belongs to a specific owner.
+ *
+ * @param endpoint - Subscription endpoint to check
+ * @param ownerId - Owner ID to verify
+ * @returns true if the subscription belongs to the owner
+ */
+export function checkSubscriptionOwnership(endpoint: string, ownerId: string): boolean {
+  const database = getDb();
+  const endpointHash = hashEndpoint(endpoint);
+
+  const row = database
+    .prepare("SELECT owner_id FROM push_subscriptions WHERE endpoint_hash = ?")
+    .get(endpointHash) as { owner_id: string } | undefined;
+
+  return row?.owner_id === ownerId || row?.owner_id === DEFAULT_OWNER_ID;
+}
+
+/**
+ * Get the owner ID of a subscription.
+ *
+ * @param endpoint - Subscription endpoint to query
+ * @returns Owner ID or undefined if subscription not found
+ */
+export function getSubscriptionOwner(endpoint: string): string | undefined {
+  const database = getDb();
+  const endpointHash = hashEndpoint(endpoint);
+
+  const row = database
+    .prepare("SELECT owner_id FROM push_subscriptions WHERE endpoint_hash = ?")
+    .get(endpointHash) as { owner_id: string } | undefined;
+
+  return row?.owner_id;
 }
