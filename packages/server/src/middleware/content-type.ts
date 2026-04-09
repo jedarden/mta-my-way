@@ -6,7 +6,7 @@
  */
 
 import type { MiddlewareHandler } from "hono";
-import { logger } from "../observability/logger.js";
+import { securityLogger } from "./security-logging.js";
 
 /**
  * Supported content types.
@@ -91,11 +91,11 @@ export function validateContentType(options: ContentTypeOptions = {}): Middlewar
       }
 
       if (requireForBody) {
-        logger.warn("Missing Content-Type header", {
-          method,
-          path: c.req.path,
-          ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-        });
+        securityLogger.logSuspiciousRequest(
+          c,
+          "missing_content_type",
+          "Content-Type header is required for this request"
+        );
 
         return c.json(
           {
@@ -116,12 +116,11 @@ export function validateContentType(options: ContentTypeOptions = {}): Middlewar
       });
 
       if (!isAllowed) {
-        logger.warn("Invalid Content-Type header", {
-          method,
-          path: c.req.path,
-          contentType,
-          ip: c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown",
-        });
+        securityLogger.logSuspiciousRequest(
+          c,
+          "invalid_content_type",
+          `Content-Type '${contentType}' is not supported`
+        );
 
         return c.json(
           {

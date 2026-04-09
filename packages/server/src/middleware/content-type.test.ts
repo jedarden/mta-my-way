@@ -157,7 +157,8 @@ describe("validateContentType middleware", () => {
 
     expect(consoleWarnSpy).toHaveBeenCalled();
     const logArg = JSON.parse(consoleWarnSpy.mock.calls[0]![0]!);
-    expect(logArg.event).toBe("invalid_content_type");
+    expect(logArg.event).toBe("suspicious_request");
+    expect(logArg.details.pattern).toBe("invalid_content_type");
 
     consoleWarnSpy.mockRestore();
   });
