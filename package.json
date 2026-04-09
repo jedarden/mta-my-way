@@ -17,6 +17,8 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@eslint/js": "^9.22.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "eslint": "^9.22.0",
     "gzip-size": "7.0.0",
     "rollup-plugin-visualizer": "7.0.1",

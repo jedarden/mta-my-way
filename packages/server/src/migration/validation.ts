@@ -324,7 +324,9 @@ export function validateNotNullColumns(db: Database.Database, tableName: string)
   for (const col of notNullColumns) {
     const validatedColName = validateColumnName(col.name);
     const result = db
-      .prepare(`SELECT COUNT(*) as null_count FROM ${validatedTableName} WHERE ${validatedColName} IS NULL`)
+      .prepare(
+        `SELECT COUNT(*) as null_count FROM ${validatedTableName} WHERE ${validatedColName} IS NULL`
+      )
       .get() as { null_count: number };
 
     if (result.null_count > 0) {
@@ -391,12 +393,16 @@ export function safeTransform(
     throw new Error(`Table '${validatedTableName}' has no primary key`);
   }
 
-  const count = db.prepare(`SELECT COUNT(*) as count FROM ${validatedTableName}`).get() as { count: number };
+  const count = db.prepare(`SELECT COUNT(*) as count FROM ${validatedTableName}`).get() as {
+    count: number;
+  };
   let transformed = 0;
 
   // Process in batches
   for (let offset = 0; offset < count.count; offset += batchSize) {
-    const rows = db.prepare(`SELECT * FROM ${validatedTableName} LIMIT ${batchSize} OFFSET ${offset}`).all();
+    const rows = db
+      .prepare(`SELECT * FROM ${validatedTableName} LIMIT ${batchSize} OFFSET ${offset}`)
+      .all();
 
     db.transaction(() => {
       for (const row of rows) {

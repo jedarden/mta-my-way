@@ -67,7 +67,9 @@ async function downloadFeed(feedId: string, feedUrl: string): Promise<DownloadRe
   try {
     const message = transit_realtime.FeedMessage.decode(data);
     entityCount = message.entity.length;
-    feedTimestamp = message.header.timestamp?.toNumber() ?? 0;
+    // Handle both Long and number types for timestamp
+    const ts = message.header.timestamp;
+    feedTimestamp = typeof ts === "number" ? ts : (ts?.toNumber() ?? 0);
     // Check for NYCT extension
     const nyctHeader = message.header[".transit_realtime.nyctFeedHeader"];
     hasNyctExtension = nyctHeader !== null && nyctHeader !== undefined;

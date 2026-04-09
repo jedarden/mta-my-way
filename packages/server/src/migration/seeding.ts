@@ -7,6 +7,13 @@
  */
 
 import type Database from "better-sqlite3";
+import {
+  buildColumnList,
+  buildPlaceholderList,
+  validateColumnName,
+  validateSqlIdentifiers,
+  validateTableName,
+} from "./sql-validator.js";
 
 /** SQLite parameter type */
 type ParameterType = string | number | boolean | Buffer | null;
@@ -55,25 +62,40 @@ export function seedData<T extends Record<string, unknown>>(
     return { table, inserted: 0, skipped: 0, errors: [] };
   }
 
+  // Validate table name to prevent SQL injection
+  const validatedTable = validateTableName(table);
+
   // Build column names from first data object
   const columns = Object.keys(data[0]);
+
+  // Validate all column names to prevent SQL injection
+  const columnValidation = validateSqlIdentifiers(columns);
+  if (!columnValidation.valid) {
+    return {
+      table,
+      inserted: 0,
+      skipped: 0,
+      errors: [`Invalid column names: ${columnValidation.invalid.join(", ")}`],
+    };
+  }
+
   const placeholders = columns.map(() => "?").join(", ");
-  const columnList = columns.join(", ");
+  const columnList = buildColumnList(columns);
 
   // Prepare appropriate statement based on conflict handling
   let sql: string;
   switch (onConflict) {
     case "replace":
-      sql = `INSERT OR REPLACE INTO ${table} (${columnList}) VALUES (${placeholders})`;
+      sql = `INSERT OR REPLACE INTO ${validatedTable} (${columnList}) VALUES (${placeholders})`;
       break;
     case "update":
       // For UPDATE, we need to use INSERT OR REPLACE with a different approach
       // SQLite doesn't have ON CONFLICT UPDATE in all versions
-      sql = `INSERT OR REPLACE INTO ${table} (${columnList}) VALUES (${placeholders})`;
+      sql = `INSERT OR REPLACE INTO ${validatedTable} (${columnList}) VALUES (${placeholders})`;
       break;
     case "ignore":
     default:
-      sql = `INSERT OR IGNORE INTO ${table} (${columnList}) VALUES (${placeholders})`;
+      sql = `INSERT OR IGNORE INTO ${validatedTable} (${columnList}) VALUES (${placeholders})`;
       break;
   }
 
@@ -132,7 +154,8 @@ export function seedReferenceData(db: Database.Database, seeds: SeedData[]): See
  */
 export function needsSeeding(db: Database.Database, table: string, minCount = 1): boolean {
   try {
-    const result = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as
+    const validatedTable = validateTableName(table);
+    const result = db.prepare(`SELECT COUNT(*) as count FROM ${validatedTable}`).get() as
       | { count: number }
       | undefined;
     return !result || result.count < minCount;
@@ -156,24 +179,39 @@ export function upsertRow(
   data: Record<string, unknown>,
   uniqueColumns: string[]
 ): boolean {
+  // Validate table name
+  const validatedTable = validateTableName(table);
+
+  // Validate all column names
   const columns = Object.keys(data);
+  const columnValidation = validateSqlIdentifiers(columns);
+  if (!columnValidation.valid) {
+    throw new Error(`Invalid column names: ${columnValidation.invalid.join(", ")}`);
+  }
+
+  // Validate unique column names
+  const uniqueColumnValidation = validateSqlIdentifiers(uniqueColumns);
+  if (!uniqueColumnValidation.valid) {
+    throw new Error(`Invalid unique column names: ${uniqueColumnValidation.invalid.join(", ")}`);
+  }
+
   const values = columns.map((col) => data[col]);
   const placeholders = columns.map(() => "?").join(", ");
-  const columnList = columns.join(", ");
+  const columnList = buildColumnList(columns);
 
   // Build WHERE clause for unique columns
-  const whereClause = uniqueColumns.map((col) => `${col} = ?`).join(" AND ");
+  const whereClause = uniqueColumns.map((col) => `${validateColumnName(col)} = ?`).join(" AND ");
   const whereValues = uniqueColumns.map((col) => data[col]);
 
   // Check if row exists
-  const existsStmt = db.prepare(`SELECT 1 FROM ${table} WHERE ${whereClause}`);
+  const existsStmt = db.prepare(`SELECT 1 FROM ${validatedTable} WHERE ${whereClause}`);
   const exists = existsStmt.get(...whereValues);
 
   if (exists) {
     // Update existing row
     const updateClause = columns
       .filter((col) => !uniqueColumns.includes(col))
-      .map((col) => `${col} = ?`)
+      .map((col) => `${validateColumnName(col)} = ?`)
       .join(", ");
 
     if (updateClause) {
@@ -181,13 +219,17 @@ export function upsertRow(
         .filter((col) => !uniqueColumns.includes(col))
         .map((col) => data[col]);
 
-      const updateStmt = db.prepare(`UPDATE ${table} SET ${updateClause} WHERE ${whereClause}`);
+      const updateStmt = db.prepare(
+        `UPDATE ${validatedTable} SET ${updateClause} WHERE ${whereClause}`
+      );
       updateStmt.run(...updateValues, ...whereValues);
     }
     return true;
   } else {
     // Insert new row
-    const insertStmt = db.prepare(`INSERT INTO ${table} (${columnList}) VALUES (${placeholders})`);
+    const insertStmt = db.prepare(
+      `INSERT INTO ${validatedTable} (${columnList}) VALUES (${placeholders})`
+    );
     const result = insertStmt.run(...values);
     return result.changes > 0;
   }
@@ -217,12 +259,17 @@ export function seedConfig(
 ): SeedResult {
   const { keyColumn = "key", valueColumn = "value", createIfNotExists = true } = options;
 
+  // Validate table and column names
+  const validatedTableName = validateTableName(tableName);
+  const validatedKeyColumn = validateColumnName(keyColumn);
+  const validatedValueColumn = validateColumnName(valueColumn);
+
   // Create table if needed
   if (createIfNotExists) {
     db.exec(`
-      CREATE TABLE IF NOT EXISTS ${tableName} (
-        ${keyColumn} TEXT PRIMARY KEY,
-        ${valueColumn} TEXT NOT NULL,
+      CREATE TABLE IF NOT EXISTS ${validatedTableName} (
+        ${validatedKeyColumn} TEXT PRIMARY KEY,
+        ${validatedValueColumn} TEXT NOT NULL,
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
@@ -230,11 +277,11 @@ export function seedConfig(
 
   // Convert config object to array format
   const data = Object.entries(config).map(([key, value]) => ({
-    [keyColumn]: key,
-    [valueColumn]: String(value),
+    [validatedKeyColumn]: key,
+    [validatedValueColumn]: String(value),
   }));
 
-  return seedData(db, tableName, data, { skipDuplicates: true });
+  return seedData(db, validatedTableName, data, { skipDuplicates: true });
 }
 
 /**
@@ -325,6 +372,9 @@ export function reseedTable<T extends Record<string, unknown>>(
 ): SeedResult {
   const { disableForeignKeys = true, resetAutoincrement = true } = options;
 
+  // Validate table name
+  const validatedTable = validateTableName(table);
+
   return db.transaction(() => {
     // Disable foreign key constraints if requested
     if (disableForeignKeys) {
@@ -333,15 +383,15 @@ export function reseedTable<T extends Record<string, unknown>>(
 
     try {
       // Clear existing data
-      db.prepare(`DELETE FROM ${table}`).run();
+      db.prepare(`DELETE FROM ${validatedTable}`).run();
 
       // Reset autoincrement if requested
       if (resetAutoincrement) {
-        db.prepare(`DELETE FROM sqlite_sequence WHERE name=?`).run(table);
+        db.prepare(`DELETE FROM sqlite_sequence WHERE name=?`).run(validatedTable);
       }
 
       // Seed fresh data
-      return seedData(db, table, data);
+      return seedData(db, validatedTable, data);
     } finally {
       // Re-enable foreign keys
       if (disableForeignKeys) {

@@ -20,8 +20,11 @@
  */
 
 import type {
+  ArrivalTime,
   CommuteAnalysis,
+  EquipmentStatus,
   LineDiagramData,
+  LinePositions,
   PushSubscribeRequest,
   PushSubscribeResponse,
   PushUnsubscribeRequest,

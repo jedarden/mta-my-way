@@ -13,6 +13,7 @@ import type {
   PushSubscribeResponse,
   PushUnsubscribeRequest,
   PushUnsubscribeResponse,
+  PushUpdateRequest,
   Route,
   Station,
   StationAlert,
@@ -36,6 +37,7 @@ export type {
   PushSubscribeResponse,
   PushUnsubscribeRequest,
   PushUnsubscribeResponse,
+  PushUpdateRequest,
   Route,
   Station,
   StationAlert,
@@ -58,6 +60,32 @@ class ApiClientError extends Error {
     this.name = "ApiClientError";
     this.status = status;
   }
+}
+
+/**
+ * Get the CSRF token from the cookie.
+ * Returns undefined if no token is found.
+ */
+function getCsrfToken(): string | undefined {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : undefined;
+}
+
+/**
+ * Fetch a new CSRF token from the server.
+ * Returns the token or undefined if the request fails.
+ */
+async function fetchCsrfToken(): Promise<string | undefined> {
+  try {
+    const response = await fetch(`${API_BASE}/api/csrf-token`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.token;
+    }
+  } catch (error) {
+    console.error("Failed to fetch CSRF token:", error);
+  }
+  return undefined;
 }
 
 /**
@@ -102,13 +130,34 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
 
   return retry(async () => {
+    const method = options?.method?.toUpperCase() || "GET";
+    const isStateChanging = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...getTraceHeaders(),
+      ...(options?.headers as Record<string, string> | undefined),
+    };
+
+    // Add CSRF token for state-changing requests
+    if (isStateChanging) {
+      const csrfToken = getCsrfToken();
+      if (!csrfToken) {
+        // Try to fetch a new token if none exists
+        const newToken = await fetchCsrfToken();
+        if (newToken) {
+          headers["X-CSRF-Token"] = newToken;
+        } else {
+          console.warn("No CSRF token available for state-changing request");
+        }
+      } else {
+        headers["X-CSRF-Token"] = csrfToken;
+      }
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...getTraceHeaders(),
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -285,6 +334,13 @@ export const api = {
   async unsubscribePush(request: PushUnsubscribeRequest): Promise<PushUnsubscribeResponse> {
     return fetchJson<PushUnsubscribeResponse>("/api/push/unsubscribe", {
       method: "DELETE",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async updatePushSubscription(request: PushUpdateRequest): Promise<{ success: boolean }> {
+    return fetchJson<{ success: boolean }>("/api/push/subscription", {
+      method: "PATCH",
       body: JSON.stringify(request),
     });
   },

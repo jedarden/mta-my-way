@@ -12,6 +12,7 @@
 import type { AlertSeverity, StationAlert } from "@mta-my-way/shared";
 import { formatTimeAgo } from "@mta-my-way/shared";
 import { useCallback, useEffect, useState } from "react";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 import { ShuttleInfo } from "./ShuttleInfo";
 
@@ -141,8 +142,8 @@ export function AlertCard({
         aria-controls={hasDescription ? `${alertId}-description` : undefined}
         aria-label={
           hasDescription
-            ? `${expanded ? "Collapse" : "Expand"} details for: ${alert.headline}`
-            : alert.headline
+            ? `${expanded ? "Collapse" : "Expand"} details for: ${sanitizeUserInput(alert.headline)}`
+            : sanitizeUserInput(alert.headline)
         }
       >
         <div className="flex items-start gap-2">
@@ -170,7 +171,7 @@ export function AlertCard({
               id={`${alertId}-headline`}
               className="text-sm font-medium text-text-primary dark:text-dark-text-primary leading-snug"
             >
-              {alert.headline}
+              {sanitizeUserInput(alert.headline)}
               {isPredicted && (
                 <span className="ml-2 text-11 text-amber-600 dark:text-amber-400 font-normal">
                   (predicted)
@@ -217,7 +218,7 @@ export function AlertCard({
           aria-label="Alert details"
         >
           <div className="pl-6 text-13 text-text-secondary dark:text-dark-text-secondary leading-relaxed border-t border-surface dark:border-dark-surface pt-2">
-            {alert.description}
+            {sanitizeUserInput(alert.description)}
           </div>
           {/* Shuttle bus info */}
           {alert.shuttleInfo && (
@@ -295,7 +296,7 @@ function CompactAlertCard({
 
         {/* Headline */}
         <p className="text-13 font-medium text-text-primary dark:text-dark-text-primary truncate flex-1">
-          {alert.headline}
+          {sanitizeUserInput(alert.headline)}
           {isPredicted && (
             <span className="ml-1.5 text-11 text-amber-600 dark:text-amber-400 font-normal">
               (predicted)

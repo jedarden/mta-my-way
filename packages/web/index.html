@@ -11,9 +11,19 @@
     <meta name="apple-mobile-web-app-title" content="MTA My Way" />
     <!-- Resource hints for performance -->
     <link rel="preconnect" href="/" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+    <!-- Prefetch critical API data -->
     <link rel="prefetch" href="/api/stations" />
     <link rel="prefetch" href="/api/routes" />
     <link rel="prefetch" href="/api/health" />
+    <!-- Preload critical assets -->
+    <link rel="modulepreload" href="/src/main.tsx" />
+    <link rel="modulepreload" href="/src/App.tsx" />
+    <link rel="preload" href="/favicon.svg" as="image" type="image/svg+xml" />
+    <!-- Preconnect to origin for faster subsequent requests -->
+    <link rel="preconnect" href="https://api.mta.info" crossorigin />
+    <!-- Defer non-critical resources -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>MTA My Way</title>

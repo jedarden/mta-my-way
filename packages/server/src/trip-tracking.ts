@@ -73,10 +73,10 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
     ).run(
       id,
       trip.date,
-      trip.origin.id,
-      trip.origin.name,
-      trip.destination.id,
-      trip.destination.name,
+      trip.origin.stationId,
+      trip.origin.stationName,
+      trip.destination.stationId,
+      trip.destination.stationName,
       trip.line,
       "N", // Default direction for manual trips
       trip.departureTime,
@@ -97,8 +97,8 @@ export function recordTrip(trip: Omit<TripRecord, "id">): TripRecord | null {
 
     logger.info("Trip recorded", {
       tripId: id,
-      origin: trip.origin.name,
-      destination: trip.destination.name,
+      origin: trip.origin.stationName,
+      destination: trip.destination.stationName,
       source: trip.source,
     });
 
@@ -132,8 +132,8 @@ export function recordInferredTrip(params: {
 
   const trip: Omit<TripRecord, "id"> = {
     date: new Date(params.departureTime * 1000).toISOString().split("T")[0]!,
-    origin: { id: params.originId, name: originStation.name },
-    destination: { id: params.destinationId, name: destStation.name },
+    origin: { stationId: params.originId, stationName: originStation.name },
+    destination: { stationId: params.destinationId, stationName: destStation.name },
     line: params.routeId,
     departureTime: params.departureTime * 1000,
     arrivalTime: params.arrivalTime * 1000,
@@ -292,8 +292,11 @@ function rowToTripRecord(row: TripRecordRow): TripRecord {
   return {
     id: row.id,
     date: row.date,
-    origin: { id: row.origin_station_id, name: row.origin_station_name },
-    destination: { id: row.destination_station_id, name: row.destination_station_name },
+    origin: { stationId: row.origin_station_id, stationName: row.origin_station_name },
+    destination: {
+      stationId: row.destination_station_id,
+      stationName: row.destination_station_name,
+    },
     line: row.line,
     departureTime: row.departure_time,
     arrivalTime: row.arrival_time,
@@ -369,7 +372,16 @@ export function calculateCommuteStats(commuteId: string = DEFAULT_COMMUTE_ID): C
   if (cached && Date.now() - cached.last_updated < 300_000) {
     // Cache valid for 5 minutes
     return {
-      ...cached,
+      commuteId: cached.commute_id,
+      averageDurationMinutes: cached.average_duration_minutes,
+      medianDurationMinutes: cached.median_duration_minutes,
+      stdDevMinutes: cached.std_dev_minutes,
+      totalTrips: cached.total_trips,
+      tripsThisWeek: cached.trips_this_week,
+      trend: cached.trend,
+      averageDelayMinutes: cached.average_delay_minutes,
+      maxDelayMinutes: cached.max_delay_minutes,
+      onTimePercentage: cached.on_time_percentage,
       records: getTrips({ limit: 90 }),
     };
   }

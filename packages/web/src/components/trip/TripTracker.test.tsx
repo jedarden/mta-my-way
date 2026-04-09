@@ -15,36 +15,51 @@ import { TripTracker } from "./TripTracker";
 const createMockStops = (overrides?: Partial<TripStopProgress>): TripStopProgress[] => [
   {
     stopId: "001",
+    stationId: "001",
     stationName: "Times Square - 42nd St",
     status: "passed",
+    arrivalTime: null,
+    departureTime: null,
     minutesAway: null,
     ...overrides,
   },
   {
     stopId: "002",
+    stationId: "002",
     stationName: "34th St - Penn Station",
     status: "current",
+    arrivalTime: null,
+    departureTime: null,
     minutesAway: null,
     ...overrides,
   },
   {
     stopId: "003",
+    stationId: "003",
     stationName: "23rd St",
     status: "next",
+    arrivalTime: null,
+    departureTime: null,
     minutesAway: 3,
     ...overrides,
   },
   {
     stopId: "004",
+    stationId: "004",
     stationName: "14th St - Union Square",
     status: "upcoming",
+    arrivalTime: null,
+    departureTime: null,
     minutesAway: 7,
     ...overrides,
   },
   {
     stopId: "005",
+    stationId: "005",
     stationName: "Astor Pl",
     status: "destination",
+    arrivalTime: null,
+    departureTime: null,
     minutesAway: 10,
     ...overrides,
   },
@@ -109,8 +124,8 @@ describe("TripTracker - Screen Reader Compatibility", () => {
     it("should announce next stop with ETA when no current stop", () => {
       const stops = createMockStops();
       // Modify to have no current stop
-      stops[1].status = "passed";
-      stops[2].status = "next";
+      if (stops[1]) stops[1].status = "passed";
+      if (stops[2]) stops[2].status = "next";
 
       render(
         <TripTracker
@@ -134,8 +149,11 @@ describe("TripTracker - Screen Reader Compatibility", () => {
       stops.forEach((stop, i) => {
         if (i < stops.length - 1) stop.status = "passed";
       });
-      stops[stops.length - 1].status = "destination";
-      stops[stops.length - 1].minutesAway = 2;
+      const lastStop = stops[stops.length - 1];
+      if (lastStop) {
+        lastStop.status = "destination";
+        lastStop.minutesAway = 2;
+      }
 
       render(
         <TripTracker
@@ -221,8 +239,10 @@ describe("TripTracker - Screen Reader Compatibility", () => {
   describe("ETA Announcements", () => {
     it("should announce 'now' when minutesAway is 0", () => {
       const stops = createMockStops();
-      stops[2].status = "next";
-      stops[2].minutesAway = 0;
+      if (stops[2]) {
+        stops[2].status = "next";
+        stops[2].minutesAway = 0;
+      }
 
       render(
         <TripTracker
@@ -240,9 +260,11 @@ describe("TripTracker - Screen Reader Compatibility", () => {
 
     it("should use singular 'minute' when 1 minute away", () => {
       const stops = createMockStops();
-      stops[1].status = "passed";
-      stops[2].status = "next";
-      stops[2].minutesAway = 1;
+      if (stops[1]) stops[1].status = "passed";
+      if (stops[2]) {
+        stops[2].status = "next";
+        stops[2].minutesAway = 1;
+      }
 
       render(
         <TripTracker
@@ -260,9 +282,11 @@ describe("TripTracker - Screen Reader Compatibility", () => {
 
     it("should use plural 'minutes' when more than 1 minute away", () => {
       const stops = createMockStops();
-      stops[1].status = "passed";
-      stops[2].status = "next";
-      stops[2].minutesAway = 5;
+      if (stops[1]) stops[1].status = "passed";
+      if (stops[2]) {
+        stops[2].status = "next";
+        stops[2].minutesAway = 5;
+      }
 
       render(
         <TripTracker
@@ -299,11 +323,15 @@ describe("TripTracker - Screen Reader Compatibility", () => {
     it("should use singular 'stop' when only 1 stop remaining", () => {
       const stops = createMockStops();
       // Only destination remains
-      stops.forEach((stop, i) => {
-        if (i < stops.length - 1) stop.status = "passed";
-      });
-      stops[stops.length - 2].status = "passed";
-      stops[stops.length - 1].status = "destination";
+      const secondToLast = stops[stops.length - 2];
+      if (secondToLast) {
+        stops.forEach((stop, i) => {
+          if (i < stops.length - 1) stop.status = "passed";
+        });
+        secondToLast.status = "passed";
+      }
+      const lastStop = stops[stops.length - 1];
+      if (lastStop) lastStop.status = "destination";
 
       render(
         <TripTracker

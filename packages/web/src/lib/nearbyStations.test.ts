@@ -2,52 +2,84 @@
  * Unit tests for nearby stations utilities
  */
 
+import type { Station } from "@mta-my-way/shared";
 import { describe, expect, it } from "vitest";
 import { findNearbyStations, formatDistance, isInNYCArea } from "./nearbyStations";
 
 describe("nearbyStations", () => {
-  const mockStations = [
+  const mockStations: Station[] = [
     {
       id: "127",
       name: "Times Sq - 42 St",
       lines: ["1", "2", "3", "7"],
-      borough: "Manhattan",
+      borough: "manhattan",
       lat: 40.758,
       lon: -73.9855,
+      northStopId: "127N",
+      southStopId: "127S",
+      transfers: [],
+      ada: false,
     },
     {
       id: "128",
       name: "34 St - Herald Sq",
       lines: ["B", "D", "F", "M", "N", "Q", "R"],
-      borough: "Manhattan",
+      borough: "manhattan",
       lat: 40.7484,
       lon: -73.9876,
+      northStopId: "128N",
+      southStopId: "128S",
+      transfers: [],
+      ada: true,
     },
     {
       id: "129",
       name: "14 St - Union Sq",
       lines: ["L", "N", "Q", "R", "W"],
-      borough: "Manhattan",
+      borough: "manhattan",
       lat: 40.7365,
       lon: -73.9903,
+      northStopId: "129N",
+      southStopId: "129S",
+      transfers: [],
+      ada: true,
     },
     {
       id: "130",
       name: "Grand Central",
       lines: ["4", "5", "6", "7"],
-      borough: "Manhattan",
+      borough: "manhattan",
       lat: 40.7527,
       lon: -73.9772,
+      northStopId: "130N",
+      southStopId: "130S",
+      transfers: [],
+      ada: true,
     },
     {
       id: "131",
       name: "Atlantic Av - Barclays Ctr",
       lines: ["2", "3", "4", "5"],
-      borough: "Brooklyn",
+      borough: "brooklyn",
       lat: 40.6853,
       lon: -73.9782,
+      northStopId: "131N",
+      southStopId: "131S",
+      transfers: [],
+      ada: true,
     },
-    { id: "132", name: "Far Rockaway", lines: ["A"], borough: "Queens", lat: 40.6, lon: -73.75 },
+    {
+      id: "132",
+      name: "Far Rockaway",
+      lines: ["A"],
+      borough: "queens",
+      lat: 40.6,
+      lon: -73.75,
+      northStopId: "132N",
+      southStopId: "132S",
+      transfers: [],
+      ada: false,
+    },
   ];
 
   const mockComplexes = [
@@ -56,12 +88,14 @@ describe("nearbyStations", () => {
       name: "Times Sq - 42 St",
       stations: ["127"],
       allLines: ["1", "2", "3", "7", "N", "R", "W"],
+      allStopIds: ["127N", "127S"],
     },
     {
       complexId: "complex2",
       name: "Grand Central - 42 St",
       stations: ["130"],
       allLines: ["4", "5", "6", "7", "S"],
+      allStopIds: ["130N", "130S"],
     },
   ];
 
@@ -75,14 +109,18 @@ describe("nearbyStations", () => {
       // Times Square coordinates
       const results = findNearbyStations(40.758, -73.9855, mockStations, mockComplexes, 3, 2.0);
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].stationId).toBe("127"); // Times Square itself
+      expect(results[0]?.stationId).toBe("127"); // Times Square itself
     });
 
     it("sorts results by distance", () => {
       const results = findNearbyStations(40.75, -73.98, mockStations, mockComplexes, 5, 2.0);
       if (results.length > 1) {
         for (let i = 0; i < results.length - 1; i++) {
-          expect(results[i].distanceKm).toBeLessThanOrEqual(results[i + 1].distanceKm);
+          const current = results[i];
+          const next = results[i + 1];
+          if (current && next) {
+            expect(current.distanceKm).toBeLessThanOrEqual(next.distanceKm);
+          }
         }
       }
     });
@@ -104,8 +142,8 @@ describe("nearbyStations", () => {
     it("calculates walking time correctly", () => {
       const results = findNearbyStations(40.758, -73.9855, mockStations, mockComplexes, 1, 2.0);
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].walkingMinutes).toBe(0); // Same location
-      expect(results[0].walkingMinutes).toBeGreaterThanOrEqual(0);
+      expect(results[0]?.walkingMinutes).toBe(0); // Same location
+      expect(results[0]?.walkingMinutes).toBeGreaterThanOrEqual(0);
     });
 
     it("includes all required fields", () => {
@@ -127,14 +165,14 @@ describe("nearbyStations", () => {
 
     it("uses complex name when part of a complex", () => {
       const results = findNearbyStations(40.758, -73.9855, mockStations, mockComplexes, 1, 2.0);
-      expect(results[0].stationName).toBe("Times Sq - 42 St");
+      expect(results[0]?.stationName).toBe("Times Sq - 42 St");
     });
 
     it("includes all lines from complex", () => {
       const results = findNearbyStations(40.758, -73.9855, mockStations, mockComplexes, 1, 2.0);
-      expect(results[0].lines).toContain("1");
-      expect(results[0].lines).toContain("N");
-      expect(results[0].lines).toContain("R");
+      expect(results[0]?.lines).toContain("1");
+      expect(results[0]?.lines).toContain("N");
+      expect(results[0]?.lines).toContain("R");
     });
   });
 

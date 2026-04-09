@@ -10,7 +10,16 @@
  * - Account lockout protection
  * - CSRF protection
  * - Audit logging for privileged operations
- * - Password policy validation
+ * - Password policy validation (via password-management module)
+ * - Refresh token mechanism for secure session renewal
+ * - Sliding session expiration
+ * - OAuth 2.0 framework for third-party integration
+ * - TOTP-based multi-factor authentication (MFA)
+ * - Enhanced session security (IP binding, device tracking)
+ * - Concurrent session management
+ *
+ * Password-related functions are re-exported from password-management.ts
+ * for enhanced security including breach detection, expiration, and history.
  */
 
 import type { Context, MiddlewareHandler } from "hono";
@@ -24,138 +33,35 @@ import {
 } from "./sanitization.js";
 import { securityLogger } from "./security-logging.js";
 
+// Re-export password management functions for backward compatibility
+export {
+  validatePassword,
+  hashPassword,
+  verifyPasswordHash,
+  storePasswordInHistory,
+  generatePasswordResetToken,
+  validatePasswordResetToken,
+  consumePasswordResetToken,
+  invalidateResetTokensForKey,
+  isPasswordExpired,
+  getDaysUntilExpiration,
+  shouldWarnPasswordExpiration,
+  generateSecurePassword,
+  getPasswordPolicyDescription,
+  type PasswordPolicy,
+  type PasswordValidationResult,
+  type PasswordHash,
+  type PasswordResetToken,
+  type PasswordHistoryEntry,
+} from "./password-management.js";
+
 // ============================================================================
-// Password Policy Utilities
+// API Key Generation and Cryptographic Hashing
 // ============================================================================
-
-/**
- * Password policy requirements.
- */
-export interface PasswordPolicy {
-  /** Minimum password length (default: 12) */
-  minLength?: number;
-  /** Require uppercase letters (default: true) */
-  requireUppercase?: boolean;
-  /** Require lowercase letters (default: true) */
-  requireLowercase?: boolean;
-  /** Require numbers (default: true) */
-  requireNumbers?: boolean;
-  /** Require special characters (default: true) */
-  requireSpecialChars?: boolean;
-  /** Blocked common passwords (default: common weak passwords) */
-  blockedPasswords?: string[];
-  /** Maximum character repetition (default: 3) */
-  maxRepetition?: number;
-}
-
-/**
- * Password validation result.
- */
-export interface PasswordValidationResult {
-  /** Whether the password meets all requirements */
-  valid: boolean;
-  /** List of validation errors */
-  errors: string[];
-  /** Password strength score (0-100) */
-  strength: number;
-}
-
-/**
- * Default password policy.
- */
-const DEFAULT_PASSWORD_POLICY: Required<PasswordPolicy> = {
-  minLength: 12,
-  requireUppercase: true,
-  requireLowercase: true,
-  requireNumbers: true,
-  requireSpecialChars: true,
-  blockedPasswords: [
-    "password",
-    "password123",
-    "12345678",
-    "qwerty123",
-    "abc12345",
-    "letmein123",
-    "welcome123",
-    "admin123",
-    "root123",
-    "passw0rd",
-  ],
-  maxRepetition: 3,
-};
-
-/**
- * Validate a password against policy requirements.
- */
-export function validatePassword(
-  password: string,
-  policy: PasswordPolicy = {}
-): PasswordValidationResult {
-  const mergedPolicy = { ...DEFAULT_PASSWORD_POLICY, ...policy };
-  const errors: string[] = [];
-
-  // Check minimum length
-  if (password.length < mergedPolicy.minLength) {
-    errors.push(`Password must be at least ${mergedPolicy.minLength} characters long`);
-  }
-
-  // Check uppercase
-  if (mergedPolicy.requireUppercase && !/[A-Z]/.test(password)) {
-    errors.push("Password must contain at least one uppercase letter");
-  }
-
-  // Check lowercase
-  if (mergedPolicy.requireLowercase && !/[a-z]/.test(password)) {
-    errors.push("Password must contain at least one lowercase letter");
-  }
-
-  // Check numbers
-  if (mergedPolicy.requireNumbers && !/\d/.test(password)) {
-    errors.push("Password must contain at least one number");
-  }
-
-  // Check special characters
-  if (mergedPolicy.requireSpecialChars && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    errors.push("Password must contain at least one special character");
-  }
-
-  // Check against blocked passwords
-  const lowerPassword = password.toLowerCase();
-  for (const blocked of mergedPolicy.blockedPasswords) {
-    if (lowerPassword.includes(blocked) || blocked.includes(lowerPassword)) {
-      errors.push("Password is too common or weak");
-      break;
-    }
-  }
-
-  // Check character repetition
-  if (mergedPolicy.maxRepetition > 0) {
-    const repetitionRegex = new RegExp(`(.)\\1{${mergedPolicy.maxRepetition},}`, "g");
-    if (repetitionRegex.test(password)) {
-      errors.push(
-        `Password cannot contain the same character more than ${mergedPolicy.maxRepetition} times in a row`
-      );
-    }
-  }
-
-  // Calculate strength score
-  let strength = 0;
-  if (password.length >= 8) strength += 20;
-  if (password.length >= 12) strength += 20;
-  if (/[A-Z]/.test(password)) strength += 15;
-  if (/[a-z]/.test(password)) strength += 15;
-  if (/\d/.test(password)) strength += 15;
-  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) strength += 15;
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    strength: Math.min(100, strength),
-  };
-}
 
 /**
  * Generate a cryptographically secure random API key.
+ * Uses 32 bytes (256 bits) of entropy.
  */
 export async function generateApiKey(): Promise<string> {
   const array = new Uint8Array(32);
@@ -163,13 +69,16 @@ export async function generateApiKey(): Promise<string> {
   return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ============================================================================
-// Cryptographic Hashing
-// ============================================================================
-
 /**
- * Hash an API key using SHA-256 with proper salt.
- * Uses PBKDF2 for key derivation with 100,000 iterations.
+ * Hash an API key using PBKDF2 with SHA-256.
+ *
+ * Updated to use OWASP 2024 recommended 600,000 iterations for API keys.
+ * Note: For user passwords, use hashPassword() from password-management.ts
+ * which includes additional security features.
+ *
+ * @param apiKey - The API key to hash
+ * @param salt - Optional salt (generated if not provided, 32 bytes)
+ * @returns Promise containing the hash and salt
  */
 export async function hashApiKey(
   apiKey: string,
@@ -177,7 +86,7 @@ export async function hashApiKey(
 ): Promise<{ hash: string; salt: string }> {
   const actualSalt =
     salt ||
-    Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    Array.from(crypto.getRandomValues(new Uint8Array(32)))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 
@@ -190,11 +99,12 @@ export async function hashApiKey(
     ["deriveBits"]
   );
 
+  // Use 600,000 iterations per OWASP 2024 recommendations
   const hashBuffer = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
       salt: encoder.encode(actualSalt),
-      iterations: 100_000,
+      iterations: 600_000,
       hash: "SHA-256",
     },
     keyMaterial,
@@ -307,6 +217,18 @@ export interface AuthSession {
   regenerated: boolean;
   /** Original session ID if this was regenerated */
   originalSessionId?: string;
+  /** Device ID for session tracking */
+  deviceId?: string;
+  /** Whether IP binding is enforced for this session */
+  ipBinding: boolean;
+  /** Whether session is currently active */
+  active: boolean;
+  /** Session type */
+  sessionType: "standard" | "oauth" | "mfa";
+  /** Refresh token ID associated with this session */
+  refreshTokenId?: string;
+  /** MFA verified timestamp */
+  mfaVerifiedAt?: number;
 }
 
 /**
@@ -335,6 +257,134 @@ export interface AuthContext {
   sessionId?: string;
   /** Rate limit tier */
   rateLimitTier: number;
+  /** Whether MFA was verified for this session */
+  mfaVerified?: boolean;
+  /** Authentication method used */
+  authMethod: "api_key" | "session" | "oauth" | "signature";
+  /** OAuth provider if authenticated via OAuth */
+  oauthProvider?: string;
+}
+
+/**
+ * Refresh token data for session renewal.
+ */
+export interface RefreshToken {
+  /** Token ID */
+  tokenId: string;
+  /** Session ID this refresh token belongs to */
+  sessionId: string;
+  /** API key ID */
+  keyId: string;
+  /** Token creation timestamp */
+  createdAt: number;
+  /** Token expiration timestamp */
+  expiresAt: number;
+  /** Whether token has been used (single-use) */
+  used: boolean;
+  /** Client IP when token was issued */
+  clientIp: string;
+  /** Token rotation family ID (for tracking token chains) */
+  rotationFamily: string;
+}
+
+/**
+ * Device fingerprint for session tracking.
+ */
+export interface DeviceFingerprint {
+  /** Device ID */
+  deviceId: string;
+  /** User agent hash */
+  userAgentHash: string;
+  /** Device type (mobile, desktop, tablet) */
+  deviceType?: string;
+  /** OS family */
+  osFamily?: string;
+  /** Browser family */
+  browserFamily?: string;
+  /** First seen timestamp */
+  firstSeenAt: number;
+  /** Last seen timestamp */
+  lastSeenAt: number;
+  /** Whether this is a trusted device */
+  trusted: boolean;
+}
+
+/**
+ * OAuth 2.0 provider configuration.
+ */
+export interface OAuthProvider {
+  /** Provider ID (e.g., "google", "github") */
+  providerId: string;
+  /** Display name */
+  displayName: string;
+  /** Authorization endpoint URL */
+  authorizationEndpoint: string;
+  /** Token endpoint URL */
+  tokenEndpoint: string;
+  /** User info endpoint URL */
+  userInfoEndpoint: string;
+  /** Client ID */
+  clientId: string;
+  /** Client secret (stored securely) */
+  clientSecret: string;
+  /** Scope to request */
+  scope: string[];
+  /** Redirect URI for callback */
+  redirectUri: string;
+  /** Whether provider is active */
+  active: boolean;
+}
+
+/**
+ * OAuth 2.0 state data for PKCE flow.
+ */
+export interface OAuthState {
+  /** State ID */
+  stateId: string;
+  /** Provider ID */
+  providerId: string;
+  /** Code verifier for PKCE */
+  codeVerifier: string;
+  /** Nonce for ID token validation */
+  nonce?: string;
+  /** Redirect URL after auth */
+  redirectUrl?: string;
+  /** Creation timestamp */
+  createdAt: number;
+  /** Expiration timestamp (10 minutes) */
+  expiresAt: number;
+}
+
+/**
+ * TOTP (Time-based One-Time Password) configuration.
+ */
+export interface TotpConfig {
+  /** API key ID */
+  keyId: string;
+  /** TOTP secret (base32 encoded) */
+  secret: string;
+  /** Backup codes for recovery */
+  backupCodes: string[];
+  /** Whether TOTP is enabled */
+  enabled: boolean;
+  /** Verification counter */
+  counter: number;
+  /** Last successful verification timestamp */
+  lastVerifiedAt?: number;
+  /** Trusted verification window (in seconds, default: 30) */
+  window: number;
+}
+
+/**
+ * TOTP verification result.
+ */
+export interface TotpVerificationResult {
+  /** Whether verification succeeded */
+  valid: boolean;
+  /** Remaining backup codes */
+  remainingBackupCodes?: number;
+  /** Whether this was a backup code used */
+  usedBackupCode?: boolean;
 }
 
 // ============================================================================
@@ -345,6 +395,19 @@ const apiKeys = new Map<string, ApiKey>();
 const sessions = new Map<string, AuthSession>();
 const auditLog: AuditLogEntry[] = [];
 
+// Enhanced authentication storage
+const refreshTokens = new Map<string, RefreshToken>();
+const deviceFingerprints = new Map<string, DeviceFingerprint>();
+const oauthProviders = new Map<string, OAuthProvider>();
+const oauthStates = new Map<string, OAuthState>();
+const totpConfigs = new Map<string, TotpConfig>();
+
+// Session security settings
+const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes idle timeout
+const MAX_CONCURRENT_SESSIONS = 5; // Maximum active sessions per key
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const SLIDING_WINDOW_MS = 15 * 60 * 1000; // Refresh window: 15 minutes before expiration
+
 // Account lockout settings
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -353,6 +416,60 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const authFailuresByIp = new Map<string, { count: number; resetAt: number }>();
 const AUTH_FAILURE_WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_AUTH_FAILURES_PER_MINUTE = 10;
+
+// Suspicious activity tracking - IPs with repeated suspicious behavior
+const suspiciousIps = new Map<string, { score: number; lastActivity: number }>();
+const SUSPICIOUS_SCORE_THRESHOLD = 100;
+const SUSPICIOUS_SCORE_DECAY_MS = 5 * 60 * 1000; // Decay score over 5 minutes
+
+/**
+ * Record suspicious activity for an IP address.
+ * Increases the suspicious score which can lead to temporary blocking.
+ */
+function recordSuspiciousActivity(ip: string, points: number): void {
+  const now = Date.now();
+  const existing = suspiciousIps.get(ip);
+
+  if (!existing || now - existing.lastActivity > SUSPICIOUS_SCORE_DECAY_MS) {
+    // Decay score if enough time has passed
+    const decayedScore = existing ? Math.max(0, existing.score - 50) : 0;
+    suspiciousIps.set(ip, { score: decayedScore + points, lastActivity: now });
+  } else {
+    existing.score += points;
+    existing.lastActivity = now;
+  }
+
+  // Check if IP should be temporarily blocked
+  const record = suspiciousIps.get(ip)!;
+  if (record.score >= SUSPICIOUS_SCORE_THRESHOLD) {
+    logger.warn("IP temporarily blocked due to suspicious activity", {
+      ip,
+      score: record.score,
+    });
+  }
+}
+
+/**
+ * Check if an IP is temporarily blocked due to suspicious activity.
+ */
+function isIpBlocked(ip: string): boolean {
+  const record = suspiciousIps.get(ip);
+  if (!record) return false;
+
+  // Decay score over time
+  const now = Date.now();
+  const timeSinceLastActivity = now - record.lastActivity;
+  if (timeSinceLastActivity > SUSPICIOUS_SCORE_DECAY_MS) {
+    record.score = Math.max(
+      0,
+      record.score - Math.floor(timeSinceLastActivity / SUSPICIOUS_SCORE_DECAY_MS) * 50
+    );
+    record.lastActivity = now;
+    suspiciousIps.set(ip, record);
+  }
+
+  return record.score >= SUSPICIOUS_SCORE_THRESHOLD;
+}
 
 /**
  * Register an API key with proper hashing.
@@ -465,19 +582,137 @@ const SESSION_TTL_MS = 86_400_000; // 24 hours
 const MAX_SESSIONS_PER_KEY = 100;
 
 /**
+ * Generate a device fingerprint from user agent.
+ */
+async function generateDeviceFingerprint(userAgent: string): Promise<string> {
+  // Simple hash of user agent for device tracking
+  const encoder = new TextEncoder();
+  const data = encoder.encode(userAgent);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .substring(0, 16);
+}
+
+/**
+ * Detect device type from user agent.
+ */
+function detectDeviceType(userAgent: string): string {
+  const ua = userAgent.toLowerCase();
+  if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
+    return "mobile";
+  }
+  if (/tablet|ipad|playbook|silk/i.test(ua)) {
+    return "tablet";
+  }
+  return "desktop";
+}
+
+/**
+ * Detect OS family from user agent.
+ */
+function detectOsFamily(userAgent: string): string | undefined {
+  const ua = userAgent.toLowerCase();
+  if (/windows/i.test(ua)) return "windows";
+  if (/macintosh|mac os x/i.test(ua)) return "macos";
+  if (/linux/i.test(ua)) return "linux";
+  if (/android/i.test(ua)) return "android";
+  if (/ios|iphone|ipad|ipod/i.test(ua)) return "ios";
+  return undefined;
+}
+
+/**
+ * Detect browser family from user agent.
+ */
+function detectBrowserFamily(userAgent: string): string | undefined {
+  const ua = userAgent.toLowerCase();
+  if (/chrome|crios/i.test(ua) && !/edge|opr|brave/i.test(ua)) return "chrome";
+  if (/safari/i.test(ua) && !/chrome/i.test(ua)) return "safari";
+  if (/firefox/i.test(ua)) return "firefox";
+  if (/edge|edg/i.test(ua)) return "edge";
+  if (/opr|opera/i.test(ua)) return "opera";
+  if (/brave/i.test(ua)) return "brave";
+  return undefined;
+}
+
+/**
+ * Get or create device fingerprint record.
+ */
+async function getOrCreateDevice(userAgent: string, clientIp: string): Promise<DeviceFingerprint> {
+  const deviceId = await generateDeviceFingerprint(userAgent);
+  const existing = deviceFingerprints.get(deviceId);
+
+  if (existing) {
+    existing.lastSeenAt = Date.now();
+    return existing;
+  }
+
+  const device: DeviceFingerprint = {
+    deviceId,
+    userAgentHash: deviceId,
+    deviceType: detectDeviceType(userAgent),
+    osFamily: detectOsFamily(userAgent),
+    browserFamily: detectBrowserFamily(userAgent),
+    firstSeenAt: Date.now(),
+    lastSeenAt: Date.now(),
+    trusted: false,
+  };
+
+  deviceFingerprints.set(deviceId, device);
+  logger.info("New device registered", { deviceId, deviceType: device.deviceType });
+
+  return device;
+}
+
+/**
  * Create a new session for an authenticated API key.
  */
-export function createSession(
+export async function createSession(
   keyId: string,
   clientIp: string,
   userAgent?: string,
-  metadata?: Record<string, unknown>
-): string {
+  metadata?: Record<string, unknown>,
+  options: {
+    /** Session type */
+    type?: "standard" | "oauth" | "mfa";
+    /** Enable IP binding */
+    ipBinding?: boolean;
+    /** Create refresh token */
+    createRefreshToken?: boolean;
+  } = {}
+): Promise<{ sessionId: string; refreshToken?: string }> {
+  const { type = "standard", ipBinding = true, createRefreshToken = true } = options;
+
+  // Check concurrent session limit
+  const keySessions = Array.from(sessions.values()).filter((s) => s.keyId === keyId && s.active);
+  if (keySessions.length >= MAX_CONCURRENT_SESSIONS) {
+    // Remove oldest inactive session
+    keySessions.sort((a, b) => a.lastActivityAt - b.lastActivityAt);
+    const oldest = keySessions[0];
+    if (oldest) {
+      oldest.active = false;
+      sessions.set(oldest.sessionId, oldest);
+      logger.info("Session deactivated due to concurrent limit", {
+        sessionId: oldest.sessionId,
+        keyId,
+      });
+    }
+  }
+
   // Clean up old sessions for this key
   cleanupOldSessions(keyId);
 
   const sessionId = crypto.randomUUID();
   const now = Date.now();
+
+  // Get device info
+  let deviceId: string | undefined;
+  if (userAgent) {
+    const device = await getOrCreateDevice(userAgent, clientIp);
+    deviceId = device.deviceId;
+  }
 
   const session: AuthSession = {
     sessionId,
@@ -490,13 +725,32 @@ export function createSession(
     metadata,
     csrfToken: generateAuthCsrfTokenInternal(),
     regenerated: false,
+    deviceId,
+    ipBinding,
+    active: true,
+    sessionType: type,
   };
 
   sessions.set(sessionId, session);
 
-  logger.info("Session created", { sessionId, keyId, clientIp });
+  // Create refresh token if requested
+  let refreshToken: string | undefined;
+  if (createRefreshToken) {
+    const refreshTokenData = createRefreshTokenInternal(sessionId, keyId, clientIp);
+    session.refreshTokenId = refreshTokenData.tokenId;
+    refreshToken = refreshTokenData.token;
+    sessions.set(sessionId, session);
+  }
 
-  return sessionId;
+  logger.info("Session created", {
+    sessionId,
+    keyId,
+    clientIp,
+    sessionType: type,
+    hasRefreshToken: !!refreshToken,
+  });
+
+  return { sessionId, refreshToken };
 }
 
 /**
@@ -517,11 +771,43 @@ function updateSessionActivity(sessionId: string): void {
 }
 
 /**
- * Validate a session (check expiration).
+ * Validate a session (check expiration, IP binding, activity status).
  */
-function validateSession(session: AuthSession): boolean {
+function validateSession(session: AuthSession, clientIp: string): boolean {
   const now = Date.now();
-  return session.expiresAt > now;
+
+  // Check expiration
+  if (session.expiresAt <= now) {
+    logger.warn("Session expired", { sessionId: session.sessionId });
+    return false;
+  }
+
+  // Check if session is active
+  if (!session.active) {
+    logger.warn("Session inactive", { sessionId: session.sessionId });
+    return false;
+  }
+
+  // Check IP binding if enabled
+  if (session.ipBinding && session.clientIp !== clientIp) {
+    logger.warn("Session IP mismatch", {
+      sessionId: session.sessionId,
+      expected: session.clientIp,
+      received: clientIp,
+    });
+    return false;
+  }
+
+  // Check idle timeout
+  const idleTime = now - session.lastActivityAt;
+  if (idleTime > SESSION_IDLE_TIMEOUT_MS) {
+    session.active = false;
+    sessions.set(session.sessionId, session);
+    logger.warn("Session idle timeout exceeded", { sessionId: session.sessionId });
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -560,6 +846,223 @@ export function invalidateAllSessionsForKey(keyId: string): number {
     }
   }
   return count;
+}
+
+// ============================================================================
+// Refresh Token Management
+// ============================================================================
+
+/**
+ * Create a new refresh token.
+ */
+function createRefreshTokenInternal(
+  sessionId: string,
+  keyId: string,
+  clientIp: string
+): { tokenId: string; token: string } {
+  const tokenId = crypto.randomUUID();
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  const token = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+  const rotationFamily = crypto.randomUUID();
+
+  const refreshTokenData: RefreshToken = {
+    tokenId,
+    sessionId,
+    keyId,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + REFRESH_TOKEN_TTL_MS,
+    used: false,
+    clientIp,
+    rotationFamily,
+  };
+
+  refreshTokens.set(tokenId, refreshTokenData);
+
+  return { tokenId, token };
+}
+
+/**
+ * Refresh a session using a refresh token.
+ *
+ * Returns the new session ID and new refresh token, or null if invalid.
+ */
+export function refreshSession(
+  refreshToken: string,
+  clientIp: string
+): { sessionId: string; newRefreshToken: string } | null {
+  // Find the refresh token
+  const tokenData = Array.from(refreshTokens.values()).find((t) => t.tokenId === refreshToken);
+
+  if (!tokenData) {
+    securityLogger.logSuspiciousActivity(
+      {} as Context,
+      "invalid_refresh_token",
+      "Refresh token not found"
+    );
+    return null;
+  }
+
+  // Check expiration
+  if (Date.now() > tokenData.expiresAt) {
+    refreshTokens.delete(tokenData.tokenId);
+    securityLogger.logSuspiciousActivity(
+      {} as Context,
+      "expired_refresh_token",
+      "Refresh token expired"
+    );
+    return null;
+  }
+
+  // Check if already used
+  if (tokenData.used) {
+    // Token reuse detected - potential security breach
+    // Invalidate all tokens in the rotation family
+    invalidateRefreshTokenFamily(tokenData.rotationFamily);
+    securityLogger.logSuspiciousActivity(
+      {} as Context,
+      "refresh_token_reuse",
+      "Refresh token reuse detected - token family invalidated"
+    );
+    return null;
+  }
+
+  // Verify client IP matches (optional security measure)
+  if (tokenData.clientIp !== clientIp) {
+    securityLogger.logSuspiciousActivity(
+      {} as Context,
+      "refresh_token_ip_mismatch",
+      "Refresh token used from different IP"
+    );
+    // Still allow but log for monitoring
+  }
+
+  // Get the session
+  const session = sessions.get(tokenData.sessionId);
+  if (!session || !session.active) {
+    return null;
+  }
+
+  // Check if session belongs to the same key
+  if (session.keyId !== tokenData.keyId) {
+    return null;
+  }
+
+  // Mark old token as used
+  tokenData.used = true;
+
+  // Check idle timeout
+  const idleTime = Date.now() - session.lastActivityAt;
+  if (idleTime > SESSION_IDLE_TIMEOUT_MS) {
+    session.active = false;
+    sessions.set(session.sessionId, session);
+    securityLogger.logSuspiciousActivity(
+      {} as Context,
+      "session_idle_timeout",
+      "Session idle timeout exceeded"
+    );
+    return null;
+  }
+
+  // Regenerate session (session fixation prevention)
+  const newSessionId = regenerateSession(session.sessionId);
+  if (!newSessionId) {
+    return null;
+  }
+
+  // Create new refresh token in the same rotation family
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  const newToken = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+
+  const newRefreshTokenData: RefreshToken = {
+    tokenId: crypto.randomUUID(),
+    sessionId: newSessionId,
+    keyId: tokenData.keyId,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + REFRESH_TOKEN_TTL_MS,
+    used: false,
+    clientIp,
+    rotationFamily: tokenData.rotationFamily,
+  };
+
+  refreshTokens.set(newRefreshTokenData.tokenId, newRefreshTokenData);
+
+  // Update session with new refresh token ID
+  const newSession = sessions.get(newSessionId);
+  if (newSession) {
+    newSession.refreshTokenId = newRefreshTokenData.tokenId;
+    newSession.lastActivityAt = Date.now();
+    // Extend session expiration (sliding window)
+    newSession.expiresAt = Date.now() + SESSION_TTL_MS;
+    sessions.set(newSessionId, newSession);
+  }
+
+  logger.info("Session refreshed", {
+    oldSessionId: session.sessionId,
+    newSessionId,
+    keyId: tokenData.keyId,
+  });
+
+  return { sessionId: newSessionId, newRefreshToken: newToken };
+}
+
+/**
+ * Invalidate all refresh tokens in a rotation family.
+ */
+function invalidateRefreshTokenFamily(rotationFamily: string): void {
+  for (const [tokenId, token] of refreshTokens.entries()) {
+    if (token.rotationFamily === rotationFamily) {
+      refreshTokens.delete(tokenId);
+    }
+  }
+}
+
+/**
+ * Invalidate a refresh token.
+ */
+export function invalidateRefreshToken(tokenId: string): boolean {
+  return refreshTokens.delete(tokenId);
+}
+
+/**
+ * Check if a session should be refreshed (within sliding window).
+ */
+export function shouldRefreshSession(sessionId: string): boolean {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+
+  const timeUntilExpiration = session.expiresAt - Date.now();
+  return timeUntilExpiration < SLIDING_WINDOW_MS && timeUntilExpiration > 0;
+}
+
+/**
+ * Get active sessions for an API key.
+ */
+export function getActiveSessionsForApiKey(keyId: string): AuthSession[] {
+  return Array.from(sessions.values()).filter(
+    (s) => s.keyId === keyId && s.active && s.expiresAt > Date.now()
+  );
+}
+
+/**
+ * Revoke a session (user-initiated logout).
+ */
+export function revokeSession(sessionId: string, clientIp: string): boolean {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+
+  session.active = false;
+  sessions.set(sessionId, session);
+
+  // Invalidate associated refresh token
+  if (session.refreshTokenId) {
+    invalidateRefreshToken(session.refreshTokenId);
+  }
+
+  logger.info("Session revoked", { sessionId, keyId: session.keyId, clientIp });
+
+  return true;
 }
 
 // ============================================================================
@@ -760,12 +1263,33 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
       c.req.header("X-Real-IP") ||
       "unknown";
 
+    // Check if IP is blocked due to suspicious activity
+    if (isIpBlocked(clientIp)) {
+      securityLogger.logSuspiciousActivity(
+        c,
+        "blocked_ip_authentication_attempt",
+        "Blocked IP attempted authentication"
+      );
+      throw new HTTPException(429, {
+        message: "Too many suspicious attempts. Please try again later.",
+      });
+    }
+
+    // Check auth failure rate limit by IP
+    if (!checkAuthFailureRateLimit(clientIp)) {
+      securityLogger.logRateLimitExceeded(c, MAX_AUTH_FAILURES_PER_MINUTE, AUTH_FAILURE_WINDOW_MS);
+      recordSuspiciousActivity(clientIp, 20); // Add points for rate limiting hit
+      throw new HTTPException(429, {
+        message: "Too many authentication attempts. Please try again later.",
+      });
+    }
+
     // Try session authentication first
     if (allowSessions) {
       const sessionToken = extractSessionToken(c);
       if (sessionToken) {
         const session = getSession(sessionToken);
-        if (session && validateSession(session)) {
+        if (session && validateSession(session, clientIp)) {
           const apiKey = getApiKey(session.keyId);
           if (apiKey && apiKey.active) {
             // Check scope
@@ -779,6 +1303,8 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
                 scope: apiKey.scope,
                 sessionId: session.sessionId,
                 rateLimitTier: apiKey.rateLimitTier,
+                authMethod: "session",
+                mfaVerified: isSessionMfaVerified(sessionToken),
               };
               c.set("auth", authContext);
 
@@ -787,7 +1313,8 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
           }
         }
 
-        // Invalid session
+        // Invalid session - record suspicious activity
+        recordSuspiciousActivity(clientIp, 5);
         securityLogger.logAuthFailure(c, "invalid_session_token");
       }
     }
@@ -795,6 +1322,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     // Try API key authentication
     const apiKeyData = extractApiKey(c);
     if (!apiKeyData) {
+      recordSuspiciousActivity(clientIp, 10);
       securityLogger.logAuthFailure(c, "missing_api_key");
       c.header("WWW-Authenticate", `Bearer realm="${realm}"`);
       throw new HTTPException(401, { message: "Authentication required" });
@@ -804,6 +1332,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     const apiKey = getApiKey(keyId);
 
     if (!apiKey || !apiKey.active) {
+      recordSuspiciousActivity(clientIp, 15);
       securityLogger.logAuthFailure(c, "invalid_api_key");
       c.header("WWW-Authenticate", `Bearer realm="${realm}"`);
       throw new HTTPException(401, { message: "Invalid API key" });
@@ -816,8 +1345,18 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
       throw new HTTPException(401, { message: "API key expired" });
     }
 
+    // Check if key is locked out
+    if (isKeyLockedOut(apiKey)) {
+      recordSuspiciousActivity(clientIp, 25);
+      securityLogger.logAuthFailure(c, "api_key_locked_out");
+      throw new HTTPException(429, {
+        message: "API key temporarily locked due to failed attempts. Please try again later.",
+      });
+    }
+
     // Verify secret
-    if (!verifyApiKeySecret(keyId, secret)) {
+    if (!(await verifyApiKeySecret(keyId, secret))) {
+      recordSuspiciousActivity(clientIp, 20);
       securityLogger.logAuthFailure(c, "invalid_api_key_secret");
       c.header("WWW-Authenticate", `Bearer realm="${realm}"`);
       throw new HTTPException(401, { message: "Invalid API key" });
@@ -832,11 +1371,15 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
       });
     }
 
+    // Reset failed attempts on successful auth
+    resetFailedAttempts(apiKey);
+
     // Attach auth context
     const authContext: AuthContext = {
       keyId: apiKey.keyId,
       scope: apiKey.scope,
       rateLimitTier: apiKey.rateLimitTier,
+      authMethod: "api_key",
     };
     c.set("auth", authContext);
 
@@ -923,12 +1466,18 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
   return async (c, next) => {
     const { allowSessions = true } = options;
 
+    const clientIp =
+      c.req.header("CF-Connecting-IP") ||
+      c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+      c.req.header("X-Real-IP") ||
+      "unknown";
+
     // Try session authentication first
     if (allowSessions) {
       const sessionToken = extractSessionToken(c);
       if (sessionToken) {
         const session = getSession(sessionToken);
-        if (session && validateSession(session)) {
+        if (session && validateSession(session, clientIp)) {
           const apiKey = getApiKey(session.keyId);
           if (apiKey && apiKey.active) {
             updateSessionActivity(sessionToken);
@@ -937,6 +1486,8 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
               scope: apiKey.scope,
               sessionId: session.sessionId,
               rateLimitTier: apiKey.rateLimitTier,
+              authMethod: "session",
+              mfaVerified: isSessionMfaVerified(sessionToken),
             };
             c.set("auth", authContext);
             return next();
@@ -956,6 +1507,7 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
           keyId: apiKey.keyId,
           scope: apiKey.scope,
           rateLimitTier: apiKey.rateLimitTier,
+          authMethod: "api_key",
         };
         c.set("auth", authContext);
       }
@@ -1056,6 +1608,371 @@ export function getSessionCsrfToken(sessionId: string): string | undefined {
  */
 function verifyCsrfToken(session: AuthSession, token: string): boolean {
   return session.csrfToken === token;
+}
+
+// ============================================================================
+// OAuth 2.0 Integration
+// ============================================================================
+
+/**
+ * Register an OAuth provider.
+ */
+export function registerOAuthProvider(provider: OAuthProvider): void {
+  oauthProviders.set(provider.providerId, provider);
+  logger.info("OAuth provider registered", { providerId: provider.providerId });
+}
+
+/**
+ * Get an OAuth provider by ID.
+ */
+export function getOAuthProvider(providerId: string): OAuthProvider | undefined {
+  return oauthProviders.get(providerId);
+}
+
+/**
+ * Generate OAuth state for PKCE flow.
+ */
+export async function generateOAuthState(
+  providerId: string,
+  redirectUrl?: string
+): Promise<{ state: string; codeVerifier: string; codeChallenge: string }> {
+  // Generate code verifier for PKCE
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  const codeVerifier = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+
+  // Generate code challenge (SHA256 -> base64url)
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+
+  // Generate state parameter
+  const stateId = crypto.randomUUID();
+  const nonce = crypto.randomUUID();
+
+  const oauthState: OAuthState = {
+    stateId,
+    providerId,
+    codeVerifier,
+    nonce,
+    redirectUrl,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+  };
+
+  oauthStates.set(stateId, oauthState);
+
+  return { state: stateId, codeVerifier, codeChallenge };
+}
+
+/**
+ * Validate OAuth state and return the stored state data.
+ */
+export function validateOAuthState(state: string): OAuthState | null {
+  const oauthState = oauthStates.get(state);
+
+  if (!oauthState) {
+    return null;
+  }
+
+  // Check expiration
+  if (Date.now() > oauthState.expiresAt) {
+    oauthStates.delete(state);
+    return null;
+  }
+
+  return oauthState;
+}
+
+/**
+ * Clean up OAuth state after use.
+ */
+export function cleanupOAuthState(state: string): void {
+  oauthStates.delete(state);
+}
+
+/**
+ * Create a session from OAuth authentication.
+ */
+export async function createOAuthSession(
+  providerId: string,
+  keyId: string,
+  clientIp: string,
+  userAgent?: string,
+  userInfo?: Record<string, unknown>
+): Promise<{ sessionId: string; refreshToken?: string }> {
+  const metadata = {
+    oauthProvider: providerId,
+    ...userInfo,
+  };
+
+  return createSession(keyId, clientIp, userAgent, metadata, {
+    type: "oauth",
+    ipBinding: true,
+    createRefreshToken: true,
+  });
+}
+
+// ============================================================================
+// TOTP (Multi-Factor Authentication)
+// ============================================================================
+
+/**
+ * Generate a base32-encoded secret for TOTP.
+ */
+function generateTotpSecret(): string {
+  const array = new Uint8Array(20); // 160 bits for TOTP
+  crypto.getRandomValues(array);
+
+  // Base32 alphabet
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let secret = "";
+  let bits = 0;
+  let value = 0;
+
+  for (const byte of array) {
+    value = (value << 8) | byte;
+    bits += 8;
+
+    while (bits >= 5) {
+      bits -= 5;
+      secret += alphabet[(value >> bits) & 31];
+    }
+  }
+
+  if (bits > 0) {
+    secret += alphabet[(value << (5 - bits)) & 31];
+  }
+
+  return secret;
+}
+
+/**
+ * Generate backup codes for TOTP recovery.
+ */
+function generateBackupCodes(count = 10): string[] {
+  const codes: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const array = new Uint8Array(4);
+    crypto.getRandomValues(array);
+    const code = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+    codes.push(code);
+  }
+  return codes;
+}
+
+/**
+ * Set up TOTP for an API key.
+ */
+export function setupTotp(keyId: string): {
+  secret: string;
+  backupCodes: string[];
+  qrCodeUrl: string;
+} {
+  const secret = generateTotpSecret();
+  const backupCodes = generateBackupCodes();
+
+  const totpConfig: TotpConfig = {
+    keyId,
+    secret,
+    backupCodes: [...backupCodes], // Store copies
+    enabled: false, // Requires verification first
+    counter: 0,
+    window: 30, // 30-second window
+  };
+
+  totpConfigs.set(keyId, totpConfig);
+
+  // Generate QR code URL (otpauth:// format)
+  const encodedSecret = secret;
+  const qrCodeUrl = `otpauth://totp/MTA%20My%20Way:${keyId}?secret=${encodedSecret}&issuer=MTA%20My%20Way`;
+
+  logger.info("TOTP setup initiated", { keyId });
+
+  return { secret, backupCodes, qrCodeUrl };
+}
+
+/**
+ * Verify a TOTP code.
+ *
+ * Uses a time-based window to account for clock skew.
+ */
+export async function verifyTotpCode(keyId: string, code: string): Promise<TotpVerificationResult> {
+  const config = totpConfigs.get(keyId);
+
+  if (!config || !config.enabled) {
+    return { valid: false };
+  }
+
+  // Check if it's a backup code first
+  const backupCodeIndex = config.backupCodes.indexOf(code);
+  if (backupCodeIndex !== -1) {
+    // Remove used backup code
+    config.backupCodes.splice(backupCodeIndex, 1);
+    totpConfigs.set(keyId, config);
+
+    logger.info("Backup code used", { keyId, remaining: config.backupCodes.length });
+
+    return {
+      valid: true,
+      remainingBackupCodes: config.backupCodes.length,
+      usedBackupCode: true,
+    };
+  }
+
+  // Verify TOTP code using HMAC-SHA1
+  const now = Math.floor(Date.now() / 1000);
+  const timeStep = 30; // 30-second time step
+
+  // Check current and adjacent time steps (for clock skew)
+  for (const timeOffset of [-1, 0, 1]) {
+    const timeCounter = Math.floor((now + timeOffset * timeStep) / timeStep);
+
+    // Convert counter to bytes
+    const counterBytes = new ArrayBuffer(8);
+    const counterView = new DataView(counterBytes);
+    counterView.setUint32(4, timeCounter, false); // Big-endian
+    counterView.setUint32(0, 0, false);
+
+    // Generate HMAC-SHA1
+    const key = base32Decode(config.secret);
+    const hmacKey = await crypto.subtle.importKey(
+      "raw",
+      key,
+      { name: "HMAC", hash: "SHA-1" },
+      false,
+      ["sign"]
+    );
+
+    const signature = await crypto.subtle.sign("HMAC", hmacKey, counterBytes);
+    const hmac = new Uint8Array(signature);
+
+    // Extract 4-byte dynamic truncation
+    const offset = hmac[hmac.length - 1] & 0x0f;
+    const binary =
+      ((hmac[offset]! & 0x7f) << 24) |
+      ((hmac[offset + 1]! & 0xff) << 16) |
+      ((hmac[offset + 2]! & 0xff) << 8) |
+      (hmac[offset + 3]! & 0xff);
+
+    const otp = (binary % 1_000_000).toString().padStart(6, "0");
+
+    if (otp === code) {
+      config.counter = timeCounter;
+      config.lastVerifiedAt = Date.now();
+      totpConfigs.set(keyId, config);
+
+      logger.info("TOTP verified", { keyId, timeCounter });
+
+      return {
+        valid: true,
+        remainingBackupCodes: config.backupCodes.length,
+      };
+    }
+  }
+
+  logger.warn("Invalid TOTP code", { keyId });
+
+  return { valid: false };
+}
+
+/**
+ * Base32 decode utility for TOTP secret.
+ */
+function base32Decode(input: string): Uint8Array {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const bits: string[] = [];
+
+  for (const char of input.toUpperCase()) {
+    const index = alphabet.indexOf(char);
+    if (index === -1) continue;
+    bits.push(index.toString(2).padStart(5, "0"));
+  }
+
+  const bitString = bits.join("");
+  const bytes = new Uint8Array(Math.floor(bitString.length / 8));
+
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(bitString.slice(i * 8, (i + 1) * 8), 2);
+  }
+
+  return bytes;
+}
+
+/**
+ * Enable TOTP for an API key (after initial verification).
+ */
+export function enableTotp(keyId: string): boolean {
+  const config = totpConfigs.get(keyId);
+  if (!config) return false;
+
+  config.enabled = true;
+  totpConfigs.set(keyId, config);
+
+  logger.info("TOTP enabled", { keyId });
+
+  return true;
+}
+
+/**
+ * Disable TOTP for an API key.
+ */
+export function disableTotp(keyId: string): boolean {
+  const deleted = totpConfigs.delete(keyId);
+  if (deleted) {
+    logger.info("TOTP disabled", { keyId });
+  }
+  return deleted;
+}
+
+/**
+ * Verify MFA for a session.
+ */
+export function verifyMfaForSession(
+  sessionId: string,
+  code: string
+): { valid: boolean; newSessionId?: string } {
+  const session = sessions.get(sessionId);
+  if (!session) return { valid: false };
+
+  const result = verifyTotpCode(session.keyId, code);
+  if (!result.valid) return { valid: false };
+
+  // Regenerate session after MFA verification
+  const newSessionId = regenerateSession(sessionId);
+  if (!newSessionId) return { valid: false };
+
+  // Update session with MFA verification timestamp
+  const newSession = sessions.get(newSessionId);
+  if (newSession) {
+    newSession.mfaVerifiedAt = Date.now();
+    sessions.set(newSessionId, newSession);
+  }
+
+  logger.info("MFA verified for session", { oldSessionId: sessionId, newSessionId });
+
+  return { valid: true, newSessionId };
+}
+
+/**
+ * Check if a session has MFA verified.
+ */
+export function isSessionMfaVerified(sessionId: string): boolean {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+
+  // Check if MFA is required for this key
+  const totpConfig = totpConfigs.get(session.keyId);
+  if (!totpConfig || !totpConfig.enabled) {
+    return true; // MFA not required
+  }
+
+  // Check if MFA was verified
+  return !!session.mfaVerifiedAt;
 }
 
 // ============================================================================

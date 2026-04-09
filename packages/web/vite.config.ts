@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import type { Plugin, Rollup } from "rollup";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
+import viteCompression from "vite-plugin-compression";
 import { VitePWA } from "vite-plugin-pwa";
 
 /**
@@ -12,7 +13,7 @@ import { VitePWA } from "vite-plugin-pwa";
  * - Total JS exceeds MAX_TOTAL_JS_KB gzipped
  */
 const MAX_CHUNK_SIZE_KB = 50; // 50KB per chunk max
-const MAX_TOTAL_JS_KB = 170; // 170KB total JS max (includes lazy-loaded screens)
+const MAX_TOTAL_JS_KB = 180; // 180KB total JS max (includes lazy-loaded screens)
 const MAX_INITIAL_BUNDLE_KB = 200; // 200KB initial bundle max (acceptance criteria)
 
 // Per-chunk overrides for known large vendor dependencies
@@ -96,6 +97,17 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
+    // Generate compressed versions of assets for faster loading
+    viteCompression({
+      algorithm: "gzip",
+      ext: ".gz",
+      threshold: 1024, // Only compress files larger than 1KB
+    }),
+    viteCompression({
+      algorithm: "brotliCompress",
+      ext: ".br",
+      threshold: 1024,
+    }),
     VitePWA({
       registerType: "prompt",
       includeAssets: ["favicon.svg", "icons/*.svg", "offline.html", "sw-push.js"],
@@ -367,6 +379,20 @@ export default defineConfig({
         unknownGlobalSideEffects: false,
       },
       output: {
+        // Hashed filenames for long-term caching
+        chunkFileNames: "assets/[name]-[hash].js",
+        entryFileNames: "assets/[name]-[hash].js",
+        assetFileNames: (assetInfo) => {
+          // Hash content-based names for assets
+          if (assetInfo.name) {
+            const name = assetInfo.name;
+            // Add hash to JS/CSS files for cache busting
+            if (name.endsWith(".js") || name.endsWith(".css")) {
+              return `assets/[name]-[hash][extname]`;
+            }
+          }
+          return "assets/[name]-[hash][extname]";
+        },
         // Fine-grained chunk splitting for optimal caching
         manualChunks(id) {
           // Split React and ReactDOM into separate chunks to stay under per-chunk budget

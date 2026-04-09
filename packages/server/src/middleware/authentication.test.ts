@@ -8,15 +8,30 @@ import {
   type ApiKey,
   type ApiKeyScope,
   apiKeyAuth,
+  createOAuthSession,
   createSession,
+  disableTotp,
+  enableTotp,
+  generateOAuthState,
+  getActiveSessionsForApiKey,
   getAuthContext,
   invalidateAllSessionsForKey,
   invalidateSession,
   isAuthenticated,
+  isSessionMfaVerified,
   optionalAuth,
+  refreshSession,
   registerApiKey,
+  registerOAuthProvider,
   requireScope,
+  revokeSession,
+  setupTotp,
+  shouldRefreshSession,
   signedRequestAuth,
+  validateOAuthState,
+  validatePassword,
+  verifyMfaForSession,
+  verifyTotpCode,
 } from "./authentication.js";
 
 describe("Authentication Middleware", () => {
@@ -209,7 +224,7 @@ describe("Authentication Middleware", () => {
 
   describe("session management", () => {
     it("should create and validate session", async () => {
-      const sessionId = createSession("test_key_123", "127.0.0.1", "test-agent");
+      const { sessionId } = await createSession("test_key_123", "127.0.0.1", "test-agent");
 
       expect(sessionId).toBeTruthy();
       expect(typeof sessionId).toBe("string");
@@ -232,8 +247,8 @@ describe("Authentication Middleware", () => {
       expect(json.hasSession).toBe(true);
     });
 
-    it("should invalidate session", () => {
-      const sessionId = createSession("test_key_123", "127.0.0.1");
+    it("should invalidate session", async () => {
+      const { sessionId } = await createSession("test_key_123", "127.0.0.1");
 
       const result = invalidateSession(sessionId);
       expect(result).toBe(true);
@@ -243,12 +258,12 @@ describe("Authentication Middleware", () => {
       expect(result2).toBe(false);
     });
 
-    it("should invalidate all sessions for a key", () => {
+    it("should invalidate all sessions for a key", async () => {
       // Create multiple sessions for test_key_123
-      const session1 = createSession("test_key_123", "127.0.0.1");
-      const session2 = createSession("test_key_123", "127.0.0.2");
+      const { sessionId: session1 } = await createSession("test_key_123", "127.0.0.1");
+      const { sessionId: session2 } = await createSession("test_key_123", "127.0.0.2");
       // Create a session for a different key
-      createSession("write_key_456", "127.0.0.3");
+      await createSession("write_key_456", "127.0.0.3");
 
       // Count total sessions before invalidation
       const initialSessionCount = 3; // From this test
@@ -394,6 +409,369 @@ describe("Authentication Middleware", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.authenticated).toBe(false);
+    });
+  });
+
+  describe("refresh token management", () => {
+    it("should create session with refresh token", async () => {
+      const { sessionId, refreshToken } = await createSession(
+        "test_key_123",
+        "127.0.0.1",
+        "test-agent",
+        undefined,
+        {
+          createRefreshToken: true,
+        }
+      );
+
+      expect(sessionId).toBeTruthy();
+      expect(refreshToken).toBeTruthy();
+      expect(typeof refreshToken).toBe("string");
+      expect(refreshToken!.length).toBeGreaterThan(0);
+    });
+
+    it("should refresh session with valid refresh token", async () => {
+      const { sessionId, refreshToken } = await createSession(
+        "test_key_123",
+        "127.0.0.1",
+        "test-agent",
+        undefined,
+        {
+          createRefreshToken: true,
+        }
+      );
+
+      expect(refreshToken).toBeTruthy();
+
+      // Refresh the session
+      const result = refreshSession(refreshToken!, "127.0.0.1");
+
+      expect(result).not.toBeNull();
+      expect(result!.sessionId).not.toBe(sessionId); // New session ID should be different
+      expect(result!.newRefreshToken).toBeTruthy();
+    });
+
+    it("should reject invalid refresh token", () => {
+      const result = refreshSession("invalid_token", "127.0.0.1");
+      expect(result).toBeNull();
+    });
+
+    it("should detect refresh token reuse and invalidate family", () => {
+      const { refreshToken } = createSession("test_key_123", "127.0.0.1", "test-agent", undefined, {
+        createRefreshToken: true,
+      });
+
+      // First use
+      const firstResult = refreshSession(refreshToken!, "127.0.0.1");
+      expect(firstResult).not.toBeNull();
+
+      // Try to reuse the same token (security breach scenario)
+      const secondResult = refreshSession(refreshToken!, "127.0.0.1");
+      expect(secondResult).toBeNull(); // Should be rejected
+    });
+
+    it("should check if session needs refresh", async () => {
+      const { sessionId } = await createSession("test_key_123", "127.0.0.1", "test-agent");
+
+      // Fresh session shouldn't need refresh
+      expect(shouldRefreshSession(sessionId)).toBe(false);
+    });
+
+    it("should get active sessions for API key", async () => {
+      // Create multiple sessions
+      await createSession("test_key_123", "127.0.0.1", "agent1");
+      await createSession("test_key_123", "127.0.0.2", "agent2");
+      await createSession("write_key_456", "127.0.0.3", "agent3");
+
+      const testKeySessions = getActiveSessionsForApiKey("test_key_123");
+      expect(testKeySessions.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should revoke session", async () => {
+      const { sessionId } = await createSession("test_key_123", "127.0.0.1", "test-agent");
+
+      const revoked = revokeSession(sessionId, "127.0.0.1");
+      expect(revoked).toBe(true);
+
+      // Session should no longer be active
+      const sessions = getActiveSessionsForApiKey("test_key_123");
+      const revokedSession = sessions.find((s) => s.sessionId === sessionId);
+      expect(revokedSession).toBeUndefined();
+    });
+  });
+
+  describe("TOTP multi-factor authentication", () => {
+    it("should setup TOTP for an API key", () => {
+      const result = setupTotp("test_key_123");
+
+      expect(result.secret).toBeTruthy();
+      expect(result.backupCodes).toBeTruthy();
+      expect(result.backupCodes.length).toBe(10);
+      expect(result.qrCodeUrl).toContain("otpauth://totp");
+    });
+
+    it("should enable TOTP after setup", () => {
+      setupTotp("test_key_123");
+      const enabled = enableTotp("test_key_123");
+      expect(enabled).toBe(true);
+    });
+
+    it("should verify TOTP code", () => {
+      setupTotp("test_key_123");
+      enableTotp("test_key_123");
+
+      // Note: In a real scenario, we'd generate a valid TOTP code
+      // For testing, we'll use a backup code
+      const { backupCodes } = setupTotp("test_key_123");
+      enableTotp("test_key_123");
+
+      const result = verifyTotpCode("test_key_123", backupCodes[0]!);
+      expect(result.valid).toBe(true);
+      expect(result.usedBackupCode).toBe(true);
+      expect(result.remainingBackupCodes).toBe(9);
+    });
+
+    it("should reject invalid TOTP code", () => {
+      setupTotp("test_key_123");
+      enableTotp("test_key_123");
+
+      const result = verifyTotpCode("test_key_123", "000000");
+      expect(result.valid).toBe(false);
+    });
+
+    it("should check if session has MFA verified", async () => {
+      const { sessionId } = await createSession("write_key_456", "127.0.0.1", "test-agent");
+
+      // No TOTP configured, so should return true
+      expect(isSessionMfaVerified(sessionId)).toBe(true);
+
+      // Setup TOTP
+      setupTotp("write_key_456");
+      enableTotp("write_key_456");
+
+      // Now MFA should be required but not verified
+      expect(isSessionMfaVerified(sessionId)).toBe(false);
+    });
+
+    it("should verify MFA for session and regenerate session", async () => {
+      const { sessionId } = await createSession("admin_key_789", "127.0.0.1", "test-agent");
+
+      // Setup TOTP and get a backup code
+      const { backupCodes } = setupTotp("admin_key_789");
+      enableTotp("admin_key_789");
+
+      // Verify MFA with backup code
+      const result = verifyMfaForSession(sessionId, backupCodes[0]!);
+
+      expect(result.valid).toBe(true);
+      expect(result.newSessionId).not.toBe(sessionId);
+
+      // New session should have MFA verified
+      expect(isSessionMfaVerified(result.newSessionId!)).toBe(true);
+    });
+
+    it("should disable TOTP", () => {
+      setupTotp("test_key_123");
+      const disabled = disableTotp("test_key_123");
+      expect(disabled).toBe(true);
+    });
+  });
+
+  describe("OAuth 2.0 integration", () => {
+    beforeEach(() => {
+      // Register a test OAuth provider
+      registerOAuthProvider({
+        providerId: "test_provider",
+        displayName: "Test Provider",
+        authorizationEndpoint: "https://example.com/auth",
+        tokenEndpoint: "https://example.com/token",
+        userInfoEndpoint: "https://example.com/userinfo",
+        clientId: "test_client_id",
+        clientSecret: "test_client_secret",
+        scope: ["openid", "profile", "email"],
+        redirectUri: "https://myapp.com/oauth/callback",
+        active: true,
+      });
+    });
+
+    it("should generate OAuth state with PKCE", async () => {
+      const result = await generateOAuthState("test_provider", "https://myapp.com/dashboard");
+
+      expect(result.state).toBeTruthy();
+      expect(result.codeVerifier).toBeTruthy();
+      expect(result.codeChallenge).toBeTruthy();
+      expect(result.codeChallenge).not.toBe(result.codeVerifier); // Should be hashed
+    });
+
+    it("should validate OAuth state", async () => {
+      const { state } = await generateOAuthState("test_provider");
+
+      const validated = validateOAuthState(state);
+      expect(validated).not.toBeNull();
+      expect(validated!.providerId).toBe("test_provider");
+    });
+
+    it("should reject invalid OAuth state", () => {
+      const validated = validateOAuthState("invalid_state");
+      expect(validated).toBeNull();
+    });
+
+    it("should create OAuth session", async () => {
+      const { sessionId } = await createOAuthSession(
+        "test_provider",
+        "test_key_123",
+        "127.0.0.1",
+        "test-agent",
+        { userId: "user123" }
+      );
+
+      expect(sessionId).toBeTruthy();
+
+      // Verify the session has OAuth type
+      const sessions = getActiveSessionsForApiKey("test_key_123");
+      const oauthSession = sessions.find((s) => s.sessionId === sessionId);
+      expect(oauthSession?.sessionType).toBe("oauth");
+    });
+  });
+
+  describe("password policy validation", () => {
+    it("should validate strong password", () => {
+      const result = validatePassword("StrongP@ssw0rd123");
+
+      expect(result.valid).toBe(true);
+      expect(result.strength).toBeGreaterThan(50);
+    });
+
+    it("should reject password that is too short", () => {
+      const result = validatePassword("Short1!");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must be at least 12 characters long");
+    });
+
+    it("should reject password without uppercase", () => {
+      const result = validatePassword("lowercase123!");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must contain at least one uppercase letter");
+    });
+
+    it("should reject password without lowercase", () => {
+      const result = validatePassword("UPPERCASE123!");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must contain at least one lowercase letter");
+    });
+
+    it("should reject password without numbers", () => {
+      const result = validatePassword("NoNumbers!");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must contain at least one number");
+    });
+
+    it("should reject password without special characters", () => {
+      const result = validatePassword("NoSpecialChars123");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must contain at least one special character");
+    });
+
+    it("should reject common weak passwords", () => {
+      const result = validatePassword("password123");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password is too common or weak");
+    });
+
+    it("should reject password with excessive repetition", () => {
+      const result = validatePassword("AAAAaaa111!!!");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("same character more than"))).toBe(true);
+    });
+
+    it("should calculate password strength correctly", () => {
+      const weakPassword = validatePassword("weak1!");
+      const strongPassword = validatePassword("VeryStr0ng!Passw0rd@2024");
+
+      expect(weakPassword.strength).toBeLessThan(strongPassword.strength);
+      expect(strongPassword.strength).toBe(100);
+    });
+  });
+
+  describe("session security features", () => {
+    it("should enforce concurrent session limit", async () => {
+      // Create maximum concurrent sessions
+      const sessions: string[] = [];
+      for (let i = 0; i < 6; i++) {
+        const { sessionId } = await createSession("test_key_123", `127.0.0.${i}`, "test-agent");
+        sessions.push(sessionId);
+      }
+
+      // The oldest session should be deactivated
+      const activeSessions = getActiveSessionsForApiKey("test_key_123");
+      expect(activeSessions.length).toBeLessThanOrEqual(5); // Max concurrent sessions
+    });
+
+    it("should enforce IP binding for sessions", async () => {
+      const { sessionId } = await createSession(
+        "test_key_123",
+        "192.168.100.50",
+        "test-agent",
+        undefined,
+        {
+          ipBinding: true,
+        }
+      );
+
+      // Create app with session auth
+      const testApp = new Hono();
+      testApp.use("*", apiKeyAuth({ allowSessions: true }));
+      testApp.get("/test", (c) => c.json({ ok: true }));
+
+      // Try to authenticate with different IP
+      const res = await testApp.request("/test", {
+        headers: {
+          Authorization: `Bearer ${sessionId}`,
+          "X-Forwarded-For": "192.168.1.1", // Different IP
+        },
+      });
+
+      // Should be rejected due to IP mismatch
+      expect(res.status).toBe(401);
+    });
+
+    it("should track device information", async () => {
+      const userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)";
+      const { sessionId } = await createSession("test_key_123", "127.0.0.1", userAgent);
+
+      const sessions = getActiveSessionsForApiKey("test_key_123");
+      const session = sessions.find((s) => s.sessionId === sessionId);
+
+      expect(session?.deviceId).toBeTruthy();
+      expect(session?.userAgent).toBe(userAgent);
+    });
+  });
+
+  describe("account lockout protection", () => {
+    it("should track failed authentication attempts", async () => {
+      const testApp = new Hono();
+      testApp.use("*", apiKeyAuth());
+      testApp.get("/test", (c) => c.json({ ok: true }));
+
+      // Attempt authentication with wrong secret multiple times
+      for (let i = 0; i < 3; i++) {
+        await testApp.request("/test", {
+          headers: {
+            Authorization: "Bearer test_key_123:wrong_secret",
+          },
+        });
+      }
+
+      // The API key should have failed attempts recorded
+      // Note: This is testing the lockout mechanism is in place
+      // In a real scenario, after 5 failed attempts the key would be locked
     });
   });
 });

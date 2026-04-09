@@ -14,6 +14,7 @@
  * - Settings for controlling context detection behavior
  */
 
+import type { ContextState, UserContext } from "@mta-my-way/shared";
 import { getContextLabel, getContextUIHints, shouldTriggerUIRefresh } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
@@ -31,9 +32,9 @@ declare global {
 
 export interface UseContextAwareReturn {
   /** Current detected context */
-  context: ReturnType<typeof useContextStore>["currentState"]["currentContext"]["context"];
+  context: ContextState["context"];
   /** Confidence level (low, medium, high) */
-  confidence: ReturnType<typeof useContextStore>["currentState"]["currentContext"]["confidence"];
+  confidence: ContextState["confidence"];
   /** Human-readable context label */
   contextLabel: string;
   /** Context-specific UI hints */
@@ -187,7 +188,7 @@ export function useContextAware(): UseContextAwareReturn {
     enabled: settings.enabled,
     showIndicator: settings.showIndicator,
     manualOverride: settings.manualOverride,
-    setManualOverride: (ctx) => setManualOverride(ctx),
+    setManualOverride: (ctx) => setManualOverride(ctx as UserContext | undefined),
     setSettings,
   };
 }

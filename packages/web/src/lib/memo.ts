@@ -31,10 +31,7 @@ interface MemoizeOptions {
  *   };
  *   const memoized = memoize(expensiveCalc, { maxSize: 50, ttl: 60000 });
  */
-export function memoize<T extends (...args: unknown[]) => ReturnType<T>>(
-  fn: T,
-  options: MemoizeOptions = {}
-): T {
+export function memoize<T extends (...args: any[]) => any>(fn: T, options: MemoizeOptions = {}): T {
   const { maxSize = 100, ttl = 5 * 60 * 1000 } = options;
   const cache = new Map<string, CacheEntry<ReturnType<T>>>();
 
@@ -75,7 +72,7 @@ export function memoize<T extends (...args: unknown[]) => ReturnType<T>>(
  *   };
  *   const memoizedFetch = memoizeAsync(fetchData);
  */
-export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(
+export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
   fn: T,
   options: MemoizeOptions = {}
 ): T {
@@ -127,7 +124,7 @@ export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>
  *     // perform search
  *   }, 300);
  */
-export function debounce<T extends (...args: unknown[]) => ReturnType<T>>(
+export function debounce<T extends (...args: any[]) => any>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {
@@ -153,7 +150,7 @@ export function debounce<T extends (...args: unknown[]) => ReturnType<T>>(
  *     // handle scroll
  *   }, 100);
  */
-export function throttle<T extends (...args: unknown[]) => ReturnType<T>>(
+export function throttle<T extends (...args: any[]) => any>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {

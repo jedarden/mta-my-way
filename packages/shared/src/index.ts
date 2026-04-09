@@ -145,6 +145,7 @@ export type {
 // =============================================================================
 
 export {
+  alertsQuerySchema,
   pushFavoriteTupleSchema,
   pushSubscribeRequestSchema,
   pushUnsubscribeRequestSchema,
@@ -162,9 +163,13 @@ export {
   delayPatternsQuerySchema,
   delayPredictionRequestSchema,
   delayProbabilityQuerySchema,
+  emptyQuerySchema,
+  equipmentQuerySchema,
   journalStatsQuerySchema,
   lineIdParamSchema,
   lineIdParamsSchema,
+  paginationQuerySchema,
+  positionsQuerySchema,
   routeIdParamSchema,
   routeIdParamsSchema,
   stationIdParamSchema,

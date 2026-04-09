@@ -2,7 +2,7 @@
  * SQL identifier validation tests.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   buildColumnList,
   buildPlaceholderList,
@@ -45,7 +45,7 @@ describe("SQL Identifier Validation", () => {
       expect(validateSqlIdentifier("users; DROP TABLE users--")).toBe(false);
       expect(validateSqlIdentifier("users OR 1=1")).toBe(false);
       expect(validateSqlIdentifier("users' OR '1'='1")).toBe(false);
-      expect(validateSqlIdentifier("users\" OR \"1\"=\"1")).toBe(false);
+      expect(validateSqlIdentifier('users" OR "1"="1')).toBe(false);
       expect(validateSqlIdentifier("users` OR `1`=`1")).toBe(false);
       expect(validateSqlIdentifier("users] OR [1]=[1")).toBe(false);
       expect(validateSqlIdentifier("users/* comment */")).toBe(false);
@@ -202,7 +202,7 @@ describe("SQL Identifier Validation", () => {
         "(SELECT CASE WHEN (1=1) THEN 1 ELSE 1*(SELECT table_name FROM information_schema.tables) END)=1",
         "users; EXEC xp_cmdshell('dir')--",
         "users' OR '1'='1",
-        "users\" OR \"1\"=\"1",
+        'users" OR "1"="1',
         "users` OR `1`=`1",
         "users] OR [1]=[1",
         "users/**/OR/**/1=1",
@@ -221,7 +221,7 @@ describe("SQL Identifier Validation", () => {
         "password; DROP TABLE users--",
         "id OR 1=1--",
         "name' UNION SELECT * FROM passwords--",
-        "email\" OR \"1\"=\"1",
+        'email" OR "1"="1',
         "data` OR `1`=`1",
         "value] OR [1]=[1",
         "field/**/OR/**/1=1",

@@ -9,7 +9,7 @@
  *   - destination: flag icon, bold text
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import type { TripStopProgress } from "../../hooks/useTripTracker";
 
 interface TripTrackerProps {
@@ -20,7 +20,7 @@ interface TripTrackerProps {
   isExpired: boolean;
 }
 
-export function TripTracker({
+export const TripTracker = memo(function TripTracker({
   stops,
   line: _line,
   destination: _destination,
@@ -39,16 +39,16 @@ export function TripTracker({
 
   // Generate accessible description of trip status
   const getTripStatusDescription = () => {
-    const currentStop = stops.find((s) => s.status === "current");
-    const nextStop = stops.find((s) => s.status === "next");
-    const destinationStop = stops.find((s) => s.status === "destination");
+    const currentStop = stops.find((stop) => stop.status === "current");
+    const nextStop = stops.find((stop) => stop.status === "next");
+    const destinationStop = stops.find((stop) => stop.status === "destination");
 
     if (isExpired) {
       return "Trip ended. This train has completed its run.";
     }
 
     if (currentStop) {
-      const remainingStops = stops.filter((s, i) => i >= stops.indexOf(currentStop)).length;
+      const remainingStops = stops.filter((_, i) => i >= stops.indexOf(currentStop)).length;
       return `Currently at ${currentStop.stationName}. ${remainingStops} ${remainingStops === 1 ? "stop" : "stops"} remaining.`;
     }
 
@@ -69,8 +69,8 @@ export function TripTracker({
 
   // Announce trip status changes to screen readers
   useEffect(() => {
-    const currentStop = stops.find((s) => s.status === "current");
-    const nextStop = stops.find((s) => s.status === "next");
+    const currentStop = stops.find((stop) => stop.status === "current");
+    const nextStop = stops.find((stop) => stop.status === "next");
 
     const currentState = {
       currentStopId: currentStop?.stopId ?? null,
@@ -133,7 +133,7 @@ export function TripTracker({
       )}
     </div>
   );
-}
+});
 
 interface StopRowProps {
   stop: TripStopProgress;
@@ -141,7 +141,7 @@ interface StopRowProps {
   isLast: boolean;
 }
 
-function StopRow({ stop, isFirst, isLast }: StopRowProps) {
+const StopRow = memo(function StopRow({ stop, isFirst, isLast }: StopRowProps) {
   return (
     <div className="flex items-stretch min-h-[3rem]">
       {/* Timeline track + dot */}
@@ -216,39 +216,39 @@ function StopRow({ stop, isFirst, isLast }: StopRowProps) {
       </div>
     </div>
   );
-}
+});
 
 // ─── Status dots ────────────────────────────────────────────────────────
 
-function PassedDot() {
+const PassedDot = memo(const PassedDot = memo(function PassedDot() {
   return <div className="w-3 h-3 rounded-full bg-mta-primary" aria-label="Passed" />;
-}
+});
 
-function CurrentDot() {
+const CurrentDot = memo(function CurrentDot() {
   return (
     <div
       className="w-4 h-4 rounded-full bg-mta-primary ring-2 ring-mta-primary/30 animate-pulse"
       aria-label="Current position"
     />
   );
-}
+});
 
-function NextDot() {
+const NextDot = memo(function NextDot() {
   return (
     <div
       className="w-3 h-3 rounded-full border-2 border-mta-primary bg-background dark:bg-dark-background"
       aria-label="Next stop"
     />
   );
-}
+});
 
-function UpcomingDot() {
+const UpcomingDot = memo(function UpcomingDot() {
   return (
     <div className="w-2 h-2 rounded-full bg-border dark:bg-dark-border" aria-label="Upcoming" />
   );
-}
+});
 
-function DestinationDot() {
+const DestinationDot = memo(function DestinationDot() {
   return (
     <svg
       width="16"

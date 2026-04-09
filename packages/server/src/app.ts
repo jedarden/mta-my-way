@@ -84,10 +84,15 @@ import {
 } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import {
+  auditLogAccess,
+  csrfProtection,
+  getCsrfToken,
   hppProtection,
   inputSanitization,
   rateLimiter,
   requestSizeLimits,
+  requireResourceAccess,
+  requireSameOrigin,
   securityHeaders,
   validateBody,
   validateParams,
@@ -361,6 +366,29 @@ export function createApp(
   // Input sanitization for all API routes (XSS, SQL injection prevention)
   app.use("/api/*", inputSanitization());
 
+  // CSRF protection for state-changing operations
+  // Excludes health, metrics, and safe read-only endpoints
+  app.use(
+    "/api/*",
+    csrfProtection({
+      excludePaths: [
+        "/api/health",
+        "/api/metrics",
+        "/api/stations",
+        "/api/routes",
+        "/api/static",
+        "/api/arrivals",
+        "/api/alerts",
+        "/api/equipment",
+        "/api/trip",
+        "/api/positions",
+        "/api/push/vapid-public-key",
+        "/api/journal",
+        "/api/context",
+      ],
+    })
+  );
+
   // HPP protection for all API routes (prevents parameter pollution attacks)
   app.use("/api/*", hppProtection({ strategy: "first" }));
 
@@ -386,6 +414,25 @@ export function createApp(
       if (!stationArrivals) return null;
       return [...stationArrivals.northbound, ...stationArrivals.southbound];
     },
+  });
+
+  // -------------------------------------------------------------------------
+  // CSRF token endpoint
+  // -------------------------------------------------------------------------
+  app.get("/api/csrf-token", (c) => {
+    const token = getCsrfToken(c);
+    if (!token) {
+      // Generate a new token if none exists
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      const newToken = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+
+      c.header("Set-Cookie", `csrf_token=${newToken}; Path=/; SameSite=Strict; HttpOnly; Secure`);
+
+      return c.json({ token: newToken });
+    }
+
+    return c.json({ token });
   });
 
   // -------------------------------------------------------------------------
@@ -664,7 +711,7 @@ export function createApp(
   // -------------------------------------------------------------------------
   // Commute analysis
   // -------------------------------------------------------------------------
-  app.post("/api/commute/analyze", async (c) => {
+  app.post("/api/commute/analyze", requireResourceAccess("commute", "create"), async (c) => {
     const startTime = Date.now();
     let success = false;
     let hasTransfers = false;
@@ -699,7 +746,7 @@ export function createApp(
         accessibleMode
       );
 
-      hasTransfers = analysis.routes.some((r) => r.transfers.length > 0);
+      hasTransfers = analysis.transferRoutes.length > 0;
       success = true;
 
       const duration = (Date.now() - startTime) / 1000;
@@ -1149,6 +1196,9 @@ export function createApp(
   // Push notification API
   // -------------------------------------------------------------------------
 
+  // Apply same-origin protection to all push subscription operations
+  app.use("/api/push/*", requireSameOrigin());
+
   /** Return the VAPID public key so the browser can create a push subscription */
   app.get("/api/push/vapid-public-key", (c) => {
     // Validate that no unexpected query parameters are passed
@@ -1165,113 +1215,137 @@ export function createApp(
   });
 
   /** Register a push subscription */
-  app.post("/api/push/subscribe", async (c) => {
-    try {
-      const body = await validateBody(c, pushSubscribeRequestSchema);
-      if (body instanceof Response) return body;
+  app.post(
+    "/api/push/subscribe",
+    requireResourceAccess("subscription", "create", { adminBypass: false }),
+    auditLogAccess("subscription", "create"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, pushSubscribeRequestSchema);
+        if (body instanceof Response) return body;
 
-      upsertSubscription(body);
+        upsertSubscription(body);
 
-      logger.info("Push subscription registered", {
-        lines: body.favorites?.map((f) => f.lines).flat() ?? [],
-        total_subscriptions: getSubscriptionCount(),
-      });
+        logger.info("Push subscription registered", {
+          lines: body.favorites?.map((f) => f.lines).flat() ?? [],
+          total_subscriptions: getSubscriptionCount(),
+        });
 
-      return c.json({ success: true });
-    } catch (err) {
-      logger.error("Push subscription registration failed", err as Error);
-      return c.json({ error: "Failed to register subscription" }, 500);
+        return c.json({ success: true });
+      } catch (err) {
+        logger.error("Push subscription registration failed", err as Error);
+        return c.json({ error: "Failed to register subscription" }, 500);
+      }
     }
-  });
+  );
 
   /** Remove a push subscription */
-  app.delete("/api/push/unsubscribe", async (c) => {
-    try {
-      const body = await validateBody(c, pushUnsubscribeRequestSchema);
-      if (body instanceof Response) return body;
+  app.delete(
+    "/api/push/unsubscribe",
+    requireResourceAccess("subscription", "delete", { adminBypass: false }),
+    auditLogAccess("subscription", "delete"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, pushUnsubscribeRequestSchema);
+        if (body instanceof Response) return body;
 
-      const removed = removeSubscription(body.endpoint);
+        const removed = removeSubscription(body.endpoint);
 
-      logger.info("Push subscription removed", {
-        removed,
-        total_subscriptions: getSubscriptionCount(),
-      });
+        logger.info("Push subscription removed", {
+          removed,
+          total_subscriptions: getSubscriptionCount(),
+        });
 
-      return c.json({ success: true });
-    } catch (err) {
-      logger.error("Push subscription removal failed", err as Error);
-      return c.json({ error: "Failed to remove subscription" }, 500);
+        return c.json({ success: true });
+      } catch (err) {
+        logger.error("Push subscription removal failed", err as Error);
+        return c.json({ error: "Failed to remove subscription" }, 500);
+      }
     }
-  });
+  );
 
   /** Update favorites or quiet hours for an existing push subscription */
-  app.patch("/api/push/subscription", async (c) => {
-    try {
-      const body = await validateBody(c, pushUpdateRequestSchema);
-      if (body instanceof Response) return body;
+  app.patch(
+    "/api/push/subscription",
+    requireResourceAccess("subscription", "update", { adminBypass: false }),
+    auditLogAccess("subscription", "update"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, pushUpdateRequestSchema);
+        if (body instanceof Response) return body;
 
-      if (body.favorites) {
-        updateSubscriptionFavorites(body.endpoint, body.favorites);
+        if (body.favorites) {
+          updateSubscriptionFavorites(body.endpoint, body.favorites);
+        }
+
+        if (body.quietHours) {
+          updateSubscriptionQuietHours(body.endpoint, body.quietHours);
+        }
+
+        if (body.morningScores) {
+          updateSubscriptionMorningScores(body.endpoint, body.morningScores);
+        }
+
+        return c.json({ success: true });
+      } catch (err) {
+        logger.error("Push subscription update failed", err as Error);
+        return c.json({ error: "Failed to update subscription" }, 500);
       }
-
-      if (body.quietHours) {
-        updateSubscriptionQuietHours(body.endpoint, body.quietHours);
-      }
-
-      if (body.morningScores) {
-        updateSubscriptionMorningScores(body.endpoint, body.morningScores);
-      }
-
-      return c.json({ success: true });
-    } catch (err) {
-      logger.error("Push subscription update failed", err as Error);
-      return c.json({ error: "Failed to update subscription" }, 500);
     }
-  });
+  );
 
   // -------------------------------------------------------------------------
   // Trip tracking and commute journal API (Phase 5)
   // -------------------------------------------------------------------------
 
+  // Apply same-origin protection to all trip tracking operations
+  app.use("/api/trips*", requireSameOrigin());
+  app.use("/api/journal/*", requireSameOrigin());
+
   /** Record a trip in the journal */
-  app.post("/api/trips", async (c) => {
-    try {
-      const body = await validateBody(c, tripCreateRequestSchema);
-      if (body instanceof Response) return body;
+  app.post(
+    "/api/trips",
+    requireResourceAccess("trip", "create"),
+    auditLogAccess("trip", "create"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, tripCreateRequestSchema);
+        if (body instanceof Response) return body;
 
-      const { date, origin, destination, line, departureTime, arrivalTime, notes } = body;
+        const { date, origin, destination, line, departureTime, arrivalTime, notes } = body;
 
-      const actualDurationMinutes = Math.round((arrivalTime - departureTime) / 60000);
+        const actualDurationMinutes = Math.round((arrivalTime - departureTime) / 60000);
 
-      const trip = recordTrip({
-        date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
-        origin,
-        destination,
-        line,
-        departureTime,
-        arrivalTime,
-        actualDurationMinutes,
-        source: "manual",
-        notes,
-      });
+        const trip = recordTrip({
+          date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
+          origin,
+          destination,
+          line,
+          departureTime,
+          arrivalTime,
+          actualDurationMinutes,
+          source: "manual",
+          notes,
+        });
 
-      if (!trip) {
-        return c.json({ error: "Failed to record trip" }, 500);
+        if (!trip) {
+          return c.json({ error: "Failed to record trip" }, 500);
+        }
+
+        c.header("Cache-Control", "no-cache");
+        return c.json({ success: true, trip }, 201);
+      } catch (error) {
+        logger.error("Trip recording failed", error as Error);
+        return c.json(
+          {
+            error: "Failed to record trip",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+          500
+        );
       }
-
-      c.header("Cache-Control", "no-cache");
-      return c.json({ success: true, trip }, 201);
-    } catch (error) {
-      logger.error("Trip recording failed", error as Error);
-      return c.json(
-        {
-          error: "Failed to record trip",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-        500
-      );
     }
-  });
+  );
 
   /** Get trips from the journal with optional filters */
   app.get("/api/trips", (c) => {
@@ -1306,39 +1380,49 @@ export function createApp(
   });
 
   /** Update trip notes */
-  app.patch("/api/trips/:tripId/notes", async (c) => {
-    const params = validateParams(c, tripIdParamsSchema);
-    if (params instanceof Response) return params;
+  app.patch(
+    "/api/trips/:tripId/notes",
+    requireResourceAccess("trip", "update"),
+    auditLogAccess("trip", "update"),
+    async (c) => {
+      const params = validateParams(c, tripIdParamsSchema);
+      if (params instanceof Response) return params;
 
-    const body = await validateBody(c, tripNotesUpdateRequestSchema);
-    if (body instanceof Response) return body;
+      const body = await validateBody(c, tripNotesUpdateRequestSchema);
+      if (body instanceof Response) return body;
 
-    const { tripId } = params;
-    const { notes } = body;
+      const { tripId } = params;
+      const { notes } = body;
 
-    const success = updateTripNotes(tripId, notes);
+      const success = updateTripNotes(tripId, notes);
 
-    if (!success) {
-      return c.json({ error: "Trip not found" }, 404);
+      if (!success) {
+        return c.json({ error: "Trip not found" }, 404);
+      }
+
+      return c.json({ success: true });
     }
-
-    return c.json({ success: true });
-  });
+  );
 
   /** Delete a trip from the journal */
-  app.delete("/api/trips/:tripId", (c) => {
-    const params = validateParams(c, tripIdParamsSchema);
-    if (params instanceof Response) return params;
+  app.delete(
+    "/api/trips/:tripId",
+    requireResourceAccess("trip", "delete"),
+    auditLogAccess("trip", "delete"),
+    (c) => {
+      const params = validateParams(c, tripIdParamsSchema);
+      if (params instanceof Response) return params;
 
-    const { tripId } = params;
-    const success = deleteTrip(tripId);
+      const { tripId } = params;
+      const success = deleteTrip(tripId);
 
-    if (!success) {
-      return c.json({ error: "Trip not found" }, 404);
+      if (!success) {
+        return c.json({ error: "Trip not found" }, 404);
+      }
+
+      return c.json({ success: true });
     }
-
-    return c.json({ success: true });
-  });
+  );
 
   /** Get commute statistics */
   app.get("/api/journal/stats", (c) => {
@@ -1391,6 +1475,9 @@ export function createApp(
   // Context-aware switching API (Phase 5)
   // -------------------------------------------------------------------------
 
+  // Apply same-origin protection to context operations
+  app.use("/api/context/*", requireSameOrigin());
+
   /** Get current context and UI hints */
   app.get("/api/context", (c) => {
     // Validate that no unexpected query parameters are passed
@@ -1404,7 +1491,7 @@ export function createApp(
   });
 
   /** Detect context from request parameters */
-  app.post("/api/context/detect", async (c) => {
+  app.post("/api/context/detect", requireResourceAccess("context", "create"), async (c) => {
     try {
       const body = await validateBody(c, contextDetectRequestSchema);
       if (body instanceof Response) return body;
@@ -1426,21 +1513,26 @@ export function createApp(
   });
 
   /** Set manual context override */
-  app.post("/api/context/override", async (c) => {
-    try {
-      const body = await validateBody(c, contextOverrideRequestSchema);
-      if (body instanceof Response) return body;
+  app.post(
+    "/api/context/override",
+    requireResourceAccess("context", "update"),
+    auditLogAccess("context", "update"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, contextOverrideRequestSchema);
+        if (body instanceof Response) return body;
 
-      const { context } = body;
-      const newContext = setManualContext(context);
+        const { context } = body;
+        const newContext = setManualContext(context);
 
-      c.header("Cache-Control", "no-cache");
-      return c.json({ success: true, context: newContext });
-    } catch (error) {
-      logger.error("Context override failed", error as Error);
-      return c.json({ error: "Failed to set context override" }, 500);
+        c.header("Cache-Control", "no-cache");
+        return c.json({ success: true, context: newContext });
+      } catch (error) {
+        logger.error("Context override failed", error as Error);
+        return c.json({ error: "Failed to set context override" }, 500);
+      }
     }
-  });
+  );
 
   /** Clear manual context override */
   app.post("/api/context/clear", async (c) => {
@@ -1454,19 +1546,24 @@ export function createApp(
   });
 
   /** Update context settings */
-  app.patch("/api/context/settings", async (c) => {
-    try {
-      const body = await validateBody(c, contextSettingsUpdateRequestSchema);
-      if (body instanceof Response) return body;
+  app.patch(
+    "/api/context/settings",
+    requireResourceAccess("context", "update"),
+    auditLogAccess("context", "update"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, contextSettingsUpdateRequestSchema);
+        if (body instanceof Response) return body;
 
-      updateContextSettings(body);
+        updateContextSettings(body);
 
-      return c.json({ success: true, settings: getContextSettings() });
-    } catch (error) {
-      logger.error("Context settings update failed", error as Error);
-      return c.json({ error: "Failed to update context settings" }, 500);
+        return c.json({ success: true, settings: getContextSettings() });
+      } catch (error) {
+        logger.error("Context settings update failed", error as Error);
+        return c.json({ error: "Failed to update context settings" }, 500);
+      }
     }
-  });
+  );
 
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)

@@ -255,6 +255,18 @@ export class SecurityEventLogger {
   logUnusualActivity(c: Context, activityType: string, description: string): void {
     this.log("unusual_activity", "low", c, { activityType, description });
   }
+
+  /**
+   * Log suspicious activity with severity level.
+   */
+  logSuspiciousActivity(
+    c: Context,
+    activityType: string,
+    description: string,
+    severity: SecuritySeverity = "medium"
+  ): void {
+    this.log("suspicious_request", severity, c, { activityType, description });
+  }
 }
 
 /**

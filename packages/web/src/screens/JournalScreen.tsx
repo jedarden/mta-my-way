@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { LineBullet } from "../components/arrivals/LineBullet";
 import { DataState, Skeleton } from "../components/common";
 import Screen from "../components/layout/Screen";
+import { sanitizeUserInput } from "../lib/outputEncoding";
 import { useFavoritesStore, useJournalStore } from "../stores";
 
 // Lazy load modal component - only loaded when needed
@@ -288,7 +289,7 @@ function TripHistoryList({ commuteId, records, onEditTrip }: TripHistoryListProp
                 </div>
                 {trip.notes && (
                   <p className="text-11 text-text-secondary dark:text-dark-text-secondary mt-1 line-clamp-2">
-                    {trip.notes}
+                    {sanitizeUserInput(trip.notes)}
                   </p>
                 )}
               </div>

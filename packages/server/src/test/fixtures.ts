@@ -45,8 +45,8 @@ function makeStopTimeUpdate(
   arrivalSeconds: number,
   scheduledTrack?: string,
   actualTrack?: string
-): transit_realtime.IStopTimeUpdate {
-  const stu: transit_realtime.IStopTimeUpdate = {
+): transit_realtime.TripUpdate.IStopTimeUpdate {
+  const stu: transit_realtime.TripUpdate.IStopTimeUpdate = {
     stopId,
     arrival: { time: arrivalSeconds },
     departure: { time: arrivalSeconds + 30 },
@@ -63,7 +63,7 @@ function makeStopTimeUpdate(
 function makeTripUpdate(
   tripId: string,
   routeId: string,
-  stopTimeUpdates: transit_realtime.IStopTimeUpdate[],
+  stopTimeUpdates: transit_realtime.TripUpdate.IStopTimeUpdate[],
   options: {
     isAssigned?: boolean;
     trainId?: string;

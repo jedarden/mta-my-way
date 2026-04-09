@@ -4,6 +4,7 @@
 
 import type { StationIndex } from "@mta-my-way/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ParsedFeed } from "./parser.js";
 
 // Mock the cache module
 vi.mock("./cache.js", () => ({
@@ -19,29 +20,38 @@ const mockStations: StationIndex = {
   R01: {
     id: "R01",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "R01N",
     southStopId: "R01S",
-    accessible: false,
+    transfers: [],
+    ada: false,
+    borough: "manhattan",
   },
   R02: {
     id: "R02",
     name: "Rector Street",
-    location: { lat: 40.704, lon: -74.013 },
+    lat: 40.704,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "R02N",
     southStopId: "R02S",
-    accessible: true,
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
   },
   R03: {
     id: "R03",
     name: "WTC Cortlandt",
-    location: { lat: 40.707, lon: -74.013 },
+    lat: 40.707,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "R03N",
     southStopId: "R03S",
-    accessible: true,
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
   },
 };
 
@@ -56,13 +66,15 @@ function createMockFeed(
     scheduledTrack?: string;
     actualTrack?: string;
   }>
-) {
+): ParsedFeed {
   const now = Math.floor(Date.now() / 1000);
 
   return {
+    feedId: "feed1",
     message: {
       header: {
-        timestamp: { toNumber: () => now },
+        timestamp: now,
+        toJSON: () => ({}),
       },
       entity: [
         {
@@ -79,10 +91,8 @@ function createMockFeed(
             },
             stopTimeUpdate: stops.map((s) => ({
               stopId: s.stopId,
-              arrival: s.arrivalTime ? { time: { toNumber: () => s.arrivalTime } } : undefined,
-              departure: s.departureTime
-                ? { time: { toNumber: () => s.departureTime } }
-                : undefined,
+              arrival: s.arrivalTime ? { time: s.arrivalTime } : undefined,
+              departure: s.departureTime ? { time: s.departureTime } : undefined,
               // @ts-expect-error - nyct extension
               ".transit_realtime.nyctStopTimeUpdate": {
                 scheduledTrack: s.scheduledTrack ?? null,
@@ -92,7 +102,11 @@ function createMockFeed(
           },
         },
       ],
+      toJSON: () => ({}),
     },
+    feedTimestamp: now,
+    entityCount: 1,
+    tripReplacementPeriod: null,
   };
 }
 
@@ -279,13 +293,8 @@ describe("lookupTrip", () => {
 
     const mockFeed = createMockFeed("trip-age", "1", [{ stopId: "R01N", departureTime: feedTime }]);
 
-    // Update header timestamp - mock as a Number-like object that converts properly
-    const timestampObj = {
-      toNumber: () => feedTime,
-      valueOf: () => feedTime,
-      [Symbol.toPrimitive]: () => feedTime,
-    } as unknown as number;
-    mockFeed.message.header.timestamp = timestampObj;
+    // Update feed timestamp
+    mockFeed.feedTimestamp = feedTime;
 
     vi.mocked(getAllParsedFeeds).mockReturnValue(new Map([["feed1", mockFeed]]));
 

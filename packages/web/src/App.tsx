@@ -1,12 +1,10 @@
-import { Suspense, lazy } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Suspense, lazy, useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import {
   ErrorBoundary,
   LiveRegion,
   OfflineBanner,
-  PWAInstallPrompt,
   ScreenErrorBoundary,
-  ServiceWorkerUpdatePrompt,
   useRouteChangeAnnouncer,
 } from "./components/common";
 
@@ -26,6 +24,18 @@ const LineDiagramScreen = lazy(() => import("./screens/LineDiagramScreen"));
 const JournalScreen = lazy(() => import("./screens/JournalScreen"));
 const StatsScreen = lazy(() => import("./screens/StatsScreen"));
 
+// PWA prompts are lazy-loaded (only shown conditionally)
+const ServiceWorkerUpdatePrompt = lazy(() =>
+  import("./components/common/ServiceWorkerUpdatePrompt").then((m) => ({
+    default: m.ServiceWorkerUpdatePrompt,
+  }))
+);
+const PWAInstallPrompt = lazy(() =>
+  import("./components/common/ServiceWorkerUpdatePrompt").then((m) => ({
+    default: m.PWAInstallPrompt,
+  }))
+);
+
 function App() {
   return (
     <ErrorBoundary>
@@ -33,8 +43,10 @@ function App() {
         <OfflineBanner />
         <AppRoutes />
       </BrowserRouter>
-      <ServiceWorkerUpdatePrompt />
-      <PWAInstallPrompt />
+      <Suspense fallback={null}>
+        <ServiceWorkerUpdatePrompt />
+        <PWAInstallPrompt />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -43,6 +55,9 @@ function App() {
 function AppRoutes() {
   // Announce route changes to screen readers
   useRouteChangeAnnouncer();
+
+  // Prefetch likely next routes based on current location
+  useRoutePrefetch();
 
   return (
     <>
@@ -173,6 +188,31 @@ function LoadingFallback() {
       <span className="sr-only">Loading...</span>
     </div>
   );
+}
+
+/**
+ * Prefetch route chunks based on current location.
+ * On home screen, prefetch the most likely next screens.
+ */
+function useRoutePrefetch() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Only prefetch on home screen to save bandwidth
+    if (location.pathname !== "/") return;
+
+    // Prefetch the most commonly accessed screens after home
+    const prefetchTimer = setTimeout(() => {
+      // SearchScreen (users often search after home)
+      import("./screens/SearchScreen");
+      // AlertsScreen (commuters check alerts frequently)
+      import("./screens/AlertsScreen");
+      // MapScreen (visual navigation is popular)
+      import("./screens/MapScreen");
+    }, 1500); // Delay 1.5s to prioritize initial render
+
+    return () => clearTimeout(prefetchTimer);
+  }, [location.pathname]);
 }
 
 export default App;

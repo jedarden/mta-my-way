@@ -56,12 +56,17 @@ const persistConfig: PersistOptions<ContextStateInternal> = {
   storage: createJSONStorage(() => localStorage),
   version: STORE_VERSION,
   migrate: createSafeMigration<ContextStateInternal>("context", STORE_VERSION, migrations),
-  partialize: (state) =>
-    ({
-      // Only persist settings, not the dynamic context state
-      settings: state.settings,
-      transitionHistory: state.transitionHistory.slice(-50), // Keep last 50 transitions
-    }) as Partial<ContextStateInternal>,
+  partialize: (state) => ({
+    // Only persist settings, not the dynamic context state
+    settings: state.settings,
+    transitionHistory: state.transitionHistory.slice(-50), // Keep last 50 transitions
+    // Include dummy values for non-persisted properties to satisfy type checker
+    currentContext: state.currentContext,
+    updateContext: state.updateContext,
+    setSettings: state.setSettings,
+    setManualOverride: state.setManualOverride,
+    clearTransitionHistory: state.clearTransitionHistory,
+  }),
 };
 
 export const useContextStore = create<ContextStateInternal>()(

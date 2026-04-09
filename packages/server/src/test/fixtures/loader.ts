@@ -139,8 +139,8 @@ export function getSyntheticFeedIds(): SyntheticFixtureId[] {
 /**
  * Get all available edge case IDs.
  */
-export function getEdgeCaseIds(): string[] {
-  return Object.keys(EDGE_CASE_GENERATORS);
+export function getEdgeCaseIds(): Array<FixtureId | SyntheticFixtureId> {
+  return Object.keys(EDGE_CASE_GENERATORS) as Array<FixtureId | SyntheticFixtureId>;
 }
 
 /**

@@ -76,12 +76,14 @@ describe("stationSearch", () => {
       name: "Times Sq - 42 St",
       stations: ["127"],
       allLines: ["1", "2", "3", "7", "N", "R", "W"],
+      allStopIds: ["127N", "127S"],
     },
     {
       complexId: "complex2",
       name: "Grand Central - 42 St",
       stations: ["130"],
       allLines: ["4", "5", "6", "7", "S"],
+      allStopIds: ["130N", "130S"],
     },
   ];
 

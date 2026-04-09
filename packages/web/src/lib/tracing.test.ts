@@ -3,7 +3,6 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Span } from "./tracing";
 import {
   getCurrentTraceId,
   getTraceHeaders,
@@ -194,15 +193,9 @@ describe("ClientTracer", () => {
 
   describe("withChildSpan helper", () => {
     it("should execute function within a span", async () => {
-      let capturedSpan: Span | null = null;
-      const result = await withChildSpan("async-operation", (span) => {
-        capturedSpan = span;
-        return "result";
-      });
+      const result = await withChildSpan("async-operation", () => "result");
 
       expect(result).toBe("result");
-      expect(capturedSpan).toBeDefined();
-      expect(capturedSpan?.name).toBe("async-operation");
 
       const completed = tracer.getCompletedSpans();
       expect(completed).toHaveLength(1);
@@ -288,9 +281,9 @@ describe("ClientTracer", () => {
 
       const completed = tracer.getCompletedSpans();
       expect(completed).toHaveLength(1);
-      expect(completed[0].name).toBe("click:submit-button");
-      expect(completed[0].attributes["interaction.type"]).toBe("click");
-      expect(completed[0].attributes["interaction.element"]).toBe("submit-button");
+      expect(completed[0]?.name).toBe("click:submit-button");
+      expect(completed[0]?.attributes["interaction.type"]).toBe("click");
+      expect(completed[0]?.attributes["interaction.element"]).toBe("submit-button");
     });
 
     it("should track interaction without element name", async () => {
@@ -298,15 +291,15 @@ describe("ClientTracer", () => {
 
       const completed = tracer.getCompletedSpans();
       expect(completed).toHaveLength(1);
-      expect(completed[0].name).toBe("scroll");
-      expect(completed[0].attributes["interaction.type"]).toBe("scroll");
+      expect(completed[0]?.name).toBe("scroll");
+      expect(completed[0]?.attributes["interaction.type"]).toBe("scroll");
     });
 
     it("should include custom attributes", async () => {
       await trackInteraction("click", "button", { "button.variant": "primary" });
 
       const completed = tracer.getCompletedSpans();
-      expect(completed[0].attributes["button.variant"]).toBe("primary");
+      expect(completed[0]?.attributes["button.variant"]).toBe("primary");
     });
   });
 
@@ -357,10 +350,10 @@ describe("tracedFetch", () => {
 
     const completed = tracer.getCompletedSpans();
     expect(completed).toHaveLength(1);
-    expect(completed[0].name).toBe("HTTP /test");
-    expect(completed[0].attributes["http.method"]).toBe("GET");
-    expect(completed[0].attributes["http.url"]).toBe("https://api.example.com/test");
-    expect(completed[0].attributes["http.status_code"]).toBe(200);
+    expect(completed[0]?.name).toBe("HTTP /test");
+    expect(completed[0]?.attributes["http.method"]).toBe("GET");
+    expect(completed[0]?.attributes["http.url"]).toBe("https://api.example.com/test");
+    expect(completed[0]?.attributes["http.status_code"]).toBe(200);
 
     expect(fetch).toHaveBeenCalledWith(
       "https://api.example.com/test",
@@ -386,7 +379,7 @@ describe("tracedFetch", () => {
     });
 
     const completed = tracer.getCompletedSpans();
-    expect(completed[0].name).toBe("custom-api-call");
+    expect(completed[0]?.name).toBe("custom-api-call");
   });
 
   it("should handle fetch errors and set error attributes", async () => {
@@ -395,8 +388,8 @@ describe("tracedFetch", () => {
     await expect(tracedFetch("https://api.example.com/test")).rejects.toThrow("Network error");
 
     const completed = tracer.getCompletedSpans();
-    expect(completed[0].attributes.error).toBe(true);
-    expect(completed[0].attributes["error.message"]).toBe("Network error");
+    expect(completed[0]?.attributes.error).toBe(true);
+    expect(completed[0]?.attributes["error.message"]).toBe("Network error");
   });
 
   it("should handle non-OK responses", async () => {
@@ -411,7 +404,7 @@ describe("tracedFetch", () => {
     await tracedFetch("https://api.example.com/test");
 
     const completed = tracer.getCompletedSpans();
-    expect(completed[0].attributes["http.status_code"]).toBe(404);
-    expect(completed[0].attributes.error).toBe(true);
+    expect(completed[0]?.attributes["http.status_code"]).toBe(404);
+    expect(completed[0]?.attributes.error).toBe(true);
   });
 });

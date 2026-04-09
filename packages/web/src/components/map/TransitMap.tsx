@@ -11,7 +11,9 @@
  */
 
 import type { InterpolatedTrainPosition, LineDiagramData, Station } from "@mta-my-way/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo } from "react";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { useLiveAnnouncer } from "../common/LiveAnnouncer";
 
 interface TransitMapProps {
@@ -44,7 +46,7 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.2;
 
-export function TransitMap({
+export const TransitMap = memo(function TransitMap({
   stations,
   lineData,
   onStationTap,
@@ -365,7 +367,7 @@ export function TransitMap({
       )}
     </div>
   );
-}
+});
 
 // ─── StationMarker Component ─────────────────────────────────────────────
 
@@ -376,7 +378,7 @@ interface StationMarkerProps {
   onTap?: (station: Station) => void;
 }
 
-function StationMarker({ station, x, y, onTap }: StationMarkerProps) {
+const StationMarker = memo(function StationMarker({ station, x, y, onTap }: StationMarkerProps) {
   const handleClick = useCallback(() => {
     onTap?.(station);
   }, [station, onTap]);
@@ -396,7 +398,7 @@ function StationMarker({ station, x, y, onTap }: StationMarkerProps) {
         }
       }}
       className="cursor-pointer focus:outline-none"
-      aria-label={`${station.name}${isTransfer ? ` (transfer station)` : ""}`}
+      aria-label={`${sanitizeUserInput(station.name)}${isTransfer ? ` (transfer station)` : ""}`}
     >
       {/* Transfer indicator ring */}
       {isTransfer && (
@@ -421,10 +423,10 @@ function StationMarker({ station, x, y, onTap }: StationMarkerProps) {
         className="dark:stroke-dark-text-primary transition-transform hover:scale-125"
       />
       {/* Station name on hover */}
-      <title>{station.name}</title>
+      <title>{sanitizeUserInput(station.name)}</title>
     </g>
   );
-}
+});
 
 // ─── TrainMarker Component ───────────────────────────────────────────────
 
@@ -437,14 +439,21 @@ interface TrainMarkerProps {
   onTap?: (train: InterpolatedTrainPosition & { routeId: string }) => void;
 }
 
-function TrainMarker({ train, routeId, routeColor, x, y, onTap }: TrainMarkerProps) {
+const TrainMarker = memo(function TrainMarker({
+  train,
+  routeId,
+  routeColor,
+  x,
+  y,
+  onTap,
+}: TrainMarkerProps) {
   const [isPulsing] = useState(Math.random() > 0.5);
 
   const handleClick = useCallback(() => {
     onTap?.({ ...train, routeId });
   }, [train, routeId, onTap]);
 
-  const trainLabel = `${train.direction === "N" ? "Northbound" : "Southbound"} ${routeId} train to ${train.destination}`;
+  const trainLabel = `${train.direction === "N" ? "Northbound" : "Southbound"} ${routeId} train to ${sanitizeUserInput(train.destination)}`;
 
   return (
     <g
@@ -461,7 +470,7 @@ function TrainMarker({ train, routeId, routeColor, x, y, onTap }: TrainMarkerPro
       aria-label={trainLabel}
     >
       {/* Screen reader title for hover */}
-      <title>{trainLabel}</title>
+      <title>{sanitizeUserInput(trainLabel)}</title>
       {/* Pulsing ring for visibility */}
       <circle cx={x} cy={y} r={8} fill="none" stroke={routeColor} strokeWidth={2} opacity={0.4}>
         <animate
@@ -502,6 +511,6 @@ function TrainMarker({ train, routeId, routeColor, x, y, onTap }: TrainMarkerPro
       </text>
     </g>
   );
-}
+});
 
 export default TransitMap;

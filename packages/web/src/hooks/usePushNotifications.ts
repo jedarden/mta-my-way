@@ -20,8 +20,14 @@
  *      if the tab was backgrounded.
  */
 
-import type { MorningScoreMap, PushFavoriteTuple, PushSubscribeRequest } from "@mta-my-way/shared";
+import type {
+  MorningScoreMap,
+  PushFavoriteTuple,
+  PushSubscribeRequest,
+  PushUpdateRequest,
+} from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "../lib/api";
 import { useFavoritesStore } from "../stores/favoritesStore";
 import { useSettingsStore } from "../stores/settingsStore";
 
@@ -253,9 +259,7 @@ export function usePushNotifications(): PushNotificationsState {
       // 2. Get VAPID public key — try network first, fall back to cached value
       let publicKey: string;
       try {
-        const vapidRes = await fetch("/api/push/vapid-public-key");
-        if (!vapidRes.ok) throw new Error("Push notifications are not configured on the server");
-        const json = (await vapidRes.json()) as { publicKey: string };
+        const json = await api.getVapidPublicKey();
         publicKey = json.publicKey;
         cacheVapidKey(publicKey);
       } catch (fetchErr) {
@@ -303,12 +307,7 @@ export function usePushNotifications(): PushNotificationsState {
       };
 
       try {
-        const res = await fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error("Failed to register subscription with server");
+        await api.subscribePush(body);
         setIsSubscribed(true);
       } catch (regErr) {
         // Browser subscription succeeded but backend registration failed.
@@ -341,11 +340,7 @@ export function usePushNotifications(): PushNotificationsState {
       if (pushSub) {
         // Attempt to remove from backend first
         try {
-          await fetch("/api/push/unsubscribe", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ endpoint: pushSub.endpoint }),
-          });
+          await api.unsubscribePush({ endpoint: pushSub.endpoint });
         } catch {
           // Queue the deletion if offline; unsubscribe from the browser regardless
           if (!navigator.onLine) {
@@ -377,25 +372,14 @@ export function usePushNotifications(): PushNotificationsState {
 
     if (op.type === "subscribe") {
       try {
-        const res = await fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(op.body),
-        });
-        if (!res.ok) {
-          // Put it back; we'll retry next time
-          queuePendingOp(op);
-        }
+        await api.subscribePush(op.body);
       } catch {
+        // Put it back; we'll retry next time
         queuePendingOp(op);
       }
     } else if (op.type === "unsubscribe") {
       try {
-        await fetch("/api/push/unsubscribe", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: op.endpoint }),
-        });
+        await api.unsubscribePush({ endpoint: op.endpoint });
       } catch {
         queuePendingOp(op);
       }

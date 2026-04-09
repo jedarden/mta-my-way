@@ -14,7 +14,7 @@
  */
 
 import type { Commute } from "@mta-my-way/shared";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertBanner } from "../components/alerts";
 import { DataState, Skeleton } from "../components/common";
