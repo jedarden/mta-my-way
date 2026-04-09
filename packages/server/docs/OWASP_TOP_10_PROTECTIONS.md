@@ -16,6 +16,8 @@ This document describes how MTA My Way addresses each of the OWASP Top 10 (2021)
 | Host Header Protection | Validates Host header to prevent poisoning | `middleware/host-header-protection.ts` |
 | Path Traversal Prevention | Blocks `../` and encoded variants | `middleware/path-traversal.ts` |
 | Parameter Pollution Protection | Detects and blocks duplicate parameters | `middleware/parameter-pollution.ts` |
+| Mass Assignment Protection | Field allow-listing to prevent privilege escalation | `middleware/mass-assignment.ts` |
+| Open Redirect Protection | Validates redirect URLs against allow-lists | `middleware/open-redirect.ts` |
 
 ### Configuration
 
@@ -37,6 +39,8 @@ app.use("/api/*", csrfProtection({
 Run CSRF protection tests:
 ```bash
 npm test -- middleware/csrf-protection.test.ts
+npm test -- middleware/mass-assignment.test.ts
+npm test -- middleware/open-redirect.test.ts
 ```
 
 ---
