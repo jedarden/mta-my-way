@@ -187,7 +187,7 @@ function useEffectDebouncedCallback<T extends (...args: unknown[]) => void>(
  */
 export function useThrottle<T>(value: T, delay: number = 100): T {
   const [throttledValue, setThrottledValue] = useState<T>(value);
-  const lastExecutedRef = useRef<number>(Date.now());
+  const lastExecutedRef = useRef<number>(0);
 
   useEffect(() => {
     const now = Date.now();

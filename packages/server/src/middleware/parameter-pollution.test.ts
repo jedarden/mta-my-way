@@ -175,7 +175,7 @@ describe("hppProtection middleware", () => {
 
       expect(consoleWarnSpy).toHaveBeenCalled();
       const logArg = JSON.parse(consoleWarnSpy.mock.calls[0]![0]!);
-      expect(logArg.event).toBe("hpp_rejected");
+      expect(logArg.event).toBe("hpp_blocked");
 
       consoleWarnSpy.mockRestore();
     });

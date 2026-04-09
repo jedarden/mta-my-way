@@ -136,7 +136,9 @@ export async function getPrefetchedStationIds(): Promise<string[]> {
   return keys
     .map((req) => {
       // Extract stationId from URL pattern: /api/arrivals/{stationId}
-      const match = req.url.match(/\/api\/arrivals\/([^/?]+)/);
+      // req.url can be a string or URL object
+      const urlStr = typeof req.url === "string" ? req.url : req.url.href || req.url.pathname || "";
+      const match = urlStr.match(/\/api\/arrivals\/([^/?]+)/);
       return match ? match[1] : null;
     })
     .filter((id): id is string => id !== null);

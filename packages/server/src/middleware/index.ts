@@ -134,9 +134,28 @@ export {
 } from "./authorization.js";
 export {
   securityLogger,
+  securityLogging,
   logAuthFailure,
   logAuthzFailure,
   logSuspiciousActivity,
   logSuspiciousRequest,
   logRateLimitExceeded,
 } from "./security-logging.js";
+export {
+  massAssignmentProtection,
+  validateMassAssignment,
+  filterAllowedFields,
+  removeSensitiveFields,
+  PUSH_SUBSCRIPTION_FIELDS,
+  TRIP_NOTES_FIELDS,
+  CONTEXT_SETTINGS_FIELDS,
+  COMMUTE_ANALYZE_FIELDS,
+  getSanitizedBody,
+} from "./mass-assignment.js";
+export {
+  openRedirectProtection,
+  validateRedirectUrl,
+  createSafeRedirect,
+  OAUTH_ALLOWED_HOSTNAMES,
+  SAFE_REDIRECT_TARGETS,
+} from "./open-redirect.js";

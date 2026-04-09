@@ -47,8 +47,15 @@ export const TripTracker = memo(function TripTracker({
       return "Trip ended. This train has completed its run.";
     }
 
+    // Check if next stop is arriving now (minutesAway === 0) - this should be announced with higher priority
+    if (nextStop && nextStop.minutesAway === 0) {
+      return `Approaching ${nextStop.stationName} now.`;
+    }
+
     if (currentStop) {
-      const remainingStops = stops.filter((_, i) => i >= stops.indexOf(currentStop)).length;
+      const currentStopIndex = stops.indexOf(currentStop);
+      // Count stops after current (excluding current stop itself)
+      const remainingStops = stops.filter((_, i) => i > currentStopIndex).length;
       return `Currently at ${currentStop.stationName}. ${remainingStops} ${remainingStops === 1 ? "stop" : "stops"} remaining.`;
     }
 

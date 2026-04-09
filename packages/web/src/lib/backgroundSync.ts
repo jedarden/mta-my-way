@@ -190,7 +190,7 @@ export class BackgroundSyncManager {
       try {
         await this.retryRequest(request);
         await this.deleteRequest(request.id);
-      } catch (error) {
+      } catch {
         // Increment retry count and update in DB
         request.retryCount++;
         if (request.retryCount >= request.maxRetries) {
@@ -290,8 +290,10 @@ export function useBackgroundSync() {
     void initManager();
 
     // Update queue size periodically
-    const interval = setInterval(async () => {
-      setQueueSize(await manager.getQueueSize());
+    const interval = setInterval(() => {
+      void (async () => {
+        setQueueSize(await manager.getQueueSize());
+      })();
     }, 5000);
 
     return () => clearInterval(interval);

@@ -125,6 +125,15 @@ export function validateUrl(
     };
   }
 
+  // Check for IPv6 zone identifiers before URL parsing (can cause parsing issues)
+  // Zone identifiers like %eth0 can be used for SSRF attacks
+  if (urlString.includes("%") && urlString.includes("]")) {
+    return {
+      valid: false,
+      reason: "ipv6_zone_id_blocked",
+    };
+  }
+
   let url: URL;
   try {
     url = new URL(urlString);
@@ -145,7 +154,44 @@ export function validateUrl(
 
   const hostname = url.hostname.toLowerCase();
 
-  // Check blocked hostnames (deny-list)
+  // Check for localhost first (before other checks)
+  if (mergedOptions.blockLocalhost) {
+    if (
+      hostname === "localhost" ||
+      hostname === "localhost.localdomain" ||
+      hostname.endsWith(".localhost") ||
+      hostname === "[::1]"
+    ) {
+      return {
+        valid: false,
+        reason: "localhost_blocked",
+      };
+    }
+  }
+
+  // Check for private network IPs (including 127.0.0.1)
+  if (mergedOptions.blockPrivateNetworks) {
+    for (const pattern of PRIVATE_NETWORK_PATTERNS) {
+      if (pattern.test(hostname)) {
+        return {
+          valid: false,
+          reason: "private_ip_blocked",
+        };
+      }
+    }
+  }
+
+  // Check for link-local addresses BEFORE blocked hostnames
+  // This ensures 169.254.169.254 returns link_local_blocked
+  if (mergedOptions.blockLinkLocal && LINK_LOCAL_PATTERN.test(hostname)) {
+    return {
+      valid: false,
+      reason: "link_local_blocked",
+    };
+  }
+
+  // Check blocked hostnames (deny-list) AFTER network checks
+  // This allows more specific error messages
   for (const blocked of mergedOptions.blockedHostnames) {
     if (hostname === blocked.toLowerCase() || hostname.endsWith(`.${blocked.toLowerCase()}`)) {
       return {
@@ -167,49 +213,6 @@ export function validateUrl(
         reason: "hostname_not_allowed",
       };
     }
-  }
-
-  // Check for localhost
-  if (mergedOptions.blockLocalhost) {
-    if (
-      hostname === "localhost" ||
-      hostname === "localhost.localdomain" ||
-      hostname.endsWith(".localhost") ||
-      hostname === "[::1]"
-    ) {
-      return {
-        valid: false,
-        reason: "localhost_blocked",
-      };
-    }
-  }
-
-  // Check for private network IPs
-  if (mergedOptions.blockPrivateNetworks) {
-    for (const pattern of PRIVATE_NETWORK_PATTERNS) {
-      if (pattern.test(hostname)) {
-        return {
-          valid: false,
-          reason: "private_ip_blocked",
-        };
-      }
-    }
-  }
-
-  // Check for link-local addresses
-  if (mergedOptions.blockLinkLocal && LINK_LOCAL_PATTERN.test(hostname)) {
-    return {
-      valid: false,
-      reason: "link_local_blocked",
-    };
-  }
-
-  // Check for IPv6 zone identifiers (can be used for SSRF)
-  if (hostname.includes("%")) {
-    return {
-      valid: false,
-      reason: "ipv6_zone_id_blocked",
-    };
   }
 
   // Check for port-based attacks (common SSRF vectors)
@@ -318,31 +321,38 @@ export function ssrfProtection(
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
   return async (c, next) => {
-    const suspiciousUrls: string[] = [];
-
     // Check query parameters for URLs
     for (const [key, value] of Object.entries(c.req.query())) {
       if (isUrlLike(value)) {
         if (!mergedOptions.allowUserProvidedUrls) {
-          // Log suspicious URL in query parameter
-          suspiciousUrls.push(`${key}=${value.slice(0, 50)}`);
-        } else {
-          // Validate the URL
-          const result = validateUrl(value, mergedOptions);
-          if (!result.valid) {
-            securityLogger.logSuspiciousRequest(
-              c,
-              "ssrf_url_blocked",
-              `URL in query parameter blocked: ${result.reason}`
-            );
-            return c.json(
-              {
-                error: "Invalid URL",
-                reason: result.reason,
-              },
-              400
-            );
-          }
+          // Block any URL in query parameters when user-provided URLs are not allowed
+          securityLogger.logSuspiciousRequest(
+            c,
+            "potential_ssrf",
+            `URL in query parameter blocked (user-provided URLs not allowed): ${key}=${value.slice(0, 50)}`
+          );
+          return c.json(
+            {
+              error: "URLs in query parameters are not allowed",
+            },
+            400
+          );
+        }
+        // Validate the URL
+        const result = validateUrl(value, mergedOptions);
+        if (!result.valid) {
+          securityLogger.logSuspiciousRequest(
+            c,
+            "ssrf_url_blocked",
+            `URL in query parameter blocked: ${result.reason}`
+          );
+          return c.json(
+            {
+              error: "Invalid URL",
+              reason: result.reason,
+            },
+            400
+          );
         }
       }
     }
@@ -356,24 +366,34 @@ export function ssrfProtection(
           for (const [key, value] of Object.entries(body)) {
             if (typeof value === "string" && isUrlLike(value)) {
               if (!mergedOptions.allowUserProvidedUrls) {
-                suspiciousUrls.push(`${key}=${value.slice(0, 50)}`);
-              } else {
-                // Validate the URL
-                const result = validateUrl(value, mergedOptions);
-                if (!result.valid) {
-                  securityLogger.logSuspiciousRequest(
-                    c,
-                    "ssrf_url_blocked",
-                    `URL in request body blocked: ${result.reason}`
-                  );
-                  return c.json(
-                    {
-                      error: "Invalid URL",
-                      reason: result.reason,
-                    },
-                    400
-                  );
-                }
+                // Block any URL in body when user-provided URLs are not allowed
+                securityLogger.logSuspiciousRequest(
+                  c,
+                  "potential_ssrf",
+                  `URL in request body blocked (user-provided URLs not allowed): ${key}=${value.slice(0, 50)}`
+                );
+                return c.json(
+                  {
+                    error: "URLs in request body are not allowed",
+                  },
+                  400
+                );
+              }
+              // Validate the URL
+              const result = validateUrl(value, mergedOptions);
+              if (!result.valid) {
+                securityLogger.logSuspiciousRequest(
+                  c,
+                  "ssrf_url_blocked",
+                  `URL in request body blocked: ${result.reason}`
+                );
+                return c.json(
+                  {
+                    error: "Invalid URL",
+                    reason: result.reason,
+                  },
+                  400
+                );
               }
             }
           }
@@ -381,15 +401,6 @@ export function ssrfProtection(
       } catch {
         // Body parsing failed - continue
       }
-    }
-
-    // Log suspicious URLs found
-    if (suspiciousUrls.length > 0) {
-      securityLogger.logSuspiciousRequest(
-        c,
-        "potential_ssrf",
-        `URLs found in request: ${suspiciousUrls.join(", ")}`
-      );
     }
 
     await next();

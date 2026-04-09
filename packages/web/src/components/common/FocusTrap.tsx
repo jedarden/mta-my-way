@@ -24,14 +24,17 @@ interface FocusTrapProps {
 
 /**
  * Focusable elements selector - matches all focusable HTML elements
+ *
+ * IMPORTANT: This selector must explicitly exclude tabindex="-1" elements.
+ * The order matters - we check for tabindex attribute first, then exclude negative values.
  */
 const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "textarea:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "[tabindex]:not([tabindex='-1'])",
+  'a[href]:not([tabindex="-1"])',
+  'button:not([disabled]):not([tabindex="-1"])',
+  'textarea:not([disabled]):not([tabindex="-1"])',
+  'input:not([disabled]):not([tabindex="-1"])',
+  'select:not([disabled]):not([tabindex="-1"])',
+  '[tabindex]:not([tabindex="-1"])',
 ].join(", ");
 
 /**
@@ -131,12 +134,12 @@ export function useFocusTrap(active = true) {
     if (!active) return;
 
     const focusableSelector = [
-      "a[href]",
-      "button:not([disabled])",
-      "textarea:not([disabled])",
-      "input:not([disabled])",
-      "select:not([disabled])",
-      "[tabindex]:not([tabindex='-1'])",
+      'a[href]:not([tabindex="-1"])',
+      'button:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      'input:not([disabled]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
     ].join(", ");
 
     const handleTab = (e: KeyboardEvent) => {

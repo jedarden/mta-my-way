@@ -322,16 +322,13 @@ describe("TripTracker - Screen Reader Compatibility", () => {
 
     it("should use singular 'stop' when only 1 stop remaining", () => {
       const stops = createMockStops();
-      // Only destination remains
-      const secondToLast = stops[stops.length - 2];
-      if (secondToLast) {
-        stops.forEach((stop, i) => {
-          if (i < stops.length - 1) stop.status = "passed";
-        });
-        secondToLast.status = "passed";
-      }
-      const lastStop = stops[stops.length - 1];
-      if (lastStop) lastStop.status = "destination";
+      // Set up so only destination remains after current stop
+      // Current stop is at index 3 (14th St - Union Square), destination is at index 4
+      stops[0].status = "passed"; // Times Square
+      stops[1].status = "passed"; // 34th St
+      stops[2].status = "passed"; // 23rd St
+      stops[3].status = "current"; // 14th St - current position
+      // stops[4] is destination - only 1 stop remaining after current
 
       render(
         <TripTracker
