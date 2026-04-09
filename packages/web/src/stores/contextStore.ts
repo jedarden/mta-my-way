@@ -16,6 +16,9 @@ declare global {
   }
 }
 
+/** Import the FavoriteTapEvent type */
+import type { FavoriteTapEvent } from "@mta-my-way/shared";
+
 /** Internal state shape */
 interface ContextStateInternal {
   /** Current detected context */
@@ -53,11 +56,12 @@ const persistConfig: PersistOptions<ContextStateInternal> = {
   storage: createJSONStorage(() => localStorage),
   version: STORE_VERSION,
   migrate: createSafeMigration<ContextStateInternal>("context", STORE_VERSION, migrations),
-  partialize: (state) => ({
-    // Only persist settings, not the dynamic context state
-    settings: state.settings,
-    transitionHistory: state.transitionHistory.slice(-50), // Keep last 50 transitions
-  }),
+  partialize: (state) =>
+    ({
+      // Only persist settings, not the dynamic context state
+      settings: state.settings,
+      transitionHistory: state.transitionHistory.slice(-50), // Keep last 50 transitions
+    }) as Partial<ContextStateInternal>,
 };
 
 export const useContextStore = create<ContextStateInternal>()(
@@ -80,7 +84,7 @@ export const useContextStore = create<ContextStateInternal>()(
           return;
         }
 
-        const tapHistory = window.__mta_tap_history || [];
+        const tapHistory = (window.__mta_tap_history || []) as FavoriteTapEvent[];
 
         const newContext = detectContext({
           ...params,
@@ -146,6 +150,6 @@ export type { ContextState, ContextSettings, ContextTransition, UserContext };
  * Initialize tap history bridge from favoritesStore
  * This should be called once on app initialization
  */
-export function initializeTapHistoryBridge(tapHistory: readonly unknown[]) {
+export function initializeTapHistoryBridge(tapHistory: readonly unknown[] | FavoriteTapEvent[]) {
   window.__mta_tap_history = tapHistory;
 }

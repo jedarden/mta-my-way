@@ -16,7 +16,7 @@
  */
 
 import type { ApiErrorType } from "../../lib/apiEnhanced";
-import { type UserErrorMessage, getUserErrorMessage } from "../../lib/errorMessages";
+import { ErrorCategory, type UserErrorMessage, getUserErrorMessage } from "../../lib/errorMessages";
 
 interface ApiErrorDisplayProps {
   error: string;
@@ -210,7 +210,7 @@ export function ApiErrorDisplay({
         title: "Something went wrong",
         message: error,
         retryable: canRetry,
-        category: "unknown" as const,
+        category: ErrorCategory.UNKNOWN,
       };
 
   const iconData = ERROR_ICON_CONFIG[errorType || "default"];

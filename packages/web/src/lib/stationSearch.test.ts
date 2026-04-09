@@ -2,11 +2,12 @@
  * Unit tests for station search utilities
  */
 
+import type { Station } from "@mta-my-way/shared";
 import { describe, expect, it } from "vitest";
 import { searchStations } from "./stationSearch";
 
 describe("stationSearch", () => {
-  const mockStations = [
+  const mockStations: Station[] = [
     {
       id: "127",
       name: "Times Sq - 42 St",
@@ -98,14 +99,14 @@ describe("stationSearch", () => {
     it("matches exact station name", () => {
       const results = searchStations("Times Square", mockStations, mockComplexes);
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].displayName).toContain("Times");
+      expect(results[0]?.displayName).toContain("Times");
     });
 
     it("matches by line ID", () => {
       const results = searchStations("1", mockStations, mockComplexes);
       expect(results.length).toBeGreaterThan(0);
       // Line matches should score highest (1000)
-      expect(results[0].score).toBe(1000);
+      expect(results[0]?.score).toBe(1000);
     });
 
     it("matches by line ID case insensitively", () => {
@@ -117,7 +118,7 @@ describe("stationSearch", () => {
       const results = searchStations("Times", mockStations, mockComplexes);
       expect(results.length).toBeGreaterThan(0);
       // Prefix matches should score high (100)
-      expect(results[0].score).toBeGreaterThanOrEqual(100);
+      expect(results[0]?.score).toBeGreaterThanOrEqual(100);
     });
 
     it("matches word prefix", () => {
@@ -143,7 +144,7 @@ describe("stationSearch", () => {
       const results = searchStations("Sq", mockStations, mockComplexes);
       if (results.length > 1) {
         for (let i = 0; i < results.length - 1; i++) {
-          expect(results[i].score).toBeGreaterThanOrEqual(results[i + 1].score);
+          expect(results[i]?.score).toBeGreaterThanOrEqual(results[i + 1]?.score ?? 0);
         }
       }
     });
@@ -155,7 +156,7 @@ describe("stationSearch", () => {
       expect(results[0]).toHaveProperty("lines");
       expect(results[0]).toHaveProperty("borough");
       expect(results[0]).toHaveProperty("score");
-      expect(Array.isArray(results[0].lines)).toBe(true);
+      expect(Array.isArray(results[0]?.lines)).toBe(true);
     });
 
     it("groups stations by complex", () => {

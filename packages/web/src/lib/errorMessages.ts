@@ -10,6 +10,7 @@
  */
 
 import type { ApiErrorType } from "./apiEnhanced";
+import { ApiErrorType as ApiErrorTypeEnum } from "./apiEnhanced";
 
 /**
  * Error categories for organizing message types
@@ -83,7 +84,7 @@ function getContextualErrorMessage(
 
   // Trip tracking errors
   if (contextKey.includes("trip") || errorType === ErrorCategory.TRIP_TRACKING) {
-    if (errorType === ApiErrorType.NOT_FOUND || errorType === ErrorCategory.NOT_FOUND) {
+    if (errorType === ApiErrorTypeEnum.NOT_FOUND || errorType === ErrorCategory.NOT_FOUND) {
       return {
         title: "Train not found",
         message:
@@ -129,7 +130,7 @@ function getContextualErrorMessage(
 
   // Commute/routing errors
   if (contextKey.includes("commute") || errorType === ErrorCategory.COMMUTE) {
-    if (errorType === ApiErrorType.NOT_FOUND || errorType === ErrorCategory.NOT_FOUND) {
+    if (errorType === ApiErrorTypeEnum.NOT_FOUND || errorType === ErrorCategory.NOT_FOUND) {
       return {
         title: "Route not found",
         message: "We couldn't find a route between these stations.",
@@ -193,7 +194,7 @@ function getContextualErrorMessage(
  */
 function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserErrorMessage {
   switch (errorType) {
-    case ApiErrorType.OFFLINE:
+    case ApiErrorTypeEnum.OFFLINE:
     case ErrorCategory.OFFLINE:
       return {
         title: "You're offline",
@@ -203,7 +204,7 @@ function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserEr
         category: ErrorCategory.OFFLINE,
       };
 
-    case ApiErrorType.TIMEOUT:
+    case ApiErrorTypeEnum.TIMEOUT:
     case ErrorCategory.TIMEOUT:
       return {
         title: "Request timed out",
@@ -214,7 +215,7 @@ function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserEr
         category: ErrorCategory.TIMEOUT,
       };
 
-    case ApiErrorType.NETWORK:
+    case ApiErrorTypeEnum.NETWORK:
     case ErrorCategory.NETWORK:
       return {
         title: "Connection error",
@@ -224,7 +225,7 @@ function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserEr
         category: ErrorCategory.NETWORK,
       };
 
-    case ApiErrorType.SERVER:
+    case ApiErrorTypeEnum.SERVER:
     case ErrorCategory.SERVER:
       return {
         title: "Server error",
@@ -234,7 +235,7 @@ function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserEr
         category: ErrorCategory.SERVER,
       };
 
-    case ApiErrorType.NOT_FOUND:
+    case ApiErrorTypeEnum.NOT_FOUND:
     case ErrorCategory.NOT_FOUND:
       return {
         title: "Not found",
@@ -244,7 +245,7 @@ function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserEr
         category: ErrorCategory.NOT_FOUND,
       };
 
-    case ApiErrorType.UNAUTHORIZED:
+    case ApiErrorTypeEnum.UNAUTHORIZED:
     case ErrorCategory.UNAUTHORIZED:
       return {
         title: "Access denied",
@@ -254,7 +255,7 @@ function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserEr
         category: ErrorCategory.UNAUTHORIZED,
       };
 
-    case ApiErrorType.PARSE:
+    case ApiErrorTypeEnum.PARSE:
     case ErrorCategory.PARSE:
       return {
         title: "Data error",
@@ -265,7 +266,7 @@ function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserEr
         category: ErrorCategory.PARSE,
       };
 
-    case ApiErrorType.UNKNOWN:
+    case ApiErrorTypeEnum.UNKNOWN:
     case ErrorCategory.UNKNOWN:
     default:
       return {

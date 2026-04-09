@@ -21,6 +21,13 @@ interface State {
   error: Error | null;
 }
 
+interface Props {
+  children: React.ReactNode;
+  screenName?: string;
+  fallback?: React.ReactNode;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+}
+
 /**
  * ScreenErrorBoundary - Isolates errors to specific screens
  */
