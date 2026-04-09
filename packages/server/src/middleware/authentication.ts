@@ -145,9 +145,81 @@ export async function verifyApiKeyHash(
 // ============================================================================
 
 /**
+ * User roles for RBAC.
+ * Imported from rbac.ts for type compatibility.
+ */
+export type UserRole = "admin" | "user" | "guest";
+
+/**
  * API key scope/permission levels.
  */
 export type ApiKeyScope = "read" | "write" | "admin";
+
+/**
+ * Individual permission for RBAC.
+ * Imported from rbac.ts for type compatibility.
+ */
+export type Permission =
+  | "trips:create"
+  | "trips:read"
+  | "trips:read:own"
+  | "trips:update"
+  | "trips:update:own"
+  | "trips:delete"
+  | "trips:delete:own"
+  | "trips:track"
+  | "trips:track:own"
+  | "subscriptions:create"
+  | "subscriptions:read"
+  | "subscriptions:read:own"
+  | "subscriptions:update"
+  | "subscriptions:update:own"
+  | "subscriptions:delete"
+  | "subscriptions:delete:own"
+  | "commutes:create"
+  | "commutes:read"
+  | "commutes:read:own"
+  | "commutes:update"
+  | "commutes:update:own"
+  | "commutes:delete"
+  | "commutes:delete:own"
+  | "journals:create"
+  | "journals:read"
+  | "journals:read:own"
+  | "journals:update"
+  | "journals:update:own"
+  | "journals:delete"
+  | "journals:delete:own"
+  | "alerts:read"
+  | "alerts:create"
+  | "alerts:update"
+  | "alerts:delete"
+  | "equipment:read"
+  | "equipment:update"
+  | "predictions:create"
+  | "predictions:read"
+  | "predictions:read:own"
+  | "admin:users:read"
+  | "admin:users:update"
+  | "admin:users:delete"
+  | "admin:apikeys:read"
+  | "admin:apikeys:create"
+  | "admin:apikeys:update"
+  | "admin:apikeys:delete"
+  | "admin:apikeys:rotate"
+  | "admin:sessions:read"
+  | "admin:sessions:revoke"
+  | "admin:audit:read"
+  | "admin:system:configure"
+  | "admin:roles:manage"
+  | "oauth:authorize"
+  | "oauth:revoke"
+  | "mfa:setup"
+  | "mfa:verify"
+  | "mfa:disable"
+  | "ratelimit:bypass:tier1"
+  | "ratelimit:bypass:tier2"
+  | "ratelimit:bypass:tier3";
 
 /**
  * API key metadata.
@@ -161,6 +233,10 @@ export interface ApiKey {
   keySalt: string;
   /** Permission scope */
   scope: ApiKeyScope;
+  /** User role for RBAC */
+  role?: UserRole;
+  /** Additional permissions beyond role permissions */
+  additionalPermissions?: Permission[];
   /** Associated user/organization (optional) */
   owner?: string;
   /** Rate limit tier (requests per minute) */
@@ -263,6 +339,12 @@ export interface AuthContext {
   keyId: string;
   /** Permission scope */
   scope: ApiKeyScope;
+  /** User role for RBAC */
+  role?: UserRole;
+  /** All roles assigned to the user */
+  roles?: UserRole[];
+  /** Additional permissions beyond role permissions */
+  additionalPermissions?: Permission[];
   /** Session ID if authenticated via session */
   sessionId?: string;
   /** Rate limit tier */
@@ -530,9 +612,135 @@ export async function registerApiKey(apiKey: ApiKey): Promise<void> {
 
 /**
  * Get an API key by ID.
+ * This is exported for RBAC operations.
+ */
+export function getApiKeyById(keyId: string): ApiKey | undefined {
+  return apiKeys.get(keyId);
+}
+
+/**
+ * Get an API key by ID (internal use).
  */
 function getApiKey(keyId: string): ApiKey | undefined {
-  return apiKeys.get(keyId);
+  return getApiKeyById(keyId);
+}
+
+// ============================================================================
+// RBAC Management Functions
+// ============================================================================
+
+/**
+ * Assign a role to an API key.
+ * In production, this should update a database.
+ */
+export function assignRoleToApiKey(keyId: string, role: UserRole): boolean {
+  const apiKey = getApiKeyById(keyId);
+  if (!apiKey) {
+    logger.warn("Attempted to assign role to non-existent API key", { keyId, role });
+    return false;
+  }
+
+  apiKey.role = role;
+  logger.info("Role assigned to API key", { keyId, role });
+
+  return true;
+}
+
+/**
+ * Grant additional permissions to an API key beyond its role permissions.
+ * In production, this should update a database.
+ */
+export function grantPermissionsToApiKey(
+  keyId: string,
+  permissions: Permission[]
+): boolean {
+  const apiKey = getApiKeyById(keyId);
+  if (!apiKey) {
+    logger.warn("Attempted to grant permissions to non-existent API key", { keyId });
+    return false;
+  }
+
+  if (!apiKey.additionalPermissions) {
+    apiKey.additionalPermissions = [];
+  }
+
+  // Add new permissions without duplicates
+  const newPermissions = permissions.filter((p) => !apiKey.additionalPermissions?.includes(p));
+  apiKey.additionalPermissions.push(...newPermissions);
+
+  logger.info("Additional permissions granted to API key", {
+    keyId,
+    newPermissions,
+    totalPermissions: apiKey.additionalPermissions.length,
+  });
+
+  return true;
+}
+
+/**
+ * Revoke additional permissions from an API key.
+ * In production, this should update a database.
+ */
+export function revokePermissionsFromApiKey(
+  keyId: string,
+  permissions: Permission[]
+): boolean {
+  const apiKey = getApiKeyById(keyId);
+  if (!apiKey || !apiKey.additionalPermissions) {
+    return false;
+  }
+
+  const initialCount = apiKey.additionalPermissions.length;
+  apiKey.additionalPermissions = apiKey.additionalPermissions.filter(
+    (p) => !permissions.includes(p)
+  );
+
+  const revokedCount = initialCount - apiKey.additionalPermissions.length;
+
+  if (revokedCount > 0) {
+    logger.info("Permissions revoked from API key", {
+      keyId,
+      revokedCount,
+      remainingPermissions: apiKey.additionalPermissions.length,
+    });
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get all permissions for an API key (role + additional).
+ * In production, this would query a database.
+ */
+export function getApiKeyPermissions(keyId: string): Permission[] {
+  const apiKey = getApiKeyById(keyId);
+  if (!apiKey) return [];
+
+  // Import here to avoid circular dependency
+  const { getRolePermissions } = require("./rbac.js");
+
+  const role = apiKey.role || "guest";
+  const rolePermissions = getRolePermissions(role);
+  const additionalPermissions = apiKey.additionalPermissions || [];
+
+  return [...new Set([...rolePermissions, ...additionalPermissions])];
+}
+
+/**
+ * Get the role for an API key.
+ */
+export function getApiKeyRole(keyId: string): UserRole | undefined {
+  const apiKey = getApiKeyById(keyId);
+  return apiKey?.role;
+}
+
+/**
+ * Update an API key's role.
+ * This is an alias for assignRoleToApiKey for clarity.
+ */
+export function updateApiKeyRole(keyId: string, role: UserRole): boolean {
+  return assignRoleToApiKey(keyId, role);
 }
 
 /**
@@ -1945,6 +2153,8 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
               const authContext: AuthContext = {
                 keyId: apiKey.keyId,
                 scope: apiKey.scope,
+                role: apiKey.role,
+                additionalPermissions: apiKey.additionalPermissions,
                 sessionId: session.sessionId,
                 rateLimitTier: apiKey.rateLimitTier,
                 authMethod: "session",
@@ -2022,6 +2232,8 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     const authContext: AuthContext = {
       keyId: apiKey.keyId,
       scope: apiKey.scope,
+      role: apiKey.role,
+      additionalPermissions: apiKey.additionalPermissions,
       rateLimitTier: apiKey.rateLimitTier,
       authMethod: "api_key",
     };
@@ -2092,6 +2304,8 @@ export function signedRequestAuth(
     const authContext: AuthContext = {
       keyId: apiKey.keyId,
       scope: apiKey.scope,
+      role: apiKey.role,
+      additionalPermissions: apiKey.additionalPermissions,
       rateLimitTier: apiKey.rateLimitTier,
     };
     c.set("auth", authContext);
@@ -2128,6 +2342,8 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
             const authContext: AuthContext = {
               keyId: apiKey.keyId,
               scope: apiKey.scope,
+              role: apiKey.role,
+              additionalPermissions: apiKey.additionalPermissions,
               sessionId: session.sessionId,
               rateLimitTier: apiKey.rateLimitTier,
               authMethod: "session",
@@ -2150,6 +2366,8 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
         const authContext: AuthContext = {
           keyId: apiKey.keyId,
           scope: apiKey.scope,
+          role: apiKey.role,
+          additionalPermissions: apiKey.additionalPermissions,
           rateLimitTier: apiKey.rateLimitTier,
           authMethod: "api_key",
         };
