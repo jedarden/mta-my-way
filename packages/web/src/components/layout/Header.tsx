@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useContextAware } from "../../hooks/useContextAware";
+import { NetworkStatusIndicator } from "../common";
 import { ContextIndicator } from "../context/ContextIndicator";
 
 const screenTitles: Record<string, string> = {
@@ -32,6 +33,7 @@ export default function Header() {
             show={showIndicator}
             compact
           />
+          <NetworkStatusIndicator compact />
         </div>
         <div className="flex items-center gap-2">
           {/* Alert badge */}
