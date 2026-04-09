@@ -87,6 +87,7 @@ import {
   auditLogAccess,
   csrfProtection,
   getCsrfToken,
+  hostHeaderProtection,
   hppProtection,
   inputSanitization,
   rateLimiter,
@@ -94,6 +95,7 @@ import {
   requireResourceAccess,
   requireSameOrigin,
   securityHeaders,
+  securityLogging,
   validateBody,
   validateParams,
   validateQuery,
@@ -356,6 +358,27 @@ export function createApp(
 
   // Security headers on all responses (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
   app.use("*", securityHeaders());
+
+  // Security logging for all requests (OWASP A09: Security Logging and Monitoring Failures)
+  // Logs authentication failures, authorization failures, rate limit exceeded, and blocked attacks
+  app.use("*", securityLogging());
+
+  // Host header protection to prevent cache poisoning and password reset poisoning
+  // In production, set ALLOWED_HOSTS environment variable to restrict allowed hosts
+  const isProduction = process.env["NODE_ENV"] === "production";
+  const allowedHosts = process.env["ALLOWED_HOSTS"]
+    ? process.env["ALLOWED_HOSTS"].split(",")
+    : undefined;
+  app.use(
+    "*",
+    hostHeaderProtection({
+      allowedHosts,
+      blockMissingHost: isProduction, // Only require Host header in production
+      blockIpAddresses: isProduction,
+      blockPrivateNetworks: isProduction,
+      blockLocalhost: !isProduction, // Block localhost only in production
+    })
+  );
 
   // Distributed tracing for all requests
   app.use("*", tracingMiddleware);
