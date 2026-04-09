@@ -26,12 +26,22 @@ import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
 import {
+  sanitizeObject,
   sanitizeStringSimple,
   validateApiKeyFormat,
   validateSessionTokenFormat,
   validateSignatureFormat,
 } from "./sanitization.js";
 import { securityLogger } from "./security-logging.js";
+import {
+  type EncryptedData,
+  configureEncryption,
+  decryptToken,
+  encryptToken,
+  generateTokenFingerprint,
+  hashToken,
+  isEncryptionConfigured,
+} from "./token-encryption.js";
 
 // Re-export password management functions for backward compatibility
 export {
@@ -269,8 +279,14 @@ export interface AuthContext {
  * Refresh token data for session renewal.
  */
 export interface RefreshToken {
-  /** Token ID */
+  /** Token ID (internal UUID) */
   tokenId: string;
+  /** Token value (random hex string returned to client) - may be encrypted */
+  token: string;
+  /** Encrypted token data (if encryption is enabled) */
+  encryptedToken?: EncryptedData;
+  /** Token fingerprint for audit logging (without revealing the token) */
+  tokenFingerprint?: string;
   /** Session ID this refresh token belongs to */
   sessionId: string;
   /** API key ID */
@@ -285,6 +301,8 @@ export interface RefreshToken {
   clientIp: string;
   /** Token rotation family ID (for tracking token chains) */
   rotationFamily: string;
+  /** Whether this token is encrypted at rest */
+  isEncrypted: boolean;
 }
 
 /**
@@ -472,6 +490,30 @@ function isIpBlocked(ip: string): boolean {
 }
 
 /**
+ * Reset suspicious activity tracking for an IP.
+ * For testing purposes only.
+ */
+export function resetSuspiciousActivityTracking(ip?: string): void {
+  if (ip) {
+    suspiciousIps.delete(ip);
+  } else {
+    suspiciousIps.clear();
+  }
+}
+
+/**
+ * Reset auth failure tracking for an IP.
+ * For testing purposes only.
+ */
+export function resetAuthFailureTracking(ip?: string): void {
+  if (ip) {
+    authFailuresByIp.delete(ip);
+  } else {
+    authFailuresByIp.clear();
+  }
+}
+
+/**
  * Register an API key with proper hashing.
  * In production, this should load from a database or secure store.
  */
@@ -580,6 +622,140 @@ async function verifyApiKeySecret(keyId: string, secret: string): Promise<boolea
 
 const SESSION_TTL_MS = 86_400_000; // 24 hours
 const MAX_SESSIONS_PER_KEY = 100;
+const SESSION_METADATA_MAX_KEYS = 20;
+const SESSION_METADATA_MAX_VALUE_LENGTH = 500;
+
+/**
+ * Sanitize and validate session metadata.
+ *
+ * Session metadata can contain arbitrary user-provided data that needs
+ * to be sanitized to prevent injection attacks and limit size.
+ *
+ * Security measures:
+ * - Key validation (alphanumeric + underscore only, max 50 chars)
+ * - Value type validation (string, number, boolean, null only)
+ * - Nested object depth limit (max 3 levels)
+ * - String value length limit (500 chars)
+ * - Total key count limit (20 keys)
+ * - Sanitization of all string values against injection patterns
+ */
+function sanitizeSessionMetadata(
+  metadata?: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (!metadata) return undefined;
+
+  // Check metadata size limits
+  const keys = Object.keys(metadata);
+  if (keys.length > SESSION_METADATA_MAX_KEYS) {
+    logger.warn("Session metadata exceeds maximum key limit", {
+      keyCount: keys.length,
+      maxKeys: SESSION_METADATA_MAX_KEYS,
+    });
+    // Truncate to max keys
+    keys.splice(SESSION_METADATA_MAX_KEYS);
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  const MAX_NESTING_DEPTH = 3;
+
+  function sanitizeValue(value: unknown, depth: number): unknown {
+    // Prevent deep nesting attacks
+    if (depth > MAX_NESTING_DEPTH) {
+      logger.warn("Session metadata exceeds maximum nesting depth", {
+        depth,
+        maxDepth: MAX_NESTING_DEPTH,
+      });
+      return "[nested_object_too_deep]";
+    }
+
+    // Handle null and undefined
+    if (value === null || value === undefined) {
+      return value;
+    }
+
+    // Handle primitive types
+    if (typeof value === "string") {
+      return sanitizeStringSimple(value, {
+        maxLength: SESSION_METADATA_MAX_VALUE_LENGTH,
+        stripHtml: true,
+        preventSqlInjection: true,
+        preventCommandInjection: true,
+        preventPathTraversal: true,
+        preventXss: true,
+      });
+    }
+
+    if (typeof value === "number") {
+      // Check for finite numbers
+      if (!Number.isFinite(value)) {
+        logger.warn("Session metadata contains non-finite number", { value });
+        return 0;
+      }
+      // Prevent extremely large numbers
+      if (Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+        logger.warn("Session metadata contains number exceeding safe integer range", { value });
+        return Math.sign(value) * Number.MAX_SAFE_INTEGER;
+      }
+      return value;
+    }
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    // Handle arrays (flatten to simple array of sanitized values)
+    if (Array.isArray(value)) {
+      // Limit array size
+      const maxArraySize = 100;
+      if (value.length > maxArraySize) {
+        logger.warn("Session metadata array exceeds maximum size", {
+          length: value.length,
+          maxSize: maxArraySize,
+        });
+        value = value.slice(0, maxArraySize);
+      }
+      return value.map((item) => sanitizeValue(item, depth + 1));
+    }
+
+    // Handle nested objects
+    if (typeof value === "object") {
+      const nestedObj: Record<string, unknown> = {};
+      for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+        // Validate nested key format
+        const validKeyPattern = /^[A-Za-z0-9_]{1,50}$/;
+        if (!validKeyPattern.test(nestedKey)) {
+          logger.warn("Session metadata key contains invalid characters", { key: nestedKey });
+          continue; // Skip invalid keys
+        }
+        nestedObj[nestedKey] = sanitizeValue(nestedValue, depth + 1);
+      }
+      return nestedObj;
+    }
+
+    // Reject any other types (functions, symbols, etc.)
+    logger.warn("Session metadata contains unsupported type", {
+      type: typeof value,
+    });
+    return null;
+  }
+
+  // Valid metadata key pattern: alphanumeric + underscore, 1-50 chars
+  const validKeyPattern = /^[A-Za-z0-9_]{1,50}$/;
+
+  for (const key of keys) {
+    // Validate key format
+    if (!validKeyPattern.test(key)) {
+      logger.warn("Session metadata key contains invalid characters", { key });
+      continue; // Skip invalid keys
+    }
+
+    // Sanitize and validate the value
+    const value = metadata[key];
+    sanitized[key] = sanitizeValue(value, 0);
+  }
+
+  return sanitized;
+}
 
 /**
  * Generate a device fingerprint from user agent.
@@ -682,8 +858,11 @@ export async function createSession(
     /** Create refresh token */
     createRefreshToken?: boolean;
   } = {}
-): Promise<{ sessionId: string; refreshToken?: string }> {
+): Promise<{ sessionId: string; refreshToken?: string; tokenFingerprint?: string }> {
   const { type = "standard", ipBinding = true, createRefreshToken = true } = options;
+
+  // Sanitize metadata before creating session
+  const sanitizedMetadata = sanitizeSessionMetadata(metadata);
 
   // Check concurrent session limit
   const keySessions = Array.from(sessions.values()).filter((s) => s.keyId === keyId && s.active);
@@ -722,7 +901,7 @@ export async function createSession(
     expiresAt: now + SESSION_TTL_MS,
     clientIp,
     userAgent,
-    metadata,
+    metadata: sanitizedMetadata,
     csrfToken: generateAuthCsrfTokenInternal(),
     regenerated: false,
     deviceId,
@@ -735,10 +914,12 @@ export async function createSession(
 
   // Create refresh token if requested
   let refreshToken: string | undefined;
+  let tokenFingerprint: string | undefined;
   if (createRefreshToken) {
-    const refreshTokenData = createRefreshTokenInternal(sessionId, keyId, clientIp);
+    const refreshTokenData = await createRefreshTokenInternal(sessionId, keyId, clientIp);
     session.refreshTokenId = refreshTokenData.tokenId;
     refreshToken = refreshTokenData.token;
+    tokenFingerprint = refreshTokenData.tokenFingerprint;
     sessions.set(sessionId, session);
   }
 
@@ -748,9 +929,19 @@ export async function createSession(
     clientIp,
     sessionType: type,
     hasRefreshToken: !!refreshToken,
+    tokenEncrypted: isEncryptionConfigured(),
   });
 
-  return { sessionId, refreshToken };
+  // Log session creation event with token fingerprint for audit
+  logSessionEvent("session_created", sessionId, keyId, clientIp, {
+    sessionType: type,
+    hasRefreshToken: !!refreshToken,
+    ipBinding,
+    deviceId,
+    tokenFingerprint,
+  });
+
+  return { sessionId, refreshToken, tokenFingerprint };
 }
 
 /**
@@ -771,9 +962,113 @@ function updateSessionActivity(sessionId: string): void {
 }
 
 /**
- * Validate a session (check expiration, IP binding, activity status).
+ * Session hijacking detection result.
  */
-function validateSession(session: AuthSession, clientIp: string): boolean {
+interface SessionHijackingCheck {
+  /** Whether session validation should be blocked */
+  blocked: boolean;
+  /** Reason for blocking (if any) */
+  reason?: string;
+  /** Risk level (low, medium, high) */
+  riskLevel: "low" | "medium" | "high";
+}
+
+/**
+ * Check for session hijacking indicators.
+ *
+ * Analyzes IP and User-Agent changes to detect potential session hijacking.
+ * Returns recommendations for session validation.
+ */
+function checkSessionHijacking(
+  session: AuthSession,
+  clientIp: string,
+  userAgent?: string
+): SessionHijackingCheck {
+  const result: SessionHijackingCheck = {
+    blocked: false,
+    riskLevel: "low",
+  };
+
+  // Check IP mismatch
+  if (session.ipBinding && session.clientIp !== clientIp) {
+    // Check if IP is from same subnet (for IPv4, /24)
+    const oldIpParts = session.clientIp.split(".");
+    const newIpParts = clientIp.split(".");
+    const sameSubnet =
+      oldIpParts.length === 4 &&
+      newIpParts.length === 4 &&
+      oldIpParts[0] === newIpParts[0] &&
+      oldIpParts[1] === newIpParts[1] &&
+      oldIpParts[2] === newIpParts[2];
+
+    if (sameSubnet) {
+      // Same subnet - medium risk, allow but log
+      result.riskLevel = "medium";
+      result.reason = "IP changed within same subnet";
+      logger.warn("Session IP changed within subnet", {
+        sessionId: session.sessionId,
+        oldIp: session.clientIp,
+        newIp: clientIp,
+      });
+    } else {
+      // Different IP - high risk, block
+      result.blocked = true;
+      result.riskLevel = "high";
+      result.reason = "IP address changed to different subnet";
+      logger.warn("Session hijacking suspected: IP changed", {
+        sessionId: session.sessionId,
+        oldIp: session.clientIp,
+        newIp: clientIp,
+      });
+      return result;
+    }
+  }
+
+  // Check User-Agent mismatch
+  if (session.userAgent && userAgent && session.userAgent !== userAgent) {
+    // User-Agent changed - could be session hijacking or legitimate browser upgrade
+    result.riskLevel = result.riskLevel === "high" ? "high" : "medium";
+    result.reason = result.reason ? `${result.reason}, User-Agent changed` : "User-Agent changed";
+    logger.warn("Session User-Agent changed", {
+      sessionId: session.sessionId,
+      oldUserAgent: session.userAgent,
+      newUserAgent: userAgent,
+    });
+  }
+
+  // Check for geolocation impossibility (IP from different continents)
+  // This is a simplified check - in production, use a proper GeoIP database
+  if (session.ipBinding && session.clientIp !== clientIp) {
+    const oldIp = session.clientIp;
+    const newIp = clientIp;
+    // Simple heuristic: if first octet is very different, might be different region
+    const oldFirstOctet = parseInt(oldIp.split(".")[0] || "0", 10);
+    const newFirstOctet = parseInt(newIp.split(".")[0] || "0", 10);
+    if (Math.abs(oldFirstOctet - newFirstOctet) > 100) {
+      result.blocked = true;
+      result.riskLevel = "high";
+      result.reason = "IP address indicates impossible travel";
+      logger.warn("Session hijacking suspected: Impossible travel", {
+        sessionId: session.sessionId,
+        oldIp,
+        newIp,
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Validate a session (check expiration, IP binding, activity status).
+ *
+ * Enhanced with session hijacking detection.
+ *
+ * @param session - The session to validate
+ * @param clientIp - The client's IP address
+ * @param context - Optional Hono context for security logging
+ */
+function validateSession(session: AuthSession, clientIp: string, context?: Context): boolean {
   const now = Date.now();
 
   // Check expiration
@@ -788,13 +1083,29 @@ function validateSession(session: AuthSession, clientIp: string): boolean {
     return false;
   }
 
-  // Check IP binding if enabled
-  if (session.ipBinding && session.clientIp !== clientIp) {
-    logger.warn("Session IP mismatch", {
-      sessionId: session.sessionId,
-      expected: session.clientIp,
-      received: clientIp,
-    });
+  // Run session hijacking detection
+  const hijackingCheck = checkSessionHijacking(session, clientIp);
+  if (hijackingCheck.blocked) {
+    // Invalidate session on high-risk detection
+    session.active = false;
+    sessions.set(session.sessionId, session);
+
+    // Log security event if context is available
+    if (context) {
+      securityLogger.logSuspiciousActivity(
+        context,
+        "session_hijacking_detected",
+        hijackingCheck.reason || "Session hijacking detected",
+        "high"
+      );
+    } else {
+      // Fallback to regular logging if no context available
+      logger.warn("Session hijacking detected", {
+        sessionId: session.sessionId,
+        reason: hijackingCheck.reason,
+      });
+    }
+
     return false;
   }
 
@@ -803,7 +1114,17 @@ function validateSession(session: AuthSession, clientIp: string): boolean {
   if (idleTime > SESSION_IDLE_TIMEOUT_MS) {
     session.active = false;
     sessions.set(session.sessionId, session);
-    logger.warn("Session idle timeout exceeded", { sessionId: session.sessionId });
+
+    if (context) {
+      securityLogger.logSuspiciousActivity(
+        context,
+        "session_idle_timeout",
+        "Session idle timeout exceeded"
+      );
+    } else {
+      logger.warn("Session idle timeout exceeded", { sessionId: session.sessionId });
+    }
+
     return false;
   }
 
@@ -854,20 +1175,45 @@ export function invalidateAllSessionsForKey(keyId: string): number {
 
 /**
  * Create a new refresh token.
+ *
+ * If encryption is configured, the token will be encrypted at rest.
+ * A token fingerprint is generated for audit logging without exposing the token.
  */
-function createRefreshTokenInternal(
+async function createRefreshTokenInternal(
   sessionId: string,
   keyId: string,
   clientIp: string
-): { tokenId: string; token: string } {
+): Promise<{ tokenId: string; token: string; tokenFingerprint: string }> {
   const tokenId = crypto.randomUUID();
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   const token = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
   const rotationFamily = crypto.randomUUID();
 
+  // Generate token fingerprint for audit logging
+  const tokenFingerprint = await generateTokenFingerprint(token);
+
+  // Check if encryption should be used
+  const shouldEncrypt = isEncryptionConfigured();
+  let encryptedToken: EncryptedData | undefined;
+  let storedToken = token;
+
+  if (shouldEncrypt) {
+    try {
+      // Encrypt the token with context-specific key
+      encryptedToken = await encryptToken(token, "refresh_tokens");
+      // Store encrypted token instead of plaintext
+      storedToken = encryptedToken.ciphertext;
+    } catch (error) {
+      logger.warn("Failed to encrypt refresh token, storing plaintext", { error });
+    }
+  }
+
   const refreshTokenData: RefreshToken = {
     tokenId,
+    token: storedToken,
+    encryptedToken,
+    tokenFingerprint,
     sessionId,
     keyId,
     createdAt: Date.now(),
@@ -875,42 +1221,70 @@ function createRefreshTokenInternal(
     used: false,
     clientIp,
     rotationFamily,
+    isEncrypted: !!encryptedToken,
   };
 
   refreshTokens.set(tokenId, refreshTokenData);
 
-  return { tokenId, token };
+  return { tokenId, token, tokenFingerprint };
 }
 
 /**
  * Refresh a session using a refresh token.
  *
  * Returns the new session ID and new refresh token, or null if invalid.
+ * Handles encrypted tokens by decrypting them before verification.
  */
-export function refreshSession(
+export async function refreshSession(
   refreshToken: string,
   clientIp: string
-): { sessionId: string; newRefreshToken: string } | null {
-  // Find the refresh token
-  const tokenData = Array.from(refreshTokens.values()).find((t) => t.tokenId === refreshToken);
+): Promise<{ sessionId: string; newRefreshToken: string; tokenFingerprint?: string } | null> {
+  // Find the refresh token by token value (not tokenId)
+  // The refreshToken parameter is the random token string returned to the client
+  let tokenEntry: [string, RefreshToken] | undefined;
+  let decryptedToken = refreshToken;
+
+  // First, try to find by direct token match (for unencrypted tokens)
+  tokenEntry = Array.from(refreshTokens.entries()).find(([, t]) => t.token === refreshToken);
+
+  // If not found and encryption is configured, try to decrypt and match
+  if (!tokenEntry && isEncryptionConfigured()) {
+    for (const [tokenId, tokenData] of refreshTokens.entries()) {
+      if (tokenData.isEncrypted && tokenData.encryptedToken) {
+        try {
+          const decrypted = await decryptToken(tokenData.encryptedToken, "refresh_tokens");
+          if (decrypted === refreshToken) {
+            tokenEntry = [tokenId, tokenData];
+            decryptedToken = decrypted;
+            break;
+          }
+        } catch {
+          // Decryption failed, continue searching
+          continue;
+        }
+      }
+    }
+  }
+
+  if (!tokenEntry) {
+    logger.warn("Invalid refresh token", { clientIp });
+    return null;
+  }
+
+  const tokenData = tokenEntry[1];
 
   if (!tokenData) {
-    securityLogger.logSuspiciousActivity(
-      {} as Context,
-      "invalid_refresh_token",
-      "Refresh token not found"
-    );
+    logger.warn("Invalid refresh token", { clientIp });
     return null;
   }
 
   // Check expiration
   if (Date.now() > tokenData.expiresAt) {
     refreshTokens.delete(tokenData.tokenId);
-    securityLogger.logSuspiciousActivity(
-      {} as Context,
-      "expired_refresh_token",
-      "Refresh token expired"
-    );
+    logger.warn("Expired refresh token used", {
+      clientIp,
+      tokenFingerprint: tokenData.tokenFingerprint,
+    });
     return null;
   }
 
@@ -919,37 +1293,47 @@ export function refreshSession(
     // Token reuse detected - potential security breach
     // Invalidate all tokens in the rotation family
     invalidateRefreshTokenFamily(tokenData.rotationFamily);
-    securityLogger.logSuspiciousActivity(
-      {} as Context,
-      "refresh_token_reuse",
-      "Refresh token reuse detected - token family invalidated"
-    );
+    logger.warn("Refresh token reuse detected - token family invalidated", {
+      clientIp,
+      rotationFamily: tokenData.rotationFamily,
+      tokenFingerprint: tokenData.tokenFingerprint,
+    });
     return null;
   }
 
   // Verify client IP matches (optional security measure)
   if (tokenData.clientIp !== clientIp) {
-    securityLogger.logSuspiciousActivity(
-      {} as Context,
-      "refresh_token_ip_mismatch",
-      "Refresh token used from different IP"
-    );
+    logger.warn("Refresh token used from different IP", {
+      originalIp: tokenData.clientIp,
+      currentIp: clientIp,
+      tokenFingerprint: tokenData.tokenFingerprint,
+    });
     // Still allow but log for monitoring
   }
 
   // Get the session
   const session = sessions.get(tokenData.sessionId);
   if (!session || !session.active) {
+    logger.warn("Session not found or inactive for refresh token", {
+      sessionId: tokenData.sessionId,
+      tokenFingerprint: tokenData.tokenFingerprint,
+    });
     return null;
   }
 
   // Check if session belongs to the same key
   if (session.keyId !== tokenData.keyId) {
+    logger.warn("Refresh token key mismatch", {
+      sessionKeyId: session.keyId,
+      tokenKeyId: tokenData.keyId,
+      tokenFingerprint: tokenData.tokenFingerprint,
+    });
     return null;
   }
 
   // Mark old token as used
   tokenData.used = true;
+  refreshTokens.set(tokenData.tokenId, tokenData);
 
   // Check idle timeout
   const idleTime = Date.now() - session.lastActivityAt;
@@ -971,22 +1355,11 @@ export function refreshSession(
   }
 
   // Create new refresh token in the same rotation family
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  const newToken = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
-
-  const newRefreshTokenData: RefreshToken = {
-    tokenId: crypto.randomUUID(),
-    sessionId: newSessionId,
-    keyId: tokenData.keyId,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + REFRESH_TOKEN_TTL_MS,
-    used: false,
-    clientIp,
-    rotationFamily: tokenData.rotationFamily,
-  };
-
-  refreshTokens.set(newRefreshTokenData.tokenId, newRefreshTokenData);
+  const newRefreshTokenData = await createRefreshTokenInternal(
+    newSessionId,
+    tokenData.keyId,
+    clientIp
+  );
 
   // Update session with new refresh token ID
   const newSession = sessions.get(newSessionId);
@@ -1002,9 +1375,23 @@ export function refreshSession(
     oldSessionId: session.sessionId,
     newSessionId,
     keyId: tokenData.keyId,
+    oldTokenFingerprint: tokenData.tokenFingerprint,
+    newTokenFingerprint: newRefreshTokenData.tokenFingerprint,
   });
 
-  return { sessionId: newSessionId, newRefreshToken: newToken };
+  // Log session refresh event with token fingerprints for audit
+  logSessionEvent("session_refreshed", newSessionId, tokenData.keyId, clientIp, {
+    oldSessionId: session.sessionId,
+    rotationFamily: tokenData.rotationFamily,
+    oldTokenFingerprint: tokenData.tokenFingerprint,
+    newTokenFingerprint: newRefreshTokenData.tokenFingerprint,
+  });
+
+  return {
+    sessionId: newSessionId,
+    newRefreshToken: newRefreshTokenData.token,
+    tokenFingerprint: newRefreshTokenData.tokenFingerprint,
+  };
 }
 
 /**
@@ -1019,11 +1406,119 @@ function invalidateRefreshTokenFamily(rotationFamily: string): void {
 }
 
 /**
- * Invalidate a refresh token.
+ * Invalidate a refresh token by token ID.
+ *
+ * @param tokenId - The UUID token ID (internal use)
+ * @returns true if token was found and invalidated
  */
 export function invalidateRefreshToken(tokenId: string): boolean {
   return refreshTokens.delete(tokenId);
 }
+
+/**
+ * Invalidate a refresh token by its token value.
+ *
+ * @param tokenValue - The random token string returned to client
+ * @returns true if token was found and invalidated
+ */
+export async function invalidateRefreshTokenByValue(tokenValue: string): Promise<boolean> {
+  // First, try to find by direct token match (for unencrypted tokens)
+  let entry = Array.from(refreshTokens.entries()).find(([, t]) => t.token === tokenValue);
+
+  // If not found and encryption is configured, try to decrypt and match
+  if (!entry && isEncryptionConfigured()) {
+    for (const [tokenId, tokenData] of refreshTokens.entries()) {
+      if (tokenData.isEncrypted && tokenData.encryptedToken) {
+        try {
+          const decrypted = await decryptToken(tokenData.encryptedToken, "refresh_tokens");
+          if (decrypted === tokenValue) {
+            entry = [tokenId, tokenData];
+            break;
+          }
+        } catch {
+          // Decryption failed, continue searching
+          continue;
+        }
+      }
+    }
+  }
+
+  if (entry) {
+    const tokenId = entry[0];
+    const deleted = refreshTokens.delete(tokenId);
+    if (deleted) {
+      logger.info("Refresh token invalidated", {
+        tokenId,
+        tokenFingerprint: entry[1]?.tokenFingerprint,
+      });
+    }
+    return deleted;
+  }
+  return false;
+}
+
+/**
+ * Clean up expired refresh tokens.
+ *
+ * Should be called periodically to prevent memory leaks.
+ * Returns the number of tokens cleaned up.
+ */
+export function cleanupExpiredRefreshTokens(): number {
+  const now = Date.now();
+  let cleaned = 0;
+
+  for (const [tokenId, token] of refreshTokens.entries()) {
+    if (token.expiresAt < now) {
+      refreshTokens.delete(tokenId);
+      cleaned++;
+    }
+  }
+
+  if (cleaned > 0) {
+    logger.debug("Cleaned up expired refresh tokens", { count: cleaned });
+  }
+
+  return cleaned;
+}
+
+/**
+ * Clean up all expired sessions.
+ *
+ * Should be called periodically to prevent memory leaks.
+ * Returns the number of sessions cleaned up.
+ */
+export function cleanupExpiredSessions(): number {
+  const now = Date.now();
+  let cleaned = 0;
+
+  for (const [sessionId, session] of sessions.entries()) {
+    // Check if session is expired (absolute expiration or idle timeout)
+    const idleTime = now - session.lastActivityAt;
+    if (session.expiresAt < now || idleTime > SESSION_IDLE_TIMEOUT_MS || !session.active) {
+      // Invalidate associated refresh token
+      if (session.refreshTokenId) {
+        invalidateRefreshToken(session.refreshTokenId);
+      }
+      sessions.delete(sessionId);
+      cleaned++;
+    }
+  }
+
+  if (cleaned > 0) {
+    logger.debug("Cleaned up expired sessions", { count: cleaned });
+  }
+
+  return cleaned;
+}
+
+// Start automatic cleanup interval (every 5 minutes)
+setInterval(
+  () => {
+    cleanupExpiredRefreshTokens();
+    cleanupExpiredSessions();
+  },
+  5 * 60 * 1000
+);
 
 /**
  * Check if a session should be refreshed (within sliding window).
@@ -1037,6 +1532,130 @@ export function shouldRefreshSession(sessionId: string): boolean {
 }
 
 /**
+ * Get detailed security information for a session.
+ *
+ * Returns session security metadata including device info,
+ * risk assessment, and token status.
+ */
+export function getSessionSecurityInfo(sessionId: string): {
+  exists: boolean;
+  active?: boolean;
+  expiresAt?: number;
+  timeUntilExpiration?: number;
+  deviceId?: string;
+  ipBinding?: boolean;
+  hasRefreshToken?: boolean;
+  mfaVerified?: boolean;
+  sessionType?: string;
+  lastActivity?: number;
+  idleTime?: number;
+} | null {
+  const session = sessions.get(sessionId);
+  if (!session) return null;
+
+  const now = Date.now();
+  return {
+    exists: true,
+    active: session.active,
+    expiresAt: session.expiresAt,
+    timeUntilExpiration: session.expiresAt - now,
+    deviceId: session.deviceId,
+    ipBinding: session.ipBinding,
+    hasRefreshToken: !!session.refreshTokenId,
+    mfaVerified: !!session.mfaVerifiedAt,
+    sessionType: session.sessionType,
+    lastActivity: session.lastActivityAt,
+    idleTime: now - session.lastActivityAt,
+  };
+}
+
+/**
+ * Validate a refresh token format without performing the refresh.
+ *
+ * Checks if the token string is valid format and hasn't been obviously tampered with.
+ */
+export function validateRefreshTokenFormat(token: string): boolean {
+  // Refresh tokens should be 64-character hex strings (32 bytes * 2)
+  return /^[a-f0-9]{64}$/i.test(token);
+}
+
+/**
+ * Check if a refresh token is expired without consuming it.
+ *
+ * Returns null if token doesn't exist or is expired, otherwise returns
+ * expiration timestamp. Handles encrypted tokens.
+ */
+export async function checkRefreshTokenExpiry(refreshToken: string): Promise<number | null> {
+  // First, try to find by direct token match (for unencrypted tokens)
+  let tokenEntry = Array.from(refreshTokens.entries()).find(([, t]) => t.token === refreshToken);
+
+  // If not found and encryption is configured, try to decrypt and match
+  if (!tokenEntry && isEncryptionConfigured()) {
+    for (const entry of refreshTokens.entries()) {
+      const [tokenId, tokenData] = entry;
+      if (tokenData.isEncrypted && tokenData.encryptedToken) {
+        try {
+          const decrypted = await decryptToken(tokenData.encryptedToken, "refresh_tokens");
+          if (decrypted === refreshToken) {
+            tokenEntry = entry;
+            break;
+          }
+        } catch {
+          // Decryption failed, continue searching
+          continue;
+        }
+      }
+    }
+  }
+
+  if (!tokenEntry) return null;
+
+  const tokenData = tokenEntry[1];
+  if (Date.now() > tokenData.expiresAt) return null;
+
+  return tokenData.expiresAt;
+}
+
+/**
+ * Validate session token format (UUID v4).
+ *
+ * Checks if the session ID is a valid UUID format.
+ */
+export function validateSessionTokenFormat(token: string): boolean {
+  // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidV4Regex.test(token);
+}
+
+/**
+ * Get session count for an API key.
+ *
+ * Returns total, active, and expired session counts.
+ */
+export function getSessionCounts(keyId: string): {
+  total: number;
+  active: number;
+  expired: number;
+} {
+  const keySessions = Array.from(sessions.values()).filter((s) => s.keyId === keyId);
+  const now = Date.now();
+
+  const active = keySessions.filter(
+    (s) => s.active && s.expiresAt > now && now - s.lastActivityAt < SESSION_IDLE_TIMEOUT_MS
+  ).length;
+
+  const expired = keySessions.filter(
+    (s) => !s.active || s.expiresAt <= now || now - s.lastActivityAt >= SESSION_IDLE_TIMEOUT_MS
+  ).length;
+
+  return {
+    total: keySessions.length,
+    active,
+    expired,
+  };
+}
+
+/**
  * Get active sessions for an API key.
  */
 export function getActiveSessionsForApiKey(keyId: string): AuthSession[] {
@@ -1047,10 +1666,19 @@ export function getActiveSessionsForApiKey(keyId: string): AuthSession[] {
 
 /**
  * Revoke a session (user-initiated logout).
+ *
+ * Performs comprehensive cleanup including:
+ * - Marking session as inactive
+ * - Invalidating associated refresh token
+ * - Removing device trust status for untrusted devices
+ * - Logging the revocation for audit
  */
 export function revokeSession(sessionId: string, clientIp: string): boolean {
   const session = sessions.get(sessionId);
   if (!session) return false;
+
+  const keyId = session.keyId;
+  const deviceId = session.deviceId;
 
   session.active = false;
   sessions.set(sessionId, session);
@@ -1060,7 +1688,23 @@ export function revokeSession(sessionId: string, clientIp: string): boolean {
     invalidateRefreshToken(session.refreshTokenId);
   }
 
-  logger.info("Session revoked", { sessionId, keyId: session.keyId, clientIp });
+  // For untrusted devices, remove the device fingerprint
+  if (deviceId) {
+    const device = deviceFingerprints.get(deviceId);
+    if (device && !device.trusted) {
+      deviceFingerprints.delete(deviceId);
+      logger.debug("Untrusted device removed on session revocation", { deviceId });
+    }
+  }
+
+  // Log session revocation for audit
+  logAuditEntry(keyId, "session_revoked", sessionId, "success", clientIp, {
+    sessionType: session.sessionType,
+    deviceId,
+    createdAt: session.createdAt,
+  });
+
+  logger.info("Session revoked", { sessionId, keyId, clientIp });
 
   return true;
 }
@@ -1289,7 +1933,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
       const sessionToken = extractSessionToken(c);
       if (sessionToken) {
         const session = getSession(sessionToken);
-        if (session && validateSession(session, clientIp)) {
+        if (session && validateSession(session, clientIp, c)) {
           const apiKey = getApiKey(session.keyId);
           if (apiKey && apiKey.active) {
             // Check scope
@@ -1477,7 +2121,7 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
       const sessionToken = extractSessionToken(c);
       if (sessionToken) {
         const session = getSession(sessionToken);
-        if (session && validateSession(session, clientIp)) {
+        if (session && validateSession(session, clientIp, c)) {
           const apiKey = getApiKey(session.keyId);
           if (apiKey && apiKey.active) {
             updateSessionActivity(sessionToken);
@@ -1581,6 +2225,12 @@ export function regenerateSession(oldSessionId: string): string | null {
     oldSessionId,
     newSessionId,
     keyId: oldSession.keyId,
+  });
+
+  // Log session regeneration event
+  logSessionEvent("session_regenerated", newSessionId, oldSession.keyId, "system", {
+    oldSessionId,
+    reason: "post_auth_fixation",
   });
 
   return newSessionId;
@@ -1978,6 +2628,58 @@ export function isSessionMfaVerified(sessionId: string): boolean {
 // ============================================================================
 // Audit Logging
 // ============================================================================
+
+/**
+ * Session event types for audit logging.
+ */
+export type SessionEventType =
+  | "session_created"
+  | "session_refreshed"
+  | "session_revoked"
+  | "session_expired"
+  | "session_regenerated"
+  | "mfa_verified"
+  | "mfa_failed"
+  | "login_failed"
+  | "login_success";
+
+/**
+ * Log a session-specific audit entry with enhanced details.
+ */
+export function logSessionEvent(
+  eventType: SessionEventType,
+  sessionId: string,
+  keyId: string,
+  clientIp: string,
+  details?: Record<string, unknown>
+): void {
+  const entry: AuditLogEntry = {
+    entryId: crypto.randomUUID(),
+    timestamp: Date.now(),
+    keyId,
+    action: eventType,
+    resource: sessionId,
+    result: "success",
+    clientIp,
+    details,
+  };
+
+  auditLog.push(entry);
+
+  // Keep only last 10,000 audit entries
+  if (auditLog.length > 10_000) {
+    auditLog.shift();
+  }
+
+  // Log important session events
+  logger.info("Session event", {
+    eventType,
+    sessionId,
+    keyId,
+    clientIp,
+    ...details,
+  });
+}
 
 /**
  * Log an audit entry for a privileged operation.
