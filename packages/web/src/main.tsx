@@ -4,20 +4,10 @@ import App from "./App";
 import "./styles/globals.css";
 
 // Register service worker for PWA functionality
-// The virtual module is provided by vite-plugin-pwa
-import { registerSW } from "virtual:pwa-register";
+import { registerServiceWorker } from "./lib/serviceWorkerRegistration";
 
 // Register the service worker with update handling
-registerSW({
-  immediate: true, // Register immediately on app load
-  onRegistered(registration: ServiceWorkerRegistration | undefined) {
-    // Service worker successfully registered
-    console.log("Service Worker registered:", registration);
-  },
-  onRegisterError(error: unknown) {
-    console.error("Service Worker registration failed:", error);
-  },
-});
+registerServiceWorker();
 
 const root = document.getElementById("root");
 if (!root) {

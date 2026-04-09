@@ -1,16 +1,12 @@
 /**
  * ServiceWorkerUpdatePrompt - Prompts users when a new app version is available.
  *
- * Per plan.md Phase 4: Enhanced offline support and PWA features.
- *
- * Features:
- *   - Detects when a new service worker is waiting to activate
- *   - Shows an unobtrusive banner prompting user to update
- *   - One-tap update flow
- *   - Auto-update option for convenience
+ * Integrates with vite-plugin-pwa to detect when a new service worker is available
+ * and prompts the user to update.
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useServiceWorkerUpdate } from "../../lib/serviceWorkerRegistration";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -27,70 +23,22 @@ declare global {
  * ServiceWorkerUpdatePrompt - Shows update banner when new version is available
  */
 export function ServiceWorkerUpdatePrompt() {
-  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
-  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
-
-  useEffect(() => {
-    // Check for waiting service worker (new version available)
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.ready.then((registration: ServiceWorkerRegistration) => {
-        if (registration.waiting) {
-          // New version is already waiting
-          setWaitingWorker(registration.waiting);
-          setShowUpdatePrompt(true);
-        }
-
-        // Listen for new waiting service workers
-        registration.addEventListener("updatefound", () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
-              if (newWorker.state === "installed" && registration.waiting) {
-                setWaitingWorker(registration.waiting);
-                setShowUpdatePrompt(true);
-              }
-            });
-          }
-        });
-      });
-    }
-  }, []);
-
-  // Listen for the service worker controller change (app was refreshed)
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      const handleControllerChange = () => {
-        // Page has been refreshed, reload to get new content
-        window.location.reload();
-      };
-
-      navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
-
-      return () => {
-        navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-      };
-    }
-  }, []);
+  const { needRefresh, updateServiceWorker } = useServiceWorkerUpdate();
+  const [dismissed, setDismissed] = useState(false);
 
   const handleUpdate = useCallback(() => {
-    if (waitingWorker) {
-      // Tell the waiting service worker to skip waiting and become active
-      waitingWorker.postMessage({ type: "SKIP_WAITING" });
-
-      // The controllerchange event will trigger a reload
-      setShowUpdatePrompt(false);
-    }
-  }, [waitingWorker]);
+    updateServiceWorker();
+  }, [updateServiceWorker]);
 
   const handleDismiss = useCallback(() => {
-    setShowUpdatePrompt(false);
+    setDismissed(true);
   }, []);
 
-  if (!showUpdatePrompt) return null;
+  if (!needRefresh || dismissed) return null;
 
   return (
     <div
-      className="fixed bottom-16 left-4 right-4 z-50 md:bottom-4 md:max-w-sm md:left-auto md:right-4"
+      className="fixed bottom-16 left-4 right-4 z-50 md:bottom-4 md:max-w-sm md:left-auto md:right-4 animate-slide-up"
       role="alert"
       aria-live="polite"
     >
@@ -148,22 +96,22 @@ export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
-  useEffect(() => {
-    const handleBeforeInstall = (e: BeforeInstallPromptEvent) => {
-      // Prevent the mini-infobar from appearing
-      e.preventDefault();
-      // Stash the event for later use
-      setDeferredPrompt(e);
-      // Show our custom install prompt after a delay
-      setTimeout(() => setShowInstallPrompt(true), 3000);
-    };
+  const handleBeforeInstall = useCallback((e: BeforeInstallPromptEvent) => {
+    // Prevent the mini-infobar from appearing
+    e.preventDefault();
+    // Stash the event for later use
+    setDeferredPrompt(e);
+    // Show our custom install prompt after a delay
+    setTimeout(() => setShowInstallPrompt(true), 3000);
+  }, []);
 
+  useEffect(() => {
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
     };
-  }, []);
+  }, [handleBeforeInstall]);
 
   const handleInstall = useCallback(() => {
     if (!deferredPrompt) return;
@@ -192,7 +140,7 @@ export function PWAInstallPrompt() {
 
   return (
     <div
-      className="fixed bottom-16 left-4 right-4 z-50 md:bottom-4 md:max-w-sm md:left-auto md:right-4"
+      className="fixed bottom-16 left-4 right-4 z-50 md:bottom-4 md:max-w-sm md:left-auto md:right-4 animate-slide-up"
       role="alert"
       aria-live="polite"
     >
