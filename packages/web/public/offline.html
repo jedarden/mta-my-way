@@ -185,14 +185,32 @@
     function updateOnlineStatus() {
       if (navigator.onLine) {
         statusDiv.className = 'status online';
-        statusDiv.innerHTML = '<span id="status-dot">🟢</span> Connection restored! Redirecting...';
+        // Use textContent for safe DOM manipulation - prevents XSS
+        statusDot.textContent = '🟢';
+        const textSpan = document.createElement('span');
+        textSpan.textContent = ' Connection restored! Redirecting...';
+        // Clear children safely without innerHTML
+        while (statusDiv.firstChild) {
+          statusDiv.removeChild(statusDiv.firstChild);
+        }
+        statusDiv.appendChild(statusDot);
+        statusDiv.appendChild(textSpan);
         // Redirect to home after a short delay
         setTimeout(() => {
           window.location.href = '/';
         }, 1000);
       } else {
         statusDiv.className = 'status';
-        statusDiv.innerHTML = '<span id="status-dot">⚫</span> Still offline';
+        // Use textContent for safe DOM manipulation - prevents XSS
+        statusDot.textContent = '⚫';
+        const textSpan = document.createElement('span');
+        textSpan.textContent = ' Still offline';
+        // Clear children safely without innerHTML
+        while (statusDiv.firstChild) {
+          statusDiv.removeChild(statusDiv.firstChild);
+        }
+        statusDiv.appendChild(statusDot);
+        statusDiv.appendChild(textSpan);
       }
     }
 
@@ -205,7 +223,16 @@
 
     // Retry button - reloads the page
     retryBtn.addEventListener('click', () => {
-      statusDiv.innerHTML = '<span id="status-dot">🔄</span> Connecting...';
+      // Use textContent for safe DOM manipulation - prevents XSS
+      statusDot.textContent = '🔄';
+      const textSpan = document.createElement('span');
+      textSpan.textContent = ' Connecting...';
+      // Clear children safely without innerHTML
+      while (statusDiv.firstChild) {
+        statusDiv.removeChild(statusDiv.firstChild);
+      }
+      statusDiv.appendChild(statusDot);
+      statusDiv.appendChild(textSpan);
       window.location.reload();
     });
   </script>
