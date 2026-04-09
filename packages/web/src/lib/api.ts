@@ -95,6 +95,9 @@ const RETRY_OPTIONS: RetryOptions = {
   },
 };
 
+// Import trace headers for distributed tracing
+import { getTraceHeaders } from "./tracing";
+
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
 
@@ -103,6 +106,7 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...getTraceHeaders(),
         ...options?.headers,
       },
     });

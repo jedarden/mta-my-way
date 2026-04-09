@@ -27,6 +27,8 @@ import type {
 
 // Import types from api.ts for internal use
 import type { AlertsResponse, FeedHealthInfo, HealthResponse, TripData, TripStopInfo } from "./api";
+// Import trace headers for distributed tracing
+import { getTraceHeaders } from "./tracing";
 
 // Re-export from base API
 export { api, ApiClientError } from "./api";
@@ -143,6 +145,7 @@ async function enhancedFetch<T>(path: string, options: FetchOptions = {}): Promi
         ...fetchOptions,
         headers: {
           "Content-Type": "application/json",
+          ...getTraceHeaders(),
           ...fetchOptions.headers,
         },
         signal: controller.signal,
