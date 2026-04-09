@@ -67,7 +67,7 @@ function makeTripUpdate(
   options: {
     isAssigned?: boolean;
     trainId?: string;
-    direction?: string;
+    direction?: transit_realtime.IONYCTNysctripdescription.Direction | null;
   } = {}
 ): transit_realtime.ITripUpdate {
   const tu: transit_realtime.ITripUpdate = {
@@ -77,7 +77,7 @@ function makeTripUpdate(
       ".transit_realtime.nyctTripDescriptor": {
         isAssigned: options.isAssigned ?? true,
         trainId: options.trainId ?? null,
-        direction: options.direction ?? "N",
+        direction: options.direction ?? transit_realtime.IONYCTNysctripdescription.Direction.NORTH,
       },
     },
     stopTimeUpdate: stopTimeUpdates,

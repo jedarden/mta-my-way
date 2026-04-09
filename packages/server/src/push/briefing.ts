@@ -125,7 +125,7 @@ function buildBriefingPayload(
   if (matchingAlerts.length === 0) {
     // All clear - mention top lines prominently
     body =
-      topLines.length < allLines.size
+      topLines.size < allLines.size
         ? `${topLinesList} — All clear! (${allLinesList})`
         : `${allLinesList} — All clear! No active alerts.`;
     severity = "info";

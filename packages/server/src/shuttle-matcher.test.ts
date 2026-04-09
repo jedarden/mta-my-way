@@ -81,8 +81,8 @@ describe("shuttle matcher", () => {
     it("includes stop information", async () => {
       const result = await matchShuttle(["1"], ["101N"]);
       expect(result?.stops).toHaveLength(2);
-      expect(result?.stops[0]?.stopId).toBe("101N");
-      expect(result?.stops[1]?.stopId).toBe("127S");
+      expect(result?.stops[0]?.nearStationId).toBe("101N");
+      expect(result?.stops[1]?.nearStationId).toBe("127S");
     });
 
     it("matches multiple affected lines", async () => {

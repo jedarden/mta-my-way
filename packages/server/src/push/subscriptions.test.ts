@@ -35,7 +35,7 @@ function makeRequest(
         auth: "tBHItJI5svbpez7KI4CCXg==",
       },
     },
-    favorites: [{ stationId: "127", lines: ["1", "2", "3"], direction: "N" }],
+    favorites: [{ id: "fav1", stationId: "127", lines: ["1", "2", "3"], direction: "N" }],
     quietHours: { enabled: false, startHour: 0, endHour: 5 },
     ...overrides,
   };
@@ -100,12 +100,12 @@ describe("upsertSubscription", () => {
     const endpoint = "https://push.example.com/sub/same";
     upsertSubscription(
       makeRequest(endpoint, {
-        favorites: [{ stationId: "127", lines: ["1"], direction: "N" }],
+        favorites: [{ id: "fav1", stationId: "127", lines: ["1"], direction: "N" }],
       })
     );
     upsertSubscription(
       makeRequest(endpoint, {
-        favorites: [{ stationId: "999", lines: ["A"], direction: "S" }],
+        favorites: [{ id: "fav2", stationId: "999", lines: ["A"], direction: "S" }],
       })
     );
 
@@ -193,7 +193,9 @@ describe("updateSubscriptionFavorites", () => {
     const req = makeRequest();
     upsertSubscription(req);
 
-    const newFavorites: PushFavoriteTuple[] = [{ stationId: "999", lines: ["7"], direction: "S" }];
+    const newFavorites: PushFavoriteTuple[] = [
+      { id: "fav1", stationId: "999", lines: ["7"], direction: "S" },
+    ];
     const updated = updateSubscriptionFavorites(req.subscription.endpoint, newFavorites);
     expect(updated).toBe(true);
 

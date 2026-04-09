@@ -23,22 +23,15 @@ import { type SanitizationOptions, sanitizeParams } from "./sanitization.js";
  * @returns Hono middleware handler
  */
 export function inputSanitization(options: SanitizationOptions = {}): MiddlewareHandler {
-  const {
-    stripHtml = true,
-    preventSqlInjection = true,
-    preventCommandInjection = true,
-    preventPathTraversal = true,
-    normalizeWhitespace = true,
-    maxLength = 1000, // Lower default for query params vs body
-  } = options;
-
+  // Use default options, override with user options
   const sanitizationOptions: SanitizationOptions = {
-    stripHtml,
-    preventSqlInjection,
-    preventCommandInjection,
-    preventPathTraversal,
-    normalizeWhitespace,
-    maxLength,
+    stripHtml: true,
+    preventSqlInjection: true,
+    preventCommandInjection: true,
+    preventPathTraversal: true,
+    normalizeWhitespace: true,
+    maxLength: 1000, // Lower default for query params vs body
+    ...options,
   };
 
   return async (c, next) => {

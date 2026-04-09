@@ -362,16 +362,10 @@ export async function validatePassword(
   const mergedPolicy = { ...DEFAULT_PASSWORD_POLICY, ...policy };
   const errors: string[] = [];
 
-  // Sanitize input to prevent injection attacks
-  const sanitizedPassword = sanitizeStringSimple(password, {
-    maxLength: mergedPolicy.maxLength,
-    preserveCase: true,
-    preserveWhitespace: mergedPolicy.allowSpaces,
-  });
-
-  // Check if sanitization changed the password
-  if (sanitizedPassword !== password) {
-    errors.push("Password contains invalid characters");
+  // Check maximum length FIRST before any sanitization
+  // This ensures we catch long passwords and provide a clear error message
+  if (password.length > mergedPolicy.maxLength) {
+    errors.push(`Password must be no more than ${mergedPolicy.maxLength} characters long`);
     return {
       valid: false,
       errors,
@@ -385,9 +379,22 @@ export async function validatePassword(
     errors.push(`Password must be at least ${mergedPolicy.minLength} characters long`);
   }
 
-  // Check maximum length
-  if (password.length > mergedPolicy.maxLength) {
-    errors.push(`Password must be no more than ${mergedPolicy.maxLength} characters long`);
+  // Sanitize input to prevent injection attacks (without length truncation since we already checked)
+  const sanitizedPassword = sanitizeStringSimple(password, {
+    maxLength: password.length, // Don't truncate, we already validated length
+    preserveCase: true,
+    preserveWhitespace: mergedPolicy.allowSpaces,
+  });
+
+  // Check if sanitization changed the password (injection patterns detected)
+  if (sanitizedPassword !== password) {
+    errors.push("Password contains invalid characters");
+    return {
+      valid: false,
+      errors,
+      strength: 0,
+      strengthCategory: "weak",
+    };
   }
 
   // Check uppercase

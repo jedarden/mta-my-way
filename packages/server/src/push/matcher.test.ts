@@ -39,8 +39,9 @@ function makeSubscription(overrides: Partial<PushSubscriptionRecord> = {}): Push
     endpoint: "https://push.example.com/sub/123",
     p256dh: "BNcRdreALRFXTkOOUHK1EtK2wtZ34Tuqe",
     auth: "tBHItJI5svbpez7KI4CCXg==",
-    favorites: JSON.stringify([{ stationId: "123", lines: ["F"], direction: "N" }]),
+    favorites: JSON.stringify([{ id: "fav1", stationId: "123", lines: ["F"], direction: "N" }]),
     quietHours: JSON.stringify({ enabled: false, startHour: 0, endHour: 5 }),
+    morningScores: JSON.stringify({}),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides,
@@ -74,7 +75,7 @@ describe("matchAlertToSubscriptions — line matching", () => {
   it("is case-insensitive for line comparison", () => {
     const alert = makeAlert({ severity: "severe", affectedLines: ["f"] });
     const sub = makeSubscription({
-      favorites: JSON.stringify([{ stationId: "123", lines: ["F"], direction: "N" }]),
+      favorites: JSON.stringify([{ id: "fav1", stationId: "123", lines: ["F"], direction: "N" }]),
     });
     const results = matchAlertToSubscriptions(makeChange(alert), [sub]);
     expect(results).toHaveLength(1);
@@ -84,8 +85,8 @@ describe("matchAlertToSubscriptions — line matching", () => {
     const alert = makeAlert({ affectedLines: ["F", "G"] });
     const sub = makeSubscription({
       favorites: JSON.stringify([
-        { stationId: "123", lines: ["F"], direction: "N" },
-        { stationId: "456", lines: ["G"], direction: "S" },
+        { id: "fav1", stationId: "123", lines: ["F"], direction: "N" },
+        { id: "fav2", stationId: "456", lines: ["G"], direction: "S" },
       ]),
     });
     const results = matchAlertToSubscriptions(makeChange(alert), [sub]);

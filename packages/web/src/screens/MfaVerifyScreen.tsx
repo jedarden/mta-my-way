@@ -166,7 +166,9 @@ export default function MfaVerifyScreen() {
           {/* Verify Button */}
           <button
             type="button"
-            onClick={handleVerifyCode}
+            onClick={() => {
+              void handleVerifyCode();
+            }}
             disabled={verificationCode.length !== inputLength || isLoading}
             className={[
               "w-full px-4 py-3 bg-mta-primary hover:bg-mta-primary/90 text-white rounded-lg font-medium",

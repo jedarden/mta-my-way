@@ -12,6 +12,13 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ShuttleBusInfo, ShuttleStop } from "@mta-my-way/shared";
 
+// Extend the ShuttleSegment interface to match the JSON structure
+interface ShuttleStopJson {
+  stopId: string;
+  stationName: string;
+  location: { lat: number; lon: number };
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -27,7 +34,7 @@ interface ShuttleSegment {
   fromStation: string;
   toStation: string;
   description: string;
-  stops: ShuttleStop[];
+  stops: ShuttleStopJson[];
   frequencyMinutes: string;
   lastVerified: string;
 }
@@ -85,11 +92,19 @@ export async function matchShuttle(
     );
 
     if (hasOverlappingStation) {
+      // Transform stop data to match ShuttleStop interface
+      const transformedStops: ShuttleStop[] = segment.stops.map((stop) => ({
+        nearStationId: stop.stopId,
+        description: stop.stationName,
+        lat: stop.location?.lat,
+        lon: stop.location?.lon,
+      }));
+
       return {
         lineId: segment.lineId,
         fromStopId: segment.fromStopId,
         toStopId: segment.toStopId,
-        stops: segment.stops,
+        stops: transformedStops,
         frequencyMinutes: segment.frequencyMinutes,
         lastVerified: segment.lastVerified,
       };
