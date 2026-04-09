@@ -25,7 +25,6 @@ import {
   getLineMetadata,
   getTodayISO,
 } from "@mta-my-way/shared";
-import html2canvas from "html2canvas";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useFareStore } from "../../stores";
 import { useJournalStore } from "../../stores/journalStore";
@@ -262,54 +261,56 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
   }, [filteredTrips]);
 
   // Handle share
-  const handleShare = useCallback(() => {
+  const handleShare = useCallback(async () => {
     const element = cardRef.current;
     if (!element) return;
 
     setSharing(true);
 
-    void (async () => {
-      try {
-        const canvas = await html2canvas(element, {
-          backgroundColor: "#ffffff",
-          scale: 2, // Retina quality
-          logging: false,
-        });
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(element, {
+        backgroundColor: "#ffffff",
+        scale: 2, // Retina quality
+        logging: false,
+      });
 
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            setSharing(false);
-            return;
-          }
-
-          const file = new File([blob], "my-subway-year.png", { type: "image/png" });
-
-          void (async () => {
-            try {
-              if (navigator.share && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                  title: "My Subway Year",
-                  text: `I took ${stats.totalTrips} trips and saved ${formatCarbonSavings(stats.carbonSavedKg)} of CO2!`,
-                  files: [file],
-                });
-              } else {
-                // Fallback: download the image
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "my-subway-year.png";
-                a.click();
-                URL.revokeObjectURL(url);
-              }
-            } finally {
-              setSharing(false);
-            }
-          })();
-        }, "image/png");
-      } catch {
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) {
         setSharing(false);
+        return;
       }
-    })();
+
+      const file = new File([blob], "my-subway-year.png", { type: "image/png" });
+
+      // Try native share first (mobile)
+      if (
+        navigator.share &&
+        navigator.canShare?.({
+          files: [file],
+        })
+      ) {
+        await navigator.share({
+          title: "My Subway Year",
+          text: `I took ${stats.totalTrips} trips and saved ${formatCarbonSavings(stats.carbonSavedKg)} of CO2!`,
+          files: [file],
+        });
+      } else {
+        // Fallback: download the image
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "my-subway-year.png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // User cancelled or error occurred
+    } finally {
+      setSharing(false);
+    }
   }, [stats.totalTrips, stats.carbonSavedKg]);
 
   // Get window label
