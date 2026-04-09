@@ -311,11 +311,9 @@ async function fetchEquipment(): Promise<Map<string, EquipmentStatus[]> | null> 
 
     const xml = await response.text();
     const outages = await withChildSpan("parse-ene-feed", () => parseENEFeed(xml));
-    const equipment = await withChildSpan(
-      "transform-outages",
-      () => transformOutages(outages),
-      { "outage.count": outages.length }
-    );
+    const equipment = await withChildSpan("transform-outages", () => transformOutages(outages), {
+      "outage.count": outages.length,
+    });
 
     // Success
     status.consecutiveFailures = 0;
