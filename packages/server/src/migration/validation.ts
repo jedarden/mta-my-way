@@ -7,6 +7,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { validateColumnName, validateTableName } from "./sql-validator.js";
 
 /** Table column information */
 export interface ColumnInfo {
@@ -41,9 +42,11 @@ export interface ValidationResult {
  * @returns True if table exists
  */
 export function tableExists(db: Database.Database, tableName: string): boolean {
+  // Validate table name to prevent SQL injection
+  const validatedTableName = validateTableName(tableName);
   const result = db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
-    .get(tableName);
+    .get(validatedTableName);
   return !!result;
 }
 
@@ -55,7 +58,9 @@ export function tableExists(db: Database.Database, tableName: string): boolean {
  * @returns Array of column information
  */
 export function getTableColumns(db: Database.Database, tableName: string): ColumnInfo[] {
-  return db.pragma(`table_info(${tableName})`) as ColumnInfo[];
+  // Validate table name to prevent SQL injection
+  const validatedTableName = validateTableName(tableName);
+  return db.pragma(`table_info(${validatedTableName})`) as ColumnInfo[];
 }
 
 /**
@@ -66,11 +71,13 @@ export function getTableColumns(db: Database.Database, tableName: string): Colum
  * @returns Array of index information
  */
 export function getTableIndexes(db: Database.Database, tableName: string): IndexInfo[] {
+  // Validate table name to prevent SQL injection
+  const validatedTableName = validateTableName(tableName);
   const indexes = db
     .prepare(
       "SELECT name, unique, origin, partial FROM sqlite_master WHERE type='index' AND tbl_name=?"
     )
-    .all(tableName) as IndexInfo[];
+    .all(validatedTableName) as IndexInfo[];
   return indexes;
 }
 
@@ -87,8 +94,11 @@ export function columnExists(
   tableName: string,
   columnName: string
 ): boolean {
-  const columns = getTableColumns(db, tableName);
-  return columns.some((col) => col.name === columnName);
+  // Validate table and column names to prevent SQL injection
+  const validatedTableName = validateTableName(tableName);
+  const validatedColumnName = validateColumnName(columnName);
+  const columns = getTableColumns(db, validatedTableName);
+  return columns.some((col) => col.name === validatedColumnName);
 }
 
 /**
@@ -121,24 +131,29 @@ export function validateTableColumns(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!tableExists(db, tableName)) {
-    errors.push(`Table '${tableName}' does not exist`);
+  // Validate table name
+  const validatedTableName = validateTableName(tableName);
+
+  if (!tableExists(db, validatedTableName)) {
+    errors.push(`Table '${validatedTableName}' does not exist`);
     return { valid: false, errors, warnings };
   }
 
-  const columns = getTableColumns(db, tableName);
+  const columns = getTableColumns(db, validatedTableName);
   const columnNames = new Set(columns.map((c) => c.name));
 
   for (const col of expectedColumns) {
-    if (!columnNames.has(col)) {
-      errors.push(`Column '${col}' does not exist in table '${tableName}'`);
+    // Validate each column name
+    const validatedCol = validateColumnName(col);
+    if (!columnNames.has(validatedCol)) {
+      errors.push(`Column '${validatedCol}' does not exist in table '${validatedTableName}'`);
     }
   }
 
   // Check for unexpected columns
   for (const col of columnNames) {
     if (!expectedColumns.includes(col) && !col.startsWith("_")) {
-      warnings.push(`Unexpected column '${col}' in table '${tableName}'`);
+      warnings.push(`Unexpected column '${col}' in table '${validatedTableName}'`);
     }
   }
 
@@ -215,22 +230,25 @@ export function validateRowCount(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!tableExists(db, tableName)) {
-    errors.push(`Table '${tableName}' does not exist`);
+  // Validate table name
+  const validatedTableName = validateTableName(tableName);
+
+  if (!tableExists(db, validatedTableName)) {
+    errors.push(`Table '${validatedTableName}' does not exist`);
     return { valid: false, errors, warnings };
   }
 
-  const result = db.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).get() as {
+  const result = db.prepare(`SELECT COUNT(*) as count FROM ${validatedTableName}`).get() as {
     count: number;
   };
   const count = result.count;
 
   if (count < minRows) {
-    errors.push(`Table '${tableName}' has ${count} rows, expected at least ${minRows}`);
+    errors.push(`Table '${validatedTableName}' has ${count} rows, expected at least ${minRows}`);
   }
 
   if (maxRows !== undefined && count > maxRows) {
-    warnings.push(`Table '${tableName}' has ${count} rows, expected at most ${maxRows}`);
+    warnings.push(`Table '${validatedTableName}' has ${count} rows, expected at most ${maxRows}`);
   }
 
   return { valid: errors.length === 0, errors, warnings };
@@ -252,25 +270,29 @@ export function validateNoDuplicates(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!tableExists(db, tableName)) {
-    errors.push(`Table '${tableName}' does not exist`);
+  // Validate table and column names
+  const validatedTableName = validateTableName(tableName);
+  const validatedColumnName = validateColumnName(columnName);
+
+  if (!tableExists(db, validatedTableName)) {
+    errors.push(`Table '${validatedTableName}' does not exist`);
     return { valid: false, errors, warnings };
   }
 
-  if (!columnExists(db, tableName, columnName)) {
-    errors.push(`Column '${columnName}' does not exist in table '${tableName}'`);
+  if (!columnExists(db, validatedTableName, validatedColumnName)) {
+    errors.push(`Column '${validatedColumnName}' does not exist in table '${validatedTableName}'`);
     return { valid: false, errors, warnings };
   }
 
   const result = db
     .prepare(
-      `SELECT COUNT(*) - COUNT(DISTINCT ${columnName}) as duplicates FROM ${tableName} WHERE ${columnName} IS NOT NULL`
+      `SELECT COUNT(*) - COUNT(DISTINCT ${validatedColumnName}) as duplicates FROM ${validatedTableName} WHERE ${validatedColumnName} IS NOT NULL`
     )
     .get() as { duplicates: number };
 
   if (result.duplicates > 0) {
     errors.push(
-      `Table '${tableName}' has ${result.duplicates} duplicate values in column '${columnName}'`
+      `Table '${validatedTableName}' has ${result.duplicates} duplicate values in column '${validatedColumnName}'`
     );
   }
 
@@ -288,22 +310,26 @@ export function validateNotNullColumns(db: Database.Database, tableName: string)
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!tableExists(db, tableName)) {
-    errors.push(`Table '${tableName}' does not exist`);
+  // Validate table name
+  const validatedTableName = validateTableName(tableName);
+
+  if (!tableExists(db, validatedTableName)) {
+    errors.push(`Table '${validatedTableName}' does not exist`);
     return { valid: false, errors, warnings };
   }
 
-  const columns = getTableColumns(db, tableName);
+  const columns = getTableColumns(db, validatedTableName);
   const notNullColumns = columns.filter((c) => c.notnull === 1 && c.pk === 0);
 
   for (const col of notNullColumns) {
+    const validatedColName = validateColumnName(col.name);
     const result = db
-      .prepare(`SELECT COUNT(*) as null_count FROM ${tableName} WHERE ${col.name} IS NULL`)
+      .prepare(`SELECT COUNT(*) as null_count FROM ${validatedTableName} WHERE ${validatedColName} IS NULL`)
       .get() as { null_count: number };
 
     if (result.null_count > 0) {
       errors.push(
-        `Column '${col.name}' in table '${tableName}' has ${result.null_count} NULL values but is NOT NULL`
+        `Column '${validatedColName}' in table '${validatedTableName}' has ${result.null_count} NULL values but is NOT NULL`
       );
     }
   }
@@ -351,23 +377,26 @@ export function safeTransform(
   transform: (row: Record<string, unknown>) => void,
   batchSize = 1000
 ): number {
-  if (!tableExists(db, tableName)) {
-    throw new Error(`Table '${tableName}' does not exist`);
+  // Validate table name
+  const validatedTableName = validateTableName(tableName);
+
+  if (!tableExists(db, validatedTableName)) {
+    throw new Error(`Table '${validatedTableName}' does not exist`);
   }
 
   // Get primary key column
-  const columns = getTableColumns(db, tableName);
+  const columns = getTableColumns(db, validatedTableName);
   const pkColumn = columns.find((c) => c.pk > 0);
   if (!pkColumn) {
-    throw new Error(`Table '${tableName}' has no primary key`);
+    throw new Error(`Table '${validatedTableName}' has no primary key`);
   }
 
-  const count = db.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).get() as { count: number };
+  const count = db.prepare(`SELECT COUNT(*) as count FROM ${validatedTableName}`).get() as { count: number };
   let transformed = 0;
 
   // Process in batches
   for (let offset = 0; offset < count.count; offset += batchSize) {
-    const rows = db.prepare(`SELECT * FROM ${tableName} LIMIT ${batchSize} OFFSET ${offset}`).all();
+    const rows = db.prepare(`SELECT * FROM ${validatedTableName} LIMIT ${batchSize} OFFSET ${offset}`).all();
 
     db.transaction(() => {
       for (const row of rows) {
