@@ -1469,7 +1469,7 @@ export function createApp(
   );
 
   /** Get trips from the journal with optional filters */
-  app.get("/api/trips", (c) => {
+  app.get("/api/trips", requirePermission("trips:read:own" as Permission), (c) => {
     const query = validateQuery(c, tripQuerySchema);
     if (query instanceof Response) return query;
 
