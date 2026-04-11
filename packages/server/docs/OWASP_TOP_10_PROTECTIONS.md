@@ -18,6 +18,8 @@ This document describes how MTA My Way addresses each of the OWASP Top 10 (2021)
 | Parameter Pollution Protection | Detects and blocks duplicate parameters | `middleware/parameter-pollution.ts` |
 | Mass Assignment Protection | Field allow-listing to prevent privilege escalation | `middleware/mass-assignment.ts` |
 | Open Redirect Protection | Validates redirect URLs against allow-lists | `middleware/open-redirect.ts` |
+| HTTP Response Splitting Protection | Detects and blocks CRLF injection | `middleware/http-response-splitting.ts` |
+| HTTP Request Smuggling Protection | Validates Content-Length and Transfer-Encoding | `middleware/http-request-smuggling.ts` |
 
 ### Configuration
 
@@ -41,6 +43,8 @@ Run CSRF protection tests:
 npm test -- middleware/csrf-protection.test.ts
 npm test -- middleware/mass-assignment.test.ts
 npm test -- middleware/open-redirect.test.ts
+npm test -- middleware/http-response-splitting.test.ts
+npm test -- middleware/http-request-smuggling.test.ts
 ```
 
 ---
@@ -106,6 +110,8 @@ npm test -- middleware/authentication.test.ts
 | Command Injection Prevention | Validates and sanitizes shell inputs | `middleware/sanitization.ts` |
 | Path Traversal Prevention | Validates file paths, blocks traversal | `middleware/path-traversal.ts` |
 | Header Validation | Validates and sanitizes HTTP headers | `middleware/header-validation.ts` |
+| HTTP Response Splitting Protection | Detects and blocks CRLF injection | `middleware/http-response-splitting.ts` |
+| HTTP Request Smuggling Protection | Detects and blocks request smuggling | `middleware/http-request-smuggling.ts` |
 
 ### Content Security Policy
 
@@ -516,6 +522,7 @@ npm test -- middleware/ssrf-protection.test.ts
 | Request Size Limits | 1MB max for JSON, 10MB for forms | `middleware/request-limits.ts` |
 | Compression Threshold | Only compress responses >500 bytes | `app.ts` |
 | Circuit Breaker | Feed polling with circuit breaker | `cache.ts` |
+| Request Smuggling Protection | Blocks malicious request patterns | `middleware/http-request-smuggling.ts` |
 
 ### Privacy Protection
 
