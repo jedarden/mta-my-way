@@ -35,6 +35,7 @@ import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
 import { getPushDatabase, initPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
+import { validateSecurityOrThrow } from "./security-startup.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 import { initTripTracking } from "./trip-tracking.js";
 
@@ -58,6 +59,9 @@ async function loadJsonFile<T>(filename: string): Promise<T> {
 }
 
 async function main(): Promise<void> {
+  // Validate security configuration first (fail-fast on critical issues)
+  validateSecurityOrThrow();
+
   // Enable test mode if environment variable is set (for E2E tests)
   const testMode = process.env["TEST_MODE"] === "true";
   if (testMode) {
