@@ -56,8 +56,8 @@ describe("Trip Tracking Integration Tests", () => {
       // Verify it's in the database
       const retrieved = getTripById(result!.id);
       expect(retrieved).toBeDefined();
-      expect(retrieved?.origin.id).toBe("101");
-      expect(retrieved?.destination.id).toBe("725");
+      expect(retrieved?.origin.stationId).toBe("101");
+      expect(retrieved?.destination.stationId).toBe("725");
     });
 
     it("generates unique IDs for each trip", () => {
@@ -88,8 +88,8 @@ describe("Trip Tracking Integration Tests", () => {
 
       const retrieved = getTripById(result!.id);
       expect(retrieved?.date).toBe("2026-04-06");
-      expect(retrieved?.origin.id).toBe("101");
-      expect(retrieved?.destination.id).toBe("725");
+      expect(retrieved?.origin.stationId).toBe("101");
+      expect(retrieved?.destination.stationId).toBe("725");
       expect(retrieved?.line).toBe("1");
       expect(retrieved?.notes).toBe("Test trip notes");
     });
@@ -160,13 +160,13 @@ describe("Trip Tracking Integration Tests", () => {
     it("filters by origin station", () => {
       const trips = getTrips({ originId: "101" });
       expect(trips).toHaveLength(2);
-      expect(trips.every((t) => t.origin.id === "101")).toBe(true);
+      expect(trips.every((t) => t.origin.stationId === "101")).toBe(true);
     });
 
     it("filters by destination station", () => {
       const trips = getTrips({ destinationId: "725" });
       expect(trips).toHaveLength(1);
-      expect(trips[0]?.destination.id).toBe("725");
+      expect(trips[0]?.destination.stationId).toBe("725");
     });
 
     it("filters by line", () => {
@@ -204,7 +204,7 @@ describe("Trip Tracking Integration Tests", () => {
     it("combines multiple filters", () => {
       const trips = getTrips({ originId: "101", line: "1" });
       expect(trips).toHaveLength(2);
-      expect(trips.every((t) => t.origin.id === "101" && t.line === "1")).toBe(true);
+      expect(trips.every((t) => t.origin.stationId === "101" && t.line === "1")).toBe(true);
     });
 
     it("returns empty array when no trips match", () => {
@@ -220,8 +220,8 @@ describe("Trip Tracking Integration Tests", () => {
 
       expect(retrieved).toBeDefined();
       expect(retrieved?.id).toBe(created!.id);
-      expect(retrieved?.origin.id).toBe("101");
-      expect(retrieved?.destination.id).toBe("725");
+      expect(retrieved?.origin.stationId).toBe("101");
+      expect(retrieved?.destination.stationId).toBe("725");
     });
 
     it("returns null for non-existent trip", () => {
@@ -332,8 +332,8 @@ describe("Trip Tracking Integration Tests", () => {
       expect(result).not.toBeNull();
       expect(result?.line).toBe("1");
       expect(result?.source).toBe("inferred");
-      expect(result?.origin.id).toBe("101");
-      expect(result?.destination.id).toBe("725");
+      expect(result?.origin.stationId).toBe("101");
+      expect(result?.destination.stationId).toBe("725");
     });
 
     it("calculates actual duration from timestamps", () => {

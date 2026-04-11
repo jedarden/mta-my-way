@@ -9,6 +9,7 @@ import type { StationRef } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStationIndex } from "../../hooks/useStationIndex";
 import { searchStations } from "../../lib/stationSearch";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 import { StationSearch } from "../search/StationSearch";
 
@@ -148,7 +149,7 @@ export function StationPicker({ title, onSelect, onClose }: StationPickerProps) 
             </p>
           ) : results.length === 0 ? (
             <p className="text-13 text-text-secondary dark:text-dark-text-secondary py-4 text-center">
-              No stations found for "{query}"
+              No stations found for &quot;{sanitizeUserInput(query)}&quot;
             </p>
           ) : (
             <div className="space-y-2" role="list">
@@ -164,7 +165,7 @@ export function StationPicker({ title, onSelect, onClose }: StationPickerProps) 
                   role="listitem"
                 >
                   <div className="font-medium text-text-primary dark:text-dark-text-primary mb-1">
-                    {result.displayName}
+                    {sanitizeUserInput(result.displayName)}
                   </div>
                   <div className="text-13 text-text-secondary dark:text-dark-text-secondary mb-2">
                     {result.borough}

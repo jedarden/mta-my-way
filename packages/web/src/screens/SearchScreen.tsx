@@ -16,6 +16,7 @@ import { SearchResults } from "../components/search/SearchResults";
 import { StationSearch } from "../components/search/StationSearch";
 import { useFavorites } from "../hooks/useFavorites";
 import { useStationIndex } from "../hooks/useStationIndex";
+import { encodeForAria, sanitizeUserInput } from "../lib/outputEncoding";
 import { searchStations } from "../lib/stationSearch";
 
 const POPULAR_STATIONS = [
@@ -137,7 +138,7 @@ function PopularStations() {
               <div className="flex items-start justify-between gap-2 mb-1">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-text-primary dark:text-dark-text-primary truncate">
-                    {station.name}
+                    {sanitizeUserInput(station.name)}
                   </div>
                   <div className="text-13 text-text-secondary dark:text-dark-text-secondary mt-0.5">
                     {station.borough}
@@ -148,8 +149,8 @@ function PopularStations() {
                   onClick={(e) => handleFavoriteToggle(e, station)}
                   aria-label={
                     favorited
-                      ? `Remove ${station.name} from favorites`
-                      : `Add ${station.name} to favorites`
+                      ? `Remove ${encodeForAria(station.name)} from favorites`
+                      : `Add ${encodeForAria(station.name)} to favorites`
                   }
                   aria-pressed={favorited}
                   className="shrink-0 min-h-touch min-w-touch flex items-center justify-center p-1 -mr-1 -mt-1"

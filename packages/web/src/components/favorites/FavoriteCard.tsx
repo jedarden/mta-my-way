@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { useArrivals } from "../../hooks/useArrivals";
 import { useOfflineCountdown } from "../../hooks/useOfflineCountdown";
 import { useStaleness } from "../../hooks/useStaleness";
-import { encodeForAria } from "../../lib/outputEncoding";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 import { useFavoritesStore } from "../../stores/favoritesStore";
 import { ArrivalRow } from "../arrivals/ArrivalRow";
 import { LineBullet } from "../arrivals/LineBullet";
@@ -96,11 +96,11 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
       <div className="flex items-start gap-2 px-4 pt-4 pb-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-base text-text-primary dark:text-dark-text-primary truncate leading-tight">
-            {favorite.label ?? favorite.stationName}
+            {favorite.label ? favorite.label : sanitizeUserInput(favorite.stationName)}
           </h3>
           {favorite.label && (
             <p className="text-13 text-text-secondary dark:text-dark-text-secondary truncate">
-              {favorite.stationName}
+              {sanitizeUserInput(favorite.stationName)}
             </p>
           )}
           <div className="flex flex-wrap gap-1 mt-1.5 items-center">

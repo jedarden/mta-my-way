@@ -270,12 +270,12 @@ export function createTestTrip(
     id: overrides.id ?? crypto.randomUUID(),
     date: overrides.date ?? new Date(now).toISOString().split("T")[0]!,
     origin: {
-      id: overrides.originId ?? "101",
-      name: overrides.originName ?? "South Ferry",
+      stationId: overrides.originId ?? "101",
+      stationName: overrides.originName ?? "South Ferry",
     },
     destination: {
-      id: overrides.destinationId ?? "725",
-      name: overrides.destinationName ?? "Times Sq-42 St",
+      stationId: overrides.destinationId ?? "725",
+      stationName: overrides.destinationName ?? "Times Sq-42 St",
     },
     line: overrides.line ?? "1",
     departureTime: overrides.departureTime ?? oneHourAgo,

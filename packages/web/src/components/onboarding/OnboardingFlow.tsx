@@ -20,6 +20,7 @@ import { useStationIndex } from "../../hooks/useStationIndex";
 import type { Station } from "../../lib/api";
 import { findNearbyStations, formatDistance, isInNYCArea } from "../../lib/nearbyStations";
 import type { NearbyStation } from "../../lib/nearbyStations";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { useFavoritesStore } from "../../stores";
 import { StationSearch } from "../search/StationSearch";
 
@@ -394,7 +395,9 @@ function NearbyStationsStep({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{station.stationName}</div>
+                  <div className="font-semibold truncate">
+                    {sanitizeUserInput(station.stationName)}
+                  </div>
                   <div
                     className={`text-sm ${isSelected ? "text-white/80" : "text-text-secondary dark:text-dark-text-secondary"}`}
                   >
@@ -502,7 +505,7 @@ function SearchFallbackStep({ onSelect, onSkip }: SearchFallbackStepProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-semibold text-text-primary dark:text-dark-text-primary">
-                      {station.name}
+                      {sanitizeUserInput(station.name)}
                     </div>
                     <div className="text-sm text-text-secondary dark:text-dark-text-secondary">
                       {station.borough}
@@ -654,7 +657,7 @@ function CommuteSetupStep({
             From
           </label>
           <div className="px-4 py-3 bg-surface dark:bg-dark-surface rounded-lg text-text-primary dark:text-dark-text-primary">
-            {originName}
+            {sanitizeUserInput(originName)}
           </div>
         </div>
 
@@ -666,7 +669,7 @@ function CommuteSetupStep({
           {destination ? (
             <div className="flex items-center justify-between px-4 py-3 bg-surface dark:bg-dark-surface rounded-lg">
               <span className="text-text-primary dark:text-dark-text-primary font-medium">
-                {destination.name}
+                {sanitizeUserInput(destination.name)}
               </span>
               <button
                 type="button"
@@ -700,7 +703,7 @@ function CommuteSetupStep({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-text-primary dark:text-dark-text-primary font-medium">
-                          {station.name}
+                          {sanitizeUserInput(station.name)}
                         </span>
                         <div className="flex gap-1">
                           {station.lines.slice(0, 3).map((line) => (

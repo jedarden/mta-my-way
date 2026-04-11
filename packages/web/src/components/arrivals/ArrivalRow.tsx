@@ -14,6 +14,7 @@ import type { ArrivalTime } from "@mta-my-way/shared";
 import { formatMinutesAway } from "@mta-my-way/shared";
 import { computeFeedFreshness } from "../../hooks/useFeedFreshness";
 import type { StalenessLevel } from "../../hooks/useStaleness";
+import { encodeForAria } from "../../lib/outputEncoding";
 import { ConfidenceBar } from "./ConfidenceBar";
 import { LineBullet } from "./LineBullet";
 
@@ -77,7 +78,7 @@ export function ArrivalRow({
 
   // In compact mode, show less info
   if (compact) {
-    const accessibleLabel = `${line} train to ${destination}, ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`;
+    const accessibleLabel = `${line} train to ${encodeForAria(destination)}, ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`;
 
     return (
       <div
@@ -137,7 +138,7 @@ export function ArrivalRow({
         tabIndex={onClick ? 0 : undefined}
         aria-label={
           onClick
-            ? `${line} train to ${destination}, arriving in ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`
+            ? `${line} train to ${encodeForAria(destination)}, arriving in ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`
             : undefined
         }
         onKeyDown={(e) => {
@@ -153,7 +154,7 @@ export function ArrivalRow({
         {/* Destination */}
         <div className="flex-1 min-w-0">
           <p className="text-base font-medium text-text-primary dark:text-dark-text-primary truncate">
-            {destination}
+            {sanitizeUserInput(destination)}
           </p>
           <div className="flex items-center gap-2" role="group" aria-label="Trip details">
             {isExpress && <ExpressBadge />}
@@ -196,7 +197,7 @@ export function ArrivalRow({
             active:bg-mta-primary/15 transition-colors
             ${mergedClass}
           `}
-          aria-label={`Track ${destination} train`}
+          aria-label={`Track ${encodeForAria(destination)} train`}
         >
           I'm on this train
         </button>

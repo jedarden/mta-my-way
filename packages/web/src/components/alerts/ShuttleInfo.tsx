@@ -6,6 +6,7 @@
  */
 
 import type { ShuttleBusInfo } from "@mta-my-way/shared";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 
 interface ShuttleInfoProps {
   shuttleInfo: ShuttleBusInfo;
@@ -71,7 +72,7 @@ export function ShuttleInfo({ shuttleInfo, compact = false }: ShuttleInfoProps) 
             </span>
             <div className="min-w-0">
               <p className="text-13 text-text-primary dark:text-dark-text-primary">
-                {stop.description}
+                {sanitizeUserInput(stop.description)}
               </p>
             </div>
           </div>

@@ -12,6 +12,7 @@ import {
   getFreshnessLevel,
   getFreshnessTextColor,
 } from "@mta-my-way/shared";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 
 interface FreshnessDetailProps {
   /** Feed entries from the current station's arrivals */
@@ -54,7 +55,7 @@ export function FreshnessDetail({ feedEntries }: FreshnessDetailProps) {
                 className={`w-2 h-2 rounded-full shrink-0 ${getFreshnessDotColor(feed.level)}`}
               />
               <span className="text-text-primary dark:text-dark-text-primary truncate">
-                {feed.name}
+                {sanitizeUserInput(feed.name)}
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">

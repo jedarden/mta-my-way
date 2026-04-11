@@ -12,6 +12,7 @@
 import type { InterpolatedTrainPosition, LineDiagramData } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getTrainOverallProgress } from "../../hooks/usePositions";
+import { encodeForAria } from "../../lib/outputEncoding";
 
 interface TrainDiagramProps {
   /** Line diagram data from the API */
@@ -261,7 +262,7 @@ function TrainDot({
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
       onMouseLeave={() => setIsPressed(false)}
-      aria-label={`${train.direction === "N" ? "Northbound" : "Southbound"} train to ${train.destination}${train.isAssigned ? "" : " (unassigned)"}${train.delay && train.delay > 0 ? ` delayed ${train.delay} seconds` : ""}`}
+      aria-label={`${train.direction === "N" ? "Northbound" : "Southbound"} train to ${encodeForAria(train.destination)}${train.isAssigned ? "" : " (unassigned)"}${train.delay && train.delay > 0 ? ` delayed ${train.delay} seconds` : ""}`}
       className="cursor-pointer focus:outline-none"
     >
       {/* Pulsing ring for user's next train */}

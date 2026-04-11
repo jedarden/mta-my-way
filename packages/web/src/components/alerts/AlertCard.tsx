@@ -12,7 +12,7 @@
 import type { AlertSeverity, StationAlert } from "@mta-my-way/shared";
 import { formatTimeAgo } from "@mta-my-way/shared";
 import { useCallback, useEffect, useState } from "react";
-import { sanitizeUserInput } from "../../lib/outputEncoding";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 import { ShuttleInfo } from "./ShuttleInfo";
 
@@ -158,7 +158,7 @@ export function AlertCard({
             {alert.affectedLines.length > 0 && (
               <div
                 className="flex flex-wrap gap-1 mb-1.5"
-                aria-label={`Affected lines: ${alert.affectedLines.join(", ")}`}
+                aria-label={`Affected lines: ${alert.affectedLines.map((l) => encodeForAria(l)).join(", ")}`}
               >
                 {alert.affectedLines.map((line) => (
                   <LineBullet key={line} line={line} size="sm" />

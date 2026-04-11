@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { DataState } from "../components/common/DataState";
 import { useStationIndex } from "../hooks/useStationIndex";
 import { useJournalStore } from "../stores";
+import { sanitizeUserInput } from "../lib/outputEncoding";
 
 // ---------------------------------------------------------------------------
 // Time Window
@@ -312,7 +313,7 @@ function SubwayYearCard({ stats, windowLabel, year }: SubwayYearCardProps) {
         <div className="flex justify-between items-center">
           <span className="text-blue-200 text-sm">Top Station</span>
           <span className="font-semibold text-right max-w-[60%] truncate">
-            {stats.mostUsedStation}
+            {sanitizeUserInput(stats.mostUsedStation)}
           </span>
         </div>
         <div className="flex justify-between items-center">
@@ -392,7 +393,7 @@ function StatsDetail({ stats, windowLabel }: StatsDetailProps) {
       items: [
         {
           label: "Most-Used Station",
-          value: stats.mostUsedStation,
+          value: sanitizeUserInput(stats.mostUsedStation),
           sub: `${stats.mostUsedStationCount} visits`,
         },
         {

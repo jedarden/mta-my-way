@@ -6,6 +6,7 @@
  */
 
 import type { EquipmentStatus } from "@mta-my-way/shared";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 
 interface EquipmentBannerProps {
   equipment: EquipmentStatus[];
@@ -28,7 +29,7 @@ export function EquipmentBanner({ equipment, stationName }: EquipmentBannerProps
           : "bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50",
       ].join(" ")}
       role="alert"
-      aria-label={`Equipment outages at ${stationName}`}
+      aria-label={`Equipment outages at ${encodeForAria(stationName)}`}
     >
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
@@ -134,7 +135,7 @@ function EquipmentItem({ equipment }: { equipment: EquipmentStatus }) {
       </span>
       <div className="min-w-0">
         <p className="text-13 text-text-primary dark:text-dark-text-primary">
-          {equipment.description}
+          {sanitizeUserInput(equipment.description)}
           {equipment.ada && (
             <span className="ml-1.5 text-11 font-medium text-red-600 dark:text-red-400">ADA</span>
           )}
