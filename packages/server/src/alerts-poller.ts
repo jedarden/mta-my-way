@@ -417,3 +417,20 @@ export async function refreshAlerts(): Promise<StationAlert[]> {
   await runPoll();
   return getAllAlerts();
 }
+
+// ---------------------------------------------------------------------------
+// Testing helpers (only used in integration tests)
+// ---------------------------------------------------------------------------
+
+/**
+ * Set alerts for testing.
+ * This helper is only used in integration tests to set up test data.
+ */
+export function setAlertsForTesting(alerts: ParsedAlert[]): void {
+  cache.alerts = alerts;
+  cache.lastSuccessAt = Date.now();
+  cache.lastFetchAt = Date.now();
+  cache.matchRate = 1.0;
+  cache.consecutiveFailures = 0;
+  cache.circuitOpen = false;
+}

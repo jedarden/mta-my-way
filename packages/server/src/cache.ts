@@ -289,3 +289,15 @@ export function getPositions(routeId: string): LinePositions | null {
 export function getAllPositions(): Map<string, LinePositions> {
   return positionsCache;
 }
+
+// ---------------------------------------------------------------------------
+// Testing helpers (only used in integration tests)
+// ---------------------------------------------------------------------------
+
+/**
+ * Set arrivals for a specific station in tests.
+ * This helper is only used in integration tests to set up test data.
+ */
+export function setArrivalsForTesting(stationId: string, arrivals: StationArrivals): void {
+  arrivalsCache.set(stationId, arrivals);
+}
