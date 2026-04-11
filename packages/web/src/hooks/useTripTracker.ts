@@ -4,7 +4,6 @@
  * Polls /api/trip/:tripId every 30 seconds.
  * Handles trip expiration (404 = trip left the feed).
  * Provides stop-by-stop progress derived from the raw trip data.
- * Enhanced with delay predictions for ETA adjustment.
  * Enhanced with user-friendly error messages.
  */
 
@@ -13,31 +12,6 @@ import type { TripData } from "../lib/api";
 import { api } from "../lib/api";
 import { EnhancedApiError } from "../lib/apiEnhanced";
 import { ErrorCategory, getUserErrorMessage } from "../lib/errorMessages";
-
-export type DelayRisk = "low" | "medium" | "high" | null;
-
-export interface TripPrediction {
-  /** Progress percentage (0-100) */
-  progressPercent: number;
-  /** Remaining stops count */
-  remainingStops: number;
-  /** Total stops count */
-  totalStops: number;
-  /** Base ETA in ISO format */
-  baseEta: string | null;
-  /** Adjusted ETA in ISO format (with delay prediction) */
-  adjustedEta: string | null;
-  /** Delay risk level */
-  delayRisk: DelayRisk;
-  /** Delay range as human-readable string (e.g., "+5 min") */
-  delayMinutesRange: string | null;
-  /** Route-level delay probability (0-1) */
-  routeDelayProbability: number | null;
-  /** Whether we have delay predictions for this trip */
-  hasPredictions: boolean;
-  /** When prediction was generated */
-  generatedAt: string;
-}
 
 export interface TripStopProgress {
   stopId: string;
@@ -60,8 +34,6 @@ export interface TripTrackerState {
   eta: number | null;
   /** Minutes until destination */
   minutesToDestination: number | null;
-  /** Trip prediction with delay adjustments */
-  prediction: TripPrediction | null;
   /** Progress percentage */
   progressPercent: number;
   /** Loading state */
@@ -122,7 +94,6 @@ export function useTripTracker(
     stops: [],
     eta: null,
     minutesToDestination: null,
-    prediction: null,
     progressPercent: 0,
     isLoading: !!tripId,
     error: null,
@@ -140,24 +111,10 @@ export function useTripTracker(
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const [trip, predictionRes] = await Promise.allSettled([
-        api.getTrip(tripId),
-        // Fetch prediction separately - if it fails, we still have base trip data
-        fetch(
-          `${import.meta.env.VITE_API_BASE || ""}/api/trip/${encodeURIComponent(tripId)}/predict`
-        )
-          .then((res) => (res.ok ? (res.json() as Promise<TripPrediction>) : null))
-          .catch(() => null),
-      ]);
+      const tripData = await api.getTrip(tripId);
 
       if (gen !== fetchGenRef.current) return;
 
-      // Handle trip data
-      if (trip.status === "rejected") {
-        throw trip.reason;
-      }
-
-      const tripData = trip.value;
       const stops = deriveStops(tripData);
       const nowSeconds = Math.floor(Date.now() / 1000);
 
@@ -167,17 +124,12 @@ export function useTripTracker(
       const minutesToDestination =
         eta && eta > nowSeconds ? Math.round((eta - nowSeconds) / 60) : null;
 
-      // Handle prediction data
-      const prediction =
-        predictionRes.status === "fulfilled" && predictionRes.value ? predictionRes.value : null;
-
       setState({
         isActive: true,
         trip: tripData,
         stops,
         eta,
         minutesToDestination,
-        prediction,
         progressPercent: tripData.progressPercent ?? 0,
         isLoading: false,
         error: null,
@@ -222,7 +174,6 @@ export function useTripTracker(
         stops: [],
         eta: null,
         minutesToDestination: null,
-        prediction: null,
         progressPercent: 0,
         isLoading: false,
         error: null,
@@ -246,7 +197,6 @@ export function useTripTracker(
       stops: [],
       eta: null,
       minutesToDestination: null,
-      prediction: null,
       progressPercent: 0,
       isLoading: false,
       error: null,

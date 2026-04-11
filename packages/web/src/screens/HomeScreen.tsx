@@ -11,8 +11,10 @@
  * - Pull-to-refresh (touch gesture) with optional haptic feedback
  * - FavoriteEditor modal for inline configuration
  * - Empty state with CTA to search/add stations
- * - Context-aware UI adaptation (commuting, planning, reviewing, at_station)
  */
+
+// Context-aware UI adaptation feature disabled to reduce security surface area
+// import { useContextAware } from "../hooks/useContextAware";
 
 import { formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
@@ -23,7 +25,6 @@ import { CommuteCard } from "../components/commute/CommuteCard";
 import { FareTracker } from "../components/fare/FareTracker";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
-import { useContextAware } from "../hooks/useContextAware";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePrefetch } from "../hooks/usePrefetch";
 import { useFavoritesStore, useSettingsStore } from "../stores";
@@ -49,8 +50,8 @@ export default function HomeScreen() {
   const commutes = useFavoritesStore((s) => s.commutes);
   const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
 
-  // Context-aware UI adaptation
-  const { context, uiHints } = useContextAware();
+  // Context-aware UI adaptation feature disabled to reduce security surface area
+  // const { context, uiHints } = useContextAware();
 
   // Start geofence-based prefetching for underground pre-fetch
   usePrefetch();
@@ -155,23 +156,22 @@ export default function HomeScreen() {
     }
   }, [editingFavorite, removeFavorite]);
 
-  // Auto-refresh based on context priority
+  // Auto-refresh - fixed 15 second interval (context-aware feature disabled)
   useEffect(() => {
     if (!hasFavorites) return;
 
-    // Higher priority contexts get more frequent refreshes
-    const interval = Math.max(15000 / uiHints.refreshPriority, 10000); // Min 10s
+    const interval = 15000; // Fixed 15s interval
 
     const timer = setInterval(() => {
       triggerRefresh();
     }, interval);
 
     return () => clearInterval(timer);
-  }, [context, uiHints.refreshPriority, hasFavorites, triggerRefresh]);
+  }, [hasFavorites, triggerRefresh]);
 
-  // Determine section order based on context
-  const showCommutesFirst = context === "commuting" || context === "at_station";
-  const showFareTracker = context !== "commuting" && context !== "at_station";
+  // Fixed section order (context-aware feature disabled)
+  const showCommutesFirst = false; // Always show favorites first
+  const showFareTracker = true; // Always show fare tracker
 
   return (
     <Screen>
@@ -261,8 +261,8 @@ export default function HomeScreen() {
           </section>
         )}
 
-        {/* Commutes section - shown after favorites when not commuting */}
-        {!showCommutesFirst && commutes.length > 0 && uiHints.showCommuteShortcuts && (
+        {/* Commutes section - shown after favorites */}
+        {!showCommutesFirst && commutes.length > 0 && (
           <section aria-labelledby="commutes-heading" className="mt-6">
             <div className="flex items-center justify-between mb-3">
               <h2
