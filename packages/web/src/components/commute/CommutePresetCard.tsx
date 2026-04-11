@@ -19,7 +19,7 @@ import type { Commute } from "@mta-my-way/shared";
 import { useCallback } from "react";
 import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { encodeForAria } from "../../lib/outputEncoding";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 
 interface CommutePresetCardProps {
@@ -82,11 +82,11 @@ export function CommutePresetCard({ commute, onEdit }: CommutePresetCardProps) {
               </svg>
             )}
             <h3 className="font-semibold text-base text-text-primary dark:text-dark-text-primary truncate">
-              {commute.name}
+              {sanitizeUserInput(commute.name)}
             </h3>
           </div>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary truncate mt-0.5">
-            {commute.origin.stationName} → {commute.destination.stationName}
+            {sanitizeUserInput(commute.origin.stationName)} → {sanitizeUserInput(commute.destination.stationName)}
           </p>
         </div>
         {onEdit && (

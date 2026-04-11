@@ -14,6 +14,7 @@ import type {
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
+import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createApp } from "../app.js";

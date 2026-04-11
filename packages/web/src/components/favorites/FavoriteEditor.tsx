@@ -14,7 +14,7 @@
 import type { DirectionPreference, Favorite } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
-import { encodeForAria } from "../../lib/outputEncoding";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 
 interface FavoriteEditorProps {
@@ -148,7 +148,7 @@ export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: Favorite
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 shrink-0">
           <h2 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary truncate">
-            {favorite.stationName}
+            {sanitizeUserInput(favorite.stationName)}
           </h2>
           <button
             type="button"
@@ -188,7 +188,7 @@ export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: Favorite
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder={favorite.stationName}
+              placeholder={sanitizeUserInput(favorite.stationName)}
               maxLength={40}
               className="w-full px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg text-text-primary dark:text-dark-text-primary placeholder:text-text-secondary dark:placeholder:text-dark-text-secondary min-h-touch focus:outline-none focus:ring-2 focus:ring-mta-primary"
             />

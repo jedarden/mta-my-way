@@ -17,7 +17,7 @@ import type { Commute } from "@mta-my-way/shared";
 import { formatMinutesAway } from "@mta-my-way/shared";
 import { useEffect, useRef, useState } from "react";
 import { getBestRoute, useCommute } from "../../hooks/useCommute";
-import { encodeForAria } from "../../lib/outputEncoding";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 import { ConfidenceBar } from "../arrivals/ConfidenceBar";
 import { LineBullet } from "../arrivals/LineBullet";
 import { TransferDetail } from "./TransferDetail";
@@ -81,10 +81,11 @@ export function CommuteCard({ commute, forceRefreshId, onEdit }: CommuteCardProp
       <div className="flex items-start gap-2 px-4 pt-4 pb-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-base text-text-primary dark:text-dark-text-primary truncate leading-tight">
-            {commute.name}
+            {sanitizeUserInput(commute.name)}
           </h3>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary truncate">
-            {commute.origin.stationName} → {commute.destination.stationName}
+            {sanitizeUserInput(commute.origin.stationName)} →{" "}
+            {sanitizeUserInput(commute.destination.stationName)}
           </p>
         </div>
         {onEdit && (

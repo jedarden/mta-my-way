@@ -277,9 +277,9 @@ export function deleteCookie(
 // ============================================================================
 
 /**
- * Generate a cryptographically secure CSRF token.
+ * Generate a cryptographically secure CSRF token for cookie-based CSRF protection.
  */
-export function generateCsrfToken(length = 32): string {
+export function generateCookieCsrfToken(length = 32): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
   return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -310,7 +310,7 @@ export function csrfCookie(options: CsrfCookieOptions = {}): MiddlewareHandler {
       const existingToken = await getSignedCookie(c, cookieName);
 
       if (!existingToken) {
-        const token = generateCsrfToken(tokenLength);
+        const token = generateCookieCsrfToken(tokenLength);
         await setSecureCookie(c, cookieName, token, {
           secure,
           httpOnly,
@@ -376,7 +376,7 @@ function timingSafeEqual(a: string, b: string): boolean {
  *
  * This is a utility for templates/client code to retrieve the token.
  */
-export async function getCsrfToken(c: Context, cookieName = "csrf_token"): Promise<string | null> {
+export async function getCookieCsrfToken(c: Context, cookieName = "csrf_token"): Promise<string | null> {
   return getSignedCookie(c, cookieName);
 }
 
@@ -605,7 +605,7 @@ export function cookieSessionAuth(
     }
 
     // Attach CSRF token to context for templates
-    const csrfToken = await getCsrfToken(c, csrfCookieName);
+    const csrfToken = await getCookieCsrfToken(c, csrfCookieName);
     if (csrfToken) {
       c.set("csrfToken", csrfToken);
     }

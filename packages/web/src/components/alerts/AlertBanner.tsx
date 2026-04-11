@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineBullet } from "../arrivals/LineBullet";
 import { ShuttleInfo } from "./ShuttleInfo";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 
 /** Severity styles for banners */
 const SEVERITY_STYLES: Record<AlertSeverity, { bg: string; border: string; text: string }> = {
@@ -163,7 +164,7 @@ export function AlertBanner({
         {/* Most severe alert headline */}
         {mostSevere && !expanded && (
           <p className="text-13 text-text-primary dark:text-dark-text-primary leading-snug">
-            {mostSevere.headline}
+            {sanitizeUserInput(mostSevere.headline)}
           </p>
         )}
       </div>
@@ -177,7 +178,7 @@ export function AlertBanner({
                 <span className={`${SEVERITY_STYLES[alert.severity].text} font-medium`}>
                   {alert.affectedLines.length > 0 ? `[${alert.affectedLines.join(", ")}] ` : ""}
                 </span>
-                {alert.headline}
+                {sanitizeUserInput(alert.headline)}
                 {alert.source === "predicted" && (
                   <span className="ml-1.5 text-11 text-amber-600 dark:text-amber-400 font-normal">
                     (predicted)
@@ -236,7 +237,7 @@ export function SingleAlertBanner({ alert }: { alert: StationAlert }) {
 
         {/* Headline */}
         <p className="text-13 text-text-primary dark:text-dark-text-primary truncate flex-1">
-          {alert.headline}
+          {sanitizeUserInput(alert.headline)}
           {alert.source === "predicted" && (
             <span className="ml-1.5 text-11 text-amber-600 dark:text-amber-400 font-normal">
               (predicted)

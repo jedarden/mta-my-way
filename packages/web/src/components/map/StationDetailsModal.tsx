@@ -12,6 +12,7 @@
 import type { Station } from "@mta-my-way/shared";
 import { useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { FocusTrap } from "../common/FocusTrap";
 
 interface StationDetailsModalProps {
@@ -52,7 +53,7 @@ export function StationDetailsModal({ station, onClose }: StationDetailsModalPro
               id="station-details-title"
               className="text-lg font-semibold text-text-primary dark:text-dark-text-primary"
             >
-              {station.name}
+              {sanitizeUserInput(station.name)}
             </h2>
             <button
               type="button"

@@ -7,6 +7,7 @@
 
 import type { LineHealthStatus } from "@mta-my-way/shared";
 import { getLineColor, getLineMetadata, getLineTextColor } from "@mta-my-way/shared";
+import { encodeForAria } from "../../lib/outputEncoding";
 
 const STATUS_STYLES: Record<
   LineHealthStatus["status"],
@@ -54,7 +55,7 @@ export function LineStatusTile({ line, onClick }: LineStatusTileProps) {
         hover:brightness-95 active:scale-[0.97]
         min-h-touch w-full
       `}
-      aria-label={`${displayId} train: ${style.label}${line.summary ? `. ${line.summary}` : ""}`}
+      aria-label={`${displayId} train: ${style.label}${line.summary ? `. ${encodeForAria(line.summary)}` : ""}`}
     >
       {/* Line bullet */}
       <div

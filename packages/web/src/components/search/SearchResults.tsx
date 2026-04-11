@@ -8,6 +8,7 @@
 
 import { Link } from "react-router-dom";
 import { useFavorites } from "../../hooks/useFavorites";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 import type { SearchResult } from "../../lib/stationSearch";
 import { LineBullet } from "../arrivals/LineBullet";
 
@@ -92,7 +93,7 @@ export function SearchResults({ results, query, loading }: SearchResultsProps) {
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-text-primary dark:text-dark-text-primary truncate">
-                  {result.displayName}
+                  {sanitizeUserInput(result.displayName)}
                 </div>
                 <div className="text-13 text-text-secondary dark:text-dark-text-secondary mt-0.5">
                   {BOROUGH_LABELS[result.borough] ?? result.borough}
@@ -103,8 +104,8 @@ export function SearchResults({ results, query, loading }: SearchResultsProps) {
                 onClick={(e) => handleFavoriteToggle(e, result)}
                 aria-label={
                   favorited
-                    ? `Remove ${result.displayName} from favorites`
-                    : `Add ${result.displayName} to favorites`
+                    ? `Remove ${encodeForAria(result.displayName)} from favorites`
+                    : `Add ${encodeForAria(result.displayName)} to favorites`
                 }
                 aria-pressed={favorited}
                 className="shrink-0 min-h-touch min-w-touch flex items-center justify-center p-1 -mr-1 -mt-1"

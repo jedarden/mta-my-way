@@ -28,6 +28,7 @@ import { useAlertsForStation } from "../hooks/useAlerts";
 import { useArrivals } from "../hooks/useArrivals";
 import { useEquipment } from "../hooks/useEquipment";
 import { useFavorites } from "../hooks/useFavorites";
+import { encodeForAria, sanitizeUserInput } from "../lib/outputEncoding";
 import { type Station, api } from "../lib/api";
 
 // Lazy load modal component - only loaded when needed
@@ -146,7 +147,7 @@ export default function StationScreen() {
               tabIndex={-1}
               className="text-lg font-bold text-text-primary dark:text-dark-text-primary truncate outline-none"
             >
-              {stationName}
+              {sanitizeUserInput(stationName)}
             </h1>
           </div>
           <button
@@ -156,8 +157,8 @@ export default function StationScreen() {
             aria-pressed={!!existingFavorite}
             aria-label={
               existingFavorite
-                ? `${stationName} is in your favorites`
-                : `Add ${stationName} to favorites`
+                ? `${encodeForAria(stationName)} is in your favorites`
+                : `Add ${encodeForAria(stationName)} to favorites`
             }
           >
             <svg
