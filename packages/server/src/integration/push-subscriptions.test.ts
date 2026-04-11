@@ -307,7 +307,11 @@ describe("Push Subscriptions Integration Tests", () => {
         { id: "fav-3", stationId: "726", lines: ["C", "E"], direction: "south" },
       ];
 
-      const success = updateSubscriptionFavorites("https://example.com/push/40", newFavorites);
+      const success = updateSubscriptionFavorites(
+        "https://example.com/push/40",
+        newFavorites,
+        "anonymous"
+      );
       expect(success).toBe(true);
 
       const all = getAllSubscriptions();
@@ -318,12 +322,26 @@ describe("Push Subscriptions Integration Tests", () => {
     });
 
     it("returns false for non-existent endpoint", () => {
-      const success = updateSubscriptionFavorites("https://example.com/push/nonexistent", []);
+      const success = updateSubscriptionFavorites(
+        "https://example.com/push/nonexistent",
+        [],
+        "anonymous"
+      );
+      expect(success).toBe(false);
+    });
+
+    it("returns false when owner ID does not match", () => {
+      const newFavorites = [{ id: "fav-1", stationId: "101", lines: ["1"], direction: "both" }];
+      const success = updateSubscriptionFavorites(
+        "https://example.com/push/40",
+        newFavorites,
+        "different-owner"
+      );
       expect(success).toBe(false);
     });
 
     it("can clear favorites", () => {
-      const success = updateSubscriptionFavorites("https://example.com/push/40", []);
+      const success = updateSubscriptionFavorites("https://example.com/push/40", [], "anonymous");
       expect(success).toBe(true);
 
       const all = getAllSubscriptions();
@@ -340,7 +358,11 @@ describe("Push Subscriptions Integration Tests", () => {
     it("updates quiet hours for existing subscription", () => {
       const newQuietHours = { enabled: true, startHour: 22, endHour: 7 };
 
-      const success = updateSubscriptionQuietHours("https://example.com/push/50", newQuietHours);
+      const success = updateSubscriptionQuietHours(
+        "https://example.com/push/50",
+        newQuietHours,
+        "anonymous"
+      );
       expect(success).toBe(true);
 
       const all = getAllSubscriptions();
@@ -351,11 +373,15 @@ describe("Push Subscriptions Integration Tests", () => {
     });
 
     it("returns false for non-existent endpoint", () => {
-      const success = updateSubscriptionQuietHours("https://example.com/push/nonexistent", {
-        enabled: false,
-        startHour: 22,
-        endHour: 7,
-      });
+      const success = updateSubscriptionQuietHours(
+        "https://example.com/push/nonexistent",
+        {
+          enabled: false,
+          startHour: 22,
+          endHour: 7,
+        },
+        "anonymous"
+      );
       expect(success).toBe(false);
     });
   });
@@ -371,7 +397,11 @@ describe("Push Subscriptions Integration Tests", () => {
         "725": { line: "A", scores: [0.7, 0.8] },
       };
 
-      const success = updateSubscriptionMorningScores("https://example.com/push/60", newScores);
+      const success = updateSubscriptionMorningScores(
+        "https://example.com/push/60",
+        newScores,
+        "anonymous"
+      );
       expect(success).toBe(true);
 
       const all = getAllSubscriptions();
@@ -382,12 +412,32 @@ describe("Push Subscriptions Integration Tests", () => {
     });
 
     it("returns false for non-existent endpoint", () => {
-      const success = updateSubscriptionMorningScores("https://example.com/push/nonexistent", {});
+      const success = updateSubscriptionMorningScores(
+        "https://example.com/push/nonexistent",
+        {},
+        "anonymous"
+      );
+      expect(success).toBe(false);
+    });
+
+    it("returns false when owner ID does not match", () => {
+      const newScores = {
+        "101": { line: "1", scores: [0.9, 0.85, 0.95] },
+      };
+      const success = updateSubscriptionMorningScores(
+        "https://example.com/push/60",
+        newScores,
+        "different-owner"
+      );
       expect(success).toBe(false);
     });
 
     it("can clear morning scores", () => {
-      const success = updateSubscriptionMorningScores("https://example.com/push/60", {});
+      const success = updateSubscriptionMorningScores(
+        "https://example.com/push/60",
+        {},
+        "anonymous"
+      );
       expect(success).toBe(true);
 
       const all = getAllSubscriptions();

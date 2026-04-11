@@ -116,6 +116,73 @@ describe("password-management", () => {
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Password must be no more than 128 characters long");
     });
+
+    it("should reject sequential numeric characters", async () => {
+      const result = await validatePassword("Abc1234!@#");
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("sequential characters"))).toBe(true);
+    });
+
+    it("should reject sequential alphabetic characters", async () => {
+      const result = await validatePassword("Abcdef!@#123");
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("sequential characters"))).toBe(true);
+    });
+
+    it("should reject reversed sequential characters", async () => {
+      const result = await validatePassword("Abc4321!@#");
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("sequential characters"))).toBe(true);
+    });
+
+    it("should reject keyboard walking patterns", async () => {
+      const result = await validatePassword("Qwerty123!@#");
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("keyboard pattern"))).toBe(true);
+    });
+
+    it("should reject asdf keyboard pattern", async () => {
+      const result = await validatePassword("Asdf1234!@#");
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("keyboard pattern"))).toBe(true);
+    });
+
+    it("should reject common password variations", async () => {
+      const result = await validatePassword("Password123!@#");
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("common variation"))).toBe(true);
+    });
+
+    it("should reject password with year suffix", async () => {
+      const result = await validatePassword("Welcome2024!@#");
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("common variation"))).toBe(true);
+    });
+
+    it("should allow custom policy to disable sequential check", async () => {
+      const customPolicy: PasswordPolicy = {
+        blockSequentialChars: false,
+      };
+      const result = await validatePassword("Abc1234!@#", customPolicy);
+      expect(result.valid).toBe(true);
+    });
+
+    it("should allow custom policy to disable keyboard pattern check", async () => {
+      const customPolicy: PasswordPolicy = {
+        blockKeyboardPatterns: false,
+      };
+      const result = await validatePassword("Qwerty123!@#", customPolicy);
+      expect(result.valid).toBe(true);
+    });
+
+    it("should enforce minimum strength score", async () => {
+      const customPolicy: PasswordPolicy = {
+        minStrengthScore: 80,
+      };
+      const result = await validatePassword("Weak1!", customPolicy);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("too weak"))).toBe(true);
+    });
   });
 
   describe("hashPassword and verifyPasswordHash", () => {

@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  encodeForAria,
   encodeHTML,
   encodeHTMLAttribute,
   encodeJSString,
@@ -151,5 +152,45 @@ describe("truncateEncoded", () => {
   it("accounts for ellipsis in length", () => {
     const result = truncateEncoded("1234567890", 8);
     expect(result).toBe("12345...");
+  });
+});
+
+describe("encodeForAria", () => {
+  it("removes HTML tags", () => {
+    expect(encodeForAria("<script>alert('xss')</script>")).toBe("alert('xss')");
+    expect(encodeForAria("<b>bold</b> text")).toBe("bold text");
+    expect(encodeForAria("<p>paragraph</p>")).toBe("paragraph");
+  });
+
+  it("removes control characters", () => {
+    expect(encodeForAria("test\x00string")).toBe("teststring");
+    expect(encodeForAria("test\x01\x02string")).toBe("teststring");
+  });
+
+  it("normalizes whitespace including newlines and tabs", () => {
+    expect(encodeForAria("hello     world")).toBe("hello world");
+    expect(encodeForAria("  hello  ")).toBe("hello");
+    expect(encodeForAria("line1\n\nline2")).toBe("line1 line2");
+    expect(encodeForAria("line1\nline2\tindented")).toBe("line1 line2 indented");
+  });
+
+  it("handles mixed content", () => {
+    expect(encodeForAria("<b>My</b>  <i>Commute</i>")).toBe("My Commute");
+    expect(encodeForAria("Work & Home")).toBe("Work & Home");
+  });
+
+  it("handles XSS attack vectors", () => {
+    const xss = '<img src=x onerror="alert(1)">';
+    const encoded = encodeForAria(xss);
+    expect(encoded).not.toContain("<img");
+    expect(encoded).not.toContain("onerror");
+  });
+
+  it("handles empty strings", () => {
+    expect(encodeForAria("")).toBe("");
+  });
+
+  it("handles strings with only whitespace", () => {
+    expect(encodeForAria("   ")).toBe("");
   });
 });

@@ -385,11 +385,7 @@ export function getRbacAuthContext(c: Context): RbacAuthContext | undefined {
 /**
  * Check if the current context has a specific permission.
  */
-export function hasPermission(
-  c: Context,
-  permission: Permission,
-  options?: RbacOptions
-): boolean {
+export function hasPermission(c: Context, permission: Permission, options?: RbacOptions): boolean {
   const auth = getRbacAuthContext(c);
 
   // Unauthenticated users only have guest permissions
@@ -693,6 +689,48 @@ export function conditionalByRole(
   };
 }
 
+/**
+ * Require context ownership or admin role.
+ *
+ * This middleware checks if the authenticated user owns the context
+ * being accessed. Admin users bypass the ownership check.
+ *
+ * @param getContextOwnerId - Function to extract context owner ID from context
+ * @param adminBypass - Whether admin role bypasses ownership check (default: true)
+ */
+export function requireContextOwnershipOrAdmin(
+  getContextOwnerId: (c: Context) => string | Promise<string>,
+  adminBypass: boolean = true
+): MiddlewareHandler {
+  return async (c, next) => {
+    const auth = getRbacAuthContext(c);
+
+    if (!auth) {
+      securityLogger.logAuthzFailure(c, "context", "ownership");
+      throw new HTTPException(401, { message: "Authentication required" });
+    }
+
+    // Admin bypass check
+    if (adminBypass && auth.role === "admin") {
+      logger.debug("Admin bypass for context ownership check");
+      return next();
+    }
+
+    // Get the context owner ID
+    const contextOwnerId = await getContextOwnerId(c);
+
+    // Check ownership
+    if (auth.keyId !== contextOwnerId && contextOwnerId !== "anonymous") {
+      securityLogger.logAuthzFailure(c, "context", "ownership");
+      throw new HTTPException(403, {
+        message: "Access denied: context ownership required",
+      });
+    }
+
+    return next();
+  };
+}
+
 // ============================================================================
 // Role Management Functions
 // ============================================================================
@@ -717,10 +755,7 @@ export function assignRoleToApiKey(keyId: string, role: UserRole): boolean {
  * Note: In production, this should update a database.
  * This function delegates to the authentication module.
  */
-export function grantPermissionsToApiKey(
-  keyId: string,
-  permissions: Permission[]
-): boolean {
+export function grantPermissionsToApiKey(keyId: string, permissions: Permission[]): boolean {
   return authGrantPermissions(keyId, permissions);
 }
 
@@ -728,10 +763,7 @@ export function grantPermissionsToApiKey(
  * Revoke additional permissions from an API key.
  * This function delegates to the authentication module.
  */
-export function revokePermissionsFromApiKey(
-  keyId: string,
-  permissions: Permission[]
-): boolean {
+export function revokePermissionsFromApiKey(keyId: string, permissions: Permission[]): boolean {
   return authRevokePermissions(keyId, permissions);
 }
 

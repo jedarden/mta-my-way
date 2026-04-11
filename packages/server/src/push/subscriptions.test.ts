@@ -196,7 +196,12 @@ describe("updateSubscriptionFavorites", () => {
     const newFavorites: PushFavoriteTuple[] = [
       { id: "fav1", stationId: "999", lines: ["7"], direction: "S" },
     ];
-    const updated = updateSubscriptionFavorites(req.subscription.endpoint, newFavorites);
+    // Use the default owner ID (anonymous) for ownership validation
+    const updated = updateSubscriptionFavorites(
+      req.subscription.endpoint,
+      newFavorites,
+      "anonymous"
+    );
     expect(updated).toBe(true);
 
     const subs = getAllSubscriptions();
@@ -206,7 +211,23 @@ describe("updateSubscriptionFavorites", () => {
   });
 
   it("returns false when subscription does not exist", () => {
-    const updated = updateSubscriptionFavorites("https://unknown.example.com/sub", []);
+    const updated = updateSubscriptionFavorites("https://unknown.example.com/sub", [], "anonymous");
+    expect(updated).toBe(false);
+  });
+
+  it("returns false when owner ID does not match", () => {
+    const req = makeRequest();
+    upsertSubscription(req);
+
+    const newFavorites: PushFavoriteTuple[] = [
+      { id: "fav1", stationId: "999", lines: ["7"], direction: "S" },
+    ];
+    // Use different owner ID - should fail
+    const updated = updateSubscriptionFavorites(
+      req.subscription.endpoint,
+      newFavorites,
+      "different-owner"
+    );
     expect(updated).toBe(false);
   });
 });
@@ -219,11 +240,15 @@ describe("updateSubscriptionQuietHours", () => {
   it("updates quiet hours for an existing subscription", () => {
     upsertSubscription(makeRequest());
 
-    const updated = updateSubscriptionQuietHours("https://push.example.com/sub/test-endpoint", {
-      enabled: true,
-      startHour: 22,
-      endHour: 7,
-    });
+    const updated = updateSubscriptionQuietHours(
+      "https://push.example.com/sub/test-endpoint",
+      {
+        enabled: true,
+        startHour: 22,
+        endHour: 7,
+      },
+      "anonymous"
+    );
     expect(updated).toBe(true);
 
     const subs = getAllSubscriptions();
@@ -238,11 +263,30 @@ describe("updateSubscriptionQuietHours", () => {
   });
 
   it("returns false when subscription does not exist", () => {
-    const updated = updateSubscriptionQuietHours("https://unknown.example.com/sub", {
-      enabled: true,
-      startHour: 0,
-      endHour: 5,
-    });
+    const updated = updateSubscriptionQuietHours(
+      "https://unknown.example.com/sub",
+      {
+        enabled: true,
+        startHour: 0,
+        endHour: 5,
+      },
+      "anonymous"
+    );
+    expect(updated).toBe(false);
+  });
+
+  it("returns false when owner ID does not match", () => {
+    upsertSubscription(makeRequest());
+
+    const updated = updateSubscriptionQuietHours(
+      "https://push.example.com/sub/test-endpoint",
+      {
+        enabled: true,
+        startHour: 22,
+        endHour: 7,
+      },
+      "different-owner"
+    );
     expect(updated).toBe(false);
   });
 });

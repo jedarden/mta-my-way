@@ -650,10 +650,7 @@ export function assignRoleToApiKey(keyId: string, role: UserRole): boolean {
  * Grant additional permissions to an API key beyond its role permissions.
  * In production, this should update a database.
  */
-export function grantPermissionsToApiKey(
-  keyId: string,
-  permissions: Permission[]
-): boolean {
+export function grantPermissionsToApiKey(keyId: string, permissions: Permission[]): boolean {
   const apiKey = getApiKeyById(keyId);
   if (!apiKey) {
     logger.warn("Attempted to grant permissions to non-existent API key", { keyId });
@@ -681,10 +678,7 @@ export function grantPermissionsToApiKey(
  * Revoke additional permissions from an API key.
  * In production, this should update a database.
  */
-export function revokePermissionsFromApiKey(
-  keyId: string,
-  permissions: Permission[]
-): boolean {
+export function revokePermissionsFromApiKey(keyId: string, permissions: Permission[]): boolean {
   const apiKey = getApiKeyById(keyId);
   if (!apiKey || !apiKey.additionalPermissions) {
     return false;

@@ -8,18 +8,17 @@
  * - Rate limit tier enforcement
  * - Admin-only operations protection
  * - Data access validation (user-scoped data isolation)
+ * - Scope restriction helpers for filtering user data
  */
 
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
-import {
-  type ApiKeyScope,
-  type AuthContext,
-  getAuthContext,
-  isAuthenticated,
-} from "./authentication.js";
+import { type ApiKeyScope, type AuthContext, getAuthContext } from "./authentication.js";
 import { securityLogger } from "./security-logging.js";
+
+// Re-export RBAC types for compatibility
+export type { PermissionAction, ResourceType, ResourcePolicy, AuthorizationResult };
 
 // ============================================================================
 // Types
@@ -89,7 +88,7 @@ export interface ResourceOwner {
  * Extract owner identifier from a push subscription endpoint.
  * The endpoint itself serves as the owner identifier since it's unique per device.
  */
-function extractSubscriptionOwner(endpoint: string): ResourceOwner {
+function _extractSubscriptionOwner(endpoint: string): ResourceOwner {
   return { ownerId: endpoint, isPublic: false };
 }
 
@@ -98,7 +97,7 @@ function extractSubscriptionOwner(endpoint: string): ResourceOwner {
  * For manual trips, the trip ID contains a timestamp-based component.
  * For API-tracked trips, ownership should be validated via session.
  */
-function extractTripOwner(tripId: string): ResourceOwner {
+function _extractTripOwner(tripId: string): ResourceOwner {
   // Trip IDs are UUIDs - ownership is validated via database lookup
   // In a real system, trips would have a userId field
   return { ownerId: tripId, isPublic: false };
@@ -107,7 +106,7 @@ function extractTripOwner(tripId: string): ResourceOwner {
 /**
  * Extract owner from a commute ID.
  */
-function extractCommuteOwner(commuteId: string): ResourceOwner {
+function _extractCommuteOwner(commuteId: string): ResourceOwner {
   return { ownerId: commuteId, isPublic: false };
 }
 
@@ -131,7 +130,7 @@ export function requireResourceAccess(
     resourceIdParam?: string;
   } = {}
 ): MiddlewareHandler {
-  const { adminBypass = true, customCheck, resourceIdParam } = options;
+  const { adminBypass = true, customCheck } = options;
 
   return async (c, next) => {
     const auth = getAuthContext(c);
@@ -474,4 +473,207 @@ export function auditLogAccess(
       clientIp,
     });
   };
+}
+
+// ============================================================================
+// Scope Restriction Helpers
+// ============================================================================
+
+/**
+ * Get the owner ID for an authenticated user, or "anonymous" for unauthenticated.
+ * This is used to scope database queries to the user's own data.
+ *
+ * @param c - Hono context
+ * @param allowAdminAll - If true, admins get undefined (no filter), otherwise they also get their own keyId
+ * @returns Owner ID to use in queries, or undefined for admins to see all data
+ */
+export function getOwnerIdForAuthContext(
+  c: Context,
+  allowAdminAll: boolean = true
+): string | undefined {
+  const auth = getAuthContext(c);
+
+  // Unauthenticated users get anonymous
+  if (!auth) {
+    return "anonymous";
+  }
+
+  // Admins can see all data if allowAdminAll is true
+  if (allowAdminAll && auth.role === "admin") {
+    return undefined; // No filter - return all data
+  }
+
+  // Regular authenticated users get their own keyId
+  return auth.keyId || "anonymous";
+}
+
+/**
+ * Apply ownership scope to query parameters.
+ * Ensures non-admin users can only query their own resources.
+ *
+ * @param c - Hono context
+ * @param params - Existing query parameters
+ * @returns Parameters with ownership filter applied
+ */
+export function applyOwnershipScope<T extends Record<string, unknown>>(
+  c: Context,
+  params: T
+): T & { ownerId?: string } {
+  const ownerId = getOwnerIdForAuthContext(c, true);
+
+  if (ownerId === undefined) {
+    // Admin user - no ownership filter
+    return params as T & { ownerId?: string };
+  }
+
+  // Non-admin user - add ownership filter
+  return { ...params, ownerId };
+}
+
+/**
+ * Require ownership of a resource for access.
+ * This is a helper that validates ownership before allowing access.
+ *
+ * @param c - Hono context
+ * @param resourceOwnerId - Owner ID of the resource being accessed
+ * @returns true if access is allowed, throws HTTPException otherwise
+ */
+export function requireResourceOwnership(c: Context, resourceOwnerId: string): boolean {
+  const auth = getAuthContext(c);
+
+  // Admins bypass ownership checks
+  if (auth?.role === "admin") {
+    return true;
+  }
+
+  // Check if the user owns the resource
+  const userOwnerId = auth?.keyId || "anonymous";
+
+  if (userOwnerId !== resourceOwnerId && resourceOwnerId !== "anonymous") {
+    securityLogger.logAuthzFailure(c, "resource", "ownership");
+    throw new HTTPException(403, {
+      message: "Access denied: you do not own this resource",
+    });
+  }
+
+  return true;
+}
+
+/**
+ * Scope options for database queries.
+ */
+export interface ScopeOptions {
+  /** Owner ID to filter by (undefined = no filter, return all) */
+  ownerId?: string;
+  /** Additional filter criteria */
+  filters?: Record<string, unknown>;
+  /** Limit on number of results */
+  limit?: number;
+  /** Offset for pagination */
+  offset?: number;
+}
+
+/**
+ * Create scoped query options for database operations.
+ * Automatically applies ownership filtering based on authentication.
+ *
+ * @param c - Hono context
+ * @param baseOptions - Base query options
+ * @returns Scoped options with ownership filter applied
+ */
+export function createScopedQuery<T extends ScopeOptions>(c: Context, baseOptions: T = {} as T): T {
+  const ownerId = getOwnerIdForAuthContext(c, true);
+
+  if (ownerId === undefined) {
+    // Admin - return all data without ownership filter
+    return baseOptions;
+  }
+
+  // Non-admin - apply ownership filter
+  return {
+    ...baseOptions,
+    ownerId,
+  } as T;
+}
+
+/**
+ * Check if the current user can access another user's data.
+ * Returns true if the user is an admin or if the targetUserId matches their own.
+ *
+ * @param c - Hono context
+ * @param targetUserId - The user ID being accessed
+ * @returns true if access is allowed
+ */
+export function canAccessUserData(c: Context, targetUserId: string): boolean {
+  const auth = getAuthContext(c);
+
+  // Admins can access any user's data
+  if (auth?.role === "admin") {
+    return true;
+  }
+
+  // Users can only access their own data
+  return auth?.keyId === targetUserId;
+}
+
+/**
+ * Filter a response to include only user-scoped data.
+ * Removes sensitive information and ensures users only see their own data.
+ *
+ * @param c - Hono context
+ * @param data - Data to filter
+ * @param ownerField - Field name that contains the owner ID
+ * @returns Filtered data
+ */
+export function filterUserScopedData<T extends Record<string, unknown>>(
+  c: Context,
+  data: T[],
+  ownerField: string = "ownerId"
+): T[] {
+  const auth = getAuthContext(c);
+
+  // Admins see all data
+  if (auth?.role === "admin") {
+    return data;
+  }
+
+  // Non-admins only see their own data
+  const userOwnerId = auth?.keyId || "anonymous";
+
+  return data.filter((item) => {
+    const ownerId = item[ownerField] as string | undefined;
+    return ownerId === userOwnerId || ownerId === "anonymous";
+  });
+}
+
+/**
+ * Validate that a list request is properly scoped.
+ * Throws an error if a non-admin user tries to request another user's data.
+ *
+ * @param c - Hono context
+ * @param requestedOwnerId - Owner ID from request (if any)
+ * @throws HTTPException if access is denied
+ */
+export function validateListScope(c: Context, requestedOwnerId?: string): void {
+  const auth = getAuthContext(c);
+
+  // If no specific owner requested, this is fine (will be filtered by applyOwnershipScope)
+  if (!requestedOwnerId) {
+    return;
+  }
+
+  // Admins can request any owner's data
+  if (auth?.role === "admin") {
+    return;
+  }
+
+  // Non-admins can only request their own data
+  const userOwnerId = auth?.keyId || "anonymous";
+
+  if (requestedOwnerId !== userOwnerId) {
+    securityLogger.logAuthzFailure(c, "list", "scope");
+    throw new HTTPException(403, {
+      message: "Access denied: you can only view your own data",
+    });
+  }
 }

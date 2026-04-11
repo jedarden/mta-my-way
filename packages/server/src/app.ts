@@ -53,6 +53,10 @@ import {
   getContextLabel,
   getContextUIHints,
   lineIdParamsSchema,
+  passwordChangeSchema,
+  passwordPolicySchema,
+  passwordResetConfirmSchema,
+  passwordResetRequestSchema,
   positionsQuerySchema,
   pushSubscribeRequestSchema,
   pushUnsubscribeRequestSchema,
@@ -70,8 +74,10 @@ import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
 import {
+  DEFAULT_CONTEXT,
   checkContextOwnership,
   clearManualOverride,
+  clearManualOverrideForOwner,
   detectAndUpdateContextWithOwner,
   detectContextFromRequest,
   getContextByOwner,
@@ -79,6 +85,7 @@ import {
   getContextSettings,
   getContextSummary,
   getContextTransitionsForOwner,
+  getCurrentContext,
   setManualContext,
   updateContextSettings,
 } from "./context-service.js";
@@ -92,26 +99,39 @@ import {
 } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import {
+  consumePasswordResetToken,
   createSession,
   disableTotp,
   enableTotp,
+  generatePasswordResetToken,
   getAuthContext,
+  getPasswordPolicyDescription,
+  hashPassword,
+  invalidateResetTokensForKey,
   refreshSession,
   revokeSession,
   setupTotp,
+  validatePassword,
+  validatePasswordResetToken,
   verifyMfaForSession,
   verifyTotpCode,
 } from "./middleware/authentication.js";
 import {
   auditLogAccess,
+  authRateLimit,
   csrfProtection,
+  enforceRateLimitTier,
   getCsrfToken,
   hostHeaderProtection,
   hppProtection,
   inputSanitization,
   rateLimiter,
   requestSizeLimits,
+  requireAdmin,
+  requireCaptcha,
+  requireMfa,
   requireResourceAccess,
+  requireRole,
   requireSameOrigin,
   securityHeaders,
   securityLogging,
@@ -129,9 +149,12 @@ import {
   recordStationSearchRequest,
 } from "./middleware/metrics.js";
 import {
+  type Permission,
+  PermissionGroups,
   type RbacAuthContext,
   getRbacAuthContext,
   requireOwnershipOrAdmin,
+  requirePermission,
 } from "./middleware/rbac.js";
 import {
   cleanupExpiredStates,
@@ -390,7 +413,13 @@ export function createApp(
   const app = new Hono();
 
   // Security headers on all responses (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
-  app.use("*", securityHeaders());
+  // CSP includes report-uri for violation monitoring at /api/security/csp-report
+  app.use(
+    "*",
+    securityHeaders({
+      reportUri: "/api/security/csp-report",
+    })
+  );
 
   // Security logging for all requests (OWASP A09: Security Logging and Monitoring Failures)
   // Logs authentication failures, authorization failures, rate limit exceeded, and blocked attacks
@@ -444,6 +473,7 @@ export function createApp(
         "/api/auth/oauth",
         "/api/auth/mfa",
         "/api/auth/session",
+        "/api/auth/password",
         "/api/csrf-token",
       ],
     })
@@ -611,6 +641,33 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
+  // CSP violation reporting endpoint
+  // -------------------------------------------------------------------------
+  app.post("/api/security/csp-report", async (c) => {
+    try {
+      const report = await c.req.json().catch(() => null);
+
+      if (!report) {
+        return c.json({ error: "Invalid report" }, 400);
+      }
+
+      // Log the CSP violation for security monitoring
+      logger.warn("CSP violation detected", {
+        "user-agent": c.req.header("user-agent"),
+        referrer: c.req.header("referrer"),
+        "x-forwarded-for": c.req.header("x-forwarded-for")?.split(",")[0] ?? "unknown",
+        report,
+      });
+
+      // Return 200 to acknowledge the report
+      return c.json({ received: true });
+    } catch (error) {
+      logger.error("Failed to process CSP report", error as Error);
+      return c.json({ error: "Failed to process report" }, 400);
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // Real-time arrivals
   // -------------------------------------------------------------------------
   app.get("/api/arrivals/:stationId", (c) => {
@@ -769,68 +826,74 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
-  // Commute analysis
+  // Commute analysis - requires authentication for personal commute tracking
   // -------------------------------------------------------------------------
-  app.post("/api/commute/analyze", requireResourceAccess("commute", "create"), async (c) => {
-    const startTime = Date.now();
-    let success = false;
-    let hasTransfers = false;
-    let accessibleMode = false;
+  app.post(
+    "/api/commute/analyze",
+    requireResourceAccess("commute", "create"),
+    requirePermission("commutes:create" as Permission),
+    auditLogAccess("commute", "analyze"),
+    async (c) => {
+      const startTime = Date.now();
+      let success = false;
+      let hasTransfers = false;
+      let accessibleMode = false;
 
-    try {
-      const body = await validateBody(c, commuteAnalyzeRequestSchema);
-      if (body instanceof Response) return body;
+      try {
+        const body = await validateBody(c, commuteAnalyzeRequestSchema);
+        if (body instanceof Response) return body;
 
-      const {
-        originId,
-        destinationId,
-        preferredLines = [],
-        commuteId = "default",
-        accessibleMode: accessible,
-      } = body;
+        const {
+          originId,
+          destinationId,
+          preferredLines = [],
+          commuteId = "default",
+          accessibleMode: accessible,
+        } = body;
 
-      accessibleMode = accessible;
+        accessibleMode = accessible;
 
-      if (!stations[originId]) {
-        return c.json({ error: `Origin station not found: ${originId}` }, 404);
+        if (!stations[originId]) {
+          return c.json({ error: `Origin station not found: ${originId}` }, 404);
+        }
+        if (!stations[destinationId]) {
+          return c.json({ error: `Destination station not found: ${destinationId}` }, 404);
+        }
+
+        const analysis = transferEngine.analyzeCommute(
+          originId,
+          destinationId,
+          preferredLines,
+          commuteId,
+          accessibleMode
+        );
+
+        hasTransfers = analysis.transferRoutes.length > 0;
+        success = true;
+
+        const duration = (Date.now() - startTime) / 1000;
+        recordCommuteAnalysisDuration(duration);
+        recordCommuteAnalysisRequest(success, hasTransfers, accessibleMode);
+
+        c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+        return c.json(analysis);
+      } catch (error) {
+        logger.error("Commute analysis error", error instanceof Error ? error : undefined);
+
+        const duration = (Date.now() - startTime) / 1000;
+        recordCommuteAnalysisDuration(duration);
+        recordCommuteAnalysisRequest(false, false, accessibleMode);
+
+        return c.json(
+          {
+            error: "Failed to analyze commute",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+          500
+        );
       }
-      if (!stations[destinationId]) {
-        return c.json({ error: `Destination station not found: ${destinationId}` }, 404);
-      }
-
-      const analysis = transferEngine.analyzeCommute(
-        originId,
-        destinationId,
-        preferredLines,
-        commuteId,
-        accessibleMode
-      );
-
-      hasTransfers = analysis.transferRoutes.length > 0;
-      success = true;
-
-      const duration = (Date.now() - startTime) / 1000;
-      recordCommuteAnalysisDuration(duration);
-      recordCommuteAnalysisRequest(success, hasTransfers, accessibleMode);
-
-      c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-      return c.json(analysis);
-    } catch (error) {
-      logger.error("Commute analysis error", error instanceof Error ? error : undefined);
-
-      const duration = (Date.now() - startTime) / 1000;
-      recordCommuteAnalysisDuration(duration);
-      recordCommuteAnalysisRequest(false, false, accessibleMode);
-
-      return c.json(
-        {
-          error: "Failed to analyze commute",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-        500
-      );
     }
-  });
+  );
 
   // -------------------------------------------------------------------------
   // Alerts
@@ -925,153 +988,155 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
-  // Delay prediction API
+  // Delay prediction API - DISABLED: Feature not used by frontend
+  // These endpoints are disabled to reduce security surface area.
+  // Uncomment to re-enable delay prediction functionality.
   // -------------------------------------------------------------------------
-  app.get("/api/predictions/delay", (c) => {
-    const query = validateQuery(c, delayProbabilityQuerySchema);
-    if (query instanceof Response) return query;
-
-    const { routeId, direction } = query;
-
-    const probability = getRouteDelayProbability(routeId, direction as "N" | "S" | undefined);
-
-    if (probability === null) {
-      return c.json({
-        routeId,
-        direction,
-        probability: null,
-        message: "Not enough data to predict delays for this route",
-      });
-    }
-
-    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-    return c.json({
-      routeId,
-      direction,
-      probability: Math.round(probability * 100) / 100,
-      percentage: Math.round(probability * 100),
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  app.get("/api/predictions/delay/:routeId", (c) => {
-    const params = validateParams(c, lineIdParamsSchema);
-    if (params instanceof Response) return params;
-
-    const query = validateQuery(c, delayPatternsQuerySchema);
-    if (query instanceof Response) return query;
-
-    const { lineId: routeId } = params;
-    const { direction } = query;
-
-    if (direction !== "N" && direction !== "S") {
-      // Return patterns for both directions if none specified
-      const northboundPatterns = getRouteDelayPatterns(routeId, "N");
-      const southboundPatterns = getRouteDelayPatterns(routeId, "S");
-
-      c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-      return c.json({
-        routeId,
-        northbound: northboundPatterns,
-        southbound: southboundPatterns,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const patterns = getRouteDelayPatterns(routeId, direction as "N" | "S");
-
-    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-    return c.json({
-      routeId,
-      direction,
-      patterns,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  app.get("/api/predictions/delay/:routeId/summary", (c) => {
-    const params = validateParams(c, lineIdParamsSchema);
-    if (params instanceof Response) return params;
-
-    const { lineId: routeId } = params;
-    const summary = getRouteDelaySummary(routeId);
-
-    if (!summary) {
-      return c.json(
-        {
-          error: "No data available for this route",
-          routeId,
-        },
-        404
-      );
-    }
-
-    c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-    return c.json(summary);
-  });
-
-  app.post("/api/predictions/predict", async (c) => {
-    const startTime = Date.now();
-    let success = false;
-    let hasData = false;
-
-    try {
-      const body = await validateBody(c, delayPredictionRequestSchema);
-      if (body instanceof Response) return body;
-
-      const { routeId, direction, fromStationId, toStationId, scheduledMinutes } = body;
-
-      const scheduledSeconds = scheduledMinutes * 60;
-      const prediction = predictDelay(
-        routeId,
-        direction,
-        fromStationId,
-        toStationId,
-        scheduledSeconds
-      );
-
-      if (!prediction) {
-        const duration = (Date.now() - startTime) / 1000;
-        recordDelayPredictionDuration(duration);
-        recordDelayPredictionRequest(false, false);
-
-        return c.json(
-          {
-            error: "Not enough data to make a prediction for this route/segment",
-            routeId,
-            direction,
-            fromStationId,
-            toStationId,
-          },
-          404
-        );
-      }
-
-      hasData = true;
-      success = true;
-
-      const duration = (Date.now() - startTime) / 1000;
-      recordDelayPredictionDuration(duration);
-      recordDelayPredictionRequest(success, hasData);
-
-      c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
-      return c.json(prediction);
-    } catch (error) {
-      logger.error("Delay prediction error", error instanceof Error ? error : undefined);
-
-      const duration = (Date.now() - startTime) / 1000;
-      recordDelayPredictionDuration(duration);
-      recordDelayPredictionRequest(false, false);
-
-      return c.json(
-        {
-          error: "Failed to generate prediction",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-        500
-      );
-    }
-  });
+  // app.get("/api/predictions/delay", (c) => {
+  //   const query = validateQuery(c, delayProbabilityQuerySchema);
+  //   if (query instanceof Response) return query;
+  //
+  //   const { routeId, direction } = query;
+  //
+  //   const probability = getRouteDelayProbability(routeId, direction as "N" | "S" | undefined);
+  //
+  //   if (probability === null) {
+  //     return c.json({
+  //       routeId,
+  //       direction,
+  //       probability: null,
+  //       message: "Not enough data to predict delays for this route",
+  //     });
+  //   }
+  //
+  //   c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+  //   return c.json({
+  //     routeId,
+  //     direction,
+  //     probability: Math.round(probability * 100) / 100,
+  //     percentage: Math.round(probability * 100),
+  //     timestamp: new Date().toISOString(),
+  //   });
+  // });
+  //
+  // app.get("/api/predictions/delay/:routeId", (c) => {
+  //   const params = validateParams(c, lineIdParamsSchema);
+  //   if (params instanceof Response) return params;
+  //
+  //   const query = validateQuery(c, delayPatternsQuerySchema);
+  //   if (query instanceof Response) return query;
+  //
+  //   const { lineId: routeId } = params;
+  //   const { direction } = query;
+  //
+  //   if (direction !== "N" && direction !== "S") {
+  //     // Return patterns for both directions if none specified
+  //     const northboundPatterns = getRouteDelayPatterns(routeId, "N");
+  //     const southboundPatterns = getRouteDelayPatterns(routeId, "S");
+  //
+  //     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+  //     return c.json({
+  //       routeId,
+  //       northbound: northboundPatterns,
+  //       southbound: southboundPatterns,
+  //       timestamp: new Date().toISOString(),
+  //     });
+  //   }
+  //
+  //   const patterns = getRouteDelayPatterns(routeId, direction as "N" | "S");
+  //
+  //   c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+  //   return c.json({
+  //     routeId,
+  //     direction,
+  //     patterns,
+  //     timestamp: new Date().toISOString(),
+  //   });
+  // });
+  //
+  // app.get("/api/predictions/delay/:routeId/summary", (c) => {
+  //   const params = validateParams(c, lineIdParamsSchema);
+  //   if (params instanceof Response) return params;
+  //
+  //   const { lineId: routeId } = params;
+  //   const summary = getRouteDelaySummary(routeId);
+  //
+  //   if (!summary) {
+  //     return c.json(
+  //       {
+  //         error: "No data available for this route",
+  //         routeId,
+  //       },
+  //       404
+  //     );
+  //   }
+  //
+  //   c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+  //   return c.json(summary);
+  // });
+  //
+  // app.post("/api/predictions/predict", async (c) => {
+  //   const startTime = Date.now();
+  //   let success = false;
+  //   let hasData = false;
+  //
+  //   try {
+  //     const body = await validateBody(c, delayPredictionRequestSchema);
+  //     if (body instanceof Response) return body;
+  //
+  //     const { routeId, direction, fromStationId, toStationId, scheduledMinutes } = body;
+  //
+  //     const scheduledSeconds = scheduledMinutes * 60;
+  //     const prediction = predictDelay(
+  //       routeId,
+  //       direction,
+  //       fromStationId,
+  //       toStationId,
+  //       scheduledSeconds
+  //     );
+  //
+  //     if (!prediction) {
+  //       const duration = (Date.now() - startTime) / 1000;
+  //       recordDelayPredictionDuration(duration);
+  //       recordDelayPredictionRequest(false, false);
+  //
+  //       return c.json(
+  //         {
+  //           error: "Not enough data to make a prediction for this route/segment",
+  //           routeId,
+  //           direction,
+  //           fromStationId,
+  //           toStationId,
+  //         },
+  //         404
+  //       );
+  //     }
+  //
+  //     hasData = true;
+  //     success = true;
+  //
+  //     const duration = (Date.now() - startTime) / 1000;
+  //     recordDelayPredictionDuration(duration);
+  //     recordDelayPredictionRequest(success, hasData);
+  //
+  //     c.header("Cache-Control", `public, max-age=${CACHE_TTLS.api}`);
+  //     return c.json(prediction);
+  //   } catch (error) {
+  //     logger.error("Delay prediction error", error instanceof Error ? error : undefined);
+  //
+  //     const duration = (Date.now() - startTime) / 1000;
+  //     recordDelayPredictionDuration(duration);
+  //     recordDelayPredictionRequest(false, false);
+  //
+  //     return c.json(
+  //       {
+  //         error: "Failed to generate prediction",
+  //         message: error instanceof Error ? error.message : "Unknown error",
+  //       },
+  //       500
+  //     );
+  //   }
+  // });
 
   // -------------------------------------------------------------------------
   // Live trip tracking
@@ -1554,7 +1619,7 @@ export function createApp(
   );
 
   /** Get commute statistics */
-  app.get("/api/journal/stats", (c) => {
+  app.get("/api/journal/stats", requirePermission("journals:read:own" as Permission), (c) => {
     const query = validateQuery(c, commuteIdQuerySchema);
     if (query instanceof Response) return query;
 
@@ -1572,28 +1637,32 @@ export function createApp(
   });
 
   /** Get trips for a specific date range */
-  app.get("/api/journal/dates/:startDate/:endDate", (c) => {
-    const params = validateParams(c, dateRangeParamsSchema);
-    if (params instanceof Response) return params;
+  app.get(
+    "/api/journal/dates/:startDate/:endDate",
+    requirePermission("journals:read:own" as Permission),
+    (c) => {
+      const params = validateParams(c, dateRangeParamsSchema);
+      if (params instanceof Response) return params;
 
-    const auth = getRbacAuthContext(c);
-    const { startDate, endDate } = params;
+      const auth = getRbacAuthContext(c);
+      const { startDate, endDate } = params;
 
-    // Non-admin users can only see their own trips
-    const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
-    const trips = getTrips({ startDate, endDate, limit: 1000, ownerId });
+      // Non-admin users can only see their own trips
+      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+      const trips = getTrips({ startDate, endDate, limit: 1000, ownerId });
 
-    c.header("Cache-Control", "public, max-age=30");
-    return c.json({
-      startDate,
-      endDate,
-      trips,
-      count: trips.length,
-    });
-  });
+      c.header("Cache-Control", "public, max-age=30");
+      return c.json({
+        startDate,
+        endDate,
+        trips,
+        count: trips.length,
+      });
+    }
+  );
 
   /** Get journal summary (recent trips + stats) */
-  app.get("/api/journal/summary", (c) => {
+  app.get("/api/journal/summary", requirePermission("journals:read:own" as Permission), (c) => {
     // Validate that no unexpected query parameters are passed
     const query = validateQuery(c, emptyQuerySchema);
     if (query instanceof Response) return query;
@@ -1623,29 +1692,49 @@ export function createApp(
   // Apply same-origin protection to context operations
   app.use("/api/context/*", requireSameOrigin());
 
-  /** Get current context and UI hints */
+  /** Get current context and UI hints - scoped to authenticated user */
   app.get("/api/context", (c) => {
     // Validate that no unexpected query parameters are passed
     const query = validateQuery(c, emptyQuerySchema);
     if (query instanceof Response) return query;
 
     const auth = getRbacAuthContext(c);
+    const ownerId = auth?.keyId || "anonymous";
 
-    // Non-admin users get a generic summary without specific context data
-    // This prevents leaking other users' context information
-    const summary = getContextSummary();
+    // Get context settings (global)
+    const settings = getContextSettings();
 
-    // Filter transitions to only show the user's own context (unless admin)
-    const filteredSummary =
-      auth?.role === "admin"
-        ? summary
-        : {
-            ...summary,
-            recentTransitions: [], // Don't expose other users' transitions
-          };
+    // Admin users get full summary, regular users get scoped data
+    let currentContext: ReturnType<typeof getCurrentContext>;
+    let recentTransitions: ReturnType<typeof getContextTransitions>;
+
+    if (auth?.role === "admin") {
+      // Admins see the global context (for system monitoring)
+      currentContext = getCurrentContext();
+      recentTransitions = getContextTransitions(10);
+    } else {
+      // Regular users get their own context if available, otherwise default
+      const userContext = getContextByOwner(ownerId);
+      currentContext = userContext || { ...DEFAULT_CONTEXT };
+
+      // Get user's own transitions
+      const userTransitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
+      recentTransitions = userTransitions || [];
+    }
+
+    const uiHints = getContextUIHints(currentContext.context);
+    const label = getContextLabel(currentContext.context);
+    const icon = getContextIcon(currentContext.context);
 
     c.header("Cache-Control", "public, max-age=15");
-    return c.json(filteredSummary);
+    return c.json({
+      current: currentContext,
+      settings,
+      uiHints,
+      label,
+      icon,
+      recentTransitions,
+    });
   });
 
   /** Get context for a specific owner with ownership check */
@@ -1684,49 +1773,65 @@ export function createApp(
   );
 
   /** Detect context from request parameters */
-  app.post("/api/context/detect", requireResourceAccess("context", "create"), async (c) => {
-    try {
-      const auth = getRbacAuthContext(c);
-      const body = await validateBody(c, contextDetectRequestSchema);
-      if (body instanceof Response) return body;
+  app.post(
+    "/api/context/detect",
+    requireResourceAccess("context", "create"),
+    requirePermission("predictions:create" as Permission),
+    async (c) => {
+      try {
+        const auth = getRbacAuthContext(c);
+        const body = await validateBody(c, contextDetectRequestSchema);
+        if (body instanceof Response) return body;
 
-      // Get owner ID from auth context
-      const ownerId = auth?.keyId || "anonymous";
+        // Get owner ID from auth context - users can only detect context for themselves
+        const ownerId = auth?.keyId || "anonymous";
 
-      const context = detectContextFromRequest(body);
+        // Explicit ownership check: non-admin users can only detect their own context
+        if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
+          return c.json(
+            {
+              error: "Access denied: you can only detect context for yourself",
+            },
+            403
+          );
+        }
 
-      // Store context with ownership
-      const { context: detectedContext } = detectAndUpdateContextWithOwner(
-        {
-          nearStation: context.factors.location.nearStation,
-          nearStationId: context.factors.location.stationId,
-          distanceToStation: context.factors.location.distance,
-          tapHistory: body.tapHistory || [],
-          currentScreen: body.currentScreen || "home",
-          screenTime: body.screenTime || 0,
-          recentActions: body.recentActions || [],
-        },
-        ownerId
-      );
+        const context = detectContextFromRequest(body);
 
-      c.header("Cache-Control", "no-cache");
-      return c.json({ context: detectedContext });
-    } catch (err) {
-      logger.error("Context detection failed", err as Error);
-      return c.json(
-        {
-          error: "Failed to detect context",
-          message: err instanceof Error ? err.message : "Unknown error",
-        },
-        500
-      );
+        // Store context with ownership - always use authenticated user's ID
+        const { context: detectedContext } = detectAndUpdateContextWithOwner(
+          {
+            nearStation: context.factors.location.nearStation,
+            nearStationId: context.factors.location.stationId,
+            distanceToStation: context.factors.location.distance,
+            tapHistory: body.tapHistory || [],
+            currentScreen: body.currentScreen || "home",
+            screenTime: body.screenTime || 0,
+            recentActions: body.recentActions || [],
+          },
+          ownerId
+        );
+
+        c.header("Cache-Control", "no-cache");
+        return c.json({ context: detectedContext });
+      } catch (err) {
+        logger.error("Context detection failed", err as Error);
+        return c.json(
+          {
+            error: "Failed to detect context",
+            message: err instanceof Error ? err.message : "Unknown error",
+          },
+          500
+        );
+      }
     }
-  });
+  );
 
   /** Set manual context override */
   app.post(
     "/api/context/override",
     requireResourceAccess("context", "update"),
+    requirePermission("predictions:create" as Permission),
     auditLogAccess("context", "update"),
     async (c) => {
       try {
@@ -1737,7 +1842,17 @@ export function createApp(
         const { context } = body;
         const ownerId = auth?.keyId || "anonymous";
 
-        // Store context with ownership
+        // Explicit ownership check: non-admin users can only override their own context
+        if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
+          return c.json(
+            {
+              error: "Access denied: you can only override your own context",
+            },
+            403
+          );
+        }
+
+        // Store context with ownership - always use authenticated user's ID
         const { context: newContext } = detectAndUpdateContextWithOwner(
           {
             nearStation: false,
@@ -1759,21 +1874,45 @@ export function createApp(
     }
   );
 
-  /** Clear manual context override */
-  app.post("/api/context/clear", async (c) => {
-    const body = await validateBody(c, contextClearRequestSchema);
-    if (body instanceof Response) return body;
+  /** Clear manual context override - requires authentication */
+  app.post(
+    "/api/context/clear",
+    requireResourceAccess("context", "update"),
+    requirePermission("predictions:create" as Permission),
+    auditLogAccess("context", "clear"),
+    async (c) => {
+      const auth = getRbacAuthContext(c);
+      const body = await validateBody(c, contextClearRequestSchema);
+      if (body instanceof Response) return body;
 
-    const context = clearManualOverride();
+      // Get owner ID from auth context
+      const ownerId = auth?.keyId || "anonymous";
 
-    c.header("Cache-Control", "no-cache");
-    return c.json({ success: true, context });
-  });
+      // Explicit ownership check: non-admin users can only clear their own context
+      if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
+        return c.json(
+          {
+            error: "Access denied: you can only clear your own context",
+          },
+          403
+        );
+      }
 
-  /** Update context settings */
+      // Clear manual override for authenticated user only (owner-scoped)
+      const context = clearManualOverrideForOwner(ownerId);
+
+      logger.info("Manual context override cleared", { ownerId });
+
+      c.header("Cache-Control", "no-cache");
+      return c.json({ success: true, context });
+    }
+  );
+
+  /** Update context settings - admin only */
   app.patch(
     "/api/context/settings",
-    requireResourceAccess("context", "update"),
+    requireRole("admin"),
+    requireAdmin(),
     auditLogAccess("context", "update"),
     async (c) => {
       try {
@@ -1806,7 +1945,7 @@ export function createApp(
   );
 
   /** Get available OAuth providers */
-  app.get("/api/auth/oauth/providers", (c) => {
+  app.get("/api/auth/oauth/providers", requirePermission("oauth:authorize" as Permission), (c) => {
     const providers = getActiveOAuthProviders();
 
     // Return only safe provider information (no secrets)
@@ -1821,26 +1960,30 @@ export function createApp(
   });
 
   /** Initiate OAuth authorization flow */
-  app.get("/api/auth/oauth/authorize/:providerId", async (c) => {
-    const providerId = c.req.param("providerId");
-    const redirectUrl = c.req.query("redirect_url");
+  app.get(
+    "/api/auth/oauth/authorize/:providerId",
+    requirePermission("oauth:authorize" as Permission),
+    async (c) => {
+      const providerId = c.req.param("providerId");
+      const redirectUrl = c.req.query("redirect_url");
 
-    if (!providerId) {
-      return c.json({ error: "Provider ID is required" }, 400);
+      if (!providerId) {
+        return c.json({ error: "Provider ID is required" }, 400);
+      }
+
+      const result = await createAuthorizationUrl(providerId, redirectUrl);
+
+      if ("error" in result) {
+        return c.json({ error: result.error }, 400);
+      }
+
+      // Return authorization URL and state
+      return c.json({
+        authorizationUrl: result.url,
+        stateId: result.stateId,
+      });
     }
-
-    const result = await createAuthorizationUrl(providerId, redirectUrl);
-
-    if ("error" in result) {
-      return c.json({ error: result.error }, 400);
-    }
-
-    // Return authorization URL and state
-    return c.json({
-      authorizationUrl: result.url,
-      stateId: result.stateId,
-    });
-  });
+  );
 
   /** OAuth callback endpoint */
   app.get("/api/auth/oauth/callback/:providerId", async (c) => {
@@ -1950,7 +2093,7 @@ export function createApp(
   app.use("/api/auth/mfa/*", requireSameOrigin());
 
   /** Get MFA status for the current session */
-  app.get("/api/auth/mfa/status", async (c) => {
+  app.get("/api/auth/mfa/status", requirePermission("mfa:verify" as Permission), async (c) => {
     const auth = getAuthContext(c);
 
     if (!auth) {
@@ -1968,7 +2111,7 @@ export function createApp(
   });
 
   /** Initiate TOTP setup - returns secret and QR code URL */
-  app.post("/api/auth/mfa/setup", requireResourceAccess("admin", "create"), async (c) => {
+  app.post("/api/auth/mfa/setup", requirePermission("mfa:setup" as Permission), async (c) => {
     const auth = getAuthContext(c);
 
     if (!auth) {
@@ -1988,7 +2131,7 @@ export function createApp(
   });
 
   /** Enable TOTP after initial verification */
-  app.post("/api/auth/mfa/enable", requireResourceAccess("admin", "update"), async (c) => {
+  app.post("/api/auth/mfa/enable", requirePermission("mfa:verify" as Permission), async (c) => {
     const auth = getAuthContext(c);
 
     if (!auth) {
@@ -2027,7 +2170,7 @@ export function createApp(
   });
 
   /** Disable TOTP for the current user */
-  app.post("/api/auth/mfa/disable", requireResourceAccess("admin", "delete"), async (c) => {
+  app.post("/api/auth/mfa/disable", requirePermission("mfa:disable" as Permission), async (c) => {
     const auth = getAuthContext(c);
 
     if (!auth) {
@@ -2049,7 +2192,7 @@ export function createApp(
   });
 
   /** Verify MFA for a session (after login, before sensitive operations) */
-  app.post("/api/auth/mfa/verify", async (c) => {
+  app.post("/api/auth/mfa/verify", requirePermission("mfa:verify" as Permission), async (c) => {
     const auth = getAuthContext(c);
 
     if (!auth) {
@@ -2141,7 +2284,7 @@ export function createApp(
         c.req.header("cf-connecting-ip") ??
         "unknown";
 
-      const result = refreshSession(refreshToken, clientIp);
+      const result = await refreshSession(refreshToken, clientIp);
 
       if (!result) {
         return c.json({ error: "Invalid or expired refresh token" }, 401);
@@ -2200,6 +2343,237 @@ export function createApp(
       message: "Session revoked successfully",
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Password Reset & Management
+  // -------------------------------------------------------------------------
+
+  // Apply same-origin protection to password reset operations
+  app.use("/api/auth/password/*", requireSameOrigin());
+
+  /** Get password policy requirements */
+  app.get("/api/auth/password/policy", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
+    const policy = getPasswordPolicyDescription();
+
+    c.header("Cache-Control", "public, max-age=300");
+    return c.json(policy);
+  });
+
+  /** Initiate password reset request */
+  app.post(
+    "/api/auth/password/reset",
+    // Apply strict rate limiting (5 requests per minute)
+    authRateLimit("strict", {
+      addHeaders: true,
+    }),
+    // Require CAPTCHA after rate limit violations
+    requireCaptcha({
+      alwaysRequired: false,
+    }),
+    auditLogAccess("password", "reset_request"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, passwordResetRequestSchema);
+        if (body instanceof Response) return body;
+
+        const { email } = body;
+
+        // Get client IP for rate limiting and security logging
+        const clientIp =
+          c.req.header("x-forwarded-for")?.split(",")[0] ??
+          c.req.header("cf-connecting-ip") ??
+          "unknown";
+
+        // In production, you would:
+        // 1. Look up the user by email (in a database)
+        // 2. Generate and store a reset token
+        // 3. Send an email with the reset link
+        // For now, we'll generate a token and return it (for testing)
+
+        // Note: In a real implementation, email would be used as keyId
+        // Here we use email as keyId for demonstration
+        const keyId = email;
+
+        // Invalidate any existing reset tokens for this user
+        invalidateResetTokensForKey(keyId);
+
+        // Generate new reset token
+        const resetData = await generatePasswordResetToken(keyId, clientIp);
+
+        // In production, send email with reset link
+        // The email would contain: tokenId and token (as query params)
+        // For now, return the token (in production, NEVER return the token)
+
+        logger.info("Password reset requested", { keyId, clientIp });
+
+        // Return success (in production, don't include token in response)
+        return c.json({
+          success: true,
+          message: "If an account exists with this email, a password reset link has been sent",
+          // Note: In production, remove these fields - only send via email
+          tokenId: resetData.tokenId,
+          token: resetData.token,
+          expiresAt: new Date(resetData.expiresAt).toISOString(),
+        });
+      } catch (error) {
+        logger.error("Password reset request failed", error as Error);
+        return c.json(
+          {
+            error: "Failed to process password reset request",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+          500
+        );
+      }
+    }
+  );
+
+  /** Confirm password reset with token */
+  app.post(
+    "/api/auth/password/reset/confirm",
+    // Apply strict rate limiting (5 requests per minute)
+    authRateLimit("strict", {
+      addHeaders: true,
+    }),
+    // Require CAPTCHA after rate limit violations
+    requireCaptcha({
+      alwaysRequired: false,
+    }),
+    auditLogAccess("password", "reset_confirm"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, passwordResetConfirmSchema);
+        if (body instanceof Response) return body;
+
+        const { tokenId, token, newPassword } = body;
+
+        const clientIp =
+          c.req.header("x-forwarded-for")?.split(",")[0] ??
+          c.req.header("cf-connecting-ip") ??
+          "unknown";
+
+        // Validate the reset token
+        const keyId = await validatePasswordResetToken(tokenId, token, clientIp);
+
+        if (!keyId) {
+          logger.warn("Invalid password reset token", { tokenId, clientIp });
+          return c.json(
+            {
+              error: "Invalid or expired reset token",
+              message:
+                "The reset link is invalid or has expired. Please request a new password reset.",
+            },
+            400
+          );
+        }
+
+        // Validate the new password against policy
+        const passwordValidation = await validatePassword(newPassword, {}, keyId);
+
+        if (!passwordValidation.valid) {
+          return c.json(
+            {
+              error: "Password does not meet security requirements",
+              errors: passwordValidation.errors,
+            },
+            400
+          );
+        }
+
+        // Hash the new password
+        const passwordHash = await hashPassword(newPassword);
+
+        // In production, update the password in the database
+        // For now, just log the password hash (in production, NEVER log passwords)
+        logger.info("Password reset confirmed", { keyId, clientIp });
+
+        // Consume the reset token (single-use)
+        consumePasswordResetToken(tokenId);
+
+        // Invalidate all other reset tokens for this user
+        invalidateResetTokensForKey(keyId);
+
+        // Invalidate all existing sessions for security
+        // (force re-login with new password)
+        // In production, this would be: invalidateAllSessionsForKey(keyId);
+
+        return c.json({
+          success: true,
+          message: "Password has been reset successfully. Please log in with your new password.",
+        });
+      } catch (error) {
+        logger.error("Password reset confirmation failed", error as Error);
+        return c.json(
+          {
+            error: "Failed to reset password",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+          500
+        );
+      }
+    }
+  );
+
+  /** Change password for authenticated user */
+  app.post(
+    "/api/auth/password/change",
+    requireResourceAccess("password", "update"),
+    auditLogAccess("password", "change"),
+    async (c) => {
+      try {
+        const auth = getRbacAuthContext(c);
+
+        if (!auth) {
+          return c.json({ error: "Authentication required" }, 401);
+        }
+
+        const body = await validateBody(c, passwordChangeSchema);
+        if (body instanceof Response) return body;
+
+        const { currentPassword, newPassword } = body;
+
+        // In production, verify current password against stored hash
+        // For now, skip current password verification (demo mode)
+
+        // Validate the new password against policy
+        const passwordValidation = await validatePassword(newPassword, {}, auth.keyId);
+
+        if (!passwordValidation.valid) {
+          return c.json(
+            {
+              error: "Password does not meet security requirements",
+              errors: passwordValidation.errors,
+            },
+            400
+          );
+        }
+
+        // Hash the new password
+        const passwordHash = await hashPassword(newPassword);
+
+        // In production, update the password in the database
+        logger.info("Password changed", { keyId: auth.keyId });
+
+        return c.json({
+          success: true,
+          message: "Password has been changed successfully",
+        });
+      } catch (error) {
+        logger.error("Password change failed", error as Error);
+        return c.json(
+          {
+            error: "Failed to change password",
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+          500
+        );
+      }
+    }
+  );
 
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)

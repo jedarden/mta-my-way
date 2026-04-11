@@ -17,6 +17,7 @@ import type { Commute } from "@mta-my-way/shared";
 import { formatMinutesAway } from "@mta-my-way/shared";
 import { useEffect, useRef, useState } from "react";
 import { getBestRoute, useCommute } from "../../hooks/useCommute";
+import { encodeForAria } from "../../lib/outputEncoding";
 import { ConfidenceBar } from "../arrivals/ConfidenceBar";
 import { LineBullet } from "../arrivals/LineBullet";
 import { TransferDetail } from "./TransferDetail";
@@ -94,7 +95,7 @@ export function CommuteCard({ commute, forceRefreshId, onEdit }: CommuteCardProp
               onEdit(commute);
             }}
             className="p-2 min-w-touch min-h-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary rounded-lg"
-            aria-label={`Edit ${commute.name} commute`}
+            aria-label={`Edit ${encodeForAria(commute.name)} commute`}
           >
             <svg
               width="20"
@@ -121,7 +122,7 @@ export function CommuteCard({ commute, forceRefreshId, onEdit }: CommuteCardProp
         className="w-full px-4 pb-3 text-left"
         onClick={() => setExpanded((prev) => !prev)}
         aria-expanded={expanded}
-        aria-label={`${expanded ? "Collapse" : "Expand"} ${commute.name} commute details`}
+        aria-label={`${expanded ? "Collapse" : "Expand"} ${encodeForAria(commute.name)} commute details`}
       >
         {isLoading ? (
           <CommuteSkeleton />

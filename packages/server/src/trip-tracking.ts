@@ -27,7 +27,7 @@ let db: Database.Database | null = null;
 let stations: StationIndex | null = null;
 
 // Default owner ID for unauthenticated or legacy data
-const DEFAULT_OWNER_ID = "anonymous";
+export const DEFAULT_OWNER_ID = "anonymous";
 
 /**
  * Initialize trip tracking service.
@@ -163,17 +163,36 @@ export function recordInferredTrip(
 }
 
 /**
- * Update trip notes.
+ * Update trip notes with ownership check.
+ *
+ * @param tripId - Trip ID to update
+ * @param notes - New notes content
+ * @param ownerId - Owner ID for access control (optional, skips check if not provided for backward compatibility)
  */
-export function updateTripNotes(tripId: string, notes: string): boolean {
+export function updateTripNotes(tripId: string, notes: string, ownerId?: string): boolean {
   if (!db) return false;
 
   try {
-    const result = db
-      .prepare("UPDATE trips SET notes = ?, updated_at = ? WHERE id = ?")
-      .run(notes, Date.now(), tripId);
+    let stmt: Database.Statement;
+    const now = Date.now();
 
-    return result.changes > 0;
+    if (ownerId) {
+      // Only update if the trip belongs to the owner
+      stmt = db.prepare("UPDATE trips SET notes = ?, updated_at = ? WHERE id = ? AND owner_id = ?");
+      const result = stmt.run(notes, now, tripId, ownerId);
+
+      if (result.changes === 0) {
+        logger.warn("Trip notes update failed: ownership check failed", { tripId, ownerId });
+      }
+
+      return result.changes > 0;
+    } else {
+      // No ownership check (for admin operations or backward compatibility)
+      stmt = db.prepare("UPDATE trips SET notes = ?, updated_at = ? WHERE id = ?");
+      const result = stmt.run(notes, now, tripId);
+
+      return result.changes > 0;
+    }
   } catch (error) {
     logger.error("Failed to update trip notes", error instanceof Error ? error : undefined);
     return false;
@@ -181,20 +200,41 @@ export function updateTripNotes(tripId: string, notes: string): boolean {
 }
 
 /**
- * Delete a trip from the journal.
+ * Delete a trip from the journal with ownership check.
+ *
+ * @param tripId - Trip ID to delete
+ * @param ownerId - Owner ID for access control (optional, skips check if not provided for backward compatibility)
  */
-export function deleteTrip(tripId: string): boolean {
+export function deleteTrip(tripId: string, ownerId?: string): boolean {
   if (!db) return false;
 
   try {
-    const result = db.prepare("DELETE FROM trips WHERE id = ?").run(tripId);
+    let stmt: Database.Statement;
 
-    if (result.changes > 0) {
+    if (ownerId) {
+      // Only delete if the trip belongs to the owner
+      stmt = db.prepare("DELETE FROM trips WHERE id = ? AND owner_id = ?");
+      const result = stmt.run(tripId, ownerId);
+
+      if (result.changes === 0) {
+        logger.warn("Trip deletion failed: ownership check failed", { tripId, ownerId });
+        return false;
+      }
+
       invalidateCommuteStats(DEFAULT_COMMUTE_ID);
-      logger.info("Trip deleted", { tripId });
+      logger.info("Trip deleted", { tripId, ownerId });
       return true;
+    } else {
+      // No ownership check (for admin operations or backward compatibility)
+      const result = db.prepare("DELETE FROM trips WHERE id = ?").run(tripId);
+
+      if (result.changes > 0) {
+        invalidateCommuteStats(DEFAULT_COMMUTE_ID);
+        logger.info("Trip deleted (admin)", { tripId });
+        return true;
+      }
+      return false;
     }
-    return false;
   } catch (error) {
     logger.error("Failed to delete trip", error instanceof Error ? error : undefined);
     return false;

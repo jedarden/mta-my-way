@@ -14,6 +14,7 @@
 import type { DirectionPreference, Favorite } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
+import { encodeForAria } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 
 interface FavoriteEditorProps {
@@ -135,7 +136,7 @@ export function FavoriteEditor({ favorite, onSave, onDelete, onClose }: Favorite
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`Edit ${favorite.stationName}`}
+        aria-label={`Edit ${encodeForAria(favorite.stationName)}`}
         onKeyDown={handleDialogKeyDown}
         className="fixed bottom-0 left-0 right-0 z-50 bg-background dark:bg-dark-background rounded-t-2xl shadow-lg max-h-[85dvh] flex flex-col pb-[env(safe-area-inset-bottom)]"
       >

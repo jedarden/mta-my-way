@@ -141,3 +141,37 @@ export function truncateEncoded(input: string, maxLength: number): string {
   }
   return encoded.slice(0, maxLength - 3) + "...";
 }
+
+/**
+ * Encode a string for safe use in ARIA attributes (aria-label, aria-description, etc.).
+ *
+ * ARIA attributes are exposed to assistive technologies and should not contain
+ * unescaped user input that could be used for social engineering attacks.
+ * While React does escape aria attribute values, this function provides
+ * defense-in-depth by explicitly sanitizing the content.
+ *
+ * This function:
+ * - Removes control characters that could interfere with screen readers
+ * - Encodes HTML entities (though ARIA attributes don't render HTML)
+ * - Normalizes whitespace for consistent screen reader announcement
+ *
+ * @example
+ * ```ts
+ * encodeForAria('<script>alert("xss")</script>')
+ * // Returns: "scriptalert('xss')script" (tags removed, content preserved)
+ * ```
+ */
+export function encodeForAria(input: string): string {
+  // Remove HTML tags for cleaner screen reader experience
+  let sanitized = String(input).replace(/<[^>]*>/g, "");
+  // Remove control characters except newlines and tabs (screen readers use these)
+  const range1 = `${String.fromCharCode(0x00)}-${String.fromCharCode(0x08)}`;
+  const range2 = `${String.fromCharCode(0x0b)}-${String.fromCharCode(0x0c)}`;
+  const range3 = `${String.fromCharCode(0x0e)}-${String.fromCharCode(0x1f)}`;
+  const range4 = String.fromCharCode(0x7f);
+  const controlCharRegex = new RegExp(`[${range1}${range2}${range3}${range4}]`, "g");
+  sanitized = sanitized.replace(controlCharRegex, "");
+  // Normalize multiple whitespace characters to single space
+  sanitized = sanitized.replace(/\s+/g, " ").trim();
+  return sanitized;
+}

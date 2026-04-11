@@ -19,6 +19,7 @@ import type { Commute } from "@mta-my-way/shared";
 import { useCallback } from "react";
 import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { encodeForAria } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 
 interface CommutePresetCardProps {
@@ -61,7 +62,7 @@ export function CommutePresetCard({ commute, onEdit }: CommutePresetCardProps) {
       className="bg-surface dark:bg-dark-surface rounded-lg p-4 shadow-sm"
       tabIndex={0}
       role="button"
-      aria-label={`${commute.name}: ${commute.origin.stationName} to ${commute.destination.stationName}. Press Enter to view arrivals.`}
+      aria-label={`${encodeForAria(commute.name)}: ${encodeForAria(commute.origin.stationName)} to ${encodeForAria(commute.destination.stationName)}. Press Enter to view arrivals.`}
       onKeyDown={handleCardKeyDown}
     >
       {/* Header with name and edit */}
@@ -99,7 +100,7 @@ export function CommutePresetCard({ commute, onEdit }: CommutePresetCardProps) {
               }
             }}
             className="p-2 min-h-touch min-w-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary rounded-lg shrink-0"
-            aria-label={`Edit ${commute.name} commute`}
+            aria-label={`Edit ${encodeForAria(commute.name)} commute`}
           >
             <svg
               width="18"

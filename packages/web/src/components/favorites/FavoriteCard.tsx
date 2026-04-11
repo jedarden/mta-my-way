@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { useArrivals } from "../../hooks/useArrivals";
 import { useOfflineCountdown } from "../../hooks/useOfflineCountdown";
 import { useStaleness } from "../../hooks/useStaleness";
+import { encodeForAria } from "../../lib/outputEncoding";
 import { useFavoritesStore } from "../../stores/favoritesStore";
 import { ArrivalRow } from "../arrivals/ArrivalRow";
 import { LineBullet } from "../arrivals/LineBullet";
@@ -87,7 +88,7 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
       className="bg-surface dark:bg-dark-surface rounded-lg overflow-hidden shadow-sm"
       tabIndex={0}
       role="button"
-      aria-label={`${favorite.stationName}, ${favorite.lines.join(", ")} lines. Press Enter to view arrivals.`}
+      aria-label={`${encodeForAria(favorite.stationName)}, ${favorite.lines.join(", ")} lines. Press Enter to view arrivals.`}
       onKeyDown={handleCardKeyDown}
       onClick={handleCardTap}
     >
@@ -121,7 +122,7 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
             onEdit(favorite);
           }}
           className="p-2 min-w-touch min-h-touch flex items-center justify-center text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary rounded-lg"
-          aria-label={`Edit ${favorite.stationName} favorite`}
+          aria-label={`Edit ${encodeForAria(favorite.stationName)} favorite`}
         >
           <svg
             width="20"

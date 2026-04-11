@@ -172,7 +172,9 @@ export function removeSubscription(endpoint: string, ownerId?: string): boolean 
 
   let stmt: Database.Statement;
   if (ownerId) {
-    stmt = database.prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ? AND owner_id = ?");
+    stmt = database.prepare(
+      "DELETE FROM push_subscriptions WHERE endpoint_hash = ? AND owner_id = ?"
+    );
     const result = stmt.run(endpointHash, ownerId);
 
     if (result.changes > 0) {
@@ -198,6 +200,7 @@ export function removeSubscription(endpoint: string, ownerId?: string): boolean 
 
 /**
  * Get all subscriptions. Used by the matcher and sender.
+ * Note: This returns all subscriptions without ownership filtering - use carefully.
  */
 export function getAllSubscriptions(): PushSubscriptionRecord[] {
   const database = getDb();
@@ -207,6 +210,31 @@ export function getAllSubscriptions(): PushSubscriptionRecord[] {
   );
 
   return stmt.all() as PushSubscriptionRecord[];
+}
+
+/**
+ * Get subscriptions for a specific owner with ownership check.
+ *
+ * @param ownerId - Owner ID to get subscriptions for
+ * @param requestingOwnerId - Owner ID making the request (for authorization)
+ * @returns Array of subscription records or null if unauthorized
+ */
+export function getSubscriptionsByOwner(
+  ownerId: string,
+  requestingOwnerId: string
+): PushSubscriptionRecord[] | null {
+  // Users can only access their own subscriptions (unless admin, which is checked at middleware level)
+  if (ownerId !== requestingOwnerId) {
+    return null;
+  }
+
+  const database = getDb();
+
+  const stmt = database.prepare(
+    "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions WHERE owner_id = ?"
+  );
+
+  return stmt.all(ownerId) as PushSubscriptionRecord[];
 }
 
 /**
@@ -241,6 +269,13 @@ export function updateSubscriptionFavorites(
   );
   const result = stmt.run(JSON.stringify(favorites), now, endpointHash, ownerId);
 
+  if (result.changes === 0) {
+    logger.warn("Subscription favorites update failed: ownership check failed", {
+      endpointHash,
+      ownerId,
+    });
+  }
+
   return result.changes > 0;
 }
 
@@ -265,6 +300,13 @@ export function updateSubscriptionQuietHours(
   );
   const result = stmt.run(JSON.stringify(quietHours), now, endpointHash, ownerId);
 
+  if (result.changes === 0) {
+    logger.warn("Subscription quiet hours update failed: ownership check failed", {
+      endpointHash,
+      ownerId,
+    });
+  }
+
   return result.changes > 0;
 }
 
@@ -288,6 +330,13 @@ export function updateSubscriptionMorningScores(
     "UPDATE push_subscriptions SET morning_scores = ?, updated_at = ? WHERE endpoint_hash = ? AND owner_id = ?"
   );
   const result = stmt.run(JSON.stringify(morningScores), now, endpointHash, ownerId);
+
+  if (result.changes === 0) {
+    logger.warn("Subscription morning scores update failed: ownership check failed", {
+      endpointHash,
+      ownerId,
+    });
+  }
 
   return result.changes > 0;
 }

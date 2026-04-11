@@ -3,6 +3,8 @@
  *
  * Tests:
  * - CSP headers are set correctly
+ * - CSP includes report-uri for violation monitoring
+ * - CSP includes frame-src for OAuth popups
  * - X-Content-Type-Options: nosniff
  * - X-Frame-Options: DENY
  * - Referrer-Policy: strict-origin-when-cross-origin
@@ -44,6 +46,7 @@ describe("securityHeaders middleware", () => {
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("form-action 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("frame-src 'self'");
     expect(csp).toContain("upgrade-insecure-requests");
   });
 
@@ -190,15 +193,68 @@ describe("securityHeaders middleware", () => {
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
-  it("sets CSP-Report-Only when report-to is provided", async () => {
+  it("includes report-to directive when reportTo is provided", async () => {
     const reportApp = new Hono();
     reportApp.use("*", securityHeaders({ reportTo: "security-endpoint" }));
     reportApp.get("/test", (c) => c.json({ ok: true }));
 
     const res = await reportApp.request("/test");
 
+    const csp = res.headers.get("Content-Security-Policy");
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("report-to=security-endpoint");
+  });
+
+  it("includes report-uri directive when reportUri is provided", async () => {
+    const reportUriApp = new Hono();
+    reportUriApp.use("*", securityHeaders({ reportUri: "/api/security/csp-report" }));
+    reportUriApp.get("/test", (c) => c.json({ ok: true }));
+
+    const res = await reportUriApp.request("/test");
+
+    const csp = res.headers.get("Content-Security-Policy");
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("report-uri=/api/security/csp-report");
+  });
+
+  it("includes both report-to and report-uri when both are provided", async () => {
+    const bothApp = new Hono();
+    bothApp.use(
+      "*",
+      securityHeaders({
+        reportTo: "security-endpoint",
+        reportUri: "/api/security/csp-report",
+      })
+    );
+    bothApp.get("/test", (c) => c.json({ ok: true }));
+
+    const res = await bothApp.request("/test");
+
+    const csp = res.headers.get("Content-Security-Policy");
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("report-to=security-endpoint");
+    expect(csp).toContain("report-uri=/api/security/csp-report");
+  });
+
+  it("sets report-only CSP when reportOnly is true", async () => {
+    const reportOnlyApp = new Hono();
+    reportOnlyApp.use(
+      "*",
+      securityHeaders({
+        reportOnly: true,
+        reportUri: "/api/security/csp-report",
+      })
+    );
+    reportOnlyApp.get("/test", (c) => c.json({ ok: true }));
+
+    const res = await reportOnlyApp.request("/test");
+
+    // Should have report-only header instead of enforce
     const reportOnly = res.headers.get("Content-Security-Policy-Report-Only");
+    const enforce = res.headers.get("Content-Security-Policy");
+
     expect(reportOnly).toBeTruthy();
-    expect(reportOnly).toContain("report-to=security-endpoint");
+    expect(reportOnly).toContain("report-uri=/api/security/csp-report");
+    expect(enforce).toBeNull();
   });
 });

@@ -524,4 +524,315 @@ describe("OAuth and MFA Authentication Integration", () => {
       expect(json.authMethod).toBe("session");
     });
   });
+
+  describe("Password reset endpoints", () => {
+    it("should get password policy requirements", async () => {
+      const res = await app.request("/api/auth/password/policy");
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json).toHaveProperty("minLength");
+      expect(json).toHaveProperty("maxLength");
+      expect(json).toHaveProperty("requireUppercase");
+      expect(json).toHaveProperty("requireLowercase");
+      expect(json).toHaveProperty("requireNumbers");
+      expect(json).toHaveProperty("requireSpecialChars");
+      expect(json).toHaveProperty("allowSpaces");
+      expect(json).toHaveProperty("expirationDays");
+      expect(json).toHaveProperty("historyCount");
+    });
+
+    it("should initiate password reset request", async () => {
+      const res = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test@example.com",
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json).toHaveProperty("message");
+      expect(json).toHaveProperty("tokenId");
+      expect(json).toHaveProperty("token");
+      expect(json).toHaveProperty("expiresAt");
+    });
+
+    it("should reject password reset with invalid email", async () => {
+      const res = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "not-an-email",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json).toHaveProperty("error");
+    });
+
+    it("should reject password reset with HTML in email", async () => {
+      const res = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "<script>alert('xss')</script>@example.com",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json).toHaveProperty("error");
+    });
+
+    it("should confirm password reset with valid token", async () => {
+      // First, initiate a password reset
+      const initRes = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test@example.com",
+        }),
+      });
+
+      const initData = await initRes.json();
+      const { tokenId, token } = initData;
+
+      // Now confirm the password reset
+      const confirmRes = await app.request("/api/auth/password/reset/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenId,
+          token,
+          newPassword: "NewSecurePassword123!@#",
+        }),
+      });
+
+      expect(confirmRes.status).toBe(200);
+      const confirmJson = await confirmRes.json();
+      expect(confirmJson.success).toBe(true);
+      expect(confirmJson).toHaveProperty("message");
+    });
+
+    it("should reject password reset with invalid token", async () => {
+      const res = await app.request("/api/auth/password/reset/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenId: "invalid-token-id",
+          token: "invalid-token",
+          newPassword: "NewSecurePassword123!@#",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json).toHaveProperty("error");
+    });
+
+    it("should reject password reset with weak password", async () => {
+      // First, initiate a password reset
+      const initRes = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test2@example.com",
+        }),
+      });
+
+      const initData = await initRes.json();
+      const { tokenId, token } = initData;
+
+      // Now try to reset with a weak password
+      const confirmRes = await app.request("/api/auth/password/reset/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenId,
+          token,
+          newPassword: "weak",
+        }),
+      });
+
+      expect(confirmRes.status).toBe(400);
+      const confirmJson = await confirmRes.json();
+      expect(confirmJson).toHaveProperty("error");
+      expect(confirmJson.error).toContain("security requirements");
+    });
+
+    it("should reject password reset with HTML in password", async () => {
+      // First, initiate a password reset
+      const initRes = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test3@example.com",
+        }),
+      });
+
+      const initData = await initRes.json();
+      const { tokenId, token } = initData;
+
+      // Now try to reset with HTML in password
+      const confirmRes = await app.request("/api/auth/password/reset/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenId,
+          token,
+          newPassword: "<script>alert('xss')</script>Password123!@#",
+        }),
+      });
+
+      expect(confirmRes.status).toBe(400);
+      const confirmJson = await confirmRes.json();
+      expect(confirmJson).toHaveProperty("error");
+    });
+
+    it("should not allow reusing the same reset token", async () => {
+      // First, initiate a password reset
+      const initRes = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test4@example.com",
+        }),
+      });
+
+      const initData = await initRes.json();
+      const { tokenId, token } = initData;
+
+      // Use the token once
+      const firstRes = await app.request("/api/auth/password/reset/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenId,
+          token,
+          newPassword: "FirstPassword123!@#",
+        }),
+      });
+
+      expect(firstRes.status).toBe(200);
+
+      // Try to use the same token again
+      const secondRes = await app.request("/api/auth/password/reset/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tokenId,
+          token,
+          newPassword: "SecondPassword123!@#",
+        }),
+      });
+
+      expect(secondRes.status).toBe(400);
+      const secondJson = await secondRes.json();
+      expect(secondJson).toHaveProperty("error");
+    });
+
+    it("should allow authenticated user to change password", async () => {
+      await createTestApiKey("test_key_123", "write");
+
+      const res = await app.request("/api/auth/password/change", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_key_123:test_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          currentPassword: "oldPassword123!@#",
+          newPassword: "NewSecurePassword123!@#",
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json).toHaveProperty("message");
+    });
+
+    it("should reject password change without authentication", async () => {
+      const res = await app.request("/api/auth/password/change", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          currentPassword: "oldPassword123!@#",
+          newPassword: "NewSecurePassword123!@#",
+        }),
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    it("should reject password change with weak password", async () => {
+      await createTestApiKey("test_key_456", "write");
+
+      const res = await app.request("/api/auth/password/change", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_key_456:test_secret",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          currentPassword: "oldPassword123!@#",
+          newPassword: "weak",
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json).toHaveProperty("error");
+      expect(json.error).toContain("security requirements");
+    });
+
+    it("should include rate limit headers on password reset", async () => {
+      const res = await app.request("/api/auth/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test5@example.com",
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("X-RateLimit-Limit")).toBeTruthy();
+      expect(res.headers.get("X-RateLimit-Remaining")).toBeTruthy();
+      expect(res.headers.get("X-RateLimit-Reset")).toBeTruthy();
+    });
+  });
 });

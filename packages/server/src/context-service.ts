@@ -42,7 +42,7 @@ let db: Database.Database | null = null;
 let stations: StationIndex | null = null;
 
 // Default owner ID for unauthenticated or legacy data
-const DEFAULT_OWNER_ID = "anonymous";
+export const DEFAULT_OWNER_ID = "anonymous";
 
 // Current context state (in-memory cache)
 let currentContext: ContextState | null = null;
@@ -54,8 +54,8 @@ let currentSettings: ContextSettings = {
   learnPatterns: true,
 };
 
-// Default context state
-const DEFAULT_CONTEXT: ContextState = {
+// Default context state - exported for use in other modules
+export const DEFAULT_CONTEXT: ContextState = {
   context: "idle",
   confidence: "low",
   factors: {
@@ -176,42 +176,6 @@ export function detectAndUpdateContext(params: {
   manualOverride?: UserContext;
 }): { context: ContextState; transition: ContextTransition | null } {
   return detectAndUpdateContextWithOwner(params, DEFAULT_OWNER_ID);
-}
-
-/**
- * Save context state to database.
- */
-function saveContextState(state: ContextState): void {
-  if (!db) return;
-
-  const id = crypto.randomUUID();
-  const now = Date.now();
-
-  db.prepare(
-    `INSERT INTO user_context (
-      id, context, confidence, factors_json,
-      detected_at, is_manual_override, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    id,
-    state.context,
-    state.confidence,
-    JSON.stringify(state.factors),
-    now,
-    state.isManualOverride ? 1 : 0,
-    now,
-    now
-  );
-
-  // Clean up old context states (keep last 100)
-  db.prepare(
-    `DELETE FROM user_context
-     WHERE id NOT IN (
-       SELECT id FROM user_context
-       ORDER BY detected_at DESC
-       LIMIT 100
-     )`
-  ).run();
 }
 
 /**
@@ -365,8 +329,20 @@ export function setManualContext(context: UserContext): ContextState {
 
 /**
  * Clear manual override and re-detect context.
+ * Uses default owner ID for backward compatibility.
  */
 export function clearManualOverride(): ContextState {
+  return clearManualOverrideForOwner(DEFAULT_OWNER_ID);
+}
+
+/**
+ * Clear manual override for a specific owner and re-detect context.
+ * This allows users to clear their own manual context overrides without affecting others.
+ *
+ * @param ownerId - Owner ID whose manual override should be cleared
+ * @returns New context state
+ */
+export function clearManualOverrideForOwner(ownerId: string = DEFAULT_OWNER_ID): ContextState {
   const params = {
     nearStation: currentContext?.factors.location.nearStation ?? false,
     nearStationId: currentContext?.factors.location.stationId,
@@ -377,7 +353,7 @@ export function clearManualOverride(): ContextState {
     recentActions: currentContext?.factors.activity.recentActions ?? [],
   };
 
-  const result = detectAndUpdateContext(params);
+  const result = detectAndUpdateContextWithOwner(params, ownerId);
   return result.context;
 }
 
@@ -496,6 +472,70 @@ export function resetContextService(): void {
 // ============================================================================
 
 /**
+ * Get the most recent context state for a specific owner.
+ *
+ * @param ownerId - Owner ID to get context for
+ * @returns Context state or null if not found
+ */
+export function getContextByOwner(ownerId: string): ContextState | null {
+  if (!db) return null;
+
+  const row = db
+    .prepare(
+      `SELECT * FROM user_context
+       WHERE owner_id = ?
+       ORDER BY detected_at DESC
+       LIMIT 1`
+    )
+    .get(ownerId) as
+    | {
+        id: string;
+        context: string;
+        confidence: string;
+        factors_json: string;
+        detected_at: number;
+        is_manual_override: number;
+      }
+    | undefined;
+
+  if (!row) return null;
+
+  try {
+    return {
+      context: row.context as UserContext,
+      confidence: row.confidence as ContextConfidence,
+      factors: JSON.parse(row.factors_json) as ContextFactors,
+      detectedAt: new Date(row.detected_at).toISOString(),
+      isManualOverride: row.is_manual_override === 1,
+    };
+  } catch (error) {
+    logger.error("Failed to parse stored context", error instanceof Error ? error : undefined);
+    return null;
+  }
+}
+
+/**
+ * Get context transitions for a specific owner with ownership check.
+ *
+ * @param ownerId - Owner ID to filter by
+ * @param requestingOwnerId - Owner ID making the request (for authorization)
+ * @param limit - Maximum number of transitions to return
+ * @returns Array of context transitions
+ */
+export function getContextTransitionsForOwner(
+  ownerId: string,
+  requestingOwnerId: string,
+  limit: number = 20
+): ContextTransition[] | null {
+  // Users can only access their own transitions (unless admin, which is checked at middleware level)
+  if (ownerId !== requestingOwnerId) {
+    return null;
+  }
+
+  return getContextTransitionsByOwner(ownerId, limit);
+}
+
+/**
  * Check if a context state belongs to a specific owner.
  *
  * @param contextId - Context ID to check
@@ -569,13 +609,6 @@ function saveContextState(state: ContextState, ownerId: string = DEFAULT_OWNER_I
 }
 
 /**
- * Override saveContextState to use the version with owner ID.
- */
-function saveContextStateLegacy(state: ContextState): void {
-  saveContextState(state, DEFAULT_OWNER_ID);
-}
-
-/**
  * Detect and update context based on provided factors with owner ID.
  *
  * @param params - Detection parameters
@@ -592,7 +625,7 @@ export function detectAndUpdateContextWithOwner(
     recentActions: string[];
     manualOverride?: UserContext;
   },
-  ownerId: string = DEFAULT_OWNER_ID
+  ownerId: string = "anonymous"
 ): { context: ContextState; transition: ContextTransition | null } {
   const previousContext = currentContext?.context ?? "idle";
 

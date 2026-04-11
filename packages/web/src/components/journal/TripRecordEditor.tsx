@@ -9,6 +9,7 @@
 
 import type { TripRecord } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { encodeForAria } from "../../lib/outputEncoding";
 
 interface TripRecordEditorProps {
   trip: TripRecord;
@@ -119,7 +120,7 @@ export function TripRecordEditor({
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`Edit trip from ${trip.origin.stationName} to ${trip.destination.stationName}`}
+        aria-label={`Edit trip from ${encodeForAria(trip.origin.stationName)} to ${encodeForAria(trip.destination.stationName)}`}
         onKeyDown={handleDialogKeyDown}
         className="fixed bottom-0 left-0 right-0 z-50 bg-background dark:bg-dark-background rounded-t-2xl shadow-lg max-h-[85dvh] flex flex-col pb-[env(safe-area-inset-bottom)]"
       >

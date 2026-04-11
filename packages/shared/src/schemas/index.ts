@@ -54,3 +54,10 @@ export {
   tripIdParamSchema,
   tripIdParamsSchema,
 } from "./params.js";
+
+export {
+  passwordChangeSchema,
+  passwordPolicySchema,
+  passwordResetConfirmSchema,
+  passwordResetRequestSchema,
+} from "./auth.js";

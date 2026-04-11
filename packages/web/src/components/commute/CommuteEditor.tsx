@@ -14,6 +14,7 @@
 import type { Commute, StationRef } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStationIndex } from "../../hooks/useStationIndex";
+import { encodeForAria } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 import { StationPicker } from "./StationPicker";
 
@@ -207,7 +208,11 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
               type="button"
               onClick={() => setPickerMode("origin")}
               className="w-full px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg text-left min-h-touch focus:outline-none focus:ring-2 focus:ring-mta-primary flex items-center justify-between"
-              aria-label={origin ? `Change origin: ${origin.stationName}` : "Pick origin station"}
+              aria-label={
+                origin
+                  ? `Change origin: ${encodeForAria(origin.stationName)}`
+                  : "Pick origin station"
+              }
             >
               <span
                 className={
@@ -246,7 +251,7 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
               className="w-full px-3 py-3 bg-surface dark:bg-dark-surface rounded-lg text-left min-h-touch focus:outline-none focus:ring-2 focus:ring-mta-primary flex items-center justify-between"
               aria-label={
                 destination
-                  ? `Change destination: ${destination.stationName}`
+                  ? `Change destination: ${encodeForAria(destination.stationName)}`
                   : "Pick destination station"
               }
             >

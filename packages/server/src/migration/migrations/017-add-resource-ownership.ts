@@ -29,7 +29,9 @@ export function up(db: Database.Database): void {
   try {
     db.exec(`ALTER TABLE push_subscriptions ADD COLUMN owner_id TEXT`);
     // Create index for ownership queries
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id ON push_subscriptions(owner_id)`);
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id ON push_subscriptions(owner_id)`
+    );
   } catch {
     // Column already exists
   }

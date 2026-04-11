@@ -56,6 +56,14 @@ export interface PasswordPolicy {
   passwordExpirationDays?: number;
   /** Number of passwords to remember for history (default: 12) */
   passwordHistoryCount?: number;
+  /** Block sequential characters (default: true) - e.g., "1234", "abcd", "4321" */
+  blockSequentialChars?: boolean;
+  /** Maximum sequential characters allowed (default: 3) */
+  maxSequentialChars?: number;
+  /** Block keyboard walking patterns (default: true) - e.g., "qwerty", "asdf" */
+  blockKeyboardPatterns?: boolean;
+  /** Minimum password strength score (default: 40, range 0-100) */
+  minStrengthScore?: number;
 }
 
 /**
@@ -218,7 +226,83 @@ const DEFAULT_PASSWORD_POLICY: Required<
   allowSpaces: true,
   passwordExpirationDays: 0,
   passwordHistoryCount: 12,
+  blockSequentialChars: true,
+  maxSequentialChars: 3,
+  blockKeyboardPatterns: true,
+  minStrengthScore: 40,
 };
+
+/**
+ * Common keyboard patterns to detect and block.
+ * Includes both forward and reverse sequences.
+ */
+const KEYBOARD_PATTERNS = [
+  // QWERTY row
+  "qwertyuiop",
+  "asdfghjkl",
+  "zxcvbnm",
+  // QWERTY row (reversed)
+  "poiuytrewq",
+  "lkjhgfdsa",
+  "mnbvcxz",
+  // QWERTY column patterns
+  "qaz",
+  "wsx",
+  "edc",
+  "rfv",
+  "tgb",
+  "yhn",
+  "ujm",
+  "ik",
+  "ol",
+  "p",
+  // QWERTY column patterns (reversed)
+  "zaq",
+  "xsw",
+  "cde",
+  "vfr",
+  "bgt",
+  "nhy",
+  "mju",
+  "ki",
+  "lo",
+  // Number row
+  "1234567890",
+  "0987654321",
+  // Common keyboard walking sequences (longer)
+  "qwerty",
+  "asdfgh",
+  "zxcvbn",
+  "qwer",
+  "asdf",
+  "zxcv",
+  // Reversed common sequences
+  "ytrewq",
+  "hgfdsa",
+  "nbvcxz",
+  // Diagonal patterns
+  "1qaz",
+  "2wsx",
+  "3edc",
+  "4rfv",
+  "5tgb",
+  "6yhn",
+  "7ujm",
+  "8ik",
+  "9ol",
+  "0p",
+  // Reversed diagonal
+  "zaq1",
+  "xsw2",
+  "cde3",
+  "vfr4",
+  "bgt5",
+  "nhy6",
+  "mju7",
+  "ki8",
+  "lo9",
+  "p0",
+];
 
 /**
  * Argon2id parameters (OWASP 2024 recommendations).
@@ -339,6 +423,147 @@ function getPasswordPepper(): string {
 // ============================================================================
 
 /**
+ * Detect sequential character patterns in password.
+ * Checks for:
+ * - Numeric sequences: 1234, 4321, 0123
+ * - Alphabetic sequences: abcd, DCBA, mnop
+ * - Both forward and reverse sequences
+ *
+ * @param password - The password to check
+ * @param maxSequence - Maximum allowed sequential characters
+ * @returns Object indicating if sequential pattern was found and the pattern
+ */
+function detectSequentialChars(
+  password: string,
+  maxSequence: number
+): { found: boolean; pattern?: string } {
+  const lowerPassword = password.toLowerCase();
+
+  // Check each position for sequences
+  for (let i = 0; i < lowerPassword.length - (maxSequence - 1); i++) {
+    // Extract potential sequence
+    const sequence = lowerPassword.substring(i, i + maxSequence + 1);
+
+    // Check if it's a valid sequence (all letters or all digits)
+    const isAllLetters = /^[a-z]+$/.test(sequence);
+    const isAllDigits = /^\d+$/.test(sequence);
+
+    if (!isAllLetters && !isAllDigits) {
+      continue;
+    }
+
+    // Check for forward or reverse sequential pattern
+    if (isSequentialSequence(sequence)) {
+      return { found: true, pattern: sequence };
+    }
+  }
+
+  return { found: false };
+}
+
+/**
+ * Check if a string is a sequential character pattern.
+ * Handles both forward (abcd, 1234) and reverse (dcba, 4321) sequences.
+ */
+function isSequentialSequence(str: string): boolean {
+  if (str.length < 2) return false;
+
+  // Check forward sequence
+  let isForward = true;
+  let isReverse = true;
+
+  for (let i = 0; i < str.length - 1; i++) {
+    const current = str.charCodeAt(i);
+    const next = str.charCodeAt(i + 1);
+
+    // Forward: next char is exactly +1
+    if (next !== current + 1) {
+      isForward = false;
+    }
+
+    // Reverse: next char is exactly -1
+    if (next !== current - 1) {
+      isReverse = false;
+    }
+  }
+
+  return isForward || isReverse;
+}
+
+/**
+ * Detect keyboard walking patterns in password.
+ * Checks for common keyboard sequences like "qwerty", "asdf", "1qaz", etc.
+ *
+ * @param password - The password to check
+ * @returns Object indicating if keyboard pattern was found and the pattern
+ */
+function detectKeyboardPatterns(password: string): { found: boolean; pattern?: string } {
+  const lowerPassword = password.toLowerCase();
+
+  // Check each pattern
+  for (const pattern of KEYBOARD_PATTERNS) {
+    // Check if pattern exists in password (case-insensitive)
+    if (lowerPassword.includes(pattern)) {
+      return { found: true, pattern };
+    }
+
+    // Also check reversed version of pattern
+    const reversed = pattern.split("").reverse().join("");
+    if (lowerPassword.includes(reversed)) {
+      return { found: true, pattern: reversed };
+    }
+  }
+
+  return { found: false };
+}
+
+/**
+ * Detect common password variations like "password1", "password2", etc.
+ *
+ * @param password - The password to check
+ * @returns Object indicating if common variation was found
+ */
+function detectCommonVariations(password: string): { found: boolean; pattern?: string } {
+  const lowerPassword = password.toLowerCase();
+
+  // Common base passwords with number/special char variations
+  const commonBases = [
+    "password",
+    "passw0rd",
+    "admin",
+    "welcome",
+    "login",
+    "qwerty",
+    "letmein",
+    "monkey",
+    "dragon",
+    "master",
+  ];
+
+  for (const base of commonBases) {
+    // Check if password starts with common base followed by numbers/special chars
+    const pattern = new RegExp(`^${base}\\d+$`, "i");
+    if (pattern.test(lowerPassword)) {
+      return { found: true, pattern: base + "[numbers]" };
+    }
+
+    // Check for base + single special char
+    const patternSpecial = new RegExp(`^${base}[!@#$%^&*]+$`, "i");
+    if (patternSpecial.test(lowerPassword)) {
+      return { found: true, pattern: base + "[special]" };
+    }
+
+    // Check for base + year (common pattern)
+    const patternYear = new RegExp(`^${base}(20\\d\\d|19\\d\\d)$`, "i");
+    if (patternYear.test(lowerPassword)) {
+      return { found: true, pattern: base + "[year]" };
+    }
+  }
+
+  return { found: false };
+}
+
+/**
  * Validate a password against policy requirements.
  *
  * This function performs comprehensive password validation including:
@@ -441,6 +666,34 @@ export async function validatePassword(
     }
   }
 
+  // Check sequential character patterns
+  if (mergedPolicy.blockSequentialChars && mergedPolicy.maxSequentialChars > 0) {
+    const sequentialResult = detectSequentialChars(password, mergedPolicy.maxSequentialChars);
+    if (sequentialResult.found) {
+      errors.push(
+        `Password contains sequential characters (${sequentialResult.pattern}). Avoid using patterns like "1234" or "abcd".`
+      );
+    }
+  }
+
+  // Check keyboard walking patterns
+  if (mergedPolicy.blockKeyboardPatterns) {
+    const keyboardResult = detectKeyboardPatterns(password);
+    if (keyboardResult.found) {
+      errors.push(
+        `Password contains keyboard pattern (${keyboardResult.pattern}). Avoid using keyboard sequences.`
+      );
+    }
+  }
+
+  // Check common password variations
+  const variationResult = detectCommonVariations(password);
+  if (variationResult.found) {
+    errors.push(
+      `Password contains a common variation pattern (${variationResult.pattern}). Please choose a more unique password.`
+    );
+  }
+
   // Calculate strength score
   const strength = calculatePasswordStrength(password);
   const strengthCategory = getStrengthCategory(strength);
@@ -473,6 +726,13 @@ export async function validatePassword(
         `This password has been found in data breaches ${breachCount} times. Please choose a different password.`
       );
     }
+  }
+
+  // Check minimum strength score
+  if (strength < (mergedPolicy.minStrengthScore ?? 0)) {
+    errors.push(
+      `Password is too weak (strength: ${strength}/100). Please choose a stronger password.`
+    );
   }
 
   return {

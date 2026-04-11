@@ -9,6 +9,7 @@
 
 import type { Favorite } from "@mta-my-way/shared";
 import { useCallback, useRef, useState } from "react";
+import { encodeForAria } from "../../lib/outputEncoding";
 import { FavoriteCard } from "./FavoriteCard";
 
 interface FavoritesListProps {
@@ -91,7 +92,7 @@ export function FavoritesList({
               onDragEnd={handleDragEnd}
               onKeyDown={(e) => handleItemKeyDown(e, index)}
               aria-roledescription="sortable item"
-              aria-label={`${favorite.stationName}, position ${index + 1} of ${favorites.length}${favorite.pinned ? ", pinned" : ""}`}
+              aria-label={`${encodeForAria(favorite.stationName)}, position ${index + 1} of ${favorites.length}${favorite.pinned ? ", pinned" : ""}`}
               className={[
                 "relative transition-all duration-150",
                 isDragging ? "opacity-40 scale-[0.98]" : "",
@@ -134,7 +135,7 @@ export function FavoritesList({
                 <div className="flex flex-col justify-center gap-0.5 sr-only focus-within:not-sr-only focus-within:absolute focus-within:right-1 focus-within:top-1/2 focus-within:-translate-y-1/2 focus-within:opacity-100 focus-within:z-20">
                   <button
                     type="button"
-                    aria-label={`Move ${favorite.stationName} up`}
+                    aria-label={`Move ${encodeForAria(favorite.stationName)} up`}
                     disabled={!canMoveUp}
                     onClick={() => {
                       onReorder(index, index - 1);
@@ -148,7 +149,7 @@ export function FavoritesList({
                   </button>
                   <button
                     type="button"
-                    aria-label={`Move ${favorite.stationName} down`}
+                    aria-label={`Move ${encodeForAria(favorite.stationName)} down`}
                     disabled={!canMoveDown}
                     onClick={() => {
                       onReorder(index, index + 1);

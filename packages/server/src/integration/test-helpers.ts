@@ -77,7 +77,7 @@ export function createTripTrackingDatabase(): Database.Database {
   const db = new Database(":memory:");
   db.pragma("journal_mode = WAL");
 
-  // Create trips table
+  // Create trips table with owner_id for authorization
   db.exec(`
     CREATE TABLE IF NOT EXISTS trips (
       id TEXT PRIMARY KEY,
@@ -95,7 +95,8 @@ export function createTripTrackingDatabase(): Database.Database {
       source TEXT NOT NULL DEFAULT 'manual',
       notes TEXT,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      owner_id TEXT NOT NULL DEFAULT 'anonymous'
     );
 
     CREATE INDEX IF NOT EXISTS idx_trips_date ON trips(date);
@@ -103,6 +104,7 @@ export function createTripTrackingDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_trips_destination ON trips(destination_station_id);
     CREATE INDEX IF NOT EXISTS idx_trips_line ON trips(line);
     CREATE INDEX IF NOT EXISTS idx_trips_departure_time ON trips(departure_time);
+    CREATE INDEX IF NOT EXISTS idx_trips_owner_id ON trips(owner_id);
   `);
 
   // Create commute stats table
@@ -142,11 +144,14 @@ export function createPushDatabase(): Database.Database {
       quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
       morning_scores TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      owner_id TEXT NOT NULL DEFAULT 'anonymous'
     );
 
     CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
       ON push_subscriptions(updated_at);
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
+      ON push_subscriptions(owner_id);
   `);
 
   return db;
@@ -159,7 +164,7 @@ export function createIntegrationTestDatabase(): Database.Database {
   const db = new Database(":memory:");
   db.pragma("journal_mode = WAL");
 
-  // Trip tracking schema
+  // Trip tracking schema with owner_id for authorization
   db.exec(`
     CREATE TABLE IF NOT EXISTS trips (
       id TEXT PRIMARY KEY,
@@ -177,7 +182,8 @@ export function createIntegrationTestDatabase(): Database.Database {
       source TEXT NOT NULL DEFAULT 'manual',
       notes TEXT,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      owner_id TEXT NOT NULL DEFAULT 'anonymous'
     );
 
     CREATE INDEX IF NOT EXISTS idx_trips_date ON trips(date);
@@ -185,6 +191,7 @@ export function createIntegrationTestDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_trips_destination ON trips(destination_station_id);
     CREATE INDEX IF NOT EXISTS idx_trips_line ON trips(line);
     CREATE INDEX IF NOT EXISTS idx_trips_departure_time ON trips(departure_time);
+    CREATE INDEX IF NOT EXISTS idx_trips_owner_id ON trips(owner_id);
 
     CREATE TABLE IF NOT EXISTS commute_stats (
       commute_id TEXT PRIMARY KEY,
@@ -201,7 +208,7 @@ export function createIntegrationTestDatabase(): Database.Database {
     );
   `);
 
-  // Push subscriptions schema
+  // Push subscriptions schema with owner_id for authorization
   db.exec(`
     CREATE TABLE IF NOT EXISTS push_subscriptions (
       endpoint_hash TEXT PRIMARY KEY,
@@ -212,11 +219,14 @@ export function createIntegrationTestDatabase(): Database.Database {
       quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
       morning_scores TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      owner_id TEXT NOT NULL DEFAULT 'anonymous'
     );
 
     CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
       ON push_subscriptions(updated_at);
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
+      ON push_subscriptions(owner_id);
   `);
 
   return db;

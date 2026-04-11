@@ -16,12 +16,16 @@ interface SecurityHeadersOptions {
   enableHSTS?: boolean;
   /** Report-to endpoint for CSP violations (optional) */
   reportTo?: string;
+  /** Report-uri endpoint for CSP violations (optional, legacy but more widely supported) */
+  reportUri?: string;
   /** Custom CSP directives (optional) */
   customCSP?: string;
   /** Use strict CSP (requires nonce, default: false) */
   useStrictCSP?: boolean;
   /** CSP nonce (for strict CSP) */
   nonce?: string;
+  /** Enable CSP report-only mode (for testing, default: false) */
+  reportOnly?: boolean;
 }
 
 /**
@@ -61,6 +65,7 @@ const PERMISSIONS_POLICY =
  * Default Content Security Policy (Level 3).
  *
  * OWASP A05:2021 - Security Misconfiguration
+ * OWASP A03:2021 - Injection (XSS Prevention)
  *
  * Restricts sources for scripts, styles, images, fonts, and connections.
  * Enhanced with stricter policies for OWASP Top 10 compliance:
@@ -71,7 +76,8 @@ const PERMISSIONS_POLICY =
  * - Added form-action 'self' (prevents form action hijacking)
  * - Added frame-ancestors 'none' (prevents clickjacking)
  * - Added upgrade-insecure-requests (HTTPS enforcement)
- * - Added report-to for security monitoring
+ * - Added frame-src for OAuth popup windows
+ * - Added report-uri/report-to for security monitoring
  */
 const DEFAULT_CSP =
   "default-src 'self'; " +
@@ -86,6 +92,7 @@ const DEFAULT_CSP =
   "base-uri 'self'; " +
   "form-action 'self'; " +
   "frame-ancestors 'none'; " +
+  "frame-src 'self'; " +
   "upgrade-insecure-requests";
 
 /**
@@ -107,6 +114,7 @@ const STRICT_CSP =
   "base-uri 'self'; " +
   "form-action 'self'; " +
   "frame-ancestors 'none'; " +
+  "frame-src 'self'; " +
   "upgrade-insecure-requests";
 
 /**
@@ -117,7 +125,14 @@ const STRICT_CSP =
  * Permissions-Policy, Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy.
  */
 export function securityHeaders(options: SecurityHeadersOptions = {}): MiddlewareHandler {
-  const { enableCSP = true, enableHSTS = true, reportTo, customCSP } = options;
+  const {
+    enableCSP = true,
+    enableHSTS = true,
+    reportTo,
+    reportUri,
+    customCSP,
+    reportOnly = false,
+  } = options;
 
   return async (c, next) => {
     await next();
@@ -125,11 +140,14 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): Middlewar
     // Content Security Policy
     if (enableCSP) {
       const csp = customCSP ?? DEFAULT_CSP;
-      c.res.headers.set("Content-Security-Policy", csp);
+      const cspWithReporting = buildCspWithReporting(csp, { reportTo, reportUri });
 
-      // Add report-only CSP for monitoring without blocking
-      if (reportTo) {
-        c.res.headers.set("Content-Security-Policy-Report-Only", `${csp}; report-to=${reportTo}`);
+      if (reportOnly) {
+        // Report-only mode: monitor without blocking
+        c.res.headers.set("Content-Security-Policy-Report-Only", cspWithReporting);
+      } else {
+        // Enforce CSP
+        c.res.headers.set("Content-Security-Policy", cspWithReporting);
       }
     }
 
@@ -165,4 +183,31 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): Middlewar
     // X-XSS-Protection - legacy but still supported by some browsers
     c.res.headers.set("X-XSS-Protection", "1; mode=block");
   };
+}
+
+/**
+ * Build CSP with reporting directives.
+ *
+ * Adds report-uri and/or report-to directives for CSP violation monitoring.
+ * report-uri is legacy but more widely supported.
+ * report-to is newer but requires additional setup.
+ */
+function buildCspWithReporting(
+  baseCsp: string,
+  options: { reportTo?: string; reportUri?: string }
+): string {
+  const { reportTo, reportUri } = options;
+  let csp = baseCsp;
+
+  // Add report-to directive (modern)
+  if (reportTo) {
+    csp += "; report-to=" + reportTo;
+  }
+
+  // Add report-uri directive (legacy, more compatible)
+  if (reportUri) {
+    csp += "; report-uri=" + reportUri;
+  }
+
+  return csp;
 }
