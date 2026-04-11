@@ -363,6 +363,24 @@ export {
   type AuditLogStats,
 } from "./audit-log.js";
 export {
+  hasCrlfInjection,
+  sanitizeCrlf,
+  isSafeRedirectUrl,
+  createSafeRedirectUrl,
+  httpResponseSplitting,
+  protectRedirect,
+  type HttpResponseSplittingOptions,
+} from "./http-response-splitting.js";
+export {
+  hasSmugglingPatterns,
+  isValidContentLength,
+  hasTransferEncodingAbuse,
+  hasConflictingLengthHeaders,
+  httpRequestSmuggling,
+  strictHttpRequestSmuggling,
+  type HttpRequestSmugglingOptions,
+} from "./http-request-smuggling.js";
+export {
   requireAdminWithAudit,
   requireAdminPermission,
   auditAdminOperation,

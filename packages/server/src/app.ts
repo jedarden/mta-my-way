@@ -94,6 +94,8 @@ import {
   getCsrfToken,
   hostHeaderProtection,
   hppProtection,
+  httpRequestSmuggling,
+  httpResponseSplitting,
   inputSanitization,
   rateLimiter,
   requestSizeLimits,
@@ -386,6 +388,14 @@ export function createApp(
   // Security logging for all requests (OWASP A09: Security Logging and Monitoring Failures)
   // Logs authentication failures, authorization failures, rate limit exceeded, and blocked attacks
   app.use("*", securityLogging());
+
+  // HTTP Request Smuggling protection (OWASP A01, A03)
+  // Detects and blocks request smuggling attempts
+  app.use("*", httpRequestSmuggling());
+
+  // HTTP Response Splitting protection (OWASP A01, A03)
+  // Detects and blocks CRLF injection attempts
+  app.use("*", httpResponseSplitting());
 
   // Host header protection to prevent cache poisoning and password reset poisoning
   // In production, set ALLOWED_HOSTS environment variable to restrict allowed hosts
@@ -795,7 +805,7 @@ export function createApp(
     "/api/commute/analyze",
     requireResourceAccess("commute", "create"),
     requirePermission("commutes:create" as Permission),
-    auditLogAccess("commute", "analyze"),
+    auditLogAccess("commute", "create"),
     async (c) => {
       const startTime = Date.now();
       let success = false;
@@ -811,10 +821,10 @@ export function createApp(
           destinationId,
           preferredLines = [],
           commuteId = "default",
-          accessibleMode: accessible,
+          accessibleMode: accessible = false,
         } = body;
 
-        accessibleMode = accessible;
+        const accessibleMode = accessible;
 
         if (!stations[originId]) {
           return c.json({ error: `Origin station not found: ${originId}` }, 404);
@@ -872,7 +882,13 @@ export function createApp(
       officialAlerts = getAlertsForLine(query.lineId);
     }
     if (query.activeOnly) {
-      officialAlerts = officialAlerts.filter((a) => a.isActive);
+      const now = Date.now() / 1000; // Convert to seconds for comparison
+      officialAlerts = officialAlerts.filter((a) => {
+        const start = a.activePeriod.start;
+        const end = a.activePeriod.end;
+        // Alert is active if we're past the start time and either no end or before end
+        return now >= start && (!end || now <= end);
+      });
     }
 
     const predictedAlerts = getPredictedAlerts();
