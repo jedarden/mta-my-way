@@ -1,7 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useContextAware } from "../../hooks/useContextAware";
 import { NetworkStatusIndicator } from "../common";
-import { ContextIndicator } from "../context/ContextIndicator";
+
+// Context-aware feature disabled to reduce security surface area
+// import { useContextAware } from "../../hooks/useContextAware";
+// import { ContextIndicator } from "../context/ContextIndicator";
 
 const screenTitles: Record<string, string> = {
   "/": "MTA My Way",
@@ -15,7 +17,6 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const title = screenTitles[location.pathname] ?? "MTA My Way";
-  const { context, confidence, showIndicator } = useContextAware();
 
   return (
     <header
@@ -27,12 +28,13 @@ export default function Header() {
           <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary">
             {title}
           </h1>
-          <ContextIndicator
+          {/* Context-aware feature disabled to reduce security surface area */}
+          {/* <ContextIndicator
             context={context}
             confidence={confidence}
             show={showIndicator}
             compact
-          />
+          /> */}
           <NetworkStatusIndicator compact />
         </div>
         <div className="flex items-center gap-2">

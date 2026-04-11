@@ -39,24 +39,10 @@ import {
   commuteAnalyzeRequestSchema,
   commuteIdQuerySchema,
   complexIdParamsSchema,
-  contextClearRequestSchema,
-  contextDetectRequestSchema,
-  contextOverrideRequestSchema,
-  contextSettingsUpdateRequestSchema,
   dateRangeParamsSchema,
-  delayPatternsQuerySchema,
-  delayPredictionRequestSchema,
-  delayProbabilityQuerySchema,
   emptyQuerySchema,
   equipmentQuerySchema,
-  getContextIcon,
-  getContextLabel,
-  getContextUIHints,
   lineIdParamsSchema,
-  passwordChangeSchema,
-  passwordPolicySchema,
-  passwordResetConfirmSchema,
-  passwordResetRequestSchema,
   positionsQuerySchema,
   pushSubscribeRequestSchema,
   pushUnsubscribeRequestSchema,
@@ -73,65 +59,45 @@ import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
-import {
-  DEFAULT_CONTEXT,
-  checkContextOwnership,
-  clearManualOverride,
-  clearManualOverrideForOwner,
-  detectAndUpdateContextWithOwner,
-  detectContextFromRequest,
-  getContextByOwner,
-  getContextOwner,
-  getContextSettings,
-  getContextSummary,
-  getContextTransitionsForOwner,
-  getCurrentContext,
-  setManualContext,
-  updateContextSettings,
-} from "./context-service.js";
+// Context-aware switching service imports - DISABLED: Feature not used by frontend
+// Uncomment to re-enable context detection functionality.
+// import {
+//   DEFAULT_CONTEXT,
+//   checkContextOwnership,
+//   clearManualOverride,
+//   clearManualOverrideForOwner,
+//   detectAndUpdateContextWithOwner,
+//   getContextByOwner,
+//   getContextOwner,
+//   getContextSettings,
+//   getContextTransitionsForOwner,
+//   getCurrentContext,
+//   updateContextSettings,
+// } from "./context-service.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
-import {
-  getDelayPredictorStatus,
-  getRouteDelayPatterns,
-  getRouteDelayProbability,
-  getRouteDelaySummary,
-  predictDelay,
-} from "./delay-predictor.js";
+import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
+// Authentication imports - MFA functions disabled: Feature not used by frontend
+// Uncomment to re-enable MFA functionality.
 import {
-  consumePasswordResetToken,
-  createSession,
-  disableTotp,
-  enableTotp,
-  generatePasswordResetToken,
-  getAuthContext,
-  getPasswordPolicyDescription,
-  hashPassword,
-  invalidateResetTokensForKey,
-  refreshSession,
-  revokeSession,
-  setupTotp,
-  validatePassword,
-  validatePasswordResetToken,
-  verifyMfaForSession,
-  verifyTotpCode,
+  // createSession,
+  // disableTotp,
+  // enableTotp,
+  // getAuthContext,
+  // setupTotp,
+  // verifyMfaForSession,
+  // verifyTotpCode,
 } from "./middleware/authentication.js";
 import {
   auditLogAccess,
-  authRateLimit,
   csrfProtection,
-  enforceRateLimitTier,
   getCsrfToken,
   hostHeaderProtection,
   hppProtection,
   inputSanitization,
   rateLimiter,
   requestSizeLimits,
-  requireAdmin,
-  requireCaptcha,
-  requireMfa,
   requireResourceAccess,
-  requireRole,
   requireSameOrigin,
   securityHeaders,
   securityLogging,
@@ -143,26 +109,24 @@ import { httpMetrics } from "./middleware/metrics.js";
 import {
   recordCommuteAnalysisDuration,
   recordCommuteAnalysisRequest,
-  recordDelayPredictionDuration,
-  recordDelayPredictionRequest,
   recordStationSearchDuration,
   recordStationSearchRequest,
 } from "./middleware/metrics.js";
 import {
   type Permission,
-  PermissionGroups,
-  type RbacAuthContext,
   getRbacAuthContext,
   requireOwnershipOrAdmin,
   requirePermission,
 } from "./middleware/rbac.js";
-import {
-  cleanupExpiredStates,
-  createAuthorizationUrl,
-  getActiveOAuthProviders,
-  handleOAuthCallback,
-  initializeDefaultProviders,
-} from "./oauth/index.js";
+// OAuth 2.0 imports - DISABLED: Feature not used by frontend
+// Uncomment to re-enable OAuth 2.0 authentication functionality.
+// import {
+//   cleanupExpiredStates,
+//   createAuthorizationUrl,
+//   getActiveOAuthProviders,
+//   handleOAuthCallback,
+//   initializeDefaultProviders,
+// } from "./oauth/index.js";
 import { logger } from "./observability/logger.js";
 import { metrics } from "./observability/metrics.js";
 import { tracingMiddleware } from "./observability/tracing.js";
@@ -184,9 +148,7 @@ import {
   deleteTrip,
   getTotalTripCount,
   getTripById,
-  getTripOwner,
   getTrips,
-  getTripsByDateRange,
   recordTrip,
   updateTripNotes,
 } from "./trip-tracking.js";
@@ -453,6 +415,7 @@ export function createApp(
 
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
+  // NOTE: /api/context, /api/auth/oauth, /api/auth/mfa, /api/auth/session, and /api/auth/password are disabled
   app.use(
     "/api/*",
     csrfProtection({
@@ -469,11 +432,11 @@ export function createApp(
         "/api/positions",
         "/api/push/vapid-public-key",
         "/api/journal",
-        "/api/context",
-        "/api/auth/oauth",
-        "/api/auth/mfa",
-        "/api/auth/session",
-        "/api/auth/password",
+        // "/api/context", // DISABLED: Feature not used by frontend
+        // "/api/auth/oauth", // DISABLED: Feature not used by frontend
+        // "/api/auth/mfa", // DISABLED: Feature not used by frontend
+        // "/api/auth/session", // DISABLED: Feature not used by frontend
+        // "/api/auth/password", // DISABLED: Feature not used by frontend
         "/api/csrf-token",
       ],
     })
@@ -1158,136 +1121,138 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
-  // Trip ETA prediction with delay modeling
+  // Trip ETA prediction with delay modeling - DISABLED: Feature not used by frontend
+  // This endpoint is disabled to reduce security surface area.
+  // Uncomment to re-enable trip ETA prediction functionality.
   // -------------------------------------------------------------------------
-  app.get("/api/trip/:tripId/predict", (c) => {
-    const params = validateParams(c, tripIdParamsSchema);
-    if (params instanceof Response) return params;
-
-    const { tripId } = params;
-    const trip = lookupTrip(tripId, stations);
-
-    if (!trip) {
-      return c.json({ error: "Trip not found or no longer active" }, 404);
-    }
-
-    // Calculate remaining trip segments for delay prediction
-    const segments: Array<{
-      fromStationId: string;
-      toStationId: string;
-      fromStationName: string;
-      toStationName: string;
-      scheduledSeconds: number;
-    }> = [];
-
-    for (let i = trip.currentStopIndex; i < trip.stops.length - 1; i++) {
-      const currentStop = trip.stops[i]!;
-      const nextStop = trip.stops[i + 1]!;
-
-      const departureTime = currentStop.departureTime ?? currentStop.arrivalTime;
-      const arrivalTime = nextStop.arrivalTime ?? nextStop.departureTime;
-
-      if (departureTime && arrivalTime && arrivalTime > departureTime) {
-        segments.push({
-          fromStationId: currentStop.stationId ?? currentStop.stopId,
-          toStationId: nextStop.stationId ?? nextStop.stopId,
-          fromStationName: currentStop.stationName,
-          toStationName: nextStop.stationName,
-          scheduledSeconds: arrivalTime - departureTime,
-        });
-      }
-    }
-
-    // Get delay predictions for each segment
-    const segmentPredictions = segments.map((segment) => {
-      const prediction = predictDelay(
-        trip.routeId,
-        trip.direction ?? "N",
-        segment.fromStationId,
-        segment.toStationId,
-        segment.scheduledSeconds
-      );
-
-      return {
-        ...segment,
-        prediction: prediction ?? null,
-      };
-    });
-
-    // Calculate overall ETA adjustment
-    let totalScheduledSeconds = 0;
-    let totalPredictedSeconds = 0;
-    let hasPredictions = false;
-
-    for (const segment of segmentPredictions) {
-      totalScheduledSeconds += segment.scheduledSeconds;
-      if (segment.prediction) {
-        totalPredictedSeconds += segment.prediction.predictedMinutes * 60;
-        hasPredictions = true;
-      } else {
-        totalPredictedSeconds += segment.scheduledSeconds;
-      }
-    }
-
-    // Calculate base ETA from trip data
-    const lastStop = trip.stops[trip.stops.length - 1];
-    const baseEtaSeconds = lastStop?.arrivalTime ?? null;
-    const baseEta = baseEtaSeconds ? new Date(baseEtaSeconds * 1000).toISOString() : null;
-
-    // Calculate adjusted ETA if we have predictions
-    let adjustedEtaSeconds: number | null = null;
-    let adjustedEta: string | null = null;
-    let delayRisk: "low" | "medium" | "high" | null = null;
-    let delayMinutesRange: string | null = null;
-
-    if (hasPredictions && baseEtaSeconds) {
-      const etaAdjustmentSeconds = totalPredictedSeconds - totalScheduledSeconds;
-      adjustedEtaSeconds = baseEtaSeconds + etaAdjustmentSeconds;
-      adjustedEta = new Date(adjustedEtaSeconds * 1000).toISOString();
-
-      // Calculate delay risk
-      const delayRatio = totalPredictedSeconds / totalScheduledSeconds;
-      if (delayRatio < 1.1) {
-        delayRisk = "low";
-      } else if (delayRatio < 1.3) {
-        delayRisk = "medium";
-      } else {
-        delayRisk = "high";
-      }
-
-      // Calculate delay range in minutes
-      const delayMinutes = Math.round(etaAdjustmentSeconds / 60);
-      if (delayMinutes > 0) {
-        delayMinutesRange = `+${delayMinutes} min`;
-      } else if (delayMinutes < 0) {
-        delayMinutesRange = `${delayMinutes} min`;
-      } else {
-        delayMinutesRange = "On time";
-      }
-    }
-
-    // Get route-level delay probability
-    const routeDelayProbability = getRouteDelayProbability(trip.routeId, trip.direction ?? "N");
-
-    c.header("Cache-Control", "public, max-age=30");
-    return c.json({
-      tripId: trip.tripId,
-      routeId: trip.routeId,
-      direction: trip.direction,
-      destination: trip.destination,
-      progressPercent: trip.progressPercent,
-      remainingStops: trip.remainingStops,
-      totalStops: trip.totalStops,
-      baseEta,
-      adjustedEta,
-      delayRisk,
-      delayMinutesRange,
-      routeDelayProbability,
-      segments: segmentPredictions,
-      hasPredictions,
-      generatedAt: new Date().toISOString(),
-    });
-  });
+  // app.get("/api/trip/:tripId/predict", (c) => {
+  //   const params = validateParams(c, tripIdParamsSchema);
+  //   if (params instanceof Response) return params;
+  //
+  //   const { tripId } = params;
+  //   const trip = lookupTrip(tripId, stations);
+  //
+  //   if (!trip) {
+  //     return c.json({ error: "Trip not found or no longer active" }, 404);
+  //   }
+  //
+  //   // Calculate remaining trip segments for delay prediction
+  //   const segments: Array<{
+  //     fromStationId: string;
+  //     toStationId: string;
+  //     fromStationName: string;
+  //     toStationName: string;
+  //     scheduledSeconds: number;
+  //   }> = [];
+  //
+  //   for (let i = trip.currentStopIndex; i < trip.stops.length - 1; i++) {
+  //     const currentStop = trip.stops[i]!;
+  //     const nextStop = trip.stops[i + 1]!;
+  //
+  //     const departureTime = currentStop.departureTime ?? currentStop.arrivalTime;
+  //     const arrivalTime = nextStop.arrivalTime ?? nextStop.departureTime;
+  //
+  //     if (departureTime && arrivalTime && arrivalTime > departureTime) {
+  //       segments.push({
+  //         fromStationId: currentStop.stationId ?? currentStop.stopId,
+  //         toStationId: nextStop.stationId ?? nextStop.stopId,
+  //         fromStationName: currentStop.stationName,
+  //         toStationName: nextStop.stationName,
+  //         scheduledSeconds: arrivalTime - departureTime,
+  //       });
+  //     }
+  //   }
+  //
+  //   // Get delay predictions for each segment
+  //   const segmentPredictions = segments.map((segment) => {
+  //     const prediction = predictDelay(
+  //       trip.routeId,
+  //       trip.direction ?? "N",
+  //       segment.fromStationId,
+  //       segment.toStationId,
+  //       segment.scheduledSeconds
+  //     );
+  //
+  //     return {
+  //       ...segment,
+  //       prediction: prediction ?? null,
+  //     };
+  //   });
+  //
+  //   // Calculate overall ETA adjustment
+  //   let totalScheduledSeconds = 0;
+  //   let totalPredictedSeconds = 0;
+  //   let hasPredictions = false;
+  //
+  //   for (const segment of segmentPredictions) {
+  //     totalScheduledSeconds += segment.scheduledSeconds;
+  //     if (segment.prediction) {
+  //       totalPredictedSeconds += segment.prediction.predictedMinutes * 60;
+  //       hasPredictions = true;
+  //     } else {
+  //       totalPredictedSeconds += segment.scheduledSeconds;
+  //     }
+  //   }
+  //
+  //   // Calculate base ETA from trip data
+  //   const lastStop = trip.stops[trip.stops.length - 1];
+  //   const baseEtaSeconds = lastStop?.arrivalTime ?? null;
+  //   const baseEta = baseEtaSeconds ? new Date(baseEtaSeconds * 1000).toISOString() : null;
+  //
+  //   // Calculate adjusted ETA if we have predictions
+  //   let adjustedEtaSeconds: number | null = null;
+  //   let adjustedEta: string | null = null;
+  //   let delayRisk: "low" | "medium" | "high" | null = null;
+  //   let delayMinutesRange: string | null = null;
+  //
+  //   if (hasPredictions && baseEtaSeconds) {
+  //     const etaAdjustmentSeconds = totalPredictedSeconds - totalScheduledSeconds;
+  //     adjustedEtaSeconds = baseEtaSeconds + etaAdjustmentSeconds;
+  //     adjustedEta = new Date(adjustedEtaSeconds * 1000).toISOString();
+  //
+  //     // Calculate delay risk
+  //     const delayRatio = totalPredictedSeconds / totalScheduledSeconds;
+  //     if (delayRatio < 1.1) {
+  //       delayRisk = "low";
+  //     } else if (delayRatio < 1.3) {
+  //       delayRisk = "medium";
+  //     } else {
+  //       delayRisk = "high";
+  //     }
+  //
+  //     // Calculate delay range in minutes
+  //     const delayMinutes = Math.round(etaAdjustmentSeconds / 60);
+  //     if (delayMinutes > 0) {
+  //       delayMinutesRange = `+${delayMinutes} min`;
+  //     } else if (delayMinutes < 0) {
+  //       delayMinutesRange = `${delayMinutes} min`;
+  //     } else {
+  //       delayMinutesRange = "On time";
+  //     }
+  //   }
+  //
+  //   // Get route-level delay probability
+  //   const routeDelayProbability = getRouteDelayProbability(trip.routeId, trip.direction ?? "N");
+  //
+  //   c.header("Cache-Control", "public, max-age=30");
+  //   return c.json({
+  //     tripId: trip.tripId,
+  //     routeId: trip.routeId,
+  //     direction: trip.direction,
+  //     destination: trip.destination,
+  //     progressPercent: trip.progressPercent,
+  //     remainingStops: trip.remainingStops,
+  //     totalStops: trip.totalStops,
+  //     baseEta,
+  //     adjustedEta,
+  //     delayRisk,
+  //     delayMinutesRange,
+  //     routeDelayProbability,
+  //     segments: segmentPredictions,
+  //     hasPredictions,
+  //     generatedAt: new Date().toISOString(),
+  //   });
+  // });
 
   // -------------------------------------------------------------------------
   // Train positions (for line diagram)
@@ -1686,894 +1651,904 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
-  // Context-aware switching API (Phase 5)
+  // Context-aware switching API (Phase 5) - DISABLED: Feature not used by frontend
+  // These endpoints are disabled to reduce security surface area.
+  // Uncomment to re-enable context detection functionality.
   // -------------------------------------------------------------------------
 
-  // Apply same-origin protection to context operations
-  app.use("/api/context/*", requireSameOrigin());
-
-  /** Get current context and UI hints - scoped to authenticated user */
-  app.get("/api/context", (c) => {
-    // Validate that no unexpected query parameters are passed
-    const query = validateQuery(c, emptyQuerySchema);
-    if (query instanceof Response) return query;
-
-    const auth = getRbacAuthContext(c);
-    const ownerId = auth?.keyId || "anonymous";
-
-    // Get context settings (global)
-    const settings = getContextSettings();
-
-    // Admin users get full summary, regular users get scoped data
-    let currentContext: ReturnType<typeof getCurrentContext>;
-    let recentTransitions: ReturnType<typeof getContextTransitions>;
-
-    if (auth?.role === "admin") {
-      // Admins see the global context (for system monitoring)
-      currentContext = getCurrentContext();
-      recentTransitions = getContextTransitions(10);
-    } else {
-      // Regular users get their own context if available, otherwise default
-      const userContext = getContextByOwner(ownerId);
-      currentContext = userContext || { ...DEFAULT_CONTEXT };
-
-      // Get user's own transitions
-      const userTransitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-      recentTransitions = userTransitions || [];
-    }
-
-    const uiHints = getContextUIHints(currentContext.context);
-    const label = getContextLabel(currentContext.context);
-    const icon = getContextIcon(currentContext.context);
-
-    c.header("Cache-Control", "public, max-age=15");
-    return c.json({
-      current: currentContext,
-      settings,
-      uiHints,
-      label,
-      icon,
-      recentTransitions,
-    });
-  });
-
-  /** Get context for a specific owner with ownership check */
-  app.get(
-    "/api/context/owner/:ownerId",
-    requireOwnershipOrAdmin("context", {
-      getOwnerId: (c) => {
-        return c.req.param("ownerId") || "";
-      },
-      adminBypass: true,
-    }),
-    (c) => {
-      const ownerId = c.req.param("ownerId");
-
-      if (!ownerId) {
-        return c.json({ error: "Owner ID is required" }, 400);
-      }
-
-      const contextState = getContextByOwner(ownerId);
-      const transitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-
-      if (!contextState) {
-        return c.json({ error: "Context not found" }, 404);
-      }
-
-      c.header("Cache-Control", "public, max-age=15");
-      return c.json({
-        current: contextState,
-        settings: getContextSettings(),
-        uiHints: getContextUIHints(contextState.context),
-        label: getContextLabel(contextState.context),
-        icon: getContextIcon(contextState.context),
-        recentTransitions: transitions || [],
-      });
-    }
-  );
-
-  /** Detect context from request parameters */
-  app.post(
-    "/api/context/detect",
-    requireResourceAccess("context", "create"),
-    requirePermission("predictions:create" as Permission),
-    async (c) => {
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, contextDetectRequestSchema);
-        if (body instanceof Response) return body;
-
-        // Get owner ID from auth context - users can only detect context for themselves
-        const ownerId = auth?.keyId || "anonymous";
-
-        // Explicit ownership check: non-admin users can only detect their own context
-        if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
-          return c.json(
-            {
-              error: "Access denied: you can only detect context for yourself",
-            },
-            403
-          );
-        }
-
-        const context = detectContextFromRequest(body);
-
-        // Store context with ownership - always use authenticated user's ID
-        const { context: detectedContext } = detectAndUpdateContextWithOwner(
-          {
-            nearStation: context.factors.location.nearStation,
-            nearStationId: context.factors.location.stationId,
-            distanceToStation: context.factors.location.distance,
-            tapHistory: body.tapHistory || [],
-            currentScreen: body.currentScreen || "home",
-            screenTime: body.screenTime || 0,
-            recentActions: body.recentActions || [],
-          },
-          ownerId
-        );
-
-        c.header("Cache-Control", "no-cache");
-        return c.json({ context: detectedContext });
-      } catch (err) {
-        logger.error("Context detection failed", err as Error);
-        return c.json(
-          {
-            error: "Failed to detect context",
-            message: err instanceof Error ? err.message : "Unknown error",
-          },
-          500
-        );
-      }
-    }
-  );
-
-  /** Set manual context override */
-  app.post(
-    "/api/context/override",
-    requireResourceAccess("context", "update"),
-    requirePermission("predictions:create" as Permission),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, contextOverrideRequestSchema);
-        if (body instanceof Response) return body;
-
-        const { context } = body;
-        const ownerId = auth?.keyId || "anonymous";
-
-        // Explicit ownership check: non-admin users can only override their own context
-        if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
-          return c.json(
-            {
-              error: "Access denied: you can only override your own context",
-            },
-            403
-          );
-        }
-
-        // Store context with ownership - always use authenticated user's ID
-        const { context: newContext } = detectAndUpdateContextWithOwner(
-          {
-            nearStation: false,
-            tapHistory: [],
-            currentScreen: "home",
-            screenTime: 0,
-            recentActions: [],
-            manualOverride: context,
-          },
-          ownerId
-        );
-
-        c.header("Cache-Control", "no-cache");
-        return c.json({ success: true, context: newContext });
-      } catch (error) {
-        logger.error("Context override failed", error as Error);
-        return c.json({ error: "Failed to set context override" }, 500);
-      }
-    }
-  );
-
-  /** Clear manual context override - requires authentication */
-  app.post(
-    "/api/context/clear",
-    requireResourceAccess("context", "update"),
-    requirePermission("predictions:create" as Permission),
-    auditLogAccess("context", "clear"),
-    async (c) => {
-      const auth = getRbacAuthContext(c);
-      const body = await validateBody(c, contextClearRequestSchema);
-      if (body instanceof Response) return body;
-
-      // Get owner ID from auth context
-      const ownerId = auth?.keyId || "anonymous";
-
-      // Explicit ownership check: non-admin users can only clear their own context
-      if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
-        return c.json(
-          {
-            error: "Access denied: you can only clear your own context",
-          },
-          403
-        );
-      }
-
-      // Clear manual override for authenticated user only (owner-scoped)
-      const context = clearManualOverrideForOwner(ownerId);
-
-      logger.info("Manual context override cleared", { ownerId });
-
-      c.header("Cache-Control", "no-cache");
-      return c.json({ success: true, context });
-    }
-  );
-
-  /** Update context settings - admin only */
-  app.patch(
-    "/api/context/settings",
-    requireRole("admin"),
-    requireAdmin(),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      try {
-        const body = await validateBody(c, contextSettingsUpdateRequestSchema);
-        if (body instanceof Response) return body;
-
-        updateContextSettings(body);
-
-        return c.json({ success: true, settings: getContextSettings() });
-      } catch (error) {
-        logger.error("Context settings update failed", error as Error);
-        return c.json({ error: "Failed to update context settings" }, 500);
-      }
-    }
-  );
-
-  // -------------------------------------------------------------------------
-  // OAuth 2.0 Authentication
-  // -------------------------------------------------------------------------
-
-  // Initialize OAuth providers on startup
-  initializeDefaultProviders();
-
-  // Clean up expired OAuth states every hour
-  setInterval(
-    () => {
-      cleanupExpiredStates();
-    },
-    60 * 60 * 1000
-  );
-
-  /** Get available OAuth providers */
-  app.get("/api/auth/oauth/providers", requirePermission("oauth:authorize" as Permission), (c) => {
-    const providers = getActiveOAuthProviders();
-
-    // Return only safe provider information (no secrets)
-    const safeProviders = providers.map((p) => ({
-      providerId: p.providerId,
-      displayName: p.displayName,
-      active: p.active,
-    }));
-
-    c.header("Cache-Control", "public, max-age=300");
-    return c.json({ providers: safeProviders });
-  });
-
-  /** Initiate OAuth authorization flow */
-  app.get(
-    "/api/auth/oauth/authorize/:providerId",
-    requirePermission("oauth:authorize" as Permission),
-    async (c) => {
-      const providerId = c.req.param("providerId");
-      const redirectUrl = c.req.query("redirect_url");
-
-      if (!providerId) {
-        return c.json({ error: "Provider ID is required" }, 400);
-      }
-
-      const result = await createAuthorizationUrl(providerId, redirectUrl);
-
-      if ("error" in result) {
-        return c.json({ error: result.error }, 400);
-      }
-
-      // Return authorization URL and state
-      return c.json({
-        authorizationUrl: result.url,
-        stateId: result.stateId,
-      });
-    }
-  );
-
-  /** OAuth callback endpoint */
-  app.get("/api/auth/oauth/callback/:providerId", async (c) => {
-    const providerId = c.req.param("providerId");
-    const state = c.req.query("state");
-    const code = c.req.query("code");
-    const error = c.req.query("error");
-    const errorDescription = c.req.query("error_description");
-
-    // Handle OAuth errors from provider
-    if (error) {
-      logger.warn("OAuth callback error", {
-        providerId,
-        error,
-        errorDescription,
-      });
-      return c.json(
-        {
-          success: false,
-          error: error || "OAuth authorization failed",
-          errorDescription,
-        },
-        400
-      );
-    }
-
-    // Validate required parameters
-    if (!state || !code) {
-      return c.json(
-        {
-          success: false,
-          error: "Missing required parameters: state and code",
-        },
-        400
-      );
-    }
-
-    // Get client info for logging and session creation
-    const clientIp =
-      c.req.header("x-forwarded-for")?.split(",")[0] ??
-      c.req.header("cf-connecting-ip") ??
-      "unknown";
-    const userAgent = c.req.header("user-agent");
-
-    // Handle the callback
-    const result = await handleOAuthCallback(
-      state,
-      code,
-      clientIp,
-      userAgent,
-      async (keyId, ip, ua, metadata) => {
-        // Create session with OAuth type
-        const sessionResult = await createSession(keyId, ip, ua, metadata, {
-          type: "oauth",
-          ipBinding: true,
-          createRefreshToken: true,
-        });
-
-        if ("sessionId" in sessionResult) {
-          return {
-            sessionId: sessionResult.sessionId,
-            csrfToken: getCsrfToken(c) || sessionResult.refreshToken || "",
-          };
-        }
-
-        return { error: "Failed to create session" };
-      }
-    );
-
-    if (!result.success) {
-      return c.json(
-        {
-          success: false,
-          error: result.error,
-          errorDescription: result.errorDescription,
-        },
-        400
-      );
-    }
-
-    // Set session cookie
-    if (result.sessionId) {
-      const isSecure = process.env["NODE_ENV"] === "production";
-      c.header(
-        "Set-Cookie",
-        `session_id=${result.sessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
-      );
-    }
-
-    // Return success with profile (excluding sensitive data)
-    return c.json({
-      success: true,
-      profile: {
-        providerId: result.profile?.providerId,
-        email: result.profile?.email,
-        name: result.profile?.name,
-        picture: result.profile?.picture,
-      },
-    });
-  });
+  // // Apply same-origin protection to context operations
+  // app.use("/api/context/*", requireSameOrigin());
+  //
+  // /** Get current context and UI hints - scoped to authenticated user */
+  // app.get("/api/context", (c) => {
+  //   // Validate that no unexpected query parameters are passed
+  //   const query = validateQuery(c, emptyQuerySchema);
+  //   if (query instanceof Response) return query;
+  //
+  //   const auth = getRbacAuthContext(c);
+  //   const ownerId = auth?.keyId || "anonymous";
+  //
+  //   // Get context settings (global)
+  //   const settings = getContextSettings();
+  //
+  //   // Admin users get full summary, regular users get scoped data
+  //   let currentContext: ReturnType<typeof getCurrentContext>;
+  //   let recentTransitions: ReturnType<typeof getContextTransitions>;
+  //
+  //   if (auth?.role === "admin") {
+  //     // Admins see the global context (for system monitoring)
+  //     currentContext = getCurrentContext();
+  //     recentTransitions = getContextTransitions(10);
+  //   } else {
+  //     // Regular users get their own context if available, otherwise default
+  //     const userContext = getContextByOwner(ownerId);
+  //     currentContext = userContext || { ...DEFAULT_CONTEXT };
+  //
+  //     // Get user's own transitions
+  //     const userTransitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
+  //     recentTransitions = userTransitions || [];
+  //   }
+  //
+  //   const uiHints = getContextUIHints(currentContext.context);
+  //   const label = getContextLabel(currentContext.context);
+  //   const icon = getContextIcon(currentContext.context);
+  //
+  //   c.header("Cache-Control", "public, max-age=15");
+  //   return c.json({
+  //     current: currentContext,
+  //     settings,
+  //     uiHints,
+  //     label,
+  //     icon,
+  //     recentTransitions,
+  //   });
+  // });
+  //
+  // /** Get context for a specific owner with ownership check */
+  // app.get(
+  //   "/api/context/owner/:ownerId",
+  //   requireOwnershipOrAdmin("context", {
+  //     getOwnerId: (c) => {
+  //       return c.req.param("ownerId") || "";
+  //     },
+  //     adminBypass: true,
+  //   }),
+  //   (c) => {
+  //     const ownerId = c.req.param("ownerId");
+  //
+  //     if (!ownerId) {
+  //       return c.json({ error: "Owner ID is required" }, 400);
+  //     }
+  //
+  //     const contextState = getContextByOwner(ownerId);
+  //     const transitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
+  //
+  //     if (!contextState) {
+  //       return c.json({ error: "Context not found" }, 404);
+  //     }
+  //
+  //     c.header("Cache-Control", "public, max-age=15");
+  //     return c.json({
+  //       current: contextState,
+  //       settings: getContextSettings(),
+  //       uiHints: getContextUIHints(contextState.context),
+  //       label: getContextLabel(contextState.context),
+  //       icon: getContextIcon(contextState.context),
+  //       recentTransitions: transitions || [],
+  //     });
+  //   }
+  // );
+  //
+  // /** Detect context from request parameters */
+  // app.post(
+  //   "/api/context/detect",
+  //   requireResourceAccess("context", "create"),
+  //   requirePermission("predictions:create" as Permission),
+  //   async (c) => {
+  //     try {
+  //       const auth = getRbacAuthContext(c);
+  //       const body = await validateBody(c, contextDetectRequestSchema);
+  //       if (body instanceof Response) return body;
+  //
+  //       // Get owner ID from auth context - users can only detect context for themselves
+  //       const ownerId = auth?.keyId || "anonymous";
+  //
+  //       // Explicit ownership check: non-admin users can only detect their own context
+  //       if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
+  //         return c.json(
+  //           {
+  //             error: "Access denied: you can only detect context for yourself",
+  //           },
+  //           403
+  //         );
+  //       }
+  //
+  //       const context = detectContextFromRequest(body);
+  //
+  //       // Store context with ownership - always use authenticated user's ID
+  //       const { context: detectedContext } = detectAndUpdateContextWithOwner(
+  //         {
+  //           nearStation: context.factors.location.nearStation,
+  //           nearStationId: context.factors.location.stationId,
+  //           distanceToStation: context.factors.location.distance,
+  //           tapHistory: body.tapHistory || [],
+  //           currentScreen: body.currentScreen || "home",
+  //           screenTime: body.screenTime || 0,
+  //           recentActions: body.recentActions || [],
+  //         },
+  //         ownerId
+  //       );
+  //
+  //       c.header("Cache-Control", "no-cache");
+  //       return c.json({ context: detectedContext });
+  //     } catch (err) {
+  //       logger.error("Context detection failed", err as Error);
+  //       return c.json(
+  //         {
+  //           error: "Failed to detect context",
+  //           message: err instanceof Error ? err.message : "Unknown error",
+  //         },
+  //         500
+  //       );
+  //     }
+  //   }
+  // );
+  //
+  // /** Set manual context override */
+  // app.post(
+  //   "/api/context/override",
+  //   requireResourceAccess("context", "update"),
+  //   requirePermission("predictions:create" as Permission),
+  //   auditLogAccess("context", "update"),
+  //   async (c) => {
+  //     try {
+  //       const auth = getRbacAuthContext(c);
+  //       const body = await validateBody(c, contextOverrideRequestSchema);
+  //       if (body instanceof Response) return body;
+  //
+  //       const { context } = body;
+  //       const ownerId = auth?.keyId || "anonymous";
+  //
+  //       // Explicit ownership check: non-admin users can only override their own context
+  //       if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
+  //         return c.json(
+  //           {
+  //             error: "Access denied: you can only override your own context",
+  //           },
+  //           403
+  //         );
+  //       }
+  //
+  //       // Store context with ownership - always use authenticated user's ID
+  //       const { context: newContext } = detectAndUpdateContextWithOwner(
+  //         {
+  //           nearStation: false,
+  //           tapHistory: [],
+  //           currentScreen: "home",
+  //           screenTime: 0,
+  //           recentActions: [],
+  //           manualOverride: context,
+  //         },
+  //         ownerId
+  //       );
+  //
+  //       c.header("Cache-Control", "no-cache");
+  //       return c.json({ success: true, context: newContext });
+  //     } catch (error) {
+  //       logger.error("Context override failed", error as Error);
+  //       return c.json({ error: "Failed to set context override" }, 500);
+  //     }
+  //   }
+  // );
+  //
+  // /** Clear manual context override - requires authentication */
+  // app.post(
+  //   "/api/context/clear",
+  //   requireResourceAccess("context", "update"),
+  //   requirePermission("predictions:create" as Permission),
+  //   auditLogAccess("context", "clear"),
+  //   async (c) => {
+  //     const auth = getRbacAuthContext(c);
+  //     const body = await validateBody(c, contextClearRequestSchema);
+  //     if (body instanceof Response) return body;
+  //
+  //     // Get owner ID from auth context
+  //     const ownerId = auth?.keyId || "anonymous";
+  //
+  //     // Explicit ownership check: non-admin users can only clear their own context
+  //     if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
+  //       return c.json(
+  //         {
+  //           error: "Access denied: you can only clear your own context",
+  //         },
+  //         403
+  //       );
+  //     }
+  //
+  //     // Clear manual override for authenticated user only (owner-scoped)
+  //     const context = clearManualOverrideForOwner(ownerId);
+  //
+  //     logger.info("Manual context override cleared", { ownerId });
+  //
+  //     c.header("Cache-Control", "no-cache");
+  //     return c.json({ success: true, context });
+  //   }
+  // );
+  //
+  // /** Update context settings - admin only */
+  // app.patch(
+  //   "/api/context/settings",
+  //   requireRole("admin"),
+  //   requireAdmin(),
+  //   auditLogAccess("context", "update"),
+  //   async (c) => {
+  //     try {
+  //       const body = await validateBody(c, contextSettingsUpdateRequestSchema);
+  //       if (body instanceof Response) return body;
+  //
+  //       updateContextSettings(body);
+  //
+  //       return c.json({ success: true, settings: getContextSettings() });
+  //     } catch (error) {
+  //       logger.error("Context settings update failed", error as Error);
+  //       return c.json({ error: "Failed to update context settings" }, 500);
+  //     }
+  //   }
+  // );
 
   // -------------------------------------------------------------------------
-  // Multi-Factor Authentication (MFA) - TOTP
+  // OAuth 2.0 Authentication - DISABLED: Feature not used by frontend
+  // These endpoints are disabled to reduce security surface area.
+  // Uncomment to re-enable OAuth 2.0 authentication functionality.
   // -------------------------------------------------------------------------
 
-  // Apply same-origin protection to all MFA operations
-  app.use("/api/auth/mfa/*", requireSameOrigin());
-
-  /** Get MFA status for the current session */
-  app.get("/api/auth/mfa/status", requirePermission("mfa:verify" as Permission), async (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth) {
-      return c.json({ error: "Authentication required" }, 401);
-    }
-
-    // Check if MFA is configured for this user
-    const totpEnabled = true; // In production, check database for TOTP config
-    const mfaVerified = auth.mfaVerified ?? false;
-
-    return c.json({
-      enabled: totpEnabled,
-      verified: mfaVerified,
-    });
-  });
-
-  /** Initiate TOTP setup - returns secret and QR code URL */
-  app.post("/api/auth/mfa/setup", requirePermission("mfa:setup" as Permission), async (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth) {
-      return c.json({ error: "Authentication required" }, 401);
-    }
-
-    const result = setupTotp(auth.keyId);
-
-    logger.info("TOTP setup initiated", { keyId: auth.keyId });
-
-    return c.json({
-      secret: result.secret,
-      backupCodes: result.backupCodes,
-      qrCodeUrl: result.qrCodeUrl,
-      message: "Scan the QR code with your authenticator app, then verify a code to enable MFA",
-    });
-  });
-
-  /** Enable TOTP after initial verification */
-  app.post("/api/auth/mfa/enable", requirePermission("mfa:verify" as Permission), async (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth) {
-      return c.json({ error: "Authentication required" }, 401);
-    }
-
-    try {
-      const body = await c.req.json();
-      const code = body.code;
-
-      if (!code || typeof code !== "string") {
-        return c.json({ error: "TOTP code is required" }, 400);
-      }
-
-      // Verify the code before enabling
-      const result = await verifyTotpCode(auth.keyId, code);
-
-      if (!result.valid) {
-        return c.json({ error: "Invalid TOTP code" }, 400);
-      }
-
-      // Enable TOTP
-      enableTotp(auth.keyId);
-
-      logger.info("TOTP enabled", { keyId: auth.keyId });
-
-      return c.json({
-        success: true,
-        message: "MFA enabled successfully",
-        remainingBackupCodes: result.remainingBackupCodes,
-      });
-    } catch (error) {
-      logger.error("TOTP enable failed", error as Error);
-      return c.json({ error: "Failed to enable MFA" }, 500);
-    }
-  });
-
-  /** Disable TOTP for the current user */
-  app.post("/api/auth/mfa/disable", requirePermission("mfa:disable" as Permission), async (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth) {
-      return c.json({ error: "Authentication required" }, 401);
-    }
-
-    const disabled = disableTotp(auth.keyId);
-
-    if (!disabled) {
-      return c.json({ error: "MFA not configured" }, 400);
-    }
-
-    logger.info("TOTP disabled", { keyId: auth.keyId });
-
-    return c.json({
-      success: true,
-      message: "MFA disabled successfully",
-    });
-  });
-
-  /** Verify MFA for a session (after login, before sensitive operations) */
-  app.post("/api/auth/mfa/verify", requirePermission("mfa:verify" as Permission), async (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth) {
-      return c.json({ error: "Authentication required" }, 401);
-    }
-
-    if (!auth.sessionId) {
-      return c.json({ error: "Session required" }, 400);
-    }
-
-    try {
-      const body = await c.req.json();
-      const code = body.code;
-
-      if (!code || typeof code !== "string") {
-        return c.json({ error: "TOTP code is required" }, 400);
-      }
-
-      const result = await verifyMfaForSession(auth.sessionId, code);
-
-      if (!result.valid) {
-        return c.json({ error: "Invalid TOTP code" }, 400);
-      }
-
-      // Set new session cookie
-      if (result.newSessionId) {
-        const isSecure = process.env["NODE_ENV"] === "production";
-        c.header(
-          "Set-Cookie",
-          `session_id=${result.newSessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
-        );
-      }
-
-      logger.info("MFA verified for session", { keyId: auth.keyId });
-
-      return c.json({
-        success: true,
-        message: "MFA verified successfully",
-      });
-    } catch (error) {
-      logger.error("MFA verification failed", error as Error);
-      return c.json({ error: "Failed to verify MFA" }, 500);
-    }
-  });
-
-  // -------------------------------------------------------------------------
-  // Session Management
-  // -------------------------------------------------------------------------
-
-  // Apply same-origin protection to session operations
-  app.use("/api/auth/session/*", requireSameOrigin());
-
-  /** Get current session info */
-  app.get("/api/auth/session", (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth) {
-      return c.json({ authenticated: false });
-    }
-
-    return c.json({
-      authenticated: true,
-      keyId: auth.keyId,
-      scope: auth.scope,
-      authMethod: auth.authMethod,
-      oauthProvider: auth.oauthProvider,
-      mfaVerified: auth.mfaVerified,
-    });
-  });
-
-  /** Refresh session using refresh token */
-  app.post("/api/auth/session/refresh", async (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth) {
-      return c.json({ error: "Authentication required" }, 401);
-    }
-
-    try {
-      const body = await c.req.json();
-      const refreshToken = body.refreshToken;
-
-      if (!refreshToken || typeof refreshToken !== "string") {
-        return c.json({ error: "Refresh token is required" }, 400);
-      }
-
-      const clientIp =
-        c.req.header("x-forwarded-for")?.split(",")[0] ??
-        c.req.header("cf-connecting-ip") ??
-        "unknown";
-
-      const result = await refreshSession(refreshToken, clientIp);
-
-      if (!result) {
-        return c.json({ error: "Invalid or expired refresh token" }, 401);
-      }
-
-      // Set new session cookie
-      const isSecure = process.env["NODE_ENV"] === "production";
-      c.header(
-        "Set-Cookie",
-        `session_id=${result.sessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
-      );
-
-      logger.info("Session refreshed", { keyId: auth.keyId });
-
-      return c.json({
-        success: true,
-        sessionId: result.sessionId,
-        newRefreshToken: result.newRefreshToken,
-      });
-    } catch (error) {
-      logger.error("Session refresh failed", error as Error);
-      return c.json({ error: "Failed to refresh session" }, 500);
-    }
-  });
-
-  /** Revoke current session (logout) */
-  app.post("/api/auth/session/revoke", (c) => {
-    const auth = getAuthContext(c);
-
-    if (!auth || !auth.sessionId) {
-      return c.json({ error: "No active session" }, 400);
-    }
-
-    const clientIp =
-      c.req.header("x-forwarded-for")?.split(",")[0] ??
-      c.req.header("cf-connecting-ip") ??
-      "unknown";
-
-    const revoked = revokeSession(auth.sessionId, clientIp);
-
-    if (!revoked) {
-      return c.json({ error: "Failed to revoke session" }, 500);
-    }
-
-    // Clear session cookie
-    const isSecure = process.env["NODE_ENV"] === "production";
-    c.header(
-      "Set-Cookie",
-      `session_id=; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=0`
-    );
-
-    logger.info("Session revoked", { keyId: auth.keyId });
-
-    return c.json({
-      success: true,
-      message: "Session revoked successfully",
-    });
-  });
+  // // Initialize OAuth providers on startup
+  // initializeDefaultProviders();
+  //
+  // // Clean up expired OAuth states every hour
+  // setInterval(
+  //   () => {
+  //     cleanupExpiredStates();
+  //   },
+  //   60 * 60 * 1000
+  // );
+  //
+  // /** Get available OAuth providers */
+  // app.get("/api/auth/oauth/providers", requirePermission("oauth:authorize" as Permission), (c) => {
+  //   const providers = getActiveOAuthProviders();
+  //
+  //   // Return only safe provider information (no secrets)
+  //   const safeProviders = providers.map((p) => ({
+  //     providerId: p.providerId,
+  //     displayName: p.displayName,
+  //     active: p.active,
+  //   }));
+  //
+  //   c.header("Cache-Control", "public, max-age=300");
+  //   return c.json({ providers: safeProviders });
+  // });
+  //
+  // /** Initiate OAuth authorization flow */
+  // app.get(
+  //   "/api/auth/oauth/authorize/:providerId",
+  //   requirePermission("oauth:authorize" as Permission),
+  //   async (c) => {
+  //     const providerId = c.req.param("providerId");
+  //     const redirectUrl = c.req.query("redirect_url");
+  //
+  //     if (!providerId) {
+  //       return c.json({ error: "Provider ID is required" }, 400);
+  //     }
+  //
+  //     const result = await createAuthorizationUrl(providerId, redirectUrl);
+  //
+  //     if ("error" in result) {
+  //       return c.json({ error: result.error }, 400);
+  //     }
+  //
+  //     // Return authorization URL and state
+  //     return c.json({
+  //       authorizationUrl: result.url,
+  //       stateId: result.stateId,
+  //     });
+  //   }
+  // );
+  //
+  // /** OAuth callback endpoint */
+  // app.get("/api/auth/oauth/callback/:providerId", async (c) => {
+  //   const providerId = c.req.param("providerId");
+  //   const state = c.req.query("state");
+  //   const code = c.req.query("code");
+  //   const error = c.req.query("error");
+  //   const errorDescription = c.req.query("error_description");
+  //
+  //   // Handle OAuth errors from provider
+  //   if (error) {
+  //     logger.warn("OAuth callback error", {
+  //       providerId,
+  //       error,
+  //       errorDescription,
+  //     });
+  //     return c.json(
+  //       {
+  //         success: false,
+  //         error: error || "OAuth authorization failed",
+  //         errorDescription,
+  //       },
+  //       400
+  //     );
+  //   }
+  //
+  //   // Validate required parameters
+  //   if (!state || !code) {
+  //     return c.json(
+  //       {
+  //         success: false,
+  //         error: "Missing required parameters: state and code",
+  //       },
+  //       400
+  //     );
+  //   }
+  //
+  //   // Get client info for logging and session creation
+  //   const clientIp =
+  //     c.req.header("x-forwarded-for")?.split(",")[0] ??
+  //     c.req.header("cf-connecting-ip") ??
+  //     "unknown";
+  //   const userAgent = c.req.header("user-agent");
+  //
+  //   // Handle the callback
+  //   const result = await handleOAuthCallback(
+  //     state,
+  //     code,
+  //     clientIp,
+  //     userAgent,
+  //     async (keyId, ip, ua, metadata) => {
+  //       // Create session with OAuth type
+  //       const sessionResult = await createSession(keyId, ip, ua, metadata, {
+  //         type: "oauth",
+  //         ipBinding: true,
+  //         createRefreshToken: true,
+  //       });
+  //
+  //       if ("sessionId" in sessionResult) {
+  //         return {
+  //           sessionId: sessionResult.sessionId,
+  //           csrfToken: getCsrfToken(c) || sessionResult.refreshToken || "",
+  //         };
+  //       }
+  //
+  //       return { error: "Failed to create session" };
+  //     }
+  //   );
+  //
+  //   if (!result.success) {
+  //     return c.json(
+  //       {
+  //         success: false,
+  //         error: result.error,
+  //         errorDescription: result.errorDescription,
+  //       },
+  //       400
+  //     );
+  //   }
+  //
+  //   // Set session cookie
+  //   if (result.sessionId) {
+  //     const isSecure = process.env["NODE_ENV"] === "production";
+  //     c.header(
+  //       "Set-Cookie",
+  //       `session_id=${result.sessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
+  //     );
+  //   }
+  //
+  //   // Return success with profile (excluding sensitive data)
+  //   return c.json({
+  //     success: true,
+  //     profile: {
+  //       providerId: result.profile?.providerId,
+  //       email: result.profile?.email,
+  //       name: result.profile?.name,
+  //       picture: result.profile?.picture,
+  //     },
+  //   });
+  // });
 
   // -------------------------------------------------------------------------
-  // Password Reset & Management
+  // Multi-Factor Authentication (MFA) - TOTP - DISABLED: Feature not used by frontend
+  // These endpoints are disabled to reduce security surface area.
+  // Uncomment to re-enable MFA functionality.
   // -------------------------------------------------------------------------
 
-  // Apply same-origin protection to password reset operations
-  app.use("/api/auth/password/*", requireSameOrigin());
+  // // Apply same-origin protection to all MFA operations
+  // app.use("/api/auth/mfa/*", requireSameOrigin());
+  //
+  // /** Get MFA status for the current session */
+  // app.get("/api/auth/mfa/status", requirePermission("mfa:verify" as Permission), async (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth) {
+  //     return c.json({ error: "Authentication required" }, 401);
+  //   }
+  //
+  //   // Check if MFA is configured for this user
+  //   const totpEnabled = true; // In production, check database for TOTP config
+  //   const mfaVerified = auth.mfaVerified ?? false;
+  //
+  //   return c.json({
+  //     enabled: totpEnabled,
+  //     verified: mfaVerified,
+  //   });
+  // });
+  //
+  // /** Initiate TOTP setup - returns secret and QR code URL */
+  // app.post("/api/auth/mfa/setup", requirePermission("mfa:setup" as Permission), async (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth) {
+  //     return c.json({ error: "Authentication required" }, 401);
+  //   }
+  //
+  //   const result = setupTotp(auth.keyId);
+  //
+  //   logger.info("TOTP setup initiated", { keyId: auth.keyId });
+  //
+  //   return c.json({
+  //     secret: result.secret,
+  //     backupCodes: result.backupCodes,
+  //     qrCodeUrl: result.qrCodeUrl,
+  //     message: "Scan the QR code with your authenticator app, then verify a code to enable MFA",
+  //   });
+  // });
+  //
+  // /** Enable TOTP after initial verification */
+  // app.post("/api/auth/mfa/enable", requirePermission("mfa:verify" as Permission), async (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth) {
+  //     return c.json({ error: "Authentication required" }, 401);
+  //   }
+  //
+  //   try {
+  //     const body = await c.req.json();
+  //     const code = body.code;
+  //
+  //     if (!code || typeof code !== "string") {
+  //       return c.json({ error: "TOTP code is required" }, 400);
+  //     }
+  //
+  //     // Verify the code before enabling
+  //     const result = await verifyTotpCode(auth.keyId, code);
+  //
+  //     if (!result.valid) {
+  //       return c.json({ error: "Invalid TOTP code" }, 400);
+  //     }
+  //
+  //     // Enable TOTP
+  //     enableTotp(auth.keyId);
+  //
+  //     logger.info("TOTP enabled", { keyId: auth.keyId });
+  //
+  //     return c.json({
+  //       success: true,
+  //       message: "MFA enabled successfully",
+  //       remainingBackupCodes: result.remainingBackupCodes,
+  //     });
+  //   } catch (error) {
+  //     logger.error("TOTP enable failed", error as Error);
+  //     return c.json({ error: "Failed to enable MFA" }, 500);
+  //   }
+  // });
+  //
+  // /** Disable TOTP for the current user */
+  // app.post("/api/auth/mfa/disable", requirePermission("mfa:disable" as Permission), async (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth) {
+  //     return c.json({ error: "Authentication required" }, 401);
+  //   }
+  //
+  //   const disabled = disableTotp(auth.keyId);
+  //
+  //   if (!disabled) {
+  //     return c.json({ error: "MFA not configured" }, 400);
+  //   }
+  //
+  //   logger.info("TOTP disabled", { keyId: auth.keyId });
+  //
+  //   return c.json({
+  //     success: true,
+  //     message: "MFA disabled successfully",
+  //   });
+  // });
+  //
+  // /** Verify MFA for a session (after login, before sensitive operations) */
+  // app.post("/api/auth/mfa/verify", requirePermission("mfa:verify" as Permission), async (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth) {
+  //     return c.json({ error: "Authentication required" }, 401);
+  //   }
+  //
+  //   if (!auth.sessionId) {
+  //     return c.json({ error: "Session required" }, 400);
+  //   }
+  //
+  //   try {
+  //     const body = await c.req.json();
+  //     const code = body.code;
+  //
+  //     if (!code || typeof code !== "string") {
+  //       return c.json({ error: "TOTP code is required" }, 400);
+  //     }
+  //
+  //     const result = await verifyMfaForSession(auth.sessionId, code);
+  //
+  //     if (!result.valid) {
+  //       return c.json({ error: "Invalid TOTP code" }, 400);
+  //     }
+  //
+  //     // Set new session cookie
+  //     if (result.newSessionId) {
+  //       const isSecure = process.env["NODE_ENV"] === "production";
+  //       c.header(
+  //         "Set-Cookie",
+  //         `session_id=${result.newSessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
+  //       );
+  //     }
+  //
+  //     logger.info("MFA verified for session", { keyId: auth.keyId });
+  //
+  //     return c.json({
+  //       success: true,
+  //       message: "MFA verified successfully",
+  //     });
+  //   } catch (error) {
+  //     logger.error("MFA verification failed", error as Error);
+  //     return c.json({ error: "Failed to verify MFA" }, 500);
+  //   }
+  // });
 
-  /** Get password policy requirements */
-  app.get("/api/auth/password/policy", (c) => {
-    // Validate that no unexpected query parameters are passed
-    const query = validateQuery(c, emptyQuerySchema);
-    if (query instanceof Response) return query;
+  // -------------------------------------------------------------------------
+  // Session Management - DISABLED: Feature not used by frontend
+  // These endpoints are disabled to reduce security surface area.
+  // Uncomment to re-enable session management functionality.
+  // -------------------------------------------------------------------------
 
-    const policy = getPasswordPolicyDescription();
+  // // Apply same-origin protection to session operations
+  // app.use("/api/auth/session/*", requireSameOrigin());
+  //
+  // /** Get current session info */
+  // app.get("/api/auth/session", (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth) {
+  //     return c.json({ authenticated: false });
+  //   }
+  //
+  //   return c.json({
+  //     authenticated: true,
+  //     keyId: auth.keyId,
+  //     scope: auth.scope,
+  //     authMethod: auth.authMethod,
+  //     oauthProvider: auth.oauthProvider,
+  //     mfaVerified: auth.mfaVerified,
+  //   });
+  // });
+  //
+  // /** Refresh session using refresh token */
+  // app.post("/api/auth/session/refresh", async (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth) {
+  //     return c.json({ error: "Authentication required" }, 401);
+  //   }
+  //
+  //   try {
+  //     const body = await c.req.json();
+  //     const refreshToken = body.refreshToken;
+  //
+  //     if (!refreshToken || typeof refreshToken !== "string") {
+  //       return c.json({ error: "Refresh token is required" }, 400);
+  //     }
+  //
+  //     const clientIp =
+  //       c.req.header("x-forwarded-for")?.split(",")[0] ??
+  //       c.req.header("cf-connecting-ip") ??
+  //       "unknown";
+  //
+  //     const result = await refreshSession(refreshToken, clientIp);
+  //
+  //     if (!result) {
+  //       return c.json({ error: "Invalid or expired refresh token" }, 401);
+  //     }
+  //
+  //     // Set new session cookie
+  //     const isSecure = process.env["NODE_ENV"] === "production";
+  //     c.header(
+  //       "Set-Cookie",
+  //       `session_id=${result.sessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
+  //     );
+  //
+  //     logger.info("Session refreshed", { keyId: auth.keyId });
+  //
+  //     return c.json({
+  //       success: true,
+  //       sessionId: result.sessionId,
+  //       newRefreshToken: result.newRefreshToken,
+  //     });
+  //   } catch (error) {
+  //     logger.error("Session refresh failed", error as Error);
+  //     return c.json({ error: "Failed to refresh session" }, 500);
+  //   }
+  // });
+  //
+  // /** Revoke current session (logout) */
+  // app.post("/api/auth/session/revoke", (c) => {
+  //   const auth = getAuthContext(c);
+  //
+  //   if (!auth || !auth.sessionId) {
+  //     return c.json({ error: "No active session" }, 400);
+  //   }
+  //
+  //   const clientIp =
+  //     c.req.header("x-forwarded-for")?.split(",")[0] ??
+  //     c.req.header("cf-connecting-ip") ??
+  //     "unknown";
+  //
+  //   const revoked = revokeSession(auth.sessionId, clientIp);
+  //
+  //   if (!revoked) {
+  //     return c.json({ error: "Failed to revoke session" }, 500);
+  //   }
+  //
+  //   // Clear session cookie
+  //   const isSecure = process.env["NODE_ENV"] === "production";
+  //   c.header(
+  //     "Set-Cookie",
+  //     `session_id=; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=0`
+  //   );
+  //
+  //   logger.info("Session revoked", { keyId: auth.keyId });
+  //
+  //   return c.json({
+  //     success: true,
+  //     message: "Session revoked successfully",
+  //   });
+  // });
 
-    c.header("Cache-Control", "public, max-age=300");
-    return c.json(policy);
-  });
+  // -------------------------------------------------------------------------
+  // Password Reset & Management - DISABLED: Feature not used by frontend
+  // These endpoints are disabled to reduce security surface area.
+  // Uncomment to re-enable password management functionality.
+  // -------------------------------------------------------------------------
 
-  /** Initiate password reset request */
-  app.post(
-    "/api/auth/password/reset",
-    // Apply strict rate limiting (5 requests per minute)
-    authRateLimit("strict", {
-      addHeaders: true,
-    }),
-    // Require CAPTCHA after rate limit violations
-    requireCaptcha({
-      alwaysRequired: false,
-    }),
-    auditLogAccess("password", "reset_request"),
-    async (c) => {
-      try {
-        const body = await validateBody(c, passwordResetRequestSchema);
-        if (body instanceof Response) return body;
-
-        const { email } = body;
-
-        // Get client IP for rate limiting and security logging
-        const clientIp =
-          c.req.header("x-forwarded-for")?.split(",")[0] ??
-          c.req.header("cf-connecting-ip") ??
-          "unknown";
-
-        // In production, you would:
-        // 1. Look up the user by email (in a database)
-        // 2. Generate and store a reset token
-        // 3. Send an email with the reset link
-        // For now, we'll generate a token and return it (for testing)
-
-        // Note: In a real implementation, email would be used as keyId
-        // Here we use email as keyId for demonstration
-        const keyId = email;
-
-        // Invalidate any existing reset tokens for this user
-        invalidateResetTokensForKey(keyId);
-
-        // Generate new reset token
-        const resetData = await generatePasswordResetToken(keyId, clientIp);
-
-        // In production, send email with reset link
-        // The email would contain: tokenId and token (as query params)
-        // For now, return the token (in production, NEVER return the token)
-
-        logger.info("Password reset requested", { keyId, clientIp });
-
-        // Return success (in production, don't include token in response)
-        return c.json({
-          success: true,
-          message: "If an account exists with this email, a password reset link has been sent",
-          // Note: In production, remove these fields - only send via email
-          tokenId: resetData.tokenId,
-          token: resetData.token,
-          expiresAt: new Date(resetData.expiresAt).toISOString(),
-        });
-      } catch (error) {
-        logger.error("Password reset request failed", error as Error);
-        return c.json(
-          {
-            error: "Failed to process password reset request",
-            message: error instanceof Error ? error.message : "Unknown error",
-          },
-          500
-        );
-      }
-    }
-  );
-
-  /** Confirm password reset with token */
-  app.post(
-    "/api/auth/password/reset/confirm",
-    // Apply strict rate limiting (5 requests per minute)
-    authRateLimit("strict", {
-      addHeaders: true,
-    }),
-    // Require CAPTCHA after rate limit violations
-    requireCaptcha({
-      alwaysRequired: false,
-    }),
-    auditLogAccess("password", "reset_confirm"),
-    async (c) => {
-      try {
-        const body = await validateBody(c, passwordResetConfirmSchema);
-        if (body instanceof Response) return body;
-
-        const { tokenId, token, newPassword } = body;
-
-        const clientIp =
-          c.req.header("x-forwarded-for")?.split(",")[0] ??
-          c.req.header("cf-connecting-ip") ??
-          "unknown";
-
-        // Validate the reset token
-        const keyId = await validatePasswordResetToken(tokenId, token, clientIp);
-
-        if (!keyId) {
-          logger.warn("Invalid password reset token", { tokenId, clientIp });
-          return c.json(
-            {
-              error: "Invalid or expired reset token",
-              message:
-                "The reset link is invalid or has expired. Please request a new password reset.",
-            },
-            400
-          );
-        }
-
-        // Validate the new password against policy
-        const passwordValidation = await validatePassword(newPassword, {}, keyId);
-
-        if (!passwordValidation.valid) {
-          return c.json(
-            {
-              error: "Password does not meet security requirements",
-              errors: passwordValidation.errors,
-            },
-            400
-          );
-        }
-
-        // Hash the new password
-        const passwordHash = await hashPassword(newPassword);
-
-        // In production, update the password in the database
-        // For now, just log the password hash (in production, NEVER log passwords)
-        logger.info("Password reset confirmed", { keyId, clientIp });
-
-        // Consume the reset token (single-use)
-        consumePasswordResetToken(tokenId);
-
-        // Invalidate all other reset tokens for this user
-        invalidateResetTokensForKey(keyId);
-
-        // Invalidate all existing sessions for security
-        // (force re-login with new password)
-        // In production, this would be: invalidateAllSessionsForKey(keyId);
-
-        return c.json({
-          success: true,
-          message: "Password has been reset successfully. Please log in with your new password.",
-        });
-      } catch (error) {
-        logger.error("Password reset confirmation failed", error as Error);
-        return c.json(
-          {
-            error: "Failed to reset password",
-            message: error instanceof Error ? error.message : "Unknown error",
-          },
-          500
-        );
-      }
-    }
-  );
-
-  /** Change password for authenticated user */
-  app.post(
-    "/api/auth/password/change",
-    requireResourceAccess("password", "update"),
-    auditLogAccess("password", "change"),
-    async (c) => {
-      try {
-        const auth = getRbacAuthContext(c);
-
-        if (!auth) {
-          return c.json({ error: "Authentication required" }, 401);
-        }
-
-        const body = await validateBody(c, passwordChangeSchema);
-        if (body instanceof Response) return body;
-
-        const { currentPassword, newPassword } = body;
-
-        // In production, verify current password against stored hash
-        // For now, skip current password verification (demo mode)
-
-        // Validate the new password against policy
-        const passwordValidation = await validatePassword(newPassword, {}, auth.keyId);
-
-        if (!passwordValidation.valid) {
-          return c.json(
-            {
-              error: "Password does not meet security requirements",
-              errors: passwordValidation.errors,
-            },
-            400
-          );
-        }
-
-        // Hash the new password
-        const passwordHash = await hashPassword(newPassword);
-
-        // In production, update the password in the database
-        logger.info("Password changed", { keyId: auth.keyId });
-
-        return c.json({
-          success: true,
-          message: "Password has been changed successfully",
-        });
-      } catch (error) {
-        logger.error("Password change failed", error as Error);
-        return c.json(
-          {
-            error: "Failed to change password",
-            message: error instanceof Error ? error.message : "Unknown error",
-          },
-          500
-        );
-      }
-    }
-  );
+  // // Apply same-origin protection to password reset operations
+  // app.use("/api/auth/password/*", requireSameOrigin());
+  //
+  // /** Get password policy requirements */
+  // app.get("/api/auth/password/policy", (c) => {
+  //   // Validate that no unexpected query parameters are passed
+  //   const query = validateQuery(c, emptyQuerySchema);
+  //   if (query instanceof Response) return query;
+  //
+  //   const policy = getPasswordPolicyDescription();
+  //
+  //   c.header("Cache-Control", "public, max-age=300");
+  //   return c.json(policy);
+  // });
+  //
+  // /** Initiate password reset request */
+  // app.post(
+  //   "/api/auth/password/reset",
+  //   // Apply strict rate limiting (5 requests per minute)
+  //   authRateLimit("strict", {
+  //     addHeaders: true,
+  //   }),
+  //   // Require CAPTCHA after rate limit violations
+  //   requireCaptcha({
+  //     alwaysRequired: false,
+  //   }),
+  //   auditLogAccess("password", "reset_request"),
+  //   async (c) => {
+  //     try {
+  //       const body = await validateBody(c, passwordResetRequestSchema);
+  //       if (body instanceof Response) return body;
+  //
+  //       const { email } = body;
+  //
+  //       // Get client IP for rate limiting and security logging
+  //       const clientIp =
+  //         c.req.header("x-forwarded-for")?.split(",")[0] ??
+  //         c.req.header("cf-connecting-ip") ??
+  //         "unknown";
+  //
+  //       // In production, you would:
+  //       // 1. Look up the user by email (in a database)
+  //       // 2. Generate and store a reset token
+  //       // 3. Send an email with the reset link
+  //       // For now, we'll generate a token and return it (for testing)
+  //
+  //       // Note: In a real implementation, email would be used as keyId
+  //       // Here we use email as keyId for demonstration
+  //       const keyId = email;
+  //
+  //       // Invalidate any existing reset tokens for this user
+  //       invalidateResetTokensForKey(keyId);
+  //
+  //       // Generate new reset token
+  //       const resetData = await generatePasswordResetToken(keyId, clientIp);
+  //
+  //       // In production, send email with reset link
+  //       // The email would contain: tokenId and token (as query params)
+  //       // For now, return the token (in production, NEVER return the token)
+  //
+  //       logger.info("Password reset requested", { keyId, clientIp });
+  //
+  //       // Return success (in production, don't include token in response)
+  //       return c.json({
+  //         success: true,
+  //         message: "If an account exists with this email, a password reset link has been sent",
+  //         // Note: In production, remove these fields - only send via email
+  //         tokenId: resetData.tokenId,
+  //         token: resetData.token,
+  //         expiresAt: new Date(resetData.expiresAt).toISOString(),
+  //       });
+  //     } catch (error) {
+  //       logger.error("Password reset request failed", error as Error);
+  //       return c.json(
+  //         {
+  //           error: "Failed to process password reset request",
+  //           message: error instanceof Error ? error.message : "Unknown error",
+  //         },
+  //         500
+  //       );
+  //     }
+  //   }
+  // );
+  //
+  // /** Confirm password reset with token */
+  // app.post(
+  //   "/api/auth/password/reset/confirm",
+  //   // Apply strict rate limiting (5 requests per minute)
+  //   authRateLimit("strict", {
+  //     addHeaders: true,
+  //   }),
+  //   // Require CAPTCHA after rate limit violations
+  //   requireCaptcha({
+  //     alwaysRequired: false,
+  //   }),
+  //   auditLogAccess("password", "reset_confirm"),
+  //   async (c) => {
+  //     try {
+  //       const body = await validateBody(c, passwordResetConfirmSchema);
+  //       if (body instanceof Response) return body;
+  //
+  //       const { tokenId, token, newPassword } = body;
+  //
+  //       const clientIp =
+  //         c.req.header("x-forwarded-for")?.split(",")[0] ??
+  //         c.req.header("cf-connecting-ip") ??
+  //         "unknown";
+  //
+  //       // Validate the reset token
+  //       const keyId = await validatePasswordResetToken(tokenId, token, clientIp);
+  //
+  //       if (!keyId) {
+  //         logger.warn("Invalid password reset token", { tokenId, clientIp });
+  //         return c.json(
+  //           {
+  //             error: "Invalid or expired reset token",
+  //             message:
+  //               "The reset link is invalid or has expired. Please request a new password reset.",
+  //           },
+  //           400
+  //         );
+  //       }
+  //
+  //       // Validate the new password against policy
+  //       const passwordValidation = await validatePassword(newPassword, {}, keyId);
+  //
+  //       if (!passwordValidation.valid) {
+  //         return c.json(
+  //           {
+  //             error: "Password does not meet security requirements",
+  //             errors: passwordValidation.errors,
+  //           },
+  //           400
+  //         );
+  //       }
+  //
+  //       // Hash the new password
+  //       const passwordHash = await hashPassword(newPassword);
+  //
+  //       // In production, update the password in the database
+  //       // For now, just log the password hash (in production, NEVER log passwords)
+  //       logger.info("Password reset confirmed", { keyId, clientIp });
+  //
+  //       // Consume the reset token (single-use)
+  //       consumePasswordResetToken(tokenId);
+  //
+  //       // Invalidate all other reset tokens for this user
+  //       invalidateResetTokensForKey(keyId);
+  //
+  //       // Invalidate all existing sessions for security
+  //       // (force re-login with new password)
+  //       // In production, this would be: invalidateAllSessionsForKey(keyId);
+  //
+  //       return c.json({
+  //         success: true,
+  //         message: "Password has been reset successfully. Please log in with your new password.",
+  //       });
+  //     } catch (error) {
+  //       logger.error("Password reset confirmation failed", error as Error);
+  //       return c.json(
+  //         {
+  //           error: "Failed to reset password",
+  //           message: error instanceof Error ? error.message : "Unknown error",
+  //         },
+  //         500
+  //       );
+  //     }
+  //   }
+  // );
+  //
+  // /** Change password for authenticated user */
+  // app.post(
+  //   "/api/auth/password/change",
+  //   requireResourceAccess("password", "update"),
+  //   auditLogAccess("password", "change"),
+  //   async (c) => {
+  //     try {
+  //       const auth = getRbacAuthContext(c);
+  //
+  //       if (!auth) {
+  //         return c.json({ error: "Authentication required" }, 401);
+  //       }
+  //
+  //       const body = await validateBody(c, passwordChangeSchema);
+  //       if (body instanceof Response) return body;
+  //
+  //       const { currentPassword, newPassword } = body;
+  //
+  //       // In production, verify current password against stored hash
+  //       // For now, skip current password verification (demo mode)
+  //
+  //       // Validate the new password against policy
+  //       const passwordValidation = await validatePassword(newPassword, {}, auth.keyId);
+  //
+  //       if (!passwordValidation.valid) {
+  //         return c.json(
+  //           {
+  //             error: "Password does not meet security requirements",
+  //             errors: passwordValidation.errors,
+  //           },
+  //           400
+  //         );
+  //       }
+  //
+  //       // Hash the new password
+  //       const passwordHash = await hashPassword(newPassword);
+  //
+  //       // In production, update the password in the database
+  //       logger.info("Password changed", { keyId: auth.keyId });
+  //
+  //       return c.json({
+  //         success: true,
+  //         message: "Password has been changed successfully",
+  //       });
+  //     } catch (error) {
+  //       logger.error("Password change failed", error as Error);
+  //       return c.json(
+  //         {
+  //           error: "Failed to change password",
+  //           message: error instanceof Error ? error.message : "Unknown error",
+  //         },
+  //         500
+  //       );
+  //     }
+  //   }
+  // );
 
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)
