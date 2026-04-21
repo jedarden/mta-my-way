@@ -10,11 +10,16 @@
  * - Cross-component integration
  */
 
-import type { ComplexIndex, RouteIndex, StationIndex, TransferConnection } from "@mta-my-way/shared";
+import type {
+  ComplexIndex,
+  RouteIndex,
+  StationIndex,
+  TransferConnection,
+} from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { getArrivals, setArrivalsForTesting } from "../cache.js";
-import { closeDatabase, createIntegrationTestDatabase, TEST_STATIONS } from "./test-helpers.js";
+import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // Import ParsedAlert type for test data
 import type { ParsedAlert } from "../alerts-parser.js";
@@ -59,12 +64,8 @@ const TEST_COMPLEXES: ComplexIndex = {
 };
 
 const TEST_TRANSFERS: Record<string, TransferConnection[]> = {
-  "725": [
-    { toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120, accessible: true },
-  ],
-  "101": [
-    { toStationId: "102", toLines: ["1"], walkingSeconds: 180, accessible: true },
-  ],
+  "725": [{ toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120, accessible: true }],
+  "101": [{ toStationId: "102", toLines: ["1"], walkingSeconds: 180, accessible: true }],
 };
 
 // ---------------------------------------------------------------------------
@@ -76,7 +77,13 @@ describe("Commute Analysis Integration Tests", () => {
 
   beforeEach(() => {
     const db = createIntegrationTestDatabase();
-    app = createApp(TEST_STATIONS, TEST_ROUTES, TEST_COMPLEXES, TEST_TRANSFERS, "/nonexistent/dist");
+    app = createApp(
+      TEST_STATIONS,
+      TEST_ROUTES,
+      TEST_COMPLEXES,
+      TEST_TRANSFERS,
+      "/nonexistent/dist"
+    );
   });
 
   afterEach(() => {

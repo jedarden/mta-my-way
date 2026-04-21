@@ -26,6 +26,7 @@ import {
   getTodayISO,
 } from "@mta-my-way/shared";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { useFareStore } from "../../stores";
 import { useJournalStore } from "../../stores/journalStore";
 
@@ -432,7 +433,7 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600 dark:text-gray-400">Most Used Station</span>
               <span className="font-medium text-gray-900 dark:text-white">
-                {stats.mostUsedStation.name}
+                {sanitizeUserInput(stats.mostUsedStation.name)}
               </span>
             </div>
           )}

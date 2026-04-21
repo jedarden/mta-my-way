@@ -9,7 +9,7 @@
 
 import type { TripRecord } from "@mta-my-way/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { encodeForAria } from "../../lib/outputEncoding";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 
 interface TripRecordEditorProps {
   trip: TripRecord;
@@ -160,7 +160,8 @@ export function TripRecordEditor({
         {/* Trip summary */}
         <div className="px-4 pb-3 border-b border-surface dark:border-dark-surface">
           <p className="text-sm text-text-primary dark:text-dark-text-primary">
-            {trip.origin.stationName} → {trip.destination.stationName}
+            {sanitizeUserInput(trip.origin.stationName)} →{" "}
+            {sanitizeUserInput(trip.destination.stationName)}
           </p>
           <div className="flex items-center gap-3 mt-1">
             <span className="text-13 text-text-secondary dark:text-dark-text-secondary">

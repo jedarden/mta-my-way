@@ -1,15 +1,15 @@
 {
-  "bead_id": "mta-my-way-1d7",
+  "bead_id": "mta-my-way-wca",
   "agent": "claude-code-glm-4.7",
   "provider": "zai",
   "model": "glm-4.7",
   "exit_code": 0,
   "outcome": "success",
-  "duration_ms": 181477,
+  "duration_ms": 414066,
   "input_tokens": null,
   "output_tokens": null,
   "cost_usd": null,
-  "captured_at": "2026-04-11T00:47:59.933735985Z",
+  "captured_at": "2026-04-11T17:18:51.929381866Z",
   "trace_format": "claude_json",
   "pruned": true,
   "template_version": null

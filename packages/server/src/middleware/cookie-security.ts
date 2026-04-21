@@ -376,7 +376,10 @@ function timingSafeEqual(a: string, b: string): boolean {
  *
  * This is a utility for templates/client code to retrieve the token.
  */
-export async function getCookieCsrfToken(c: Context, cookieName = "csrf_token"): Promise<string | null> {
+export async function getCookieCsrfToken(
+  c: Context,
+  cookieName = "csrf_token"
+): Promise<string | null> {
   return getSignedCookie(c, cookieName);
 }
 

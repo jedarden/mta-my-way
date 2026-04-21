@@ -18,8 +18,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataState } from "../components/common/DataState";
 import { useStationIndex } from "../hooks/useStationIndex";
-import { useJournalStore } from "../stores";
 import { sanitizeUserInput } from "../lib/outputEncoding";
+import { useJournalStore } from "../stores";
 
 // ---------------------------------------------------------------------------
 // Time Window

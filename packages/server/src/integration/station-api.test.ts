@@ -8,10 +8,15 @@
  * - Cross-component integration with transfer engine
  */
 
-import type { ComplexIndex, RouteIndex, StationIndex, TransferConnection } from "@mta-my-way/shared";
+import type {
+  ComplexIndex,
+  RouteIndex,
+  StationIndex,
+  TransferConnection,
+} from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { closeDatabase, createIntegrationTestDatabase, TEST_STATIONS } from "./test-helpers.js";
+import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -65,7 +70,13 @@ describe("Station API Integration Tests", () => {
 
   beforeEach(() => {
     const db = createIntegrationTestDatabase();
-    app = createApp(TEST_STATIONS, TEST_ROUTES, TEST_COMPLEXES, TEST_TRANSFERS, "/nonexistent/dist");
+    app = createApp(
+      TEST_STATIONS,
+      TEST_ROUTES,
+      TEST_COMPLEXES,
+      TEST_TRANSFERS,
+      "/nonexistent/dist"
+    );
   });
 
   afterEach(() => {

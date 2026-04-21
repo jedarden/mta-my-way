@@ -11,6 +11,7 @@
 
 import { memo, useEffect, useRef } from "react";
 import type { TripStopProgress } from "../../hooks/useTripTracker";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 
 interface TripTrackerProps {
   stops: TripStopProgress[];
@@ -49,26 +50,26 @@ export const TripTracker = memo(function TripTracker({
 
     // Check if next stop is arriving now (minutesAway === 0) - this should be announced with higher priority
     if (nextStop && nextStop.minutesAway === 0) {
-      return `Approaching ${nextStop.stationName} now.`;
+      return `Approaching ${encodeForAria(nextStop.stationName)} now.`;
     }
 
     if (currentStop) {
       const currentStopIndex = stops.indexOf(currentStop);
       // Count stops after current (excluding current stop itself)
       const remainingStops = stops.filter((_, i) => i > currentStopIndex).length;
-      return `Currently at ${currentStop.stationName}. ${remainingStops} ${remainingStops === 1 ? "stop" : "stops"} remaining.`;
+      return `Currently at ${encodeForAria(currentStop.stationName)}. ${remainingStops} ${remainingStops === 1 ? "stop" : "stops"} remaining.`;
     }
 
     if (nextStop) {
       const eta = nextStop.minutesAway;
       const etaText = eta === 0 ? "now" : `${eta} ${eta === 1 ? "minute" : "minutes"}`;
-      return `Approaching ${nextStop.stationName} in ${etaText}.`;
+      return `Approaching ${encodeForAria(nextStop.stationName)} in ${etaText}.`;
     }
 
     if (destinationStop) {
       const eta = destinationStop.minutesAway;
       const etaText = eta === 0 ? "arriving" : `${eta} ${eta === 1 ? "minute" : "minutes"}`;
-      return `Arriving at ${destinationStop.stationName} in ${etaText}.`;
+      return `Arriving at ${encodeForAria(destinationStop.stationName)} in ${etaText}.`;
     }
 
     return "Trip progress tracking.";
@@ -197,7 +198,7 @@ const StopRow = memo(function StopRow({ stop, isFirst, isLast }: StopRowProps) {
                   : "text-text-primary dark:text-dark-text-primary"
             }`}
           >
-            {stop.stationName}
+            {sanitizeUserInput(stop.stationName)}
           </p>
           {stop.status === "current" && (
             <p className="text-11 text-mta-primary font-medium">Train is here</p>

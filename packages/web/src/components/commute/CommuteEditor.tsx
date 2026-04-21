@@ -14,7 +14,7 @@
 import type { Commute, StationRef } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStationIndex } from "../../hooks/useStationIndex";
-import { encodeForAria } from "../../lib/outputEncoding";
+import { encodeForAria, sanitizeUserInput } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 import { StationPicker } from "./StationPicker";
 
@@ -221,7 +221,7 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
                     : "text-text-secondary dark:text-dark-text-secondary"
                 }
               >
-                {origin ? origin.stationName : "Pick a station..."}
+                {origin ? sanitizeUserInput(origin.stationName) : "Pick a station..."}
               </span>
               <svg
                 width="16"
@@ -262,7 +262,7 @@ export function CommuteEditor({ commute, onSave, onDelete, onClose }: CommuteEdi
                     : "text-text-secondary dark:text-dark-text-secondary"
                 }
               >
-                {destination ? destination.stationName : "Pick a station..."}
+                {destination ? sanitizeUserInput(destination.stationName) : "Pick a station..."}
               </span>
               <svg
                 width="16"

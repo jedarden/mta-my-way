@@ -86,7 +86,8 @@ export function CommutePresetCard({ commute, onEdit }: CommutePresetCardProps) {
             </h3>
           </div>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary truncate mt-0.5">
-            {sanitizeUserInput(commute.origin.stationName)} → {sanitizeUserInput(commute.destination.stationName)}
+            {sanitizeUserInput(commute.origin.stationName)} →{" "}
+            {sanitizeUserInput(commute.destination.stationName)}
           </p>
         </div>
         {onEdit && (

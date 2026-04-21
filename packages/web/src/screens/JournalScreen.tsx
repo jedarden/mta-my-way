@@ -120,11 +120,11 @@ function CommuteStatsCard({ commuteName, stats, onViewTrips, isExpanded }: Commu
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="font-semibold text-text-primary dark:text-dark-text-primary">
-            {commuteName}
+            {sanitizeUserInput(commuteName)}
           </h3>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-            {stats.records[0]?.origin.stationName ?? "—"} →{" "}
-            {stats.records[0]?.destination.stationName ?? "—"}
+            {sanitizeUserInput(stats.records[0]?.origin.stationName ?? "—")} →{" "}
+            {sanitizeUserInput(stats.records[0]?.destination.stationName ?? "—")}
           </p>
         </div>
         <span className={`text-13 font-medium ${trendColor}`}>{trendLabel}</span>
@@ -266,7 +266,8 @@ function TripHistoryList({ commuteId, records, onEditTrip }: TripHistoryListProp
               <LineBullet line={trip.line} size="sm" className="mt-0.5" />
               <div className="min-w-0 flex-1">
                 <p className="text-13 text-text-primary dark:text-dark-text-primary truncate">
-                  {trip.origin.stationName} → {trip.destination.stationName}
+                  {sanitizeUserInput(trip.origin.stationName)} →{" "}
+                  {sanitizeUserInput(trip.destination.stationName)}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-11 text-text-secondary dark:text-dark-text-secondary">
