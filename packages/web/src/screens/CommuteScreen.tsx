@@ -28,8 +28,8 @@ import Screen from "../components/layout/Screen";
 import { useAlertsForStation } from "../hooks/useAlerts";
 import { useCommute } from "../hooks/useCommute";
 import { useWalkComparison } from "../hooks/useWalkComparison";
-import { useFavoritesStore } from "../stores";
 import { sanitizeUserInput } from "../lib/outputEncoding";
+import { useFavoritesStore } from "../stores";
 
 // Lazy load modal components - only loaded when needed
 const CommuteEditor = lazy(() =>
@@ -284,7 +284,8 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
             {sanitizeUserInput(commute.name)}
           </h2>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-            {sanitizeUserInput(commute.origin.stationName)} → {sanitizeUserInput(commute.destination.stationName)}
+            {sanitizeUserInput(commute.origin.stationName)} →{" "}
+            {sanitizeUserInput(commute.destination.stationName)}
           </p>
           <div className="flex flex-wrap gap-1 mt-2">
             {commute.preferredLines.map((line) => (

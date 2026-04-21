@@ -14,6 +14,7 @@
 
 import type { CommuteAnalysis, DirectRoute, TransferRoute } from "@mta-my-way/shared";
 import { formatMinutesAway, formatTime } from "@mta-my-way/shared";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { ConfidenceBar } from "../arrivals/ConfidenceBar";
 import { LineBullet } from "../arrivals/LineBullet";
 
@@ -265,7 +266,8 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
             </span>
           </p>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-            {firstLeg.boardAt.stationName} → {firstLeg.alightAt.stationName}
+            {sanitizeUserInput(firstLeg.boardAt.stationName)} →{" "}
+            {sanitizeUserInput(firstLeg.alightAt.stationName)}
           </p>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
             {firstLeg.estimatedTravelMinutes} min ride
@@ -295,7 +297,7 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
         <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
           Transfer at{" "}
           <span className="font-medium text-text-primary dark:text-dark-text-primary">
-            {route.transferStation.stationName}
+            {sanitizeUserInput(route.transferStation.stationName)}
           </span>
         </p>
       </div>
@@ -313,7 +315,8 @@ function TransferRouteDetail({ route, compact = false }: TransferRouteDetailProp
             </span>
           </p>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
-            {secondLeg.boardAt.stationName} → {secondLeg.alightAt.stationName}
+            {sanitizeUserInput(secondLeg.boardAt.stationName)} →{" "}
+            {sanitizeUserInput(secondLeg.alightAt.stationName)}
           </p>
           <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
             {secondLeg.estimatedTravelMinutes} min ride

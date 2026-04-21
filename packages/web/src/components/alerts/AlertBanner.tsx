@@ -8,9 +8,9 @@
 import type { AlertSeverity, StationAlert } from "@mta-my-way/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { LineBullet } from "../arrivals/LineBullet";
 import { ShuttleInfo } from "./ShuttleInfo";
-import { sanitizeUserInput } from "../../lib/outputEncoding";
 
 /** Severity styles for banners */
 const SEVERITY_STYLES: Record<AlertSeverity, { bg: string; border: string; text: string }> = {

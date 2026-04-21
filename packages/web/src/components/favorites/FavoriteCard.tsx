@@ -96,7 +96,7 @@ export function FavoriteCard({ favorite, forceRefreshId, onEdit }: FavoriteCardP
       <div className="flex items-start gap-2 px-4 pt-4 pb-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-base text-text-primary dark:text-dark-text-primary truncate leading-tight">
-            {favorite.label ? favorite.label : sanitizeUserInput(favorite.stationName)}
+            {sanitizeUserInput(favorite.label ?? favorite.stationName)}
           </h3>
           {favorite.label && (
             <p className="text-13 text-text-secondary dark:text-dark-text-secondary truncate">

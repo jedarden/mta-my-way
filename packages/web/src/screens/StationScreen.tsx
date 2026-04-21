@@ -28,8 +28,8 @@ import { useAlertsForStation } from "../hooks/useAlerts";
 import { useArrivals } from "../hooks/useArrivals";
 import { useEquipment } from "../hooks/useEquipment";
 import { useFavorites } from "../hooks/useFavorites";
-import { encodeForAria, sanitizeUserInput } from "../lib/outputEncoding";
 import { type Station, api } from "../lib/api";
+import { encodeForAria, sanitizeUserInput } from "../lib/outputEncoding";
 
 // Lazy load modal component - only loaded when needed
 const FavoriteEditor = lazy(() =>

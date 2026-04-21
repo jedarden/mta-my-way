@@ -9,12 +9,17 @@
  * - Cross-component integration
  */
 
-import type { ComplexIndex, RouteIndex, StationIndex, TransferConnection } from "@mta-my-way/shared";
+import type {
+  ComplexIndex,
+  RouteIndex,
+  StationIndex,
+  TransferConnection,
+} from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getAlertsStatus, setAlertsForTesting } from "../alerts-poller.js";
 import { createApp } from "../app.js";
 import { setArrivalsForTesting } from "../cache.js";
-import { getAlertsStatus, setAlertsForTesting } from "../alerts-poller.js";
-import { closeDatabase, createIntegrationTestDatabase, TEST_STATIONS } from "./test-helpers.js";
+import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -68,7 +73,13 @@ describe("Health and Monitoring Integration Tests", () => {
 
   beforeEach(() => {
     const db = createIntegrationTestDatabase();
-    app = createApp(TEST_STATIONS, TEST_ROUTES, TEST_COMPLEXES, TEST_TRANSFERS, "/nonexistent/dist");
+    app = createApp(
+      TEST_STATIONS,
+      TEST_ROUTES,
+      TEST_COMPLEXES,
+      TEST_TRANSFERS,
+      "/nonexistent/dist"
+    );
   });
 
   afterEach(() => {
@@ -386,11 +397,11 @@ describe("Health and Monitoring Integration Tests", () => {
       const report = {
         "csp-report": {
           "document-uri": "https://example.com",
-          "referrer": "https://example.com/referrer",
+          referrer: "https://example.com/referrer",
           "violated-directive": "script-src",
           "effective-directive": "script-src",
           "original-policy": "default-src 'self'",
-          "disposition": "report",
+          disposition: "report",
           "blocked-uri": "https://evil.com/script.js",
           "line-number": 10,
           "column-number": 5,

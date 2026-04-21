@@ -8,8 +8,8 @@
 import type { StationRef } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStationIndex } from "../../hooks/useStationIndex";
-import { searchStations } from "../../lib/stationSearch";
 import { sanitizeUserInput } from "../../lib/outputEncoding";
+import { searchStations } from "../../lib/stationSearch";
 import { LineBullet } from "../arrivals/LineBullet";
 import { StationSearch } from "../search/StationSearch";
 

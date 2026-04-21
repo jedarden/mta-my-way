@@ -12,6 +12,7 @@ import {
   getFreshnessTextColor,
 } from "@mta-my-way/shared";
 import type { FeedHealthInfo } from "../../lib/api";
+import { sanitizeUserInput } from "../../lib/outputEncoding";
 
 interface DataHealthProps {
   feeds: FeedHealthInfo[];
@@ -51,7 +52,7 @@ export function DataHealth({ feeds }: DataHealthProps) {
                   className={`w-2 h-2 rounded-full shrink-0 ${isDown ? "bg-red-500 animate-pulse" : getFreshnessDotColor(level)}`}
                 />
                 <span className="text-text-primary dark:text-dark-text-primary truncate">
-                  {feed.name}
+                  {sanitizeUserInput(feed.name)}
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
