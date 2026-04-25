@@ -11,8 +11,8 @@
     "lint:fix": "biome check --write . && eslint . --fix",
     "format": "biome format --write .",
     "typecheck": "tsc --build",
-    "test": "npm run test --workspaces --if-present",
-    "test:watch": "vitest --workspaces",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf packages/*/dist packages/*/.tsbuildinfo"
   },
   "devDependencies": {
