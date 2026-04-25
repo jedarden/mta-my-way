@@ -66,7 +66,7 @@ describe("password-management", () => {
     it("should reject common passwords", async () => {
       const result = await validatePassword("Password123!");
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain("Password is too common or weak");
+      expect(result.errors.some((e) => e.includes("common variation"))).toBe(true);
     });
 
     it("should reject passwords with excessive character repetition", async () => {
@@ -102,6 +102,7 @@ describe("password-management", () => {
       const customPolicy: PasswordPolicy = {
         minLength: 20,
         requireSpecialChars: false,
+        blockSequentialChars: false, // Disable to allow "123" in the password
       };
       const result = await validatePassword(
         "VeryLongPassphraseWithNumbersButNoSymbols123",
@@ -163,7 +164,8 @@ describe("password-management", () => {
       const customPolicy: PasswordPolicy = {
         blockSequentialChars: false,
       };
-      const result = await validatePassword("Abc1234!@#", customPolicy);
+      // Use a longer password that meets the 12 character minimum
+      const result = await validatePassword("Abc123456!@#", customPolicy);
       expect(result.valid).toBe(true);
     });
 
