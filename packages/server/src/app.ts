@@ -143,6 +143,7 @@ import {
   upsertSubscription,
 } from "./push/subscriptions.js";
 import { getVapidPublicKey } from "./push/vapid.js";
+import { buildPasswordResetRoutes } from "./routes/password-reset.routes.js";
 import { createTransferEngine } from "./transfer/index.js";
 import { lookupTrip } from "./trip-lookup.js";
 import {
@@ -425,7 +426,8 @@ export function createApp(
 
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
-  // NOTE: /api/context, /api/auth/oauth, /api/auth/mfa, /api/auth/session, and /api/auth/password are disabled
+  // NOTE: /api/context, /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
+  // NOTE: /api/auth/password is enabled for password reset functionality
   app.use(
     "/api/*",
     csrfProtection({
@@ -446,7 +448,7 @@ export function createApp(
         // "/api/auth/oauth", // DISABLED: Feature not used by frontend
         // "/api/auth/mfa", // DISABLED: Feature not used by frontend
         // "/api/auth/session", // DISABLED: Feature not used by frontend
-        // "/api/auth/password", // DISABLED: Feature not used by frontend
+        "/api/auth/password",
         "/api/csrf-token",
       ],
     })
@@ -810,7 +812,7 @@ export function createApp(
       const startTime = Date.now();
       let success = false;
       let hasTransfers = false;
-      let accessibleMode = false;
+      const accessibleMode = false;
 
       try {
         const body = await validateBody(c, commuteAnalyzeRequestSchema);
@@ -2334,237 +2336,26 @@ export function createApp(
   // });
 
   // -------------------------------------------------------------------------
-  // Password Reset & Management - DISABLED: Feature not used by frontend
-  // These endpoints are disabled to reduce security surface area.
-  // Uncomment to re-enable password management functionality.
+  // Password Reset & Management
   // -------------------------------------------------------------------------
 
-  // // Apply same-origin protection to password reset operations
-  // app.use("/api/auth/password/*", requireSameOrigin());
-  //
-  // /** Get password policy requirements */
-  // app.get("/api/auth/password/policy", (c) => {
-  //   // Validate that no unexpected query parameters are passed
-  //   const query = validateQuery(c, emptyQuerySchema);
-  //   if (query instanceof Response) return query;
-  //
-  //   const policy = getPasswordPolicyDescription();
-  //
-  //   c.header("Cache-Control", "public, max-age=300");
-  //   return c.json(policy);
-  // });
-  //
-  // /** Initiate password reset request */
-  // app.post(
-  //   "/api/auth/password/reset",
-  //   // Apply strict rate limiting (5 requests per minute)
-  //   authRateLimit("strict", {
-  //     addHeaders: true,
-  //   }),
-  //   // Require CAPTCHA after rate limit violations
-  //   requireCaptcha({
-  //     alwaysRequired: false,
-  //   }),
-  //   auditLogAccess("password", "reset_request"),
-  //   async (c) => {
-  //     try {
-  //       const body = await validateBody(c, passwordResetRequestSchema);
-  //       if (body instanceof Response) return body;
-  //
-  //       const { email } = body;
-  //
-  //       // Get client IP for rate limiting and security logging
-  //       const clientIp =
-  //         c.req.header("x-forwarded-for")?.split(",")[0] ??
-  //         c.req.header("cf-connecting-ip") ??
-  //         "unknown";
-  //
-  //       // In production, you would:
-  //       // 1. Look up the user by email (in a database)
-  //       // 2. Generate and store a reset token
-  //       // 3. Send an email with the reset link
-  //       // For now, we'll generate a token and return it (for testing)
-  //
-  //       // Note: In a real implementation, email would be used as keyId
-  //       // Here we use email as keyId for demonstration
-  //       const keyId = email;
-  //
-  //       // Invalidate any existing reset tokens for this user
-  //       invalidateResetTokensForKey(keyId);
-  //
-  //       // Generate new reset token
-  //       const resetData = await generatePasswordResetToken(keyId, clientIp);
-  //
-  //       // In production, send email with reset link
-  //       // The email would contain: tokenId and token (as query params)
-  //       // For now, return the token (in production, NEVER return the token)
-  //
-  //       logger.info("Password reset requested", { keyId, clientIp });
-  //
-  //       // Return success (in production, don't include token in response)
-  //       return c.json({
-  //         success: true,
-  //         message: "If an account exists with this email, a password reset link has been sent",
-  //         // Note: In production, remove these fields - only send via email
-  //         tokenId: resetData.tokenId,
-  //         token: resetData.token,
-  //         expiresAt: new Date(resetData.expiresAt).toISOString(),
-  //       });
-  //     } catch (error) {
-  //       logger.error("Password reset request failed", error as Error);
-  //       return c.json(
-  //         {
-  //           error: "Failed to process password reset request",
-  //           message: error instanceof Error ? error.message : "Unknown error",
-  //         },
-  //         500
-  //       );
-  //     }
-  //   }
-  // );
-  //
-  // /** Confirm password reset with token */
-  // app.post(
-  //   "/api/auth/password/reset/confirm",
-  //   // Apply strict rate limiting (5 requests per minute)
-  //   authRateLimit("strict", {
-  //     addHeaders: true,
-  //   }),
-  //   // Require CAPTCHA after rate limit violations
-  //   requireCaptcha({
-  //     alwaysRequired: false,
-  //   }),
-  //   auditLogAccess("password", "reset_confirm"),
-  //   async (c) => {
-  //     try {
-  //       const body = await validateBody(c, passwordResetConfirmSchema);
-  //       if (body instanceof Response) return body;
-  //
-  //       const { tokenId, token, newPassword } = body;
-  //
-  //       const clientIp =
-  //         c.req.header("x-forwarded-for")?.split(",")[0] ??
-  //         c.req.header("cf-connecting-ip") ??
-  //         "unknown";
-  //
-  //       // Validate the reset token
-  //       const keyId = await validatePasswordResetToken(tokenId, token, clientIp);
-  //
-  //       if (!keyId) {
-  //         logger.warn("Invalid password reset token", { tokenId, clientIp });
-  //         return c.json(
-  //           {
-  //             error: "Invalid or expired reset token",
-  //             message:
-  //               "The reset link is invalid or has expired. Please request a new password reset.",
-  //           },
-  //           400
-  //         );
-  //       }
-  //
-  //       // Validate the new password against policy
-  //       const passwordValidation = await validatePassword(newPassword, {}, keyId);
-  //
-  //       if (!passwordValidation.valid) {
-  //         return c.json(
-  //           {
-  //             error: "Password does not meet security requirements",
-  //             errors: passwordValidation.errors,
-  //           },
-  //           400
-  //         );
-  //       }
-  //
-  //       // Hash the new password
-  //       const passwordHash = await hashPassword(newPassword);
-  //
-  //       // In production, update the password in the database
-  //       // For now, just log the password hash (in production, NEVER log passwords)
-  //       logger.info("Password reset confirmed", { keyId, clientIp });
-  //
-  //       // Consume the reset token (single-use)
-  //       consumePasswordResetToken(tokenId);
-  //
-  //       // Invalidate all other reset tokens for this user
-  //       invalidateResetTokensForKey(keyId);
-  //
-  //       // Invalidate all existing sessions for security
-  //       // (force re-login with new password)
-  //       // In production, this would be: invalidateAllSessionsForKey(keyId);
-  //
-  //       return c.json({
-  //         success: true,
-  //         message: "Password has been reset successfully. Please log in with your new password.",
-  //       });
-  //     } catch (error) {
-  //       logger.error("Password reset confirmation failed", error as Error);
-  //       return c.json(
-  //         {
-  //           error: "Failed to reset password",
-  //           message: error instanceof Error ? error.message : "Unknown error",
-  //         },
-  //         500
-  //       );
-  //     }
-  //   }
-  // );
-  //
-  // /** Change password for authenticated user */
-  // app.post(
-  //   "/api/auth/password/change",
-  //   requireResourceAccess("password", "update"),
-  //   auditLogAccess("password", "change"),
-  //   async (c) => {
-  //     try {
-  //       const auth = getRbacAuthContext(c);
-  //
-  //       if (!auth) {
-  //         return c.json({ error: "Authentication required" }, 401);
-  //       }
-  //
-  //       const body = await validateBody(c, passwordChangeSchema);
-  //       if (body instanceof Response) return body;
-  //
-  //       const { currentPassword, newPassword } = body;
-  //
-  //       // In production, verify current password against stored hash
-  //       // For now, skip current password verification (demo mode)
-  //
-  //       // Validate the new password against policy
-  //       const passwordValidation = await validatePassword(newPassword, {}, auth.keyId);
-  //
-  //       if (!passwordValidation.valid) {
-  //         return c.json(
-  //           {
-  //             error: "Password does not meet security requirements",
-  //             errors: passwordValidation.errors,
-  //           },
-  //           400
-  //         );
-  //       }
-  //
-  //       // Hash the new password
-  //       const passwordHash = await hashPassword(newPassword);
-  //
-  //       // In production, update the password in the database
-  //       logger.info("Password changed", { keyId: auth.keyId });
-  //
-  //       return c.json({
-  //         success: true,
-  //         message: "Password has been changed successfully",
-  //       });
-  //     } catch (error) {
-  //       logger.error("Password change failed", error as Error);
-  //       return c.json(
-  //         {
-  //           error: "Failed to change password",
-  //           message: error instanceof Error ? error.message : "Unknown error",
-  //         },
-  //         500
-  //       );
-  //     }
-  //   }
-  // );
+  // Apply same-origin protection to password reset operations
+  app.use("/api/auth/password/*", requireSameOrigin());
+
+  // Build and register password reset routes
+  const passwordResetRoutes = buildPasswordResetRoutes();
+
+  /** Get password policy requirements */
+  app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
+
+  /** Initiate password reset request */
+  app.post("/api/auth/password/reset", ...passwordResetRoutes.requestPasswordReset);
+
+  /** Confirm password reset with token */
+  app.post("/api/auth/password/reset/confirm", ...passwordResetRoutes.confirmPasswordReset);
+
+  /** Change password for authenticated user */
+  app.post("/api/auth/password/change", ...passwordResetRoutes.changePassword);
 
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)

@@ -23,6 +23,8 @@ const HealthScreen = lazy(() => import("./screens/HealthScreen"));
 const LineDiagramScreen = lazy(() => import("./screens/LineDiagramScreen"));
 const JournalScreen = lazy(() => import("./screens/JournalScreen"));
 const StatsScreen = lazy(() => import("./screens/StatsScreen"));
+const PasswordResetRequestScreen = lazy(() => import("./screens/PasswordResetRequestScreen"));
+const PasswordResetConfirmScreen = lazy(() => import("./screens/PasswordResetConfirmScreen"));
 
 // PWA prompts are lazy-loaded (only shown conditionally)
 const ServiceWorkerUpdatePrompt = lazy(() =>
@@ -166,6 +168,22 @@ function AppRoutes() {
             element={
               <ScreenErrorBoundary screenName="Settings">
                 <SettingsScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <ScreenErrorBoundary screenName="Password Reset">
+                <PasswordResetRequestScreen />
+              </ScreenErrorBoundary>
+            }
+          />
+          <Route
+            path="/reset-password/confirm"
+            element={
+              <ScreenErrorBoundary screenName="Password Reset Confirm">
+                <PasswordResetConfirmScreen />
               </ScreenErrorBoundary>
             }
           />
