@@ -21,7 +21,8 @@ import type {
 } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setArrivalsForTesting } from "../cache.js";
-import { TransferEngine, createTransferEngine } from "../transfer/engine.js";
+import type { TransferEngine } from "../transfer/engine.js";
+import { createTransferEngine } from "../transfer/engine.js";
 import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
