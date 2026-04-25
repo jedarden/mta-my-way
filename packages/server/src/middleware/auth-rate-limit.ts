@@ -541,6 +541,15 @@ export function cleanupRateLimits(): number {
   return cleaned;
 }
 
+/**
+ * Clear all rate limit entries.
+ * Intended for testing purposes only.
+ */
+export function _clearAllRateLimits(): void {
+  rateLimitStore.clear();
+  apiKeyRateLimitStore.clear();
+}
+
 // Start automatic cleanup interval (every 5 minutes)
 setInterval(cleanupRateLimits, 5 * 60 * 1000);
 

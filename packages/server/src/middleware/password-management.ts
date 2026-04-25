@@ -120,6 +120,10 @@ export interface PasswordResetToken {
   used: boolean;
   /** Client IP when token was requested */
   clientIp: string;
+  /** User agent when token was requested (for device verification) */
+  userAgent?: string;
+  /** Device fingerprint (hash of user agent for verification) */
+  deviceFingerprint?: string;
 }
 
 /**
@@ -1037,6 +1041,30 @@ export function storePasswordInHistory(keyId: string, hash: string, salt: string
   passwordHistory.set(keyId, history);
 }
 
+/**
+ * Get password history for a key.
+ *
+ * @param keyId - The key ID
+ * @returns Array of password history entries
+ */
+export function getPasswordHistory(keyId: string): PasswordHistoryEntry[] {
+  return passwordHistory.get(keyId) ?? [];
+}
+
+/**
+ * Clear password history for a key.
+ *
+ * @param keyId - The key ID
+ * @returns Number of entries cleared
+ */
+export function clearPasswordHistory(keyId: string): number {
+  const history = passwordHistory.get(keyId);
+  if (!history) return 0;
+  const count = history.length;
+  passwordHistory.delete(keyId);
+  return count;
+}
+
 // ============================================================================
 // Password Reset Flow
 // ============================================================================
@@ -1066,16 +1094,93 @@ function _checkPasswordValidationRateLimit(clientIp: string): boolean {
 }
 
 /**
+ * Generate a device fingerprint from user agent for token verification.
+ */
+async function generateDeviceFingerprint(userAgent?: string): Promise<string> {
+  if (!userAgent) return "unknown";
+  const encoder = new TextEncoder();
+  const data = encoder.encode(userAgent);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .substring(0, 16);
+}
+
+/**
+ * Get user-friendly device information from user agent.
+ */
+export function getDeviceInfo(userAgent?: string): {
+  deviceType: string;
+  browser: string;
+  os: string;
+} {
+  if (!userAgent) {
+    return { deviceType: "Unknown", browser: "Unknown", os: "Unknown" };
+  }
+
+  const ua = userAgent.toLowerCase();
+
+  // Detect device type
+  let deviceType = "desktop";
+  if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
+    deviceType = "mobile";
+  } else if (/tablet|ipad|playbook|silk/i.test(ua)) {
+    deviceType = "tablet";
+  }
+
+  // Detect browser
+  let browser = "Unknown";
+  if (/chrome|crios/i.test(ua) && !/edge|opr|brave/i.test(ua)) {
+    browser = "Chrome";
+  } else if (/safari/i.test(ua) && !/chrome/i.test(ua)) {
+    browser = "Safari";
+  } else if (/firefox/i.test(ua)) {
+    browser = "Firefox";
+  } else if (/edge|edg/i.test(ua)) {
+    browser = "Edge";
+  } else if (/opr|opera/i.test(ua)) {
+    browser = "Opera";
+  } else if (/brave/i.test(ua)) {
+    browser = "Brave";
+  }
+
+  // Detect OS
+  let os = "Unknown";
+  if (/windows/i.test(ua)) {
+    os = "Windows";
+  } else if (/macintosh|mac os x/i.test(ua)) {
+    os = "macOS";
+  } else if (/linux/i.test(ua)) {
+    os = "Linux";
+  } else if (/android/i.test(ua)) {
+    os = "Android";
+  } else if (/ios|iphone|ipad|ipod/i.test(ua)) {
+    os = "iOS";
+  }
+
+  return { deviceType, browser, os };
+}
+
+/**
  * Generate a secure password reset token.
  *
  * @param keyId - The key ID for the user
  * @param clientIp - The client IP address
+ * @param userAgent - Optional user agent string for device verification
  * @returns Object containing the raw token (for sending to user) and token data
  */
 export async function generatePasswordResetToken(
   keyId: string,
-  clientIp: string
-): Promise<{ token: string; tokenId: string; expiresAt: number }> {
+  clientIp: string,
+  userAgent?: string
+): Promise<{
+  token: string;
+  tokenId: string;
+  expiresAt: number;
+  deviceInfo?: ReturnType<typeof getDeviceInfo>;
+}> {
   // Generate random token
   const tokenBytes = new Uint8Array(RESET_TOKEN_LENGTH);
   crypto.getRandomValues(tokenBytes);
@@ -1090,6 +1195,9 @@ export async function generatePasswordResetToken(
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const tokenHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
+  // Generate device fingerprint for verification
+  const deviceFingerprint = await generateDeviceFingerprint(userAgent);
+
   // Create token data
   const tokenData: PasswordResetToken = {
     tokenId,
@@ -1099,17 +1207,27 @@ export async function generatePasswordResetToken(
     expiresAt: Date.now() + RESET_TOKEN_TTL_MS,
     used: false,
     clientIp,
+    userAgent,
+    deviceFingerprint,
   };
 
   // Store token
   passwordResetTokens.set(tokenId, tokenData);
 
-  logger.info("Password reset token generated", { tokenId, keyId, clientIp });
+  const deviceInfo = getDeviceInfo(userAgent);
+
+  logger.info("Password reset token generated", {
+    tokenId,
+    keyId,
+    clientIp,
+    deviceInfo,
+  });
 
   return {
     token, // Return raw token for sending to user (e.g., email)
     tokenId,
     expiresAt: tokenData.expiresAt,
+    deviceInfo,
   };
 }
 
@@ -1119,42 +1237,34 @@ export async function generatePasswordResetToken(
  * @param tokenId - The token ID
  * @param token - The raw token from the email/link
  * @param clientIp - The client IP address
- * @returns The key ID if valid, null otherwise
+ * @param userAgent - Optional user agent for device verification
+ * @returns Object with keyId if valid, and a warning if device changed
  */
 export async function validatePasswordResetToken(
   tokenId: string,
   token: string,
-  clientIp: string
-): Promise<string | null> {
+  clientIp: string,
+  userAgent?: string
+): Promise<{ keyId: string | null; deviceChanged: boolean; warning?: string }> {
   const tokenData = passwordResetTokens.get(tokenId);
 
   if (!tokenData) {
     logger.warn("Invalid password reset token ID", { tokenId, clientIp });
-    return null;
+    return { keyId: null, deviceChanged: false };
   }
 
   // Check expiration
   if (Date.now() > tokenData.expiresAt) {
     passwordResetTokens.delete(tokenId);
     logger.warn("Expired password reset token", { tokenId, clientIp });
-    return null;
+    return { keyId: null, deviceChanged: false };
   }
 
   // Check if already used
   if (tokenData.used) {
     passwordResetTokens.delete(tokenId);
     logger.warn("Reused password reset token", { tokenId, clientIp, keyId: tokenData.keyId });
-    return null;
-  }
-
-  // Verify client IP matches (optional security measure)
-  if (tokenData.clientIp !== clientIp) {
-    logger.warn("Password reset token IP mismatch", {
-      tokenId,
-      expectedIp: tokenData.clientIp,
-      receivedIp: clientIp,
-    });
-    // Still allow but log for monitoring
+    return { keyId: null, deviceChanged: false };
   }
 
   // Verify token hash
@@ -1165,10 +1275,40 @@ export async function validatePasswordResetToken(
 
   if (tokenHash !== tokenData.tokenHash) {
     logger.warn("Invalid password reset token", { tokenId, clientIp });
-    return null;
+    return { keyId: null, deviceChanged: false };
   }
 
-  return tokenData.keyId;
+  // Check device fingerprint if userAgent provided
+  let deviceChanged = false;
+  let warning: string | undefined;
+
+  if (userAgent && tokenData.deviceFingerprint) {
+    const currentFingerprint = await generateDeviceFingerprint(userAgent);
+    if (currentFingerprint !== tokenData.deviceFingerprint) {
+      deviceChanged = true;
+      const originalDevice = getDeviceInfo(tokenData.userAgent);
+      const currentDevice = getDeviceInfo(userAgent);
+      warning = `This reset link was requested from a different device (${originalDevice.deviceType}/${originalDevice.browser}). For your security, please verify you requested this password reset.`;
+      logger.warn("Password reset device mismatch", {
+        tokenId,
+        originalDevice,
+        currentDevice,
+      });
+      // Still allow the reset but log for monitoring
+    }
+  }
+
+  // Verify client IP matches (optional security measure - logs mismatch but allows)
+  if (tokenData.clientIp !== clientIp) {
+    logger.warn("Password reset token IP mismatch", {
+      tokenId,
+      expectedIp: tokenData.clientIp,
+      receivedIp: clientIp,
+    });
+    // Still allow but log for monitoring
+  }
+
+  return { keyId: tokenData.keyId, deviceChanged, warning };
 }
 
 /**
@@ -1212,6 +1352,33 @@ export function invalidateResetTokensForKey(keyId: string): number {
     }
   }
   return count;
+}
+
+/**
+ * Set a token's expiration time for testing purposes.
+ *
+ * @param tokenId - The token ID
+ * @param expiresAt - The new expiration timestamp
+ * @returns True if token was found and updated
+ *
+ * @internal This is intended for testing only
+ */
+export function _setTokenExpirationForTesting(tokenId: string, expiresAt: number): boolean {
+  const tokenData = passwordResetTokens.get(tokenId);
+  if (tokenData) {
+    tokenData.expiresAt = expiresAt;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get the internal password reset tokens map for testing.
+ *
+ * @internal This is intended for testing only
+ */
+export function _getPasswordResetTokensMap(): Map<string, PasswordResetToken> {
+  return passwordResetTokens;
 }
 
 // ============================================================================
