@@ -17,10 +17,10 @@
  * - Password history to prevent reuse of last 12 passwords
  */
 
+import * as argon2 from "argon2";
 import { logger } from "../observability/logger.js";
 import { sanitizeStringSimple } from "./sanitization.js";
 import { securityLogger } from "./security-logging.js";
-import * as argon2 from "argon2";
 
 // ============================================================================
 // Password Policy Configuration
@@ -494,14 +494,23 @@ function isSequentialSequence(str: string): boolean {
  * Detect keyboard walking patterns in password.
  * Checks for common keyboard sequences like "qwerty", "asdf", "1qaz", etc.
  *
+ * Only reports patterns of 3+ characters to avoid false positives on
+ * single characters that happen to be part of keyboard layouts.
+ *
  * @param password - The password to check
  * @returns Object indicating if keyboard pattern was found and the pattern
  */
 function detectKeyboardPatterns(password: string): { found: boolean; pattern?: string } {
   const lowerPassword = password.toLowerCase();
+  const MIN_PATTERN_LENGTH = 3;
 
   // Check each pattern
   for (const pattern of KEYBOARD_PATTERNS) {
+    // Skip patterns shorter than minimum length
+    if (pattern.length < MIN_PATTERN_LENGTH) {
+      continue;
+    }
+
     // Check if pattern exists in password (case-insensitive)
     if (lowerPassword.includes(pattern)) {
       return { found: true, pattern };
@@ -521,19 +530,25 @@ function detectKeyboardPatterns(password: string): { found: boolean; pattern?: s
  * Detect common password variations like "password1", "password2", etc.
  *
  * @param password - The password to check
+ * @param skipKeyboardBased - Whether to skip keyboard-based common words (when blockKeyboardPatterns is false)
  * @returns Object indicating if common variation was found
  */
-function detectCommonVariations(password: string): { found: boolean; pattern?: string } {
+function detectCommonVariations(
+  password: string,
+  skipKeyboardBased = false
+): { found: boolean; pattern?: string } {
   const lowerPassword = password.toLowerCase();
 
   // Common base passwords with number/special char variations
+  // Keyboard-based words (qwerty, asdf) are skipped when blockKeyboardPatterns is false
   const commonBases = [
     "password",
     "passw0rd",
     "admin",
     "welcome",
     "login",
-    "qwerty",
+    // Skip keyboard-based words when requested
+    ...(skipKeyboardBased ? [] : ["qwerty"]),
     "letmein",
     "monkey",
     "dragon",
@@ -541,22 +556,46 @@ function detectCommonVariations(password: string): { found: boolean; pattern?: s
   ];
 
   for (const base of commonBases) {
-    // Check if password starts with common base followed by numbers/special chars
-    const pattern = new RegExp(`^${base}\\d+$`, "i");
-    if (pattern.test(lowerPassword)) {
+    // Check if password starts with common base
+    if (!lowerPassword.startsWith(base)) {
+      continue;
+    }
+
+    const suffix = lowerPassword.slice(base.length);
+
+    // If there's no suffix, it's just the base word (handled elsewhere)
+    if (suffix.length === 0) {
+      continue;
+    }
+
+    // Check if suffix is only numbers
+    if (/^\d+$/.test(suffix)) {
       return { found: true, pattern: base + "[numbers]" };
     }
 
-    // Check for base + single special char
-    const patternSpecial = new RegExp(`^${base}[!@#$%^&*]+$`, "i");
-    if (patternSpecial.test(lowerPassword)) {
+    // Check if suffix is only special characters
+    if (/^[!@#$%^&*]+$/.test(suffix)) {
       return { found: true, pattern: base + "[special]" };
     }
 
-    // Check for base + year (common pattern)
-    const patternYear = new RegExp(`^${base}(20\\d\\d|19\\d\\d)$`, "i");
-    if (patternYear.test(lowerPassword)) {
+    // Check if suffix is a year (19xx or 20xx)
+    if (/^(19\d\d|20\d\d)$/.test(suffix)) {
       return { found: true, pattern: base + "[year]" };
+    }
+
+    // Check if suffix is numbers followed by special chars (e.g., "password123!@#")
+    if (/^\d+[!@#$%^&*]+$/.test(suffix)) {
+      return { found: true, pattern: base + "[numbers+special]" };
+    }
+
+    // Check if suffix is special chars followed by numbers (e.g., "password!@#123")
+    if (/^[!@#$%^&*]+\d+$/.test(suffix)) {
+      return { found: true, pattern: base + "[special+numbers]" };
+    }
+
+    // Check if suffix is a year followed by special chars (e.g., "password2024!@#")
+    if (/^(19\d\d|20\d\d)[!@#$%^&*]+$/.test(suffix)) {
+      return { found: true, pattern: base + "[year+special]" };
     }
   }
 
@@ -647,10 +686,12 @@ export async function validatePassword(
     errors.push("Password cannot contain spaces");
   }
 
-  // Check against blocked passwords
+  // Check against blocked passwords (exact match only)
+  // Substring matching is too aggressive and would reject valid passwords
+  // like "SecurePass123!" that happen to contain common words
   const lowerPassword = password.toLowerCase();
   for (const blocked of mergedPolicy.blockedPasswords) {
-    if (lowerPassword === blocked || lowerPassword.includes(blocked)) {
+    if (lowerPassword === blocked) {
       errors.push("Password is too common or weak");
       break;
     }
@@ -687,7 +728,8 @@ export async function validatePassword(
   }
 
   // Check common password variations
-  const variationResult = detectCommonVariations(password);
+  // Skip keyboard-based words when blockKeyboardPatterns is disabled
+  const variationResult = detectCommonVariations(password, !mergedPolicy.blockKeyboardPatterns);
   if (variationResult.found) {
     errors.push(
       `Password contains a common variation pattern (${variationResult.pattern}). Please choose a more unique password.`
