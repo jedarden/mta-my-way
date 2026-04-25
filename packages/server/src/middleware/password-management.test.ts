@@ -210,14 +210,18 @@ describe("password-management", () => {
       expect(verify).toBe(false);
     });
 
-    it("should use PBKDF2 with correct parameters", async () => {
+    it("should use Argon2id with correct parameters", async () => {
       const password = "TestPassword123!";
       const hash = await hashPassword(password);
 
-      expect(hash.algorithm).toBe("pbkdf2");
-      expect(hash.iterations).toBe(600_000);
-      expect(hash.hash).toHaveLength(64); // 32 bytes = 64 hex chars
-      expect(hash.salt).toHaveLength(64); // 32 bytes = 64 hex chars
+      expect(hash.algorithm).toBe("argon2id");
+      expect(hash.iterations).toBe(3); // Argon2id time cost
+      expect(hash.memoryCost).toBe(65536); // 64 MiB in KiB
+      expect(hash.parallelism).toBe(4);
+      // Argon2 hash format: $argon2id$v=19$m=65536,t=3,p=4$...
+      expect(hash.hash).toMatch(/^\$argon2id\$/);
+      // Salt is base64 encoded in Argon2 format
+      expect(hash.salt).toBeTruthy();
     });
   });
 

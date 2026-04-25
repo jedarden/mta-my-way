@@ -3,7 +3,7 @@
  *
  * Provides:
  * - Enhanced password policy validation with breach detection
- * - Secure password hashing using Argon2id (preferred) and PBKDF2
+ * - Secure password hashing using Argon2id (industry-standard)
  * - Password reset flow with secure token mechanism
  * - Password expiration and rotation policies
  * - Password history tracking to prevent reuse
@@ -11,7 +11,6 @@
  *
  * Security Best Practices:
  * - Argon2id with OWASP recommended parameters (2024)
- * - PBKDF2 fallback with 600,000 iterations (OWASP 2024)
  * - 32-byte cryptographically random salts
  * - Password breach detection using SHA-256 k-anonymity
  * - Secure reset tokens with expiration and single-use
@@ -21,6 +20,7 @@
 import { logger } from "../observability/logger.js";
 import { sanitizeStringSimple } from "./sanitization.js";
 import { securityLogger } from "./security-logging.js";
+import * as argon2 from "argon2";
 
 // ============================================================================
 // Password Policy Configuration
@@ -312,16 +312,13 @@ const KEYBOARD_PATTERNS = [
  * - Salt length: 32 bytes
  * - Output length: 32 bytes
  */
-// @ts-expect-error - Reserved for future Argon2 support
-const _ARGON2_MEMORY_COST = 65536; // 64 MiB in KiB
-// @ts-expect-error - Reserved for future Argon2 support
-const _ARGON2_ITERATIONS = 3;
-// @ts-expect-error - Reserved for future Argon2 support
-const _ARGON2_PARALLELISM = 4;
-// @ts-expect-error - Reserved for future Argon2 support
-const _ARGON2_SALT_LENGTH = 32;
-// @ts-expect-error - Reserved for future Argon2 support
-const _ARGON2_HASH_LENGTH = 32;
+const ARGON2_OPTIONS: argon2.Options = {
+  memoryCost: 65536, // 64 MiB in KiB
+  timeCost: 3, // Number of iterations
+  parallelism: 4, // Number of threads/lanes
+  hashLength: 32, // Output hash length in bytes
+  type: argon2.argon2id, // Argon2id (recommended for password hashing)
+};
 
 /**
  * PBKDF2 parameters (OWASP 2024 recommendations).
@@ -329,6 +326,9 @@ const _ARGON2_HASH_LENGTH = 32;
  * - Hash: SHA-256
  * - Salt length: 32 bytes
  * - Output length: 32 bytes
+ *
+ * NOTE: PBKDF2 is kept for backward compatibility with existing hashes.
+ * New passwords should use Argon2id.
  */
 const PBKDF2_ITERATIONS = 600_000;
 const PBKDF2_HASH_LENGTH = 32;
@@ -889,12 +889,17 @@ export function clearBreachedPasswordCache(): void {
 // ============================================================================
 
 /**
- * Hash a password using Argon2id (preferred) or PBKDF2.
+ * Hash a password using Argon2id.
  *
  * Argon2id is the winner of the Password Hashing Competition (2015)
  * and is recommended by OWASP for new applications.
  *
- * Falls back to PBKDF2 if Argon2 is not available in the Web Crypto API.
+ * Uses OWASP 2024 recommended parameters:
+ * - Memory: 64 MiB
+ * - Iterations: 3
+ * - Parallelism: 4
+ * - Salt length: 32 bytes
+ * - Output length: 32 bytes
  *
  * @param password - The password to hash
  * @returns Promise containing the hash data
@@ -905,58 +910,38 @@ export async function hashPassword(password: string): Promise<PasswordHash> {
     throw new Error("Password cannot be empty");
   }
 
-  // Generate a random salt (32 bytes for OWASP compliance)
-  const salt = new Uint8Array(32);
-  crypto.getRandomValues(salt);
-
-  // Combine password with pepper for additional security
+  // Combine password with pepper for additional security (if configured)
   const pepper = getPasswordPepper();
   const passwordWithPepper = pepper ? password + pepper : password;
 
-  // Try to use Argon2id if available
-  // Note: Web Crypto API doesn't support Argon2 directly, so we use PBKDF2
-  // In a Node.js environment, you would use the 'argon2' package
+  // Hash using Argon2id with OWASP 2024 recommended parameters
+  // The argon2 package handles salt generation automatically
+  const hash = await argon2.hash(passwordWithPepper, ARGON2_OPTIONS);
 
-  // For now, use PBKDF2 with SHA-256 and OWASP 2024 recommended iterations
-  const encoder = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(passwordWithPepper),
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"]
-  );
-
-  // Use salt directly as Uint8Array for PBKDF2
-  const hashBuffer = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: PBKDF2_ITERATIONS,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    PBKDF2_HASH_LENGTH * 8
-  );
-
-  const hashArray = new Uint8Array(hashBuffer);
-  const hash = Array.from(hashArray, (b) => b.toString(16).padStart(2, "0")).join("");
-  const saltHex = Array.from(salt, (b) => b.toString(16).padStart(2, "0")).join("");
+  // Extract the salt from the encoded hash
+  // Argon2 format: $argon2id$v=19$m=65536,t=3,p=4$salt$hash
+  const parts = hash.split("$");
+  const salt = parts[4]; // Extract salt from encoded hash
 
   return {
     hash,
-    salt: saltHex,
-    algorithm: "pbkdf2",
-    iterations: PBKDF2_ITERATIONS,
+    salt,
+    algorithm: "argon2id",
+    iterations: ARGON2_OPTIONS.timeCost ?? 3,
+    memoryCost: ARGON2_OPTIONS.memoryCost,
+    parallelism: ARGON2_OPTIONS.parallelism,
   };
 }
 
 /**
- * Verify a password against a stored hash.
+ * Verify a password against a stored Argon2id hash.
+ *
+ * Uses the argon2 package's built-in verify function which handles
+ * timing-safe comparison to prevent timing attacks.
  *
  * @param password - The password to verify
- * @param hash - The stored hash (hex string)
- * @param salt - The salt used for hashing (hex string)
+ * @param hash - The stored Argon2id hash (encoded string)
+ * @param salt - The salt used for hashing (not needed for Argon2, kept for API compatibility)
  * @returns Promise indicating if the password matches
  */
 export async function verifyPasswordHash(
@@ -968,67 +953,22 @@ export async function verifyPasswordHash(
   if (!password || password.length === 0) {
     return false;
   }
-  if (!hash || !salt) {
+  if (!hash) {
     return false;
   }
 
-  const encoder = new TextEncoder();
+  try {
+    // Combine password with pepper for verification (must match hashing)
+    const pepper = getPasswordPepper();
+    const passwordWithPepper = pepper ? password + pepper : password;
 
-  // Convert salt from hex to bytes
-  const saltBytes = new Uint8Array(salt.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) ?? []);
-
-  // Combine password with pepper for verification (must match hashing)
-  const pepper = getPasswordPepper();
-  const passwordWithPepper = pepper ? password + pepper : password;
-
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(passwordWithPepper),
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"]
-  );
-
-  // Use salt directly as Uint8Array for PBKDF2
-  const hashBuffer = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt: saltBytes,
-      iterations: PBKDF2_ITERATIONS,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    PBKDF2_HASH_LENGTH * 8
-  );
-
-  const hashArray = new Uint8Array(hashBuffer);
-  const computedHash = Array.from(hashArray, (b) => b.toString(16).padStart(2, "0")).join("");
-
-  // Use timing-safe comparison to prevent timing attacks
-  return timingSafeEqual(computedHash, hash);
-}
-
-/**
- * Timing-safe string comparison to prevent timing attacks.
- *
- * This function compares two strings in constant time, preventing
- * attackers from using timing differences to guess valid values.
- *
- * @param a - First string to compare
- * @param b - Second string to compare
- * @returns True if strings are equal, false otherwise
- */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
+    // Use argon2.verify which handles timing-safe comparison
+    return await argon2.verify(hash, passwordWithPepper);
+  } catch (error) {
+    // If verification fails (invalid hash format, etc.), return false
+    logger.warn("Password verification failed", { error: error as Error });
     return false;
   }
-
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-
-  return result === 0;
 }
 
 /**
