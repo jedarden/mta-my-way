@@ -193,7 +193,45 @@ export function validateHostHeader(
     }
   }
 
-  // Check for localhost
+  // Check allow-list BEFORE other checks (allow-list takes precedence)
+  if (mergedOptions.allowedHosts && mergedOptions.allowedHosts.length > 0) {
+    let allowed = false;
+
+    for (const allowedHost of mergedOptions.allowedHosts) {
+      const normalizedAllowed = allowedHost.toLowerCase();
+      // Extract hostname from allowed entry (remove port if present)
+      const allowedHostname = normalizedAllowed.split(":")[0]!;
+
+      if (mergedOptions.allowSubdomains) {
+        // Check exact match or subdomain
+        if (hostname === allowedHostname || hostname.endsWith(`.${allowedHostname}`)) {
+          allowed = true;
+          break;
+        }
+      } else {
+        // Exact match only
+        if (hostname === allowedHostname) {
+          allowed = true;
+          break;
+        }
+      }
+    }
+
+    if (!allowed) {
+      return {
+        valid: false,
+        reason: "host_not_allowed",
+      };
+    }
+
+    // If host is in allow-list, skip additional checks and return valid
+    return {
+      valid: true,
+      hostname,
+    };
+  }
+
+  // Check for localhost (only if not in allow-list)
   if (mergedOptions.blockLocalhost) {
     for (const pattern of LOCALHOST_PATTERNS) {
       if (pattern.test(hostname)) {
@@ -214,36 +252,6 @@ export function validateHostHeader(
           reason: "private_ip_blocked",
         };
       }
-    }
-  }
-
-  // Check allow-list
-  if (mergedOptions.allowedHosts && mergedOptions.allowedHosts.length > 0) {
-    let allowed = false;
-
-    for (const allowedHost of mergedOptions.allowedHosts) {
-      const normalizedAllowed = allowedHost.toLowerCase();
-
-      if (mergedOptions.allowSubdomains) {
-        // Check exact match or subdomain
-        if (hostname === normalizedAllowed || hostname.endsWith(`.${normalizedAllowed}`)) {
-          allowed = true;
-          break;
-        }
-      } else {
-        // Exact match only
-        if (hostname === normalizedAllowed) {
-          allowed = true;
-          break;
-        }
-      }
-    }
-
-    if (!allowed) {
-      return {
-        valid: false,
-        reason: "host_not_allowed",
-      };
     }
   }
 
