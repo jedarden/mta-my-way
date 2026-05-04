@@ -5,10 +5,13 @@
  * - In-memory database initialization
  * - Schema setup for trip tracking and push subscriptions
  * - Common test data factories
+ * - Authentication helpers for API tests
  */
 
 import type { StationIndex } from "@mta-my-way/shared";
 import Database from "better-sqlite3";
+import { registerApiKeyWithMetadata } from "../middleware/api-key-management.js";
+import { generateApiKey, hashApiKey, registerApiKey } from "../middleware/authentication.js";
 
 // ---------------------------------------------------------------------------
 // Test data fixtures
@@ -63,6 +66,17 @@ export const TEST_STATIONS: StationIndex = {
     ada: true,
     borough: "manhattan",
     complex: "725-726",
+  },
+  "727": {
+    id: "727",
+    name: "50 St",
+    location: { lat: 40.763, lon: -73.989 },
+    lines: ["A", "C", "E"],
+    northStopId: "727N",
+    southStopId: "727S",
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
   },
 };
 
@@ -314,4 +328,69 @@ export function createTestSubscription(
     quietHours: overrides.quietHours ?? { enabled: false, startHour: 22, endHour: 7 },
     morningScores: overrides.morningScores ?? {},
   };
+}
+
+// ---------------------------------------------------------------------------
+// Authentication helpers for API tests
+// ---------------------------------------------------------------------------
+
+export interface TestAuthCredentials {
+  keyId: string;
+  apiKey: string;
+  authorizationHeader: string;
+}
+
+/**
+ * Create a test API key with the specified scope and role.
+ * Returns the credentials needed to make authenticated requests.
+ */
+export async function createTestApiKey(
+  scope: "read" | "write" | "admin" = "write",
+  role: "guest" | "user" | "admin" = "user"
+): Promise<TestAuthCredentials> {
+  const keyId = `test_key_${Math.random().toString(36).substring(7)}`;
+  const apiKey = await generateApiKey();
+  const hashed = await hashApiKey(apiKey);
+
+  const keyData = {
+    keyId,
+    keyHash: hashed.hash,
+    keySalt: hashed.salt,
+    scope,
+    rateLimitTier: 10,
+    active: true,
+    createdAt: Date.now(),
+    expiresAt: 0,
+    role,
+  };
+
+  await registerApiKey(keyData);
+  registerApiKeyWithMetadata(keyData, `Test ${role} key with ${scope} scope`);
+
+  return {
+    keyId,
+    apiKey,
+    authorizationHeader: `Bearer ${keyId}:${apiKey}`,
+  };
+}
+
+/**
+ * Create test credentials for an admin user.
+ */
+export async function createTestAdminCredentials(): Promise<TestAuthCredentials> {
+  return createTestApiKey("admin", "admin");
+}
+
+/**
+ * Create test credentials for a regular user with write access.
+ */
+export async function createTestUserCredentials(): Promise<TestAuthCredentials> {
+  return createTestApiKey("write", "user");
+}
+
+/**
+ * Create test credentials for a read-only user.
+ */
+export async function createTestReadCredentials(): Promise<TestAuthCredentials> {
+  return createTestApiKey("read", "user");
 }

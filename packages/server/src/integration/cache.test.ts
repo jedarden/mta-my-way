@@ -39,7 +39,12 @@ import {
   updatePositions,
 } from "../cache.js";
 import type { ParsedFeed } from "../parser.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  closeDatabase,
+  createIntegrationTestDatabase,
+  createTestUserCredentials,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -114,9 +119,14 @@ function createMockParsedFeed(overrides: Partial<ParsedFeed> = {}): ParsedFeed {
 
 describe("Cache Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
+  let authHeaders: { Authorization: string };
+  let db: ReturnType<typeof createIntegrationTestDatabase>;
 
-  beforeEach(() => {
-    const db = createIntegrationTestDatabase();
+  beforeEach(async () => {
+    db = createIntegrationTestDatabase();
+    const userCreds = await createTestUserCredentials();
+    authHeaders = { Authorization: userCreds.authorizationHeader };
+
     app = createApp(
       TEST_STATIONS,
       TEST_ROUTES,
@@ -127,7 +137,7 @@ describe("Cache Integration Tests", () => {
   });
 
   afterEach(() => {
-    // Clean up test data
+    closeDatabase(db);
   });
 
   describe("Feed State Management", () => {
@@ -811,7 +821,7 @@ describe("Cache Integration Tests", () => {
 
       const res = await app.request("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "725",

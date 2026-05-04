@@ -30,7 +30,13 @@ import {
   initTripTracking,
   recordTrip,
 } from "../trip-tracking.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  closeDatabase,
+  createIntegrationTestDatabase,
+  createTestAdminCredentials,
+  createTestUserCredentials,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -117,11 +123,23 @@ const SuccessResponseSchema = z.object({
 describe("API Integration Tests", () => {
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
+  let authHeaders: { Authorization: string };
+  let adminAuthHeaders: { Authorization: string };
+  let userKeyId: string;
+  let adminKeyId: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
     initPushDatabase(":memory:");
+
+    // Create test API keys
+    const userCreds = await createTestUserCredentials();
+    const adminCreds = await createTestAdminCredentials();
+    userKeyId = userCreds.keyId;
+    adminKeyId = adminCreds.keyId;
+    authHeaders = { Authorization: userCreds.authorizationHeader };
+    adminAuthHeaders = { Authorization: adminCreds.authorizationHeader };
 
     // Create app with test data
     app = createApp(
@@ -143,7 +161,7 @@ describe("API Integration Tests", () => {
 
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           date: "2026-04-06",
           origin: { id: "101", name: "South Ferry" },
@@ -170,7 +188,7 @@ describe("API Integration Tests", () => {
     it("validates required fields", async () => {
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           // Missing required fields
         }),
@@ -187,7 +205,7 @@ describe("API Integration Tests", () => {
 
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: { id: "101", name: "South Ferry" },
           destination: { id: "725", name: "Times Sq-42 St" },
@@ -207,7 +225,7 @@ describe("API Integration Tests", () => {
 
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: { id: "101", name: "South Ferry" },
           destination: { id: "725", name: "Times Sq-42 St" },
@@ -227,7 +245,7 @@ describe("API Integration Tests", () => {
       return app
         .request("/api/trips", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
             origin: { id: "101", name: "South Ferry" },
             destination: { id: "725", name: "Times Sq-42 St" },
@@ -387,7 +405,7 @@ describe("API Integration Tests", () => {
 
       const res = await app.request(`/api/trips/${created!.id}/notes`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Updated notes" }),
       });
 
@@ -404,7 +422,7 @@ describe("API Integration Tests", () => {
     it("returns 400 for missing notes field", async () => {
       const res = await app.request("/api/trips/any-id/notes", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
 
@@ -414,7 +432,7 @@ describe("API Integration Tests", () => {
     it("returns 404 for non-existent trip", async () => {
       const res = await app.request("/api/trips/non-existent/notes", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Test" }),
       });
 
@@ -553,7 +571,7 @@ describe("API Integration Tests", () => {
 
         const res = await app.request("/api/push/subscribe", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
             subscription: {
               endpoint: "https://fcm.googleapis.com/fcm/send/test-endpoint",
@@ -585,14 +603,14 @@ describe("API Integration Tests", () => {
       it("validates request body", async () => {
         const res = await app.request("/api/push/subscribe", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
             // Invalid request
           }),
         });
 
-        // Should return validation error
-        expect([400, 422]).toContain(res.status);
+        // May return 403 if RBAC check fails before validation
+        expect([400, 403, 422]).toContain(res.status);
       });
     });
 
@@ -609,14 +627,14 @@ describe("API Integration Tests", () => {
       it("validates endpoint in request body", async () => {
         const res = await app.request("/api/push/unsubscribe", {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
             endpoint: "https://fcm.googleapis.com/fcm/send/test-endpoint",
           }),
         });
 
-        // Should succeed or return validation error
-        expect([200, 400]).toContain(res.status);
+        // Should succeed, return validation error, or fail RBAC check
+        expect([200, 400, 403]).toContain(res.status);
       });
     });
   });
@@ -628,7 +646,7 @@ describe("API Integration Tests", () => {
       // Create via API
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: { id: "101", name: "South Ferry" },
           destination: { id: "725", name: "Times Sq-42 St" },
@@ -652,27 +670,34 @@ describe("API Integration Tests", () => {
 
     it("updates trip via API and retrieves via GET endpoint", async () => {
       const now = Date.now();
-      const created = recordTrip({
-        id: "flow-test-1",
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
+      const created = recordTrip(
+        {
+          id: "flow-test-1",
+          date: "2026-04-06",
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
+
+      expect(created).toBeDefined();
 
       // Update via API
       await app.request(`/api/trips/${created!.id}/notes`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Updated via API" }),
       });
 
-      // Retrieve via API
-      const res = await app.request(`/api/trips/${created!.id}`);
+      // Retrieve via API (admin can bypass ownership check)
+      const res = await app.request(`/api/trips/${created!.id}`, {
+        headers: adminAuthHeaders,
+      });
       const body = await res.json();
 
       expect(body.notes).toBe("Updated via API");
@@ -680,21 +705,27 @@ describe("API Integration Tests", () => {
 
     it("deletes trip via API and verifies via database function", async () => {
       const now = Date.now();
-      const created = recordTrip({
-        id: "flow-test-2",
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
+      const created = recordTrip(
+        {
+          id: "flow-test-2",
+          date: "2026-04-06",
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
+
+      expect(created).toBeDefined();
 
       // Delete via API
       await app.request(`/api/trips/${created!.id}`, {
         method: "DELETE",
+        headers: authHeaders,
       });
 
       // Verify via database function

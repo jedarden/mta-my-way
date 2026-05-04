@@ -207,10 +207,11 @@ describe("Station API Integration Tests", () => {
     it("handles empty query string", async () => {
       const res = await app.request("/api/stations/search?q=");
 
-      expect(res.status).toBe(200);
+      // Empty query fails validation (schema requires min 1 character)
+      expect(res.status).toBe(400);
 
       const body = await res.json();
-      expect(Array.isArray(body)).toBe(true);
+      expect(body.error).toBeDefined();
     });
 
     it("handles special characters in search", async () => {
