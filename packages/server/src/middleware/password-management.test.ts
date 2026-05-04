@@ -290,9 +290,10 @@ describe("password-management", () => {
       const clientIp = "127.0.0.1";
 
       const { token, tokenId } = await generatePasswordResetToken(keyId, clientIp);
-      const validatedKeyId = await validatePasswordResetToken(tokenId, token, clientIp);
+      const result = await validatePasswordResetToken(tokenId, token, clientIp);
 
-      expect(validatedKeyId).toBe(keyId);
+      expect(result.keyId).toBe(keyId);
+      expect(result.deviceChanged).toBe(false);
     });
 
     it("should reject invalid tokens", async () => {
@@ -300,8 +301,8 @@ describe("password-management", () => {
       const token = "invalid-token";
       const clientIp = "127.0.0.1";
 
-      const validatedKeyId = await validatePasswordResetToken(tokenId, token, clientIp);
-      expect(validatedKeyId).toBeNull();
+      const result = await validatePasswordResetToken(tokenId, token, clientIp);
+      expect(result.keyId).toBeNull();
     });
 
     it("should reject tokens with wrong hash", async () => {
@@ -311,8 +312,8 @@ describe("password-management", () => {
       const { tokenId } = await generatePasswordResetToken(keyId, clientIp);
       const wrongToken = "a".repeat(64);
 
-      const validatedKeyId = await validatePasswordResetToken(tokenId, wrongToken, clientIp);
-      expect(validatedKeyId).toBeNull();
+      const result = await validatePasswordResetToken(tokenId, wrongToken, clientIp);
+      expect(result.keyId).toBeNull();
     });
   });
 
@@ -327,8 +328,8 @@ describe("password-management", () => {
       expect(consumed).toBe(true);
 
       // Token should no longer be valid
-      const validatedKeyId = await validatePasswordResetToken(tokenId, token, clientIp);
-      expect(validatedKeyId).toBeNull();
+      const result = await validatePasswordResetToken(tokenId, token, clientIp);
+      expect(result.keyId).toBeNull();
     });
 
     it("should return false for non-existent tokens", () => {

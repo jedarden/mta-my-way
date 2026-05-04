@@ -211,7 +211,8 @@ describe("Password Reset Flow Integration", () => {
   describe("POST /api/auth/password/reset/confirm", () => {
     it("should successfully reset password with valid token", async () => {
       // First, generate a reset token with user agent
-      const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+      const userAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
       const resetData = await generatePasswordResetToken(testUserId, "127.0.0.1", userAgent);
 
       // Verify device info was captured
@@ -392,7 +393,8 @@ describe("Password Reset Flow Integration", () => {
     });
 
     it("should validate token with matching device", async () => {
-      const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+      const userAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
       const resetData = await generatePasswordResetToken(testUserId, "127.0.0.1", userAgent);
 
       // Validate with same user agent

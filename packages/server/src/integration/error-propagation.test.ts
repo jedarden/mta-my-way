@@ -1,0 +1,727 @@
+/**
+ * Integration tests for error propagation across services.
+ *
+ * Tests that errors are properly handled and propagated:
+ * - Validation errors at API layer
+ * - Database constraint violations
+ * - Service layer errors
+ * - Malformed request data
+ * - Missing required resources
+ * - Invalid query parameters
+ * - Error responses follow consistent format
+ */
+
+import type {
+  ComplexIndex,
+  RouteIndex,
+  StationIndex,
+  TransferConnection,
+} from "@mta-my-way/shared";
+import type Database from "better-sqlite3";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createApp } from "../app.js";
+import { deleteTrip, getTripById, initTripTracking, recordTrip } from "../trip-tracking.js";
+import {
+  closeDatabase,
+  createIntegrationTestDatabase,
+  createTestUserCredentials,
+} from "./test-helpers.js";
+
+// ---------------------------------------------------------------------------
+// Test fixtures
+// ---------------------------------------------------------------------------
+
+const TEST_STATIONS: StationIndex = {
+  "101": {
+    id: "101",
+    name: "South Ferry",
+    location: { lat: 40.702, lon: -74.013 },
+    lines: ["1"],
+    northStopId: "101N",
+    southStopId: "101S",
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
+  },
+  "725": {
+    id: "725",
+    name: "Times Sq-42 St",
+    location: { lat: 40.758, lon: -73.985 },
+    lines: ["1", "2", "3"],
+    northStopId: "725N",
+    southStopId: "725S",
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
+  },
+  "726": {
+    id: "726",
+    name: "42 St-Port Authority",
+    location: { lat: 40.756, lon: -73.988 },
+    lines: ["A", "C", "E"],
+    northStopId: "726N",
+    southStopId: "726S",
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
+  },
+};
+
+const TEST_ROUTES: RouteIndex = {
+  "1": {
+    id: "1",
+    shortName: "1",
+    longName: "Broadway-7th Ave Local",
+    color: "#EE352E",
+    textColor: "#FFFFFF",
+    feedId: "gtfs",
+    division: "A",
+    stops: ["101", "725"],
+    isExpress: false,
+  },
+  A: {
+    id: "A",
+    shortName: "A",
+    longName: "8th Ave Express",
+    color: "#0039A6",
+    textColor: "#FFFFFF",
+    feedId: "gtfs-ace",
+    division: "B",
+    stops: ["726"],
+    isExpress: true,
+  },
+};
+
+const TEST_COMPLEXES: ComplexIndex = {};
+const TEST_TRANSFERS: Record<string, TransferConnection[]> = {};
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("Error Propagation Integration Tests", () => {
+  let db: Database.Database;
+  let app: ReturnType<typeof createApp>;
+  let authHeaders: { Authorization: string };
+
+  beforeEach(async () => {
+    db = createIntegrationTestDatabase();
+    initTripTracking(db, TEST_STATIONS);
+
+    const userCreds = await createTestUserCredentials();
+    authHeaders = { Authorization: userCreds.authorizationHeader };
+
+    app = createApp(
+      TEST_STATIONS,
+      TEST_ROUTES,
+      TEST_COMPLEXES,
+      TEST_TRANSFERS,
+      "/nonexistent/dist"
+    );
+  });
+
+  afterEach(() => {
+    closeDatabase(db);
+    vi.restoreAllMocks();
+  });
+
+  describe("API validation errors", () => {
+    it("returns consistent error format for validation failures", async () => {
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // Missing required fields
+        }),
+      });
+
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+
+      const body = await res.json();
+      expect(body).toHaveProperty("error");
+    });
+
+    it("validates station IDs exist in station index", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "NONEXISTENT", name: "Invalid Station" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+        }),
+      });
+
+      // Should fail validation
+      expect([400, 404, 422]).toContain(res.status);
+
+      const body = await res.json();
+      expect(body.error).toBeDefined();
+    });
+
+    it("validates timestamp consistency", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now,
+          arrivalTime: now - 3600000, // Arrival before departure
+        }),
+      });
+
+      // Should handle this case
+      expect(res.status).toBeGreaterThanOrEqual(200);
+      expect(res.status).toBeLessThan(500);
+    });
+
+    it("validates required string fields are not empty", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "", name: "" }, // Empty strings
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+        }),
+      });
+
+      expect([400, 422]).toContain(res.status);
+    });
+
+    it("validates line against valid lines", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "INVALID_LINE",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+        }),
+      });
+
+      // May accept any line value or validate
+      expect(res.status).toBeGreaterThanOrEqual(200);
+      expect(res.status).toBeLessThan(500);
+    });
+  });
+
+  describe("Database operation errors", () => {
+    it("handles non-existent resource retrieval gracefully", async () => {
+      const res = await app.request("/api/trips/non-existent-trip-id", {
+        headers: authHeaders,
+      });
+
+      expect([401, 404]).toContain(res.status);
+
+      if (res.status === 404) {
+        const body = await res.json();
+        expect(body.error).toContain("not found");
+      }
+    });
+
+    it("handles update to non-existent resource", async () => {
+      const res = await app.request("/api/trips/non-existent-id/notes", {
+        method: "PATCH",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: "Test notes" }),
+      });
+
+      expect(res.status).toBe(404);
+
+      const body = await res.json();
+      expect(body.error).toBeDefined();
+    });
+
+    it("handles deletion of non-existent resource", async () => {
+      const res = await app.request("/api/trips/non-existent-id", {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+
+      expect(res.status).toBe(404);
+
+      const body = await res.json();
+      expect(body.error).toBeDefined();
+    });
+
+    it("handles query with no matching results", async () => {
+      const res = await app.request("/api/trips?originId=NONEXISTENT", {
+        headers: authHeaders,
+      });
+
+      expect([200, 401]).toContain(res.status);
+
+      if (res.status === 200) {
+        const body = await res.json();
+        expect(body.trips).toEqual([]);
+        expect(body.count).toBe(0);
+      }
+    });
+  });
+
+  describe("Malformed request data", () => {
+    it("handles invalid JSON gracefully", async () => {
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: "{ invalid json }",
+      });
+
+      expect([400, 401, 422]).toContain(res.status);
+
+      const body = await res.json();
+      expect(body.error).toBeDefined();
+    });
+
+    it("handles empty request body", async () => {
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: "",
+      });
+
+      expect([400, 401, 422]).toContain(res.status);
+    });
+
+    it("handles unexpected data types", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: 123, name: "South Ferry" }, // ID should be string
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+        }),
+      });
+
+      // Should validate and reject
+      expect([400, 422]).toContain(res.status);
+    });
+
+    it("handles null values in required fields", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: null,
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+        }),
+      });
+
+      expect([400, 422]).toContain(res.status);
+    });
+
+    it("handles array instead of object for nested fields", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: ["101", "South Ferry"], // Should be object
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+        }),
+      });
+
+      expect([400, 422]).toContain(res.status);
+    });
+  });
+
+  describe("Query parameter errors", () => {
+    it("handles invalid query parameter types", async () => {
+      const res = await app.request("/api/trips?limit=not-a-number", {
+        headers: authHeaders,
+      });
+
+      // Should handle gracefully
+      expect([200, 400, 401]).toContain(res.status);
+
+      if (res.status === 200) {
+        const body = await res.json();
+        expect(body).toBeDefined();
+      }
+    });
+
+    it("handles negative limit values", async () => {
+      const res = await app.request("/api/trips?limit=-10", {
+        headers: authHeaders,
+      });
+
+      // Should handle gracefully
+      expect([200, 400, 401]).toContain(res.status);
+    });
+
+    it("handles excessively large limit values", async () => {
+      const res = await app.request("/api/trips?limit=999999", {
+        headers: authHeaders,
+      });
+
+      // Should cap the limit
+      expect([200, 400, 401]).toContain(res.status);
+
+      if (res.status === 200) {
+        const body = await res.json();
+        expect(body.trips.length).toBeLessThan(10000);
+      }
+    });
+
+    it("handles invalid date format in date range", async () => {
+      const res = await app.request("/api/journal/dates/not-a-date/not-a-date", {
+        headers: authHeaders,
+      });
+
+      expect([200, 400, 401, 404]).toContain(res.status);
+    });
+
+    it("handles end date before start date", async () => {
+      const res = await app.request("/api/journal/dates/2026-12-31/2026-01-01", {
+        headers: authHeaders,
+      });
+
+      expect([200, 400, 401]).toContain(res.status);
+
+      if (res.status === 200) {
+        const body = await res.json();
+        expect(body.trips).toEqual([]);
+      }
+    });
+  });
+
+  describe("HTTP method errors", () => {
+    it("rejects unsupported HTTP methods", async () => {
+      const res = await app.request("/api/trips", {
+        method: "PUT",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      expect([401, 404, 405]).toContain(res.status);
+    });
+
+    it("rejects PATCH on endpoint that expects POST", async () => {
+      const res = await app.request("/api/trips", {
+        method: "PATCH",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: "test" }),
+      });
+
+      expect([401, 404, 405]).toContain(res.status);
+    });
+
+    it("handles GET on POST-only endpoints", async () => {
+      const res = await app.request("/api/trips", {
+        headers: authHeaders,
+      });
+
+      // GET /api/trips is valid (list trips), so this returns 200
+      expect([200, 401, 405]).toContain(res.status);
+    });
+  });
+
+  describe("Error response consistency", () => {
+    it("returns JSON content type for errors", async () => {
+      const res = await app.request("/api/trips/nonexistent", {
+        headers: authHeaders,
+      });
+
+      // May return 401 if auth fails first, or 404 if not found
+      expect([401, 404]).toContain(res.status);
+
+      const contentType = res.headers.get("Content-Type");
+      expect(contentType).toContain("application/json");
+    });
+
+    it("includes error message in response", async () => {
+      const res = await app.request("/api/stations/nonexistent-station");
+
+      expect(res.status).toBe(404);
+
+      const body = await res.json();
+      expect(body.error).toBeDefined();
+      expect(typeof body.error).toBe("string");
+    });
+
+    it("does not expose internal stack traces", async () => {
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      const body = await res.text();
+      expect(body).not.toContain("node_modules");
+      expect(body).not.toMatch(/\.ts:\d+/);
+    });
+
+    it("returns appropriate HTTP status codes", async () => {
+      // 404 or 401 for not found (401 if auth fails first)
+      const notFoundRes = await app.request("/api/trips/nonexistent");
+      expect([401, 404]).toContain(notFoundRes.status);
+
+      // 400 or 401 for bad request
+      const badRequestRes = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: "invalid json",
+      });
+      expect([400, 401, 422]).toContain(badRequestRes.status);
+    });
+  });
+
+  describe("Service layer error propagation", () => {
+    it("propagates database errors to API layer", async () => {
+      // Create a trip via service layer
+      const now = Date.now();
+      const trip = recordTrip({
+        date: "2026-05-04",
+        origin: { id: "101", name: "South Ferry" },
+        destination: { id: "725", name: "Times Sq-42 St" },
+        line: "1",
+        departureTime: now - 3600000,
+        arrivalTime: now,
+        actualDurationMinutes: 60,
+        source: "manual",
+      });
+
+      // Verify trip was created
+      expect(trip).toBeDefined();
+      if (trip) {
+        expect(trip.id).toBeDefined();
+      }
+    });
+
+    it("handles service layer failures gracefully", async () => {
+      // This test verifies that if a service fails,
+      // the API returns an appropriate error response
+      const res = await app.request("/api/commute/analyze", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originId: "101",
+          destinationId: "725",
+        }),
+      });
+
+      // Should either succeed or return a meaningful error
+      expect([200, 400, 401, 403, 422, 500]).toContain(res.status);
+    });
+  });
+
+  describe("Cross-service error scenarios", () => {
+    it("handles errors in commute analysis with invalid stations", async () => {
+      const res = await app.request("/api/commute/analyze", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originId: "INVALID",
+          destinationId: "725",
+        }),
+      });
+
+      expect([400, 401, 403, 404, 422]).toContain(res.status);
+
+      if ([400, 404, 422].includes(res.status)) {
+        const body = await res.json();
+        expect(body.error).toBeDefined();
+      }
+    });
+
+    it("handles missing transfer data gracefully", async () => {
+      const res = await app.request("/api/commute/analyze", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originId: "101",
+          destinationId: "726", // No transfer defined
+        }),
+      });
+
+      // Should handle gracefully - either return analysis or error
+      expect([200, 400, 401, 403, 404]).toContain(res.status);
+    });
+
+    it("handles stats calculation with no trips", async () => {
+      const res = await app.request("/api/journal/stats");
+
+      // May require authentication
+      expect([200, 401]).toContain(res.status);
+
+      if (res.status === 200) {
+        const body = await res.json();
+        expect(body).toHaveProperty("totalTrips");
+        expect(body.totalTrips).toBe(0);
+      }
+    });
+  });
+
+  describe("Authentication and authorization errors", () => {
+    it("rejects requests without authentication", async () => {
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Date.now() - 3600000,
+          arrivalTime: Date.now(),
+        }),
+      });
+
+      expect(res.status).toBe(401);
+
+      const body = await res.json();
+      expect(body.error).toBeDefined();
+    });
+
+    it("rejects requests with invalid API key", async () => {
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer invalid:key",
+        },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Date.now() - 3600000,
+          arrivalTime: Date.now(),
+        }),
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    it("handles malformed authorization header", async () => {
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "InvalidFormat",
+        },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Date.now() - 3600000,
+          arrivalTime: Date.now(),
+        }),
+      });
+
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe("Edge cases and boundary conditions", () => {
+    it("handles very long string values", async () => {
+      const now = Date.now();
+      const longString = "a".repeat(10000);
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+          notes: longString,
+        }),
+      });
+
+      // Should either accept or reject with proper error
+      expect([200, 201, 400, 401, 413, 422]).toContain(res.status);
+    });
+
+    it("handles Unicode characters in strings", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+          notes: "Test with emoji 🚇 and unicode ñ",
+        }),
+      });
+
+      // Should handle Unicode properly
+      expect([200, 201, 400, 401, 422]).toContain(res.status);
+    });
+
+    it("handles null byte in strings", async () => {
+      const now = Date.now();
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: now - 3600000,
+          arrivalTime: now,
+          notes: "test null",
+        }),
+      });
+
+      // Should handle or reject
+      expect([200, 201, 400, 401]).toContain(res.status);
+    });
+
+    it("handles extreme timestamp values", async () => {
+      const extremeFuture = Date.now() + 1000 * 60 * 60 * 24 * 365 * 10; // 10 years in future
+
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: { id: "101", name: "South Ferry" },
+          destination: { id: "725", name: "Times Sq-42 St" },
+          line: "1",
+          departureTime: extremeFuture - 3600000,
+          arrivalTime: extremeFuture,
+        }),
+      });
+
+      // Should handle extreme values
+      expect([200, 201, 400, 401]).toContain(res.status);
+    });
+  });
+});

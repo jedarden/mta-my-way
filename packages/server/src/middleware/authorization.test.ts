@@ -9,6 +9,7 @@ import { type ApiKeyScope, type AuthContext, registerApiKey } from "./authentica
 import {
   type PermissionAction,
   type ResourceType,
+  _clearAllRateLimits,
   auditLogAccess,
   checkAuthorization,
   enforceRateLimitTier,
@@ -27,6 +28,9 @@ describe("Authorization Middleware", () => {
 
   beforeEach(async () => {
     app = new Hono();
+
+    // Clear rate limits before each test
+    _clearAllRateLimits();
 
     // Import apiKeyAuth middleware
     const authModule = await import("./authentication.js");
