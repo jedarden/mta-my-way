@@ -5,11 +5,12 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { _clearAllRateLimits } from "./auth-rate-limit.js";
 import { type ApiKeyScope, type AuthContext, registerApiKey } from "./authentication.js";
+import { resetAuthFailureTracking, resetSuspiciousActivityTracking } from "./authentication.js";
 import {
   type PermissionAction,
   type ResourceType,
-  _clearAllRateLimits,
   auditLogAccess,
   checkAuthorization,
   enforceRateLimitTier,
@@ -29,8 +30,10 @@ describe("Authorization Middleware", () => {
   beforeEach(async () => {
     app = new Hono();
 
-    // Clear rate limits before each test
+    // Clear rate limits and tracking before each test
     _clearAllRateLimits();
+    resetSuspiciousActivityTracking();
+    resetAuthFailureTracking();
 
     // Import apiKeyAuth middleware
     const authModule = await import("./authentication.js");
@@ -42,7 +45,7 @@ describe("Authorization Middleware", () => {
     );
 
     await registerApiKey({
-      keyId: "test-key-read",
+      keyId: "test_key_read",
       keyHash: hash,
       keySalt: salt,
       scope: "read",
@@ -53,7 +56,7 @@ describe("Authorization Middleware", () => {
     });
 
     await registerApiKey({
-      keyId: "test-key-write",
+      keyId: "test_key_write",
       keyHash: hash,
       keySalt: salt,
       scope: "write",
@@ -64,7 +67,7 @@ describe("Authorization Middleware", () => {
     });
 
     await registerApiKey({
-      keyId: "test-key-admin",
+      keyId: "test_key_admin",
       keyHash: hash,
       keySalt: salt,
       scope: "admin",
@@ -74,7 +77,7 @@ describe("Authorization Middleware", () => {
       expiresAt: 0,
     });
 
-    testApiKey = "test-key-read:test-secret-key";
+    testApiKey = "test_key_read:test-secret-key";
   });
 
   describe("requireResourceAccess", () => {
@@ -85,8 +88,8 @@ describe("Authorization Middleware", () => {
       const res = await app.request("/api/test");
 
       expect(res.status).toBe(401);
-      const body = await res.json();
-      expect(body.message).toBe("Authentication required");
+      const text = await res.text();
+      expect(text).toContain("Authentication required");
     });
 
     it("should deny read-only key for write action", async () => {
@@ -100,15 +103,15 @@ describe("Authorization Middleware", () => {
       });
 
       expect(res.status).toBe(403);
-      const body = await res.json();
-      expect(body.message).toContain("Insufficient permissions");
+      const text = await res.text();
+      expect(text).toContain("Insufficient permissions");
     });
 
     it("should allow write key for create action", async () => {
       app.use("/api/test", apiKeyAuth(), requireResourceAccess("trip", "create"));
       app.get("/api/test", (c) => c.json({ success: true }));
 
-      const writeKey = "test-key-write:test-secret-key";
+      const writeKey = "test_key_write:test-secret-key";
       const res = await app.request("/api/test", {
         headers: {
           Authorization: `Bearer ${writeKey}`,
@@ -124,7 +127,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/test", apiKeyAuth(), requireResourceAccess("trip", "delete"));
       app.get("/api/test", (c) => c.json({ success: true }));
 
-      const adminKey = "test-key-admin:test-secret-key";
+      const adminKey = "test_key_admin:test-secret-key";
       const res = await app.request("/api/test", {
         headers: {
           Authorization: `Bearer ${adminKey}`,
@@ -142,11 +145,12 @@ describe("Authorization Middleware", () => {
         apiKeyAuth(),
         requireResourceAccess("subscription", "update", {
           customCheck,
+          adminBypass: false, // Disable admin bypass to test custom check
         })
       );
       app.get("/api/test", (c) => c.json({ success: true }));
 
-      const adminKey = "test-key-admin:test-secret-key";
+      const adminKey = "test_key_admin:test-secret-key";
       const res = await app.request("/api/test", {
         headers: {
           Authorization: `Bearer ${adminKey}`,
@@ -179,15 +183,15 @@ describe("Authorization Middleware", () => {
       });
 
       expect(res.status).toBe(403);
-      const body = await res.json();
-      expect(body.message).toBe("Admin privileges required");
+      const text = await res.text();
+      expect(text).toContain("Admin privileges required");
     });
 
     it("should deny write key", async () => {
       app.use("/api/admin", apiKeyAuth(), requireAdmin());
       app.get("/api/admin", (c) => c.json({ success: true }));
 
-      const writeKey = "test-key-write:test-secret-key";
+      const writeKey = "test_key_write:test-secret-key";
       const res = await app.request("/api/admin", {
         headers: {
           Authorization: `Bearer ${writeKey}`,
@@ -201,7 +205,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/admin", apiKeyAuth(), requireAdmin());
       app.get("/api/admin", (c) => c.json({ success: true }));
 
-      const adminKey = "test-key-admin:test-secret-key";
+      const adminKey = "test_key_admin:test-secret-key";
       const res = await app.request("/api/admin", {
         headers: {
           Authorization: `Bearer ${adminKey}`,
@@ -240,7 +244,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/write", apiKeyAuth(), requireWrite());
       app.post("/api/write", (c) => c.json({ success: true }));
 
-      const writeKey = "test-key-write:test-secret-key";
+      const writeKey = "test_key_write:test-secret-key";
       const res = await app.request("/api/write", {
         method: "POST",
         headers: {
@@ -255,7 +259,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/write", apiKeyAuth(), requireWrite());
       app.post("/api/write", (c) => c.json({ success: true }));
 
-      const adminKey = "test-key-admin:test-secret-key";
+      const adminKey = "test_key_admin:test-secret-key";
       const res = await app.request("/api/write", {
         method: "POST",
         headers: {
@@ -272,7 +276,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/tier", apiKeyAuth(), enforceRateLimitTier(50));
       app.get("/api/tier", (c) => c.json({ success: true }));
 
-      const writeKey = "test-key-write:test-secret-key";
+      const writeKey = "test_key_write:test-secret-key";
       const res = await app.request("/api/tier", {
         headers: {
           Authorization: `Bearer ${writeKey}`,
@@ -286,7 +290,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/tier", apiKeyAuth(), enforceRateLimitTier(5));
       app.get("/api/tier", (c) => c.json({ success: true }));
 
-      const writeKey = "test-key-write:test-secret-key";
+      const writeKey = "test_key_write:test-secret-key";
       const res = await app.request("/api/tier", {
         headers: {
           Authorization: `Bearer ${writeKey}`,
@@ -294,8 +298,8 @@ describe("Authorization Middleware", () => {
       });
 
       expect(res.status).toBe(429);
-      const body = await res.json();
-      expect(body.message).toContain("Rate limit tier exceeded");
+      const text = await res.text();
+      expect(text).toContain("Rate limit tier exceeded");
     });
 
     it("should allow unauthenticated requests", async () => {
@@ -386,7 +390,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/data", apiKeyAuth(), validateDataAccess("subscription"));
       app.get("/api/data", (c) => c.json({ success: true }));
 
-      const adminKey = "test-key-admin:test-secret-key";
+      const adminKey = "test_key_admin:test-secret-key";
       const res = await app.request("/api/data?userId=other-user", {
         headers: {
           Authorization: `Bearer ${adminKey}`,
@@ -424,7 +428,7 @@ describe("Authorization Middleware", () => {
 
     it("should return denial for insufficient scope", () => {
       const auth: AuthContext = {
-        keyId: "test-key-read",
+        keyId: "test_key_read",
         scope: "read",
         rateLimitTier: 10,
         authMethod: "api_key",
@@ -479,7 +483,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/mfa", apiKeyAuth(), requireMfa());
       app.post("/api/mfa", (c) => c.json({ success: true }));
 
-      const writeKey = "test-key-write:test-secret-key";
+      const writeKey = "test_key_write:test-secret-key";
       const res = await app.request("/api/mfa", {
         method: "POST",
         headers: {
@@ -490,8 +494,8 @@ describe("Authorization Middleware", () => {
       // Should be either 403 (MFA required) or 429 (rate limited)
       expect([403, 429]).toContain(res.status);
       if (res.status === 403) {
-        const body = await res.json();
-        expect(body.message).toContain("Multi-factor authentication required");
+        const text = await res.text();
+        expect(text).toContain("Multi-factor authentication required");
       }
     });
 
@@ -521,7 +525,7 @@ describe("Authorization Middleware", () => {
       app.use("/api/audit", auditLogAccess("admin", "update"));
       app.get("/api/audit", (c) => c.json({ success: true }));
 
-      const adminKey = "test-key-admin:test-secret-key";
+      const adminKey = "test_key_admin:test-secret-key";
       await app.request("/api/audit", {
         headers: {
           Authorization: `Bearer ${adminKey}`,

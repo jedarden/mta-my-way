@@ -9,16 +9,26 @@
  */
 
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it } from "vitest";
-import { rateLimiter } from "./rate-limiter.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { rateLimiter, resetRateLimiter, setRateLimiterTestMode } from "./rate-limiter.js";
 
 describe("rateLimiter middleware", () => {
   let app: Hono;
 
   beforeEach(() => {
+    // Disable test mode so rate limiting actually works
+    setRateLimiterTestMode(false);
+    resetRateLimiter();
+
     app = new Hono();
     app.use("/api/*", rateLimiter());
     app.get("/api/test", (c) => c.json({ message: "ok" }));
+  });
+
+  afterEach(() => {
+    // Re-enable test mode for other tests
+    setRateLimiterTestMode(true);
+    resetRateLimiter();
   });
 
   it("allows requests within rate limit", async () => {

@@ -52,6 +52,12 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
   // Generation counter: any new fetch bumps the counter; stale responses bail out
   const fetchGenRef = useRef(0);
 
+  // Ref for store functions to avoid changing dependencies
+  const storesRef = useRef({ getStaleArrivals, setCachedArrivals, setLastFetch });
+  useEffect(() => {
+    storesRef.current = { getStaleArrivals, setCachedArrivals, setLastFetch };
+  }, [getStaleArrivals, setCachedArrivals, setLastFetch]);
+
   const fetchArrivals = useCallback(
     async (triggerHaptic = false) => {
       if (!stationId) return;
@@ -73,6 +79,7 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
         if (gen !== fetchGenRef.current) return; // superseded
 
         const now = Date.now();
+        const { setCachedArrivals, setLastFetch } = storesRef.current;
         setCachedArrivals(stationId, data);
         setLastFetch(now);
         setState({ status: "success", data, error: null, updatedAt: now });
@@ -88,6 +95,7 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
           errorMessage = err.message;
         }
 
+        const { getStaleArrivals } = storesRef.current;
         const stale = getStaleArrivals(stationId);
         setState({
           status: navigator.onLine ? "error" : "offline",
@@ -97,7 +105,7 @@ export function useArrivals(stationId: string | null): ArrivalsResult {
         });
       }
     },
-    [stationId, hapticFeedback, getStaleArrivals, setCachedArrivals, setLastFetch]
+    [stationId, hapticFeedback]
   );
 
   useEffect(() => {

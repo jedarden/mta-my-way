@@ -259,6 +259,7 @@ describe("Authentication Middleware", () => {
       const res = await app.request("/test", {
         headers: {
           Authorization: `Bearer ${sessionId}`,
+          "CF-Connecting-IP": "127.0.0.1",
         },
       });
 
@@ -479,9 +480,15 @@ describe("Authentication Middleware", () => {
     });
 
     it("should detect refresh token reuse and invalidate family", async () => {
-      const { refreshToken } = createSession("test_key_123", "127.0.0.1", "test-agent", undefined, {
-        createRefreshToken: true,
-      });
+      const { refreshToken } = await createSession(
+        "test_key_123",
+        "127.0.0.1",
+        "test-agent",
+        undefined,
+        {
+          createRefreshToken: true,
+        }
+      );
 
       // First use
       const firstResult = await refreshSession(refreshToken!, "127.0.0.1");
@@ -658,7 +665,7 @@ describe("Authentication Middleware", () => {
 
   describe("password policy validation", () => {
     it("should validate strong password", async () => {
-      const result = await validatePassword("StrongP@ssw0rd123");
+      const result = await validatePassword("MySecureP@ssw0rd!");
 
       expect(result.valid).toBe(true);
       expect(result.strength).toBeGreaterThan(50);
@@ -1380,7 +1387,7 @@ describe("Authentication Middleware", () => {
       expect(expiry!).toBeGreaterThan(Date.now());
 
       // Invalid token should return null
-      const invalidExpiry = checkRefreshTokenExpiry("invalid-token");
+      const invalidExpiry = await checkRefreshTokenExpiry("invalid-token");
       expect(invalidExpiry).toBeNull();
     });
 
@@ -1528,12 +1535,18 @@ describe("Authentication Middleware", () => {
       );
 
       // Try to refresh with the same token twice (simulating concurrent requests)
-      const result1 = refreshSession(refreshToken!, "127.0.0.1");
-      const result2 = refreshSession(refreshToken!, "127.0.0.1");
+      const results = await Promise.all([
+        refreshSession(refreshToken!, "127.0.0.1"),
+        refreshSession(refreshToken!, "127.0.0.1"),
+      ]);
 
-      // First refresh should succeed, second should fail (token reuse)
-      expect(result1).not.toBeNull();
-      expect(result2).toBeNull();
+      // One refresh should succeed, the other should fail (token reuse)
+      // The order depends on which promise resolves first
+      const successCount = results.filter((r) => r !== null).length;
+      const failCount = results.filter((r) => r === null).length;
+
+      expect(successCount).toBe(1);
+      expect(failCount).toBe(1);
     });
 
     it("should handle session revocation during refresh", async () => {
@@ -1575,7 +1588,7 @@ describe("Authentication Middleware", () => {
       );
 
       // Get refresh token expiry
-      const expiry = checkRefreshTokenExpiry(refreshToken!);
+      const expiry = await checkRefreshTokenExpiry(refreshToken!);
 
       // Should have a valid expiry time
       expect(expiry).not.toBeNull();
@@ -1594,7 +1607,7 @@ describe("Authentication Middleware", () => {
       );
 
       // Invalidate the refresh token
-      invalidateRefreshTokenByValue(refreshToken!);
+      await invalidateRefreshTokenByValue(refreshToken!);
 
       // Check expiry should return null
       const expiry = await checkRefreshTokenExpiry(refreshToken!);
@@ -1807,13 +1820,13 @@ describe("Authentication Middleware", () => {
       expect(result).toBeNull();
     });
 
-    it("should handle malformed refresh token", () => {
-      const result = refreshSession("invalid-token-format", "127.0.0.1");
+    it("should handle malformed refresh token", async () => {
+      const result = await refreshSession("invalid-token-format", "127.0.0.1");
       expect(result).toBeNull();
     });
 
-    it("should handle empty refresh token", () => {
-      const result = refreshSession("", "127.0.0.1");
+    it("should handle empty refresh token", async () => {
+      const result = await refreshSession("", "127.0.0.1");
       expect(result).toBeNull();
     });
   });
@@ -1975,7 +1988,7 @@ describe("Authentication Middleware", () => {
 
       // 3. Verify refresh token format and expiry
       expect(validateRefreshTokenFormat(initialRefreshToken!)).toBe(true);
-      const refreshExpiry = checkRefreshTokenExpiry(initialRefreshToken!);
+      const refreshExpiry = await checkRefreshTokenExpiry(initialRefreshToken!);
       expect(refreshExpiry).not.toBeNull();
       expect(refreshExpiry!).toBeGreaterThan(Date.now());
       expect(refreshExpiry!).toBeLessThanOrEqual(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
@@ -1994,7 +2007,7 @@ describe("Authentication Middleware", () => {
       expect(authRes.status).toBe(200);
 
       // 5. Refresh the session with the refresh token
-      const refreshResult = refreshSession(initialRefreshToken!, "127.0.0.1");
+      const refreshResult = await refreshSession(initialRefreshToken!, "127.0.0.1");
       expect(refreshResult).not.toBeNull();
       const { sessionId: newSessionId, newRefreshToken } = refreshResult!;
 
@@ -2016,7 +2029,7 @@ describe("Authentication Middleware", () => {
       expect(newSession?.expiresAt).toBeGreaterThan(initialSession!.expiresAt);
 
       // 8. Verify old refresh token is now invalid (single-use)
-      const secondRefreshAttempt = refreshSession(initialRefreshToken!, "127.0.0.1");
+      const secondRefreshAttempt = await refreshSession(initialRefreshToken!, "127.0.0.1");
       expect(secondRefreshAttempt).toBeNull();
 
       // 9. Use new session for authentication
@@ -2056,7 +2069,7 @@ describe("Authentication Middleware", () => {
       expect(revokedAuthRes.status).toBe(401);
 
       // 14. Verify refresh token is also invalidated
-      const finalRefreshExpiry = checkRefreshTokenExpiry(newRefreshToken);
+      const finalRefreshExpiry = await checkRefreshTokenExpiry(newRefreshToken);
       expect(finalRefreshExpiry).toBeNull();
     });
 
@@ -2138,7 +2151,7 @@ describe("Authentication Middleware", () => {
 
       // Verify all tokens are valid initially
       for (const token of refreshTokens) {
-        expect(checkRefreshTokenExpiry(token)).not.toBeNull();
+        expect(await checkRefreshTokenExpiry(token)).not.toBeNull();
       }
 
       // Invalidate all refresh tokens
@@ -2148,7 +2161,7 @@ describe("Authentication Middleware", () => {
 
       // Verify all tokens are now invalid
       for (const token of refreshTokens) {
-        expect(checkRefreshTokenExpiry(token)).toBeNull();
+        expect(await checkRefreshTokenExpiry(token)).toBeNull();
       }
 
       // Run cleanup

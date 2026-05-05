@@ -61,6 +61,8 @@ interface RateLimitEntry {
   count: number;
   /** Window start time */
   windowStart: number;
+  /** Window duration in ms */
+  windowMs: number;
   /** Last violation time */
   lastViolation?: number;
   /** Violation count */
@@ -185,6 +187,7 @@ function checkRateLimit(
     rateLimitStore.set(identifier, {
       count: 1,
       windowStart: now,
+      windowMs: config.windowMs,
       violationCount: 0,
     });
     return {
@@ -211,10 +214,11 @@ function checkRateLimit(
   }
 
   // Check if window has expired
-  if (now - entry.windowStart >= config.windowMs) {
+  if (now - entry.windowStart >= entry.windowMs) {
     // Reset window
     entry.count = 1;
     entry.windowStart = now;
+    entry.windowMs = config.windowMs;
     rateLimitStore.set(identifier, entry);
     return {
       allowed: true,
@@ -528,7 +532,7 @@ export function cleanupRateLimits(): number {
 
   for (const [identifier, entry] of rateLimitStore.entries()) {
     // Remove entries whose window has expired and are not banned
-    if (!entry.banned && now - entry.windowStart >= DEFAULT_RATE_LIMITS.standard.windowMs) {
+    if (!entry.banned && now - entry.windowStart >= entry.windowMs) {
       rateLimitStore.delete(identifier);
       cleaned++;
     }

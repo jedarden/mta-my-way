@@ -159,7 +159,8 @@ describe("Security Middleware Integration Tests", () => {
         body: "{ broken",
       });
 
-      expect([400, 401, 422]).toContain(res.status);
+      // RBAC middleware may return 403 for unauthorized access
+      expect([400, 401, 403, 422]).toContain(res.status);
     });
 
     it("POST /api/commute/analyze with malformed JSON returns error", async () => {
@@ -226,7 +227,8 @@ describe("Security Middleware Integration Tests", () => {
         body: JSON.stringify({}),
       });
 
-      expect([400, 401]).toContain(res.status);
+      // RBAC middleware may return 403 for unauthorized access
+      expect([400, 401, 403]).toContain(res.status);
     });
   });
 
@@ -356,7 +358,8 @@ describe("Security Middleware Integration Tests", () => {
       const res = await app.request("/api/trips/..%2F..%2Fconfig", {
         headers: authHeaders,
       });
-      expect([400, 404, 401]).toContain(res.status);
+      // RBAC middleware may return 403 for unauthorized access
+      expect([400, 404, 401, 403]).toContain(res.status);
     });
 
     it("null byte in station ID parameter is handled safely", async () => {

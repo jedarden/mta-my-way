@@ -44,6 +44,7 @@ import {
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
+  requestWithAuthAndCsrf,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -819,14 +820,19 @@ describe("Cache Integration Tests", () => {
 
       updateArrivals(new Map([["101", arrivals]]));
 
-      const res = await app.request("/api/commute/analyze", {
-        method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          originId: "101",
-          destinationId: "725",
-        }),
-      });
+      const res = await requestWithAuthAndCsrf(
+        app,
+        "/api/commute/analyze",
+        authHeaders,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            originId: "101",
+            destinationId: "725",
+          }),
+        }
+      );
 
       expect(res.status).toBe(200);
 

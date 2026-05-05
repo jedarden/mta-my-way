@@ -19,6 +19,13 @@ import type { MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import {
+  generatePasswordResetToken,
+  getPasswordPolicyDescription,
+  hashPassword,
+  invalidateAllSessionsForKey,
+  verifyPasswordHash,
+} from "../middleware/authentication.js";
+import {
   type Permission,
   auditLogAccess,
   getRbacAuthContext,
@@ -28,16 +35,11 @@ import {
 import { authRateLimit, requireCaptcha } from "../middleware/index.js";
 import {
   consumePasswordResetToken,
-  generatePasswordResetToken,
   getDeviceInfo,
-  getPasswordPolicyDescription,
-  hashPassword,
-  invalidateAllSessionsForKey,
   invalidateResetTokensForKey,
   storePasswordInHistory,
   validatePassword,
   validatePasswordResetToken,
-  verifyPasswordHash,
 } from "../middleware/password-management.js";
 import { securityLogger } from "../middleware/security-logging.js";
 import { logger } from "../observability/logger.js";

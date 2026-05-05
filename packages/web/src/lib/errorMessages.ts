@@ -192,7 +192,7 @@ function getContextualErrorMessage(
 /**
  * Get default error messages by type (no context)
  */
-function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserErrorMessage {
+export function getDefaultErrorMessage(errorType: ApiErrorType | ErrorCategory): UserErrorMessage {
   switch (errorType) {
     case ApiErrorTypeEnum.OFFLINE:
     case ErrorCategory.OFFLINE:

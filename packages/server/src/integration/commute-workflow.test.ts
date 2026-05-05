@@ -11,15 +11,13 @@
 
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { calculateCommuteStats, initTripTracking, recordTrip } from "../trip-tracking.js";
 import {
-  calculateCommuteStats,
-  initTripTracking,
-  recordTrip,
-} from "../trip-tracking.js";
-import {
+  TEST_STATIONS,
+  clearAllTrips,
+  clearCommuteStatsCache,
   closeDatabase,
   createIntegrationTestDatabase,
-  TEST_STATIONS,
 } from "./test-helpers.js";
 
 describe("Commute Analysis Workflow Integration Tests", () => {
@@ -31,6 +29,8 @@ describe("Commute Analysis Workflow Integration Tests", () => {
   });
 
   afterEach(() => {
+    clearAllTrips(db);
+    clearCommuteStatsCache(db);
     closeDatabase(db);
   });
 
@@ -132,8 +132,8 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       const stats = calculateCommuteStats("test-commute");
 
-      // The implementation uses Math.floor(length / 2), so for [40,50,60,70] it picks index 2 = 60
-      expect(stats?.medianDurationMinutes).toBe(60);
+      // Median of [40, 50, 60, 70] = (50 + 60) / 2 = 55
+      expect(stats?.medianDurationMinutes).toBe(55);
     });
 
     it("calculates standard deviation correctly", () => {
@@ -196,7 +196,7 @@ describe("Commute Analysis Workflow Integration Tests", () => {
     it("calculates on-time percentage correctly", () => {
       const now = Date.now();
 
-      // 2 on-time, 2 late, 1 early (considered on time)
+      // 3 on-time (60, 58, 60), 2 late (70, 65)
       recordTrip({
         date: "2026-05-04",
         origin: { stationId: "101", stationName: "South Ferry" },
@@ -260,7 +260,7 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       const stats = calculateCommuteStats("test-commute");
 
       expect(stats?.totalTrips).toBe(5);
-      expect(stats?.onTimePercentage).toBe(80); // 4 out of 5 within 2 minutes
+      expect(stats?.onTimePercentage).toBe(60); // 3 out of 5 within 2 minutes (60, 58, 60 are on time; 70, 65 are late)
     });
 
     it("handles trips without scheduled duration", () => {

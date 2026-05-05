@@ -85,6 +85,8 @@ function interpolateTrainPositions(
       progress,
       destination: train.destination,
       isAssigned: train.isAssigned,
+      isRerouted: train.isRerouted,
+      isExpress: train.isExpress,
       delay: train.delay,
     };
   });

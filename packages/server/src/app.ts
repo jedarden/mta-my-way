@@ -89,14 +89,17 @@ import {
   // verifyTotpCode,
 } from "./middleware/authentication.js";
 import {
+  apiKeyAuth,
   auditLogAccess,
+  cors,
   csrfProtection,
-  getCsrfToken,
+  generateCsrfToken,
   hostHeaderProtection,
   hppProtection,
   httpRequestSmuggling,
   httpResponseSplitting,
   inputSanitization,
+  optionalAuth,
   rateLimiter,
   requestSizeLimits,
   requireResourceAccess,
@@ -424,6 +427,11 @@ export function createApp(
   // Input sanitization for all API routes (XSS, SQL injection prevention)
   app.use("/api/*", inputSanitization());
 
+  // Optional authentication for all API routes
+  // Parses Authorization header and sets auth context if present
+  // Individual routes can require specific permissions using requirePermission
+  app.use("/api/*", optionalAuth({ allowSessions: true }));
+
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
   // NOTE: /api/context, /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
@@ -450,6 +458,7 @@ export function createApp(
         // "/api/auth/session", // DISABLED: Feature not used by frontend
         "/api/auth/password",
         "/api/csrf-token",
+        "/api/security/csp-report", // CSP violation reports (browser-initiated)
       ],
     })
   );
@@ -484,21 +493,19 @@ export function createApp(
   // -------------------------------------------------------------------------
   // CSRF token endpoint
   // -------------------------------------------------------------------------
-  app.get("/api/csrf-token", (c) => {
-    const token = getCsrfToken(c);
-    if (!token) {
-      // Generate a new token if none exists
-      const array = new Uint8Array(32);
-      crypto.getRandomValues(array);
-      const newToken = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+  app.get(
+    "/api/csrf-token",
+    cors({
+      allowedOrigins: ["*"], // Allow all origins for CSRF token
+      allowedMethods: ["GET"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    }),
+    (c) => {
+      const token = generateCsrfToken();
 
-      c.header("Set-Cookie", `csrf_token=${newToken}; Path=/; SameSite=Strict; HttpOnly; Secure`);
-
-      return c.json({ token: newToken });
+      return c.json({ token });
     }
-
-    return c.json({ token });
-  });
+  );
 
   // -------------------------------------------------------------------------
   // Health endpoint
@@ -645,7 +652,7 @@ export function createApp(
   // -------------------------------------------------------------------------
   // Real-time arrivals
   // -------------------------------------------------------------------------
-  app.get("/api/arrivals/:stationId", (c) => {
+  app.get("/api/arrivals/:id", (c) => {
     const params = validateParams(c, stationIdParamsSchema);
     if (params instanceof Response) return params;
 
@@ -953,7 +960,7 @@ export function createApp(
     return c.json({ stations: summaries, count: summaries.length });
   });
 
-  app.get("/api/equipment/:stationId", (c) => {
+  app.get("/api/equipment/:id", (c) => {
     const params = validateParams(c, stationIdParamsSchema);
     if (params instanceof Response) return params;
 
@@ -1446,21 +1453,41 @@ export function createApp(
         const body = await validateBody(c, tripCreateRequestSchema);
         if (body instanceof Response) return body;
 
-        const { date, origin, destination, line, departureTime, arrivalTime, notes } = body;
+        const {
+          date,
+          origin,
+          destination,
+          line,
+          departureTime,
+          arrivalTime,
+          actualDurationMinutes: providedActualDuration,
+          scheduledDurationMinutes,
+          notes,
+        } = body;
 
-        const actualDurationMinutes = Math.round((arrivalTime - departureTime) / 60000);
+        // Calculate actual duration if not provided
+        const actualDurationMinutes =
+          providedActualDuration ?? Math.round((arrivalTime - departureTime) / 60);
+
+        // Convert station IDs to station objects
+        const originStation = stations[origin];
+        const destStation = stations[destination];
+        if (!originStation || !destStation) {
+          return c.json({ error: "Invalid station ID" }, 400);
+        }
 
         // Use authenticated user's keyId as owner
         const ownerId = auth?.keyId || "anonymous";
         const trip = recordTrip(
           {
             date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
-            origin,
-            destination,
+            origin: { stationId: origin, stationName: originStation.name },
+            destination: { stationId: destination, stationName: destStation.name },
             line,
             departureTime,
             arrivalTime,
             actualDurationMinutes,
+            scheduledDurationMinutes,
             source: "manual",
             notes,
           },

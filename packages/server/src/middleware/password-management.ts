@@ -648,13 +648,20 @@ export async function validatePassword(
   }
 
   // Sanitize input to prevent injection attacks (without length truncation since we already checked)
+  // For passwords, we only do basic sanitization - no SQL/Command injection prevention
+  // since those would incorrectly reject valid passwords containing words like "or", "and", etc.
   const sanitizedPassword = sanitizeStringSimple(password, {
     maxLength: password.length, // Don't truncate, we already validated length
     preserveCase: true,
     preserveWhitespace: mergedPolicy.allowSpaces,
+    preventSqlInjection: false, // Don't prevent SQL injection in passwords
+    preventCommandInjection: false, // Don't prevent command injection in passwords
+    preventLdapInjection: false, // Don't prevent LDAP injection in passwords
+    preventNosqlInjection: false, // Don't prevent NoSQL injection in passwords
   });
 
   // Check if sanitization changed the password (injection patterns detected)
+  // We only check for XSS patterns in passwords since those are actual security risks
   if (sanitizedPassword !== password) {
     errors.push("Password contains invalid characters");
     return {
@@ -1146,18 +1153,18 @@ export function getDeviceInfo(userAgent?: string): {
     browser = "Brave";
   }
 
-  // Detect OS
+  // Detect OS - check mobile OS first before desktop
   let os = "Unknown";
-  if (/windows/i.test(ua)) {
+  if (/android/i.test(ua)) {
+    os = "Android";
+  } else if (/ios|iphone|ipad|ipod/i.test(ua)) {
+    os = "iOS";
+  } else if (/windows/i.test(ua)) {
     os = "Windows";
   } else if (/macintosh|mac os x/i.test(ua)) {
     os = "macOS";
   } else if (/linux/i.test(ua)) {
     os = "Linux";
-  } else if (/android/i.test(ua)) {
-    os = "Android";
-  } else if (/ios|iphone|ipad|ipod/i.test(ua)) {
-    os = "iOS";
   }
 
   return { deviceType, browser, os };
@@ -1496,15 +1503,49 @@ export function generateSecurePassword(
     charset = lowercase + numbers;
   }
 
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
-
+  // Ensure at least one character from each selected type is included
   let password = "";
-  for (let i = 0; i < length; i++) {
-    password += charset[array[i]! % charset.length];
+  const guaranteed: string[] = [];
+  if (includeLowercase) {
+    const array = new Uint8Array(1);
+    crypto.getRandomValues(array);
+    guaranteed.push(lowercase[array[0]! % lowercase.length]!);
+  }
+  if (includeUppercase) {
+    const array = new Uint8Array(1);
+    crypto.getRandomValues(array);
+    guaranteed.push(uppercase[array[0]! % uppercase.length]!);
+  }
+  if (includeNumbers) {
+    const array = new Uint8Array(1);
+    crypto.getRandomValues(array);
+    guaranteed.push(numbers[array[0]! % numbers.length]!);
+  }
+  if (includeSpecialChars) {
+    const array = new Uint8Array(1);
+    crypto.getRandomValues(array);
+    guaranteed.push(special[array[0]! % special.length]!);
   }
 
-  return password;
+  // Fill the rest randomly
+  const remainingLength = length - guaranteed.length;
+  if (remainingLength > 0) {
+    const array = new Uint8Array(remainingLength);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < remainingLength; i++) {
+      password += charset[array[i]! % charset.length];
+    }
+  }
+
+  // Add guaranteed characters and shuffle
+  password += guaranteed.join("");
+  const passwordArray = password.split("");
+  for (let i = passwordArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [passwordArray[i], passwordArray[j]] = [passwordArray[j]!, passwordArray[i]!];
+  }
+
+  return passwordArray.join("");
 }
 
 /**

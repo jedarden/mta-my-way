@@ -51,39 +51,39 @@ export function useErrorHandler(): ErrorHandlerResult {
     retryCount: 0,
   });
 
-  const handleError = useCallback(
-    (error: unknown) => {
+  const handleError = useCallback((error: unknown) => {
+    setState((prevState) => {
       if (error instanceof EnhancedApiError) {
-        setState({
+        const defaultErrorMessage = ERROR_MESSAGES[error.type];
+        return {
           hasError: true,
-          errorMessage: ERROR_MESSAGES[error.type] || error.message,
+          errorMessage: defaultErrorMessage || "Something went wrong. Please try again.",
           errorType: error.type,
-          canRetry: error.retryable && state.retryCount < MAX_RETRIES,
+          canRetry: error.retryable && prevState.retryCount < MAX_RETRIES,
           isRetrying: false,
-          retryCount: state.retryCount,
-        });
+          retryCount: prevState.retryCount,
+        };
       } else if (error instanceof Error) {
-        setState({
+        return {
           hasError: true,
           errorMessage: error.message || "Something went wrong. Please try again.",
           errorType: ApiErrorType.UNKNOWN,
-          canRetry: state.retryCount < MAX_RETRIES,
+          canRetry: prevState.retryCount < MAX_RETRIES,
           isRetrying: false,
-          retryCount: state.retryCount,
-        });
+          retryCount: prevState.retryCount,
+        };
       } else {
-        setState({
+        return {
           hasError: true,
           errorMessage: "Something went wrong. Please try again.",
           errorType: ApiErrorType.UNKNOWN,
-          canRetry: state.retryCount < MAX_RETRIES,
+          canRetry: prevState.retryCount < MAX_RETRIES,
           isRetrying: false,
-          retryCount: state.retryCount,
-        });
+          retryCount: prevState.retryCount,
+        };
       }
-    },
-    [state.retryCount]
-  );
+    });
+  }, []);
 
   const clearError = useCallback(() => {
     setState((prev) => ({

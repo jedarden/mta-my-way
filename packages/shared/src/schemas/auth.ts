@@ -12,15 +12,18 @@ import { z } from "zod";
 export const passwordResetRequestSchema = z.object({
   email: z
     .string()
-    .min(1, "Email is required")
+    .trim()
+    .refine((val) => val.length > 0, {
+      message: "Email is required",
+    })
     .max(254, "Email is too long")
-    .email("Invalid email format")
     .refine((val) => !/<[^>]*>/.test(val), {
       message: "Email cannot contain HTML tags",
     })
     .refine((val) => !/on\w+\s*=/i.test(val), {
       message: "Email cannot contain event handlers",
     })
+    .email("Invalid email format")
     .toLowerCase(),
 });
 
@@ -83,13 +86,19 @@ export const passwordComplexitySchema = z
     message: "Password cannot contain keyboard patterns (e.g., qwerty, asdf, zxcv)",
   })
   .refine(
-    (val) => !/^(password|admin|welcome|login|letmein|monkey|dragon|master|qwerty)$/i.test(val),
+    (val) => !/^(password|admin|welcome|login|letmein|monkey|dragon|master|qwerty)/i.test(val),
     {
       message: "Password is too common or weak",
     }
   )
-  .refine((val) => !/^(password|admin|welcome|login)\d+$/i.test(val), {
+  .refine((val) => !/^(password|admin|welcome|login)\d/i.test(val), {
     message: "Password contains a common pattern with numbers",
+  })
+  .refine((val) => val.trim() === val, {
+    message: "Password must not have leading or trailing spaces",
+  })
+  .refine((val) => !/\s{2,}/.test(val), {
+    message: "Password must not have consecutive spaces",
   });
 
 /**

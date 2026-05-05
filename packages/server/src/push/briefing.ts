@@ -52,9 +52,9 @@ let lastCheckDate = "";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function isQuietHours(config: QuietHoursConfig): boolean {
+export function isQuietHours(config: QuietHoursConfig): boolean {
   if (!config.enabled) return false;
-  const currentHour = new Date().getHours();
+  const currentHour = new Date().getUTCHours();
   if (config.startHour <= config.endHour) {
     return currentHour >= config.startHour && currentHour < config.endHour;
   }
@@ -71,7 +71,7 @@ function getTodayKey(): string {
  * Checks current alerts against the subscription's favorite lines and
  * composes a concise status text.
  */
-function buildBriefingPayload(
+export function buildBriefingPayload(
   favorites: PushFavoriteTuple[],
   morningScores: MorningScoreMap
 ): PushNotificationPayload | null {

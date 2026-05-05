@@ -19,7 +19,13 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { getArrivals, setArrivalsForTesting } from "../cache.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  closeDatabase,
+  createIntegrationTestDatabase,
+  createTestUserCredentials,
+  requestWithAuthAndCsrf,
+} from "./test-helpers.js";
 
 // Import ParsedAlert type for test data
 import type { ParsedAlert } from "../alerts-parser.js";
@@ -74,8 +80,9 @@ const TEST_TRANSFERS: Record<string, TransferConnection[]> = {
 
 describe("Commute Analysis Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
+  let authHeaders: { Authorization: string };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const db = createIntegrationTestDatabase();
     app = createApp(
       TEST_STATIONS,
@@ -84,11 +91,42 @@ describe("Commute Analysis Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
+
+    // Create test API key for authentication
+    const creds = await createTestUserCredentials();
+    authHeaders = { Authorization: creds.authorizationHeader };
   });
 
   afterEach(() => {
     // Clean up test data
   });
+
+  /**
+   * Helper to get a CSRF token from the test app.
+   */
+  async function getCsrfToken(): Promise<string> {
+    const res = await app.request("/api/csrf-token");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    return body.token as string;
+  }
+
+  /**
+   * Helper to make a state-changing request with CSRF token.
+   */
+  async function requestWithCsrf(
+    path: string,
+    options: RequestInit = {}
+  ): Promise<Response> {
+    const token = await getCsrfToken();
+    return app.request(path, {
+      ...options,
+      headers: {
+        ...options.headers,
+        "X-CSRF-Token": token,
+      },
+    });
+  }
 
   describe("POST /api/commute/analyze", () => {
     beforeEach(() => {
@@ -199,9 +237,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("analyzes direct route between stations", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "725",
@@ -218,9 +256,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("includes transfer routes when available", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "726",
@@ -244,9 +282,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("filters by preferred lines", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "725",
@@ -266,9 +304,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("uses custom commuteId", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "725",
@@ -283,9 +321,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("returns 404 for invalid origin station", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "999",
           destinationId: "725",
@@ -299,9 +337,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("returns 404 for invalid destination station", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "999",
@@ -315,9 +353,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("includes cache headers", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "725",
@@ -331,9 +369,9 @@ describe("Commute Analysis Integration Tests", () => {
 
     it("handles analysis errors gracefully", async () => {
       // Test with valid stations but potentially problematic data
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "102",
@@ -371,9 +409,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("integrates with cache for arrivals", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "725",
@@ -393,17 +431,27 @@ describe("Commute Analysis Integration Tests", () => {
         destinationId: "725",
       });
 
-      const res1 = await app.request("/api/commute/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody,
-      });
+      const res1 = await requestWithAuthAndCsrf(
+        app,
+        "/api/commute/analyze",
+        authHeaders,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        }
+      );
 
-      const res2 = await app.request("/api/commute/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody,
-      });
+      const res2 = await requestWithAuthAndCsrf(
+        app,
+        "/api/commute/analyze",
+        authHeaders,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        }
+      );
 
       expect(res1.status).toBe(200);
       expect(res2.status).toBe(200);
@@ -419,9 +467,9 @@ describe("Commute Analysis Integration Tests", () => {
 
   describe("Accessible Mode", () => {
     it("filters routes for accessibility when enabled", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "726",
@@ -442,9 +490,9 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("returns all routes when accessibility is disabled", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf("/api/commute/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           originId: "101",
           destinationId: "726",

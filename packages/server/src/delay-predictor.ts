@@ -785,7 +785,20 @@ export function getDelayPredictorStatus(): {
   return {
     totalRecords: delayRecords.length,
     aggregatedPatterns: aggregatedStats.size,
-    minObservations: config.minObservations,
+    minObservations: config?.minObservations ?? MIN_OBSERVATIONS_FOR_PREDICTION,
     currentWeather: weatherOverride ?? currentWeather,
   };
+}
+
+/**
+ * Initialize delay predictor with default config for testing.
+ */
+export function initDelayPredictorForTesting(): void {
+  config = {
+    maxRecords: MAX_DELAY_RECORDS,
+    minObservations: MIN_OBSERVATIONS_FOR_PREDICTION,
+    persistencePath: "",
+  };
+  _travelTimes = {};
+  stations = {};
 }

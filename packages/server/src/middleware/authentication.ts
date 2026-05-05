@@ -25,6 +25,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
+import { getRolePermissions } from "./roles.js";
 import {
   sanitizeObject,
   sanitizeStringSimple,
@@ -622,6 +623,32 @@ export function getApiKeyById(keyId: string): ApiKey | undefined {
 }
 
 /**
+ * Revoke an API key by deactivating it.
+ * Returns true if the key was found and revoked, false otherwise.
+ */
+export function revokeApiKey(keyId: string): boolean {
+  const apiKey = getApiKeyById(keyId);
+  if (!apiKey) {
+    logger.warn("Attempted to revoke non-existent API key", { keyId });
+    return false;
+  }
+
+  apiKey.active = false;
+  apiKeys.set(keyId, apiKey);
+  logger.info("API key revoked", { keyId });
+
+  return true;
+}
+
+/**
+ * Get all registered API keys.
+ * Returns an array of all API keys in the system.
+ */
+export function getRegisteredApiKeys(): ApiKey[] {
+  return Array.from(apiKeys.values());
+}
+
+/**
  * Get an API key by ID (internal use).
  */
 function getApiKey(keyId: string): ApiKey | undefined {
@@ -713,9 +740,6 @@ export function revokePermissionsFromApiKey(keyId: string, permissions: Permissi
 export function getApiKeyPermissions(keyId: string): Permission[] {
   const apiKey = getApiKeyById(keyId);
   if (!apiKey) return [];
-
-  // Import here to avoid circular dependency
-  const { getRolePermissions } = require("./rbac.js");
 
   const role = apiKey.role || "guest";
   const rolePermissions = getRolePermissions(role);
@@ -1152,7 +1176,7 @@ export async function createSession(
 /**
  * Get a session by ID.
  */
-function getSession(sessionId: string): AuthSession | undefined {
+export function getSession(sessionId: string): AuthSession | undefined {
   return sessions.get(sessionId);
 }
 
@@ -1383,17 +1407,24 @@ export function invalidateAllSessionsForKey(keyId: string): number {
  *
  * If encryption is configured, the token will be encrypted at rest.
  * A token fingerprint is generated for audit logging without exposing the token.
+ *
+ * @param sessionId - The session ID to associate with the token
+ * @param keyId - The API key ID to associate with the token
+ * @param clientIp - The client IP address
+ * @param rotationFamily - Optional existing rotation family (for token rotation)
  */
 async function createRefreshTokenInternal(
   sessionId: string,
   keyId: string,
-  clientIp: string
+  clientIp: string,
+  rotationFamily?: string
 ): Promise<{ tokenId: string; token: string; tokenFingerprint: string }> {
   const tokenId = crypto.randomUUID();
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   const token = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
-  const rotationFamily = crypto.randomUUID();
+  // Generate new rotation family if not provided (for initial token creation)
+  const tokenRotationFamily = rotationFamily || crypto.randomUUID();
 
   // Generate token fingerprint for audit logging
   const tokenFingerprint = await generateTokenFingerprint(token);
@@ -1425,7 +1456,7 @@ async function createRefreshTokenInternal(
     expiresAt: Date.now() + REFRESH_TOKEN_TTL_MS,
     used: false,
     clientIp,
-    rotationFamily,
+    rotationFamily: tokenRotationFamily,
     isEncrypted: !!encryptedToken,
   };
 
@@ -1563,7 +1594,8 @@ export async function refreshSession(
   const newRefreshTokenData = await createRefreshTokenInternal(
     newSessionId,
     tokenData.keyId,
-    clientIp
+    clientIp,
+    tokenData.rotationFamily
   );
 
   // Update session with new refresh token ID
@@ -2075,8 +2107,7 @@ function extractSessionToken(c: Context): string | null {
       return token;
     }
 
-    // Invalid format - log and reject
-    securityLogger.logAuthFailure(c, "invalid_session_token_format");
+    // Not a valid session token format - return null to allow API key auth to proceed
     return null;
   }
 
@@ -2088,8 +2119,7 @@ function extractSessionToken(c: Context): string | null {
       return sessionToken;
     }
 
-    // Invalid format - log and reject
-    securityLogger.logAuthFailure(c, "invalid_session_token_format");
+    // Not a valid session token format - return null to allow API key auth to proceed
     return null;
   }
 
@@ -2359,7 +2389,7 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
       const { keyId, secret } = apiKeyData;
       const apiKey = getApiKey(keyId);
 
-      if (apiKey && apiKey.active && verifyApiKeySecret(keyId, secret)) {
+      if (apiKey && apiKey.active && (await verifyApiKeySecret(keyId, secret))) {
         const authContext: AuthContext = {
           keyId: apiKey.keyId,
           scope: apiKey.scope,

@@ -25,10 +25,14 @@ import {
   revokePermissionsFromApiKey as authRevokePermissions,
   getAuthContext,
 } from "./authentication.js";
+import { getRolePermissions as getRolePerms } from "./roles.js";
 import { securityLogger } from "./security-logging.js";
 
 // Re-export the types from authentication for convenience
 export type { UserRole, Permission } from "./authentication.js";
+
+// Re-export getRolePermissions from roles.ts for backward compatibility
+export { getRolePerms as getRolePermissions };
 
 // ============================================================================
 // Type Definitions
@@ -275,27 +279,6 @@ export function buildPermission(
 }
 
 /**
- * Get all permissions for a role including inherited permissions.
- */
-export function getRolePermissions(role: UserRole): Permission[] {
-  const roleDef = ROLE_DEFINITIONS.get(role);
-  if (!roleDef) {
-    logger.warn("Unknown role requested", { role });
-    return [];
-  }
-
-  let permissions = [...roleDef.permissions];
-
-  // Include inherited permissions
-  if (roleDef.inheritsFrom) {
-    const inheritedPermissions = getRolePermissions(roleDef.inheritsFrom);
-    permissions = [...new Set([...permissions, ...inheritedPermissions])];
-  }
-
-  return permissions;
-}
-
-/**
  * Get role definition by role name.
  */
 export function getRoleDefinition(role: UserRole): RoleDefinition | undefined {
@@ -313,7 +296,7 @@ export function getAllRoleDefinitions(): RoleDefinition[] {
  * Check if a role has a specific permission.
  */
 export function roleHasPermission(role: UserRole, permission: Permission): boolean {
-  const permissions = getRolePermissions(role);
+  const permissions = getRolePerms(role);
   return permissions.includes(permission);
 }
 
@@ -378,6 +361,13 @@ export function getRbacAuthContext(c: Context): RbacAuthContext | undefined {
   };
 }
 
+/**
+ * Set RBAC auth context on Hono context (for testing purposes).
+ */
+export function setRbacAuthContext(c: Context, authContext: RbacAuthContext): void {
+  c.set("auth", authContext);
+}
+
 // ============================================================================
 // Permission Checking
 // ============================================================================
@@ -390,7 +380,7 @@ export function hasPermission(c: Context, permission: Permission, options?: Rbac
 
   // Unauthenticated users only have guest permissions
   const role = auth?.role || "guest";
-  const rolePermissions = getRolePermissions(role);
+  const rolePermissions = getRolePerms(role);
 
   // Check role permissions
   if (rolePermissions.includes(permission)) {
@@ -642,7 +632,8 @@ export function requireOwnershipOrAdmin(
     }
 
     // Check ownership
-    if (auth.keyId !== ownerId) {
+    // If ownerId is empty, the resource doesn't exist - let handler return 404
+    if (ownerId && auth.keyId !== ownerId) {
       securityLogger.logAuthzFailure(c, resourceType, "ownership");
       throw new HTTPException(403, {
         message: `Access denied: ${resourceType} ownership required`,

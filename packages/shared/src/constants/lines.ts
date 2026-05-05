@@ -156,7 +156,7 @@ export const LINE_METADATA: Record<string, LineMetadata> = {
     division: "B",
     feedId: "gtfs-ace",
     isExpress: true,
-    similarLines: ["C", "E"],
+    similarLines: ["C", "E", "H"],
   },
   C: {
     id: "C",

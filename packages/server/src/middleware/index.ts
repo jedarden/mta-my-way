@@ -76,6 +76,8 @@ export {
   type PasswordResetToken,
   type PasswordHistoryEntry,
 } from "./authentication.js";
+
+export { getDeviceInfo } from "./password-management.js";
 export {
   csrfProtection,
   validateCsrf,

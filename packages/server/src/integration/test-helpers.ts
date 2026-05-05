@@ -12,6 +12,7 @@ import type { StationIndex } from "@mta-my-way/shared";
 import Database from "better-sqlite3";
 import { registerApiKeyWithMetadata } from "../middleware/api-key-management.js";
 import { generateApiKey, hashApiKey, registerApiKey } from "../middleware/authentication.js";
+import { initTripTracking } from "../trip-tracking.js";
 
 // ---------------------------------------------------------------------------
 // Test data fixtures
@@ -393,4 +394,78 @@ export async function createTestUserCredentials(): Promise<TestAuthCredentials> 
  */
 export async function createTestReadCredentials(): Promise<TestAuthCredentials> {
   return createTestApiKey("read", "user");
+}
+
+/**
+ * Clear all commute stats cache (for test isolation).
+ */
+export function clearCommuteStatsCache(db: Database.Database): void {
+  db.prepare("DELETE FROM commute_stats").run();
+}
+
+/**
+ * Clear all trips (for test isolation).
+ */
+export function clearAllTrips(db: Database.Database): void {
+  db.prepare("DELETE FROM trips").run();
+}
+
+// ---------------------------------------------------------------------------
+// CSRF helpers for API tests
+// ---------------------------------------------------------------------------
+
+/**
+ * Helper to get a CSRF token from the test app.
+ * Makes a GET request to /api/csrf-token and extracts the token.
+ */
+export async function getCsrfToken(app: {
+  request(path: string, init?: RequestInit): Promise<Response>;
+}): Promise<string> {
+  const res = await app.request("/api/csrf-token");
+  if (res.status !== 200) {
+    throw new Error(`Failed to get CSRF token: ${res.status}`);
+  }
+  const body = await res.json() as { token: string };
+  return body.token;
+}
+
+/**
+ * Helper to make a state-changing request with CSRF token.
+ * Gets a fresh token and includes it in the X-CSRF-Token header.
+ * Also merges in any provided authentication headers.
+ */
+export async function requestWithCsrf(
+  app: { request(path: string, init?: RequestInit): Promise<Response> },
+  path: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = await getCsrfToken(app);
+  return app.request(path, {
+    ...options,
+    headers: {
+      ...options.headers,
+      "X-CSRF-Token": token,
+    },
+  });
+}
+
+/**
+ * Helper to make an authenticated state-changing request with CSRF token.
+ * Combines API key authentication with CSRF protection.
+ */
+export async function requestWithAuthAndCsrf(
+  app: { request(path: string, init?: RequestInit): Promise<Response> },
+  path: string,
+  authHeaders: { Authorization: string },
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = await getCsrfToken(app);
+  return app.request(path, {
+    ...options,
+    headers: {
+      ...authHeaders,
+      ...options.headers,
+      "X-CSRF-Token": token,
+    },
+  });
 }

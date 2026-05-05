@@ -6,5 +6,6 @@ export default defineConfig({
     environment: "node",
     pool: "forks",
     poolOptions: { forks: { maxForks: 4 } },
+    setupFiles: ["./src/test/setup.ts"],
   },
 });

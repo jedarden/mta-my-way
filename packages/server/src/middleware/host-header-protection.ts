@@ -115,6 +115,7 @@ const LOCALHOST_PATTERNS = [
  * - Hostname doesn't contain control characters
  * - Hostname doesn't start/end with hyphen or dot
  * - Hostname doesn't contain consecutive dots
+ * - Each label doesn't start/end with hyphen (per RFC 1035/1123)
  */
 function validateHostnameFormat(hostname: string): boolean {
   if (hostname.length === 0 || hostname.length > 253) {
@@ -144,6 +145,14 @@ function validateHostnameFormat(hostname: string): boolean {
   // Check for consecutive dots
   if (/\.\./.test(hostname)) {
     return false;
+  }
+
+  // Check each label doesn't start or end with hyphen (RFC 1035/1123)
+  const labels = hostname.split(".");
+  for (const label of labels) {
+    if (label.startsWith("-") || label.endsWith("-")) {
+      return false;
+    }
   }
 
   return true;
@@ -181,16 +190,6 @@ export function validateHostHeader(
       valid: false,
       reason: "invalid_hostname_format",
     };
-  }
-
-  // Check for IP addresses
-  if (mergedOptions.blockIpAddresses) {
-    if (IPV4_PATTERN.test(hostname) || IPV6_PATTERN.test(hostname)) {
-      return {
-        valid: false,
-        reason: "ip_address_blocked",
-      };
-    }
   }
 
   // Check allow-list BEFORE other checks (allow-list takes precedence)
@@ -252,6 +251,16 @@ export function validateHostHeader(
           reason: "private_ip_blocked",
         };
       }
+    }
+  }
+
+  // Check for other IP addresses (general IP check after specific checks)
+  if (mergedOptions.blockIpAddresses) {
+    if (IPV4_PATTERN.test(hostname) || IPV6_PATTERN.test(hostname)) {
+      return {
+        valid: false,
+        reason: "ip_address_blocked",
+      };
     }
   }
 
