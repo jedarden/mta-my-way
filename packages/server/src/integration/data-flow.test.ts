@@ -478,19 +478,23 @@ describe("Data Flow Integration Tests", () => {
       ];
 
       for (const data of testData) {
-        recordTrip(
-          {
-            date: data.date,
-            origin: { stationId: data.originId, stationName: "Test Origin" },
-            destination: { stationId: data.destId, stationName: "Test Dest" },
-            line: data.line,
-            departureTime: baseTime + data.offset * 1000,
-            arrivalTime: baseTime + data.offset * 1000 + 3600,
-            actualDurationMinutes: 60,
-            source: "manual",
-          },
-          ownerId
-        );
+        const originStation = TEST_STATIONS[data.originId];
+        const destStation = TEST_STATIONS[data.destId];
+        if (originStation && destStation) {
+          recordTrip(
+            {
+              date: data.date,
+              origin: { stationId: data.originId, stationName: originStation.name },
+              destination: { stationId: data.destId, stationName: destStation.name },
+              line: data.line,
+              departureTime: baseTime + data.offset * 1000,
+              arrivalTime: baseTime + data.offset * 1000 + 3600,
+              actualDurationMinutes: 60,
+              source: "manual",
+            },
+            ownerId
+          );
+        }
       }
     });
 
@@ -606,7 +610,7 @@ describe("Data Flow Integration Tests", () => {
             destination: { stationId: "725", stationName: "Times Sq-42 St" },
             line: "1",
             departureTime: now - i * 86400000 - 3600000,
-            arrivalTime: now - i * 86400000,
+            arrivalTime: Math.floor(now / 1000) - i * 86400000,
             actualDurationMinutes: 60,
             scheduledDurationMinutes: 55,
             source: "manual",
