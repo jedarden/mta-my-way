@@ -49,11 +49,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 55,
         scheduledDurationMinutes: 50,
         source: "manual",
@@ -75,11 +75,12 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       for (const duration of durations) {
         recordTrip({
           date: "2026-05-04",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime: now - durations.indexOf(duration) * 10000000,
-          arrivalTime: now - durations.indexOf(duration) * 10000000 + duration * 60000,
+          arrivalTime:
+            Math.floor(now / 1000) - durations.indexOf(duration) * 10000000 + duration * 60000,
           actualDurationMinutes: duration,
           source: "manual",
         });
@@ -98,11 +99,12 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       for (const duration of durations) {
         recordTrip({
           date: "2026-05-04",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime: now - durations.indexOf(duration) * 10000000,
-          arrivalTime: now - durations.indexOf(duration) * 10000000 + duration * 60000,
+          arrivalTime:
+            Math.floor(now / 1000) - durations.indexOf(duration) * 10000000 + duration * 60000,
           actualDurationMinutes: duration,
           source: "manual",
         });
@@ -120,11 +122,12 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       for (const duration of durations) {
         recordTrip({
           date: "2026-05-04",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime: now - durations.indexOf(duration) * 10000000,
-          arrivalTime: now - durations.indexOf(duration) * 10000000 + duration * 60000,
+          arrivalTime:
+            Math.floor(now / 1000) - durations.indexOf(duration) * 10000000 + duration * 60000,
           actualDurationMinutes: duration,
           source: "manual",
         });
@@ -143,11 +146,12 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       for (const duration of durations) {
         recordTrip({
           date: "2026-05-04",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime: now - durations.indexOf(duration) * 10000000,
-          arrivalTime: now - durations.indexOf(duration) * 10000000 + duration * 60000,
+          arrivalTime:
+            Math.floor(now / 1000) - durations.indexOf(duration) * 10000000 + duration * 60000,
           actualDurationMinutes: duration,
           source: "manual",
         });
@@ -165,11 +169,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 7200000,
-        arrivalTime: now - 3600000,
+        departureTime: Math.floor((now - 7200000) / 1000),
+        arrivalTime: Math.floor(now / 1000) - 3600000,
         actualDurationMinutes: 60,
         scheduledDurationMinutes: 50, // 10 min late
         source: "manual",
@@ -177,11 +181,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 50,
         scheduledDurationMinutes: 50, // On time
         source: "manual",
@@ -199,11 +203,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       // 3 on-time (60, 58, 60), 2 late (70, 65)
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 18000000,
-        arrivalTime: now - 14400000,
+        departureTime: Math.floor((now - 18000000) / 1000),
+        arrivalTime: Math.floor(now / 1000) - 14400000,
         actualDurationMinutes: 60,
         scheduledDurationMinutes: 60,
         source: "manual",
@@ -211,11 +215,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 14400000,
-        arrivalTime: now - 10800000,
+        departureTime: Math.floor((now - 14400000) / 1000),
+        arrivalTime: Math.floor(now / 1000) - 10800000,
         actualDurationMinutes: 58,
         scheduledDurationMinutes: 60,
         source: "manual",
@@ -223,11 +227,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 10800000,
-        arrivalTime: now - 7200000,
+        departureTime: Math.floor((now - 10800000) / 1000),
+        arrivalTime: Math.floor(now / 1000) - 7200000,
         actualDurationMinutes: 70,
         scheduledDurationMinutes: 60,
         source: "manual",
@@ -235,11 +239,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 7200000,
-        arrivalTime: now - 3600000,
+        departureTime: Math.floor((now - 7200000) / 1000),
+        arrivalTime: Math.floor(now / 1000) - 3600000,
         actualDurationMinutes: 65,
         scheduledDurationMinutes: 60,
         source: "manual",
@@ -247,11 +251,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 60,
         scheduledDurationMinutes: 60,
         source: "manual",
@@ -268,11 +272,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 60,
         source: "manual",
       });
@@ -359,11 +363,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 60,
         source: "manual",
       });
@@ -382,11 +386,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       for (let i = 0; i < 5; i++) {
         recordTrip({
           date: "2026-05-04",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime: now - (5 - i) * 3600000,
-          arrivalTime: now - (4 - i) * 3600000,
+          arrivalTime: Math.floor(now / 1000) - (4 - i) * 3600000,
           actualDurationMinutes: 60,
           source: "manual",
         });
@@ -405,11 +409,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       for (let i = 0; i < 100; i++) {
         recordTrip({
           date: "2026-05-04",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime: now - (100 - i) * 60000,
-          arrivalTime: now - (99 - i) * 60000,
+          arrivalTime: Math.floor(now / 1000) - (99 - i) * 60000,
           actualDurationMinutes: 60,
           source: "manual",
         });
@@ -428,11 +432,11 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: "101",
+        destination: "725",
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 60,
         source: "manual",
       });
