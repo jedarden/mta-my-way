@@ -163,7 +163,7 @@ const SEVERITY_ORDER: Record<VulnerabilitySeverity, number> = {
  * Returns -1 if v1 < v2, 0 if v1 === v2, 1 if v1 > v2.
  */
 export function compareVersions(v1: string, v2: string): number {
-  const normalize = (v: string) => v.replace(/^v|^=/, "").trim();
+  const normalize = (v: string) => v.replace(/^[\^~=v=]/, "").trim();
   const parts1 = normalize(v1).split(".").map(Number);
   const parts2 = normalize(v2).split(".").map(Number);
 
@@ -186,24 +186,25 @@ export function compareVersions(v1: string, v2: string): number {
 export function isVulnerableVersion(version: string, vulnerableRanges: string[]): boolean {
   for (const range of vulnerableRanges) {
     // Simple range matching (in production, use semver library)
-    if (range.startsWith("<")) {
-      const minVersion = range.slice(1);
-      if (compareVersions(version, minVersion) < 0) {
-        return true;
-      }
-    } else if (range.startsWith("<=")) {
+    // IMPORTANT: Check longer prefixes first to avoid matching "<=" as "<"
+    if (range.startsWith("<=")) {
       const maxVersion = range.slice(2);
       if (compareVersions(version, maxVersion) <= 0) {
         return true;
       }
-    } else if (range.startsWith(">")) {
+    } else if (range.startsWith("<")) {
       const minVersion = range.slice(1);
-      if (compareVersions(version, minVersion) > 0) {
+      if (compareVersions(version, minVersion) < 0) {
         return true;
       }
     } else if (range.startsWith(">=")) {
       const minVersion = range.slice(2);
       if (compareVersions(version, minVersion) >= 0) {
+        return true;
+      }
+    } else if (range.startsWith(">")) {
+      const minVersion = range.slice(1);
+      if (compareVersions(version, minVersion) > 0) {
         return true;
       }
     } else if (range.startsWith("=")) {
@@ -429,7 +430,8 @@ export function isPackageSecure(
   const thresholdLevel = SEVERITY_ORDER[severityThreshold];
 
   for (const vuln of vulnerabilities) {
-    if (SEVERITY_ORDER[vuln.severity] >= thresholdLevel) {
+    // Only check vulnerabilities with severity above the threshold
+    if (SEVERITY_ORDER[vuln.severity] > thresholdLevel) {
       if (isVulnerableVersion(version, vuln.vulnerableVersions)) {
         return false;
       }

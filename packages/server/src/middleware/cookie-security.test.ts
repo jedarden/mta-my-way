@@ -13,7 +13,7 @@ import {
   cookieSessionAuth,
   csrfCookie,
   deleteCookie,
-  generateCsrfToken,
+  generateCookieCsrfToken,
   getCsrfToken,
   getRefreshTokenCookie,
   getSessionCookie,
@@ -135,15 +135,15 @@ describe("Cookie Security", () => {
 
   describe("CSRF Token Generation", () => {
     it("should generate a CSRF token of specified length", () => {
-      const token = generateCsrfToken(32);
+      const token = generateCookieCsrfToken(32);
 
       expect(token).toBeDefined();
       expect(token.length).toBe(64); // 32 bytes = 64 hex chars
     });
 
     it("should generate different tokens each time", () => {
-      const token1 = generateCsrfToken();
-      const token2 = generateCsrfToken();
+      const token1 = generateCookieCsrfToken();
+      const token2 = generateCookieCsrfToken();
 
       expect(token1).not.toBe(token2);
     });

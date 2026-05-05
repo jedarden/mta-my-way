@@ -14,6 +14,11 @@ class MockServiceWorkerRegistration implements Partial<ServiceWorkerRegistration
   };
 }
 
+// Set up sync on the prototype before the class is used
+MockServiceWorkerRegistration.prototype.sync = {
+  register: vi.fn().mockResolvedValue({ sync: "mta-sync-tag" }),
+};
+
 // Mock IndexedDB
 const mockDB = {
   transaction: vi.fn(),
@@ -126,28 +131,28 @@ describe("BackgroundSyncManager", () => {
   });
 
   describe("constructor", () => {
-    it.skip("detects Background Sync API support", () => {
-      // Ensure mocks are set up
-      expect(navigator.serviceWorker).toBeDefined();
+    it("detects Background Sync API support", () => {
+      // Ensure mocks are set up - sync is in ServiceWorkerRegistration.prototype
+      expect("sync" in ServiceWorkerRegistration.prototype).toBe(true);
       const m = new BackgroundSyncManager();
       expect(m.isSyncSupported()).toBe(true);
     });
 
-    it.skip("handles missing Service Worker support", () => {
-      // Temporarily remove service worker mock
-      const originalServiceWorker = (globalThis as { navigator?: { serviceWorker?: unknown } })
-        .navigator?.serviceWorker;
+    it("handles missing Service Worker support", () => {
+      // Save original navigator and ServiceWorkerRegistration
+      const originalNavigator = (globalThis as { navigator?: unknown }).navigator;
+      const originalSync = ServiceWorkerRegistration.prototype.sync;
+
+      // Remove sync from ServiceWorkerRegistration prototype
+      delete (ServiceWorkerRegistration.prototype as { sync?: unknown }).sync;
       vi.stubGlobal("navigator", { serviceWorker: undefined });
 
       const m = new BackgroundSyncManager();
       expect(m.isSyncSupported()).toBe(false);
 
-      // Restore service worker mock
-      if (originalServiceWorker) {
-        vi.stubGlobal("navigator", { serviceWorker: originalServiceWorker });
-      } else {
-        vi.stubGlobal("navigator", mockServiceWorker);
-      }
+      // Restore navigator and sync
+      vi.stubGlobal("navigator", originalNavigator);
+      ServiceWorkerRegistration.prototype.sync = originalSync;
     });
   });
 
@@ -158,7 +163,7 @@ describe("BackgroundSyncManager", () => {
       expect(indexedDB.open).toHaveBeenCalledWith("mta-background-sync", 1);
     });
 
-    it.skip("registers background sync when supported", async () => {
+    it("registers background sync when supported", async () => {
       await manager.init();
 
       const registration = await navigator.serviceWorker.ready;

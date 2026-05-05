@@ -77,6 +77,8 @@ function defaultLogFn(event: SecurityEvent): void {
  * to a generic identifier.
  */
 function extractClientIp(c: Context): string {
+  // Handle cases where context might be incomplete (e.g., utility functions)
+  if (!c?.req?.header) return "unknown";
   return (
     c.req.header("CF-Connecting-IP") ||
     c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
@@ -170,13 +172,18 @@ export class SecurityEventLogger {
     }
 
     event.ip = extractClientIp(context);
-    event.method = context.req.method;
-    event.statusCode = context.res.status;
 
-    if (this.options.includePath) {
-      event.path = this.options.sanitizePII
-        ? sanitizePathForLogging(context.req.path)
-        : context.req.path;
+    // Handle cases where context might be incomplete (e.g., utility functions)
+    if (context?.req) {
+      event.method = context.req.method;
+      if (this.options.includePath) {
+        event.path = this.options.sanitizePII
+          ? sanitizePathForLogging(context.req.path)
+          : context.req.path;
+      }
+    }
+    if (context?.res) {
+      event.statusCode = context.res.status;
     }
 
     if (details) {

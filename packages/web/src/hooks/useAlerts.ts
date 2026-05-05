@@ -110,8 +110,23 @@ export function useAlerts(): AlertsResult {
   const commutes = useFavoritesStore((s) => s.commutes);
   const alertSeverityFilter = useSettingsStore((s) => s.alertSeverityFilter);
 
+  // Debug logging in test environment
+  if (process.env.NODE_ENV === "test" && alertSeverityFilter !== "all") {
+    console.log("DEBUG useAlerts store values:", {
+      favorites,
+      commutes,
+      alertSeverityFilter,
+    });
+  }
+
   // Generation counter for stale response detection
   const fetchGenRef = useRef(0);
+
+  // Ref to track current state for error handling
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Get user's lines from favorites and commutes
   const userLines = useMemo(() => getUserLines(favorites, commutes), [favorites, commutes]);
@@ -152,15 +167,17 @@ export function useAlerts(): AlertsResult {
         errorMessage = err.message;
       }
 
+      // Use ref to access current state without creating dependency
+      const currentState = stateRef.current;
       setState({
         status: navigator.onLine ? "error" : "offline",
-        alerts: state.alerts, // keep stale data
-        meta: state.meta,
+        alerts: currentState.alerts, // keep stale data
+        meta: currentState.meta,
         error: errorMessage,
-        updatedAt: state.updatedAt,
+        updatedAt: currentState.updatedAt,
       });
     }
-  }, [state.alerts, state.meta, state.updatedAt]);
+  }, []); // No dependencies - uses ref for state access
 
   // Initial fetch and auto-refresh
   useEffect(() => {
@@ -178,7 +195,7 @@ export function useAlerts(): AlertsResult {
   const filteredBySeverity = useMemo(() => {
     if (alertSeverityFilter === "all") return state.alerts;
 
-    return state.alerts.filter((alert) => {
+    const filtered = state.alerts.filter((alert) => {
       if (alertSeverityFilter === "delays") {
         return alert.severity === "severe" || alert.severity === "warning";
       }
@@ -187,6 +204,19 @@ export function useAlerts(): AlertsResult {
       }
       return true;
     });
+
+    // Debug logging in test environment
+    if (process.env.NODE_ENV === "test" && alertSeverityFilter !== "all") {
+      console.log("DEBUG useAlerts filteredBySeverity:", {
+        alertSeverityFilter,
+        stateAlertsCount: state.alerts.length,
+        filteredCount: filtered.length,
+        stateAlerts: state.alerts.map((a) => ({ id: a.id, severity: a.severity })),
+        filtered: filtered.map((a) => ({ id: a.id, severity: a.severity })),
+      });
+    }
+
+    return filtered;
   }, [state.alerts, alertSeverityFilter]);
 
   // Alerts filtered to user's lines
@@ -194,6 +224,25 @@ export function useAlerts(): AlertsResult {
     () => sortAlerts(filterAlertsByLines(filteredBySeverity, userLines)),
     [filteredBySeverity, userLines]
   );
+
+  // Debug logging in test environment
+  if (process.env.NODE_ENV === "test" && alertSeverityFilter !== "all") {
+    console.log("DEBUG useAlerts myAlerts:", {
+      userLines,
+      filteredBySeverityCount: filteredBySeverity.length,
+      myAlertsCount: myAlerts.length,
+      filteredBySeverity: filteredBySeverity.map((a) => ({
+        id: a.id,
+        severity: a.severity,
+        affectedLines: a.affectedLines,
+      })),
+      myAlerts: myAlerts.map((a) => ({
+        id: a.id,
+        severity: a.severity,
+        affectedLines: a.affectedLines,
+      })),
+    });
+  }
 
   // Display alerts based on filter mode
   const displayAlerts = filterMode === "mine" ? myAlerts : filteredBySeverity;
@@ -241,7 +290,7 @@ export function useAlertsForStation(
       if (gen !== fetchGenRef.current) return;
       setStatus(navigator.onLine ? "error" : "offline");
     }
-  }, [stationId]);
+  }, [stationId]); // Only depends on stationId
 
   useEffect(() => {
     void fetchAlerts();

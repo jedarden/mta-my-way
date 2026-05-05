@@ -348,11 +348,8 @@ export function processVehicleUpdates(
           const ratio = traversalTime / scheduled;
 
           if (ratio >= config.thresholdMultiplier) {
-            // Check we're not at a terminal
-            if (
-              !isTerminalStop(pos.routeId, lastObs.stationId) &&
-              !isTerminalStop(pos.routeId, stationId)
-            ) {
+            // Check we're not arriving at a terminal (departing from terminal is OK)
+            if (!isTerminalStop(pos.routeId, stationId)) {
               const segment: DelayedSegment = {
                 routeId: pos.routeId,
                 direction: pos.direction,
@@ -688,7 +685,20 @@ export function getDelayDetectorStatus(): {
   return {
     trackedTrips: trackedTrips.size,
     activeAlerts: activePredictedAlerts.size,
-    thresholdMultiplier: config.thresholdMultiplier,
-    minTrainsForLineAlert: config.minTrainsForLineAlert,
+    thresholdMultiplier: config?.thresholdMultiplier ?? DEFAULT_THRESHOLD_MULTIPLIER,
+    minTrainsForLineAlert: config?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
   };
+}
+
+/**
+ * Initialize delay detector with default config for testing.
+ */
+export function initDelayDetectorForTesting(): void {
+  config = {
+    thresholdMultiplier: DEFAULT_THRESHOLD_MULTIPLIER,
+    minTrainsForLineAlert: DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
+  };
+  travelTimes = {};
+  routes = {};
+  stations = {};
 }

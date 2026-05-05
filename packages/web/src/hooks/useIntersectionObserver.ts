@@ -9,7 +9,7 @@
  *   - Uses native IntersectionObserver API for performance
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface UseIntersectionObserverOptions {
   /** Root element to use as viewport (default: browser viewport) */
@@ -48,19 +48,19 @@ export function useIntersectionObserver(
   const observerRef = useRef<IntersectionObserver | null>(null);
   const elementRef = useRef<Element | null>(null);
 
-  const setRef = useRef((node: Element | null) => {
+  // Use a callback ref pattern - when ref is called with an element, create the observer
+  const ref = useCallback((node: Element | null) => {
     elementRef.current = node;
-  }).current;
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
 
     // Disconnect previous observer
     if (observerRef.current) {
       observerRef.current.disconnect();
+      observerRef.current = null;
     }
 
+    if (!node) return;
+
+    // Create new observer for the element
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry) return;
@@ -68,9 +68,12 @@ export function useIntersectionObserver(
 
         setIsIntersecting(isElementIntersecting);
 
-        if (isElementIntersecting && !hasIntersected) {
-          setHasIntersected(true);
-        }
+        setHasIntersected((prev) => {
+          if (isElementIntersecting && !prev) {
+            return true;
+          }
+          return prev;
+        });
 
         // Disconnect if triggerOnce and element has intersected
         if (triggerOnce && isElementIntersecting) {
@@ -81,16 +84,21 @@ export function useIntersectionObserver(
       { root, rootMargin, threshold }
     );
 
-    observer.observe(element);
+    observer.observe(node);
     observerRef.current = observer;
+  }, [root, rootMargin, threshold, triggerOnce]);
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      observer.disconnect();
-      observerRef.current = null;
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
     };
-  }, [root, rootMargin, threshold, triggerOnce, hasIntersected]);
+  }, []);
 
-  return { ref: setRef, isIntersecting, hasIntersected };
+  return { ref, isIntersecting, hasIntersected };
 }
 
 /**

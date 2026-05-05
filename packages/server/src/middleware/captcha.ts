@@ -704,5 +704,7 @@ export function clearFailedCaptchaAttempts(clientIp: string): void {
  */
 export function resetCaptchaTracking(): void {
   failedCaptchaAttempts.clear();
+  captchaConfigs.clear();
+  defaultCaptchaConfig = null;
   logger.info("All CAPTCHA tracking data reset");
 }

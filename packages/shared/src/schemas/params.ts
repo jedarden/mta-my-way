@@ -8,12 +8,14 @@ import { z } from "zod";
 /**
  * MTA line ID schema for path parameters.
  * Validates NYC subway line identifiers.
+ * Accepts: single digits (1-7), letters (A, C, E, G, H, J, L, M, N, Q, R, W, Y, Z, B, D, F, S, I, X),
+ * multi-line combinations (123, ACE, BDFM, NQRW, JZ), and shuttle identifiers (FS, SI, SX, GS).
  */
 export const lineIdParamSchema = z
   .string()
   .min(1)
   .max(10)
-  .regex(/^[1-7ACEGHJLMNQRWYZ]{1,3}$|^[A-Z]{1,2}[0-9]$/, {
+  .regex(/^[1-7ABCDEFGHIJKLMNQRSTWXYZ]{1,4}$/, {
     message: "Line ID must be a valid MTA line identifier (e.g., 1, A, 123, FS, SI)",
   });
 
@@ -25,7 +27,7 @@ export const routeIdParamSchema = z
   .string()
   .min(1)
   .max(10)
-  .regex(/^[A-Za-z0-9]{1,5}$/, {
+  .regex(/^[A-Za-z0-9_-]+$/, {
     message: "Route ID must be a valid route identifier",
   });
 
@@ -70,9 +72,20 @@ export const tripIdParamSchema = z
  * ISO 8601 date string schema for path parameters.
  * Used for date range endpoints.
  */
-export const datePathParamSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
-  message: "Date must be in ISO 8601 format (YYYY-MM-DD)",
-});
+export const datePathParamSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "Date must be in ISO 8601 format (YYYY-MM-DD)",
+  })
+  .refine(
+    (val) => {
+      const date = new Date(val);
+      return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === val;
+    },
+    {
+      message: "Date must be a valid calendar date",
+    }
+  );
 
 /**
  * Combined path parameter schemas for common endpoints.

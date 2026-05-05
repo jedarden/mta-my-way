@@ -26,6 +26,10 @@ export interface TrainPosition {
   timestamp: number;
   /** Whether the train is assigned */
   isAssigned: boolean;
+  /** Whether actual_track differs from scheduled_track (reroute detected) */
+  isRerouted: boolean;
+  /** Whether this trip is running express (skipping stops the route normally serves) */
+  isExpress: boolean;
   /** Destination headsign */
   destination: string;
   /** Delay in seconds (negative = early, 0 = on time) */
@@ -68,6 +72,10 @@ export interface InterpolatedTrainPosition {
   isUserNextTrain?: boolean;
   /** Assignment status */
   isAssigned: boolean;
+  /** Whether actual_track differs from scheduled_track (reroute detected) */
+  isRerouted: boolean;
+  /** Whether this trip is running express (skipping stops the route normally serves) */
+  isExpress: boolean;
   /** Delay in seconds if available */
   delay?: number;
 }

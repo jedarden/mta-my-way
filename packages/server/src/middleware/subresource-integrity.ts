@@ -172,7 +172,8 @@ export function parseIntegrityAttribute(integrity: string): SriHash[] {
   const hashes: SriHash[] = [];
 
   for (const part of integrity.split(/\s+/)) {
-    const match = part.match(/^(sha256|sha384|sha512)-([a-zA-Z0-9+/=]+)$/);
+    // Match algorithm-value pattern, where value can include base64 chars plus hyphen (for URL-safe base64)
+    const match = part.match(/^(sha256|sha384|sha512)-([a-zA-Z0-9+/=-]+)$/);
     if (match) {
       hashes.push({
         algorithm: match[1] as SriHashAlgorithm,

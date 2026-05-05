@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     pool: "forks",
     poolOptions: { forks: { maxForks: 4 } },
+    env: {
+      TEST_MODE: "true",
+    },
+    setupFiles: [],
   },
-  workspace: ["packages/web", "packages/server", "packages/shared"],
 });

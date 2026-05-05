@@ -5,6 +5,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  _clearAllRateLimits,
   addTrustedIp,
   authRateLimit,
   banIp,
@@ -22,12 +23,12 @@ describe("Authentication Rate Limiting", () => {
   beforeEach(() => {
     app = new Hono();
     // Clear rate limits before each test
-    cleanupRateLimits();
+    _clearAllRateLimits();
   });
 
   describe("standard tier rate limiting", () => {
     it("should allow requests within limit", async () => {
-      app.use("*", authRateLimit("standard"));
+      app.use("*", authRateLimit("standard", { config: { skipSuccessfulRequests: false } }));
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Make 20 requests (at the limit)
@@ -38,7 +39,7 @@ describe("Authentication Rate Limiting", () => {
     });
 
     it("should block requests exceeding limit", async () => {
-      app.use("*", authRateLimit("standard"));
+      app.use("*", authRateLimit("standard", { config: { skipSuccessfulRequests: false } }));
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Make 20 requests (at the limit)
@@ -52,7 +53,10 @@ describe("Authentication Rate Limiting", () => {
     });
 
     it("should reset after window expires", async () => {
-      app.use("*", authRateLimit("standard", { config: { windowMs: 100 } }));
+      app.use(
+        "*",
+        authRateLimit("standard", { config: { windowMs: 100, skipSuccessfulRequests: false } })
+      );
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Exhaust the limit
@@ -73,7 +77,7 @@ describe("Authentication Rate Limiting", () => {
     });
 
     it("should add rate limit headers", async () => {
-      app.use("*", authRateLimit("standard"));
+      app.use("*", authRateLimit("standard", { config: { skipSuccessfulRequests: false } }));
       app.get("/test", (c) => c.json({ ok: true }));
 
       const res = await app.request("/test");
@@ -134,7 +138,7 @@ describe("Authentication Rate Limiting", () => {
       const trustedIp = "10.0.0.1";
       addTrustedIp(trustedIp);
 
-      app.use("*", authRateLimit("aggressive"));
+      app.use("*", authRateLimit("aggressive", { config: { skipTrustedIps: true } }));
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Make multiple requests from trusted IP
@@ -197,8 +201,8 @@ describe("Authentication Rate Limiting", () => {
         },
       });
       expect(res.status).toBe(429);
-      const json = await res.json();
-      expect(json.message).toContain("banned");
+      const text = await res.text();
+      expect(text).toContain("banned");
     });
 
     it("should manually ban an IP", () => {
@@ -226,7 +230,12 @@ describe("Authentication Rate Limiting", () => {
 
   describe("CAPTCHA triggering", () => {
     it("should trigger CAPTCHA after threshold violations", async () => {
-      app.use("*", authRateLimit("standard", { config: { captchaThreshold: 2 } }));
+      app.use(
+        "*",
+        authRateLimit("standard", {
+          config: { captchaThreshold: 1, skipSuccessfulRequests: false },
+        })
+      );
       app.get("/test", (c) => {
         const requireCaptcha = c.get("requireCaptcha");
         return c.json({ requireCaptcha: !!requireCaptcha });
@@ -251,8 +260,8 @@ describe("Authentication Rate Limiting", () => {
       });
       expect(res.status).toBe(429);
 
-      const json = await res.json();
-      expect(json.message).toContain("CAPTCHA");
+      const text = await res.text();
+      expect(text).toContain("complete the CAPTCHA");
     });
   });
 
@@ -260,7 +269,10 @@ describe("Authentication Rate Limiting", () => {
     it("should limit by API key when extractor provided", async () => {
       const keyExtractor = () => "test_api_key";
 
-      app.use("*", authRateLimit("standard", { keyExtractor }));
+      app.use(
+        "*",
+        authRateLimit("standard", { keyExtractor, config: { skipSuccessfulRequests: false } })
+      );
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Make 20 requests (at the limit)
@@ -407,7 +419,7 @@ describe("Authentication Rate Limiting", () => {
 
   describe("localhost bypass", () => {
     it("should bypass rate limiting for localhost by default", async () => {
-      app.use("*", authRateLimit("aggressive"));
+      app.use("*", authRateLimit("aggressive", { config: { skipTrustedIps: true } }));
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Multiple requests from localhost should all succeed
@@ -424,7 +436,10 @@ describe("Authentication Rate Limiting", () => {
 
   describe("custom configuration", () => {
     it("should merge custom configuration with tier defaults", async () => {
-      app.use("*", authRateLimit("standard", { config: { requests: 3 } }));
+      app.use(
+        "*",
+        authRateLimit("standard", { config: { requests: 3, skipSuccessfulRequests: false } })
+      );
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Custom limit of 3 requests
@@ -439,7 +454,10 @@ describe("Authentication Rate Limiting", () => {
     });
 
     it("should allow disabling rate limiting", async () => {
-      app.use("*", authRateLimit("standard", { config: { requests: 10000 } }));
+      app.use(
+        "*",
+        authRateLimit("standard", { config: { requests: 10000, skipSuccessfulRequests: false } })
+      );
       app.get("/test", (c) => c.json({ ok: true }));
 
       // Many requests should all succeed

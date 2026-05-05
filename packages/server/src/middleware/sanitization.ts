@@ -11,10 +11,22 @@
 import { logger } from "../observability/logger.js";
 
 /**
- * HTML tag pattern for stripping.
- * Matches all HTML tags to prevent XSS.
+ * Script and style tag pattern - removes these tags AND their content.
+ * This prevents XSS by removing JavaScript and CSS entirely.
+ */
+const SCRIPT_STYLE_PATTERN = /<(script|style)[^>]*>.*?<\/\1[^>]*>/gi;
+
+/**
+ * HTML tag pattern for stripping (without content).
+ * Matches HTML tags but preserves the content between them.
  */
 const HTML_TAG_PATTERN = /<[^>]*>/gi;
+
+/**
+ * Self-closing HTML tag pattern.
+ * Matches self-closing tags like <br />, <img />, etc.
+ */
+const SELFCLOSING_TAG_PATTERN = /<[^>]*\/>/gi;
 
 /**
  * JavaScript event handler pattern.
@@ -27,6 +39,15 @@ const EVENT_HANDLER_PATTERN = /on\w+\s*=/gi;
  * Matches javascript: pseudo-protocol that can execute code.
  */
 const JAVASCRIPT_PROTOCOL_PATTERN = /javascript:/gi;
+
+/**
+ * JavaScript function call pattern.
+ * Matches common JavaScript function calls that could execute code.
+ * Captures the function name, opening paren, content, and closing paren.
+ * Excludes "script" as a keyword to avoid false positives with HTML encoded entities
+ */
+const JAVASCRIPT_FUNCTION_PATTERN =
+  /\b(alert|confirm|prompt|eval|exec|setTimeout|setInterval|Function|document\.write|location\.|window\.|\.innerHTML|\.outerHTML)\s*\([^)]*\)/gi;
 
 /**
  * SQL injection pattern - more specific to avoid false positives.
@@ -48,8 +69,9 @@ const SQL_INJECTION_PATTERN =
 /**
  * Command injection patterns.
  * Detects shell metacharacters and command chaining.
+ * Note: $ is excluded here to avoid false positives with NoSQL operators like $ne
  */
-const COMMAND_INJECTION_PATTERN = /[;&|`$()<>]/g;
+const COMMAND_INJECTION_PATTERN = /[;&|`()<>]/g;
 
 /**
  * Path traversal patterns.
@@ -114,6 +136,10 @@ export interface SanitizationOptions {
   preventTemplateInjection?: boolean;
   /** Remove log injection patterns */
   preventLogInjection?: boolean;
+  /** Preserve case (default: false - converts to lowercase) */
+  preserveCase?: boolean;
+  /** Preserve whitespace (default: false - normalizes) */
+  preserveWhitespace?: boolean;
 }
 
 /**
@@ -131,6 +157,8 @@ const DEFAULT_OPTIONS: SanitizationOptions = {
   preventXss: true,
   preventTemplateInjection: true,
   preventLogInjection: true,
+  preserveCase: false,
+  preserveWhitespace: false,
 };
 
 /**
@@ -150,6 +178,10 @@ export interface SanitizationResult {
  *
  * Returns both the sanitized value and metadata about what was sanitized.
  * This is useful for logging and security monitoring.
+ *
+ * IMPORTANT: Pattern detection happens on the CURRENT value at each step,
+ * which means patterns detected earlier may be removed by later sanitizations.
+ * This is intentional to log all threats present in the original input.
  */
 export function sanitizeString(
   input: string,
@@ -172,11 +204,97 @@ export function sanitizeString(
     }
   }
 
+  // IMPORTANT: Detect ALL patterns first on the current sanitized value
+  // BEFORE any replacements that might remove the patterns.
+  // This ensures we log all threats present in the input.
+
+  // Detect SQL injection patterns
+  if (mergedOptions.preventSqlInjection && SQL_INJECTION_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("sql_injection");
+    logger.warn("SQL injection pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Detect command injection patterns
+  if (mergedOptions.preventCommandInjection && COMMAND_INJECTION_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("command_injection");
+    logger.warn("Command injection pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Detect path traversal patterns
+  if (mergedOptions.preventPathTraversal && PATH_TRAVERSAL_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("path_traversal");
+    logger.warn("Path traversal pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Detect LDAP injection patterns
+  if (mergedOptions.preventLdapInjection && LDAP_INJECTION_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("ldap_injection");
+    logger.warn("LDAP injection pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Detect NoSQL injection patterns
+  if (mergedOptions.preventNosqlInjection && NOSQL_INJECTION_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("nosql_injection");
+    logger.warn("NoSQL injection pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Detect XSS patterns (encoded and obfuscated)
+  if (mergedOptions.preventXss && XSS_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("xss_pattern");
+    logger.warn("XSS pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Detect template injection patterns
+  if (mergedOptions.preventTemplateInjection && TEMPLATE_INJECTION_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("template_injection");
+    logger.warn("Template injection pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Detect log injection patterns
+  if (mergedOptions.preventLogInjection && LOG_INJECTION_PATTERN.test(sanitized)) {
+    sanitizationTypes.push("log_injection");
+    logger.warn("Log injection pattern detected in input", {
+      preview: sanitized.slice(0, 50),
+    });
+  }
+
+  // Now apply the actual sanitization replacements
+
   // Strip HTML tags
   if (mergedOptions.stripHtml) {
+    // First, remove script and style tags WITH their content
+    const scriptStyleMatch = sanitized.match(SCRIPT_STYLE_PATTERN);
+    if (scriptStyleMatch) {
+      if (!sanitizationTypes.includes("html_tags")) {
+        sanitizationTypes.push("html_tags");
+      }
+      logger.warn("Script/style tags detected and removed from input", {
+        pattern: scriptStyleMatch[0],
+        preview: sanitized.slice(0, 50),
+      });
+    }
+    sanitized = sanitized.replace(SCRIPT_STYLE_PATTERN, " ");
+
+    // Then remove remaining HTML tags
     const htmlMatch = sanitized.match(HTML_TAG_PATTERN);
     if (htmlMatch) {
-      sanitizationTypes.push("html_tags");
+      if (!sanitizationTypes.includes("html_tags")) {
+        sanitizationTypes.push("html_tags");
+      }
       logger.warn("HTML tags detected and removed from input", {
         pattern: htmlMatch[0],
         preview: sanitized.slice(0, 50),
@@ -208,112 +326,82 @@ export function sanitizeString(
       });
     }
     sanitized = sanitized.replace(JAVASCRIPT_PROTOCOL_PATTERN, "");
-  }
 
-  // Check for SQL injection patterns
-  if (mergedOptions.preventSqlInjection) {
-    // Store original value to check if pattern matches
-    if (SQL_INJECTION_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("sql_injection");
-      logger.warn("SQL injection pattern detected in input", {
+    // Remove JavaScript function calls
+    const jsFunctionMatch = sanitized.match(JAVASCRIPT_FUNCTION_PATTERN);
+    if (jsFunctionMatch) {
+      if (!sanitizationTypes.includes("html_tags")) {
+        sanitizationTypes.push("javascript_function");
+      }
+      logger.warn("JavaScript function call detected and removed from input", {
+        pattern: jsFunctionMatch[0],
         preview: sanitized.slice(0, 50),
       });
     }
+    sanitized = sanitized.replace(JAVASCRIPT_FUNCTION_PATTERN, "");
+  }
+
+  // Apply SQL injection sanitization
+  if (mergedOptions.preventSqlInjection) {
+    const beforeSqlSanitization = sanitized;
     // Always remove dangerous SQL characters and keywords when SQL injection prevention is enabled
-    // This ensures even edge cases are caught
     sanitized = sanitized.replace(/[;'"]/g, "");
     sanitized = sanitized.replace(/\bor\b/gi, "");
     sanitized = sanitized.replace(/\band\b/gi, "");
     sanitized = sanitized.replace(/\bunion\b/gi, "");
     sanitized = sanitized.replace(/\bselect\b/gi, "");
+    // Check if sanitization actually changed anything
+    if (sanitized !== beforeSqlSanitization && !sanitizationTypes.includes("sql_injection")) {
+      sanitizationTypes.push("sql_injection");
+    }
   }
 
-  // Check for command injection
+  // Apply command injection sanitization
   if (mergedOptions.preventCommandInjection) {
-    if (COMMAND_INJECTION_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("command_injection");
-      logger.warn("Command injection pattern detected in input", {
-        preview: sanitized.slice(0, 50),
-      });
-      sanitized = sanitized.replace(COMMAND_INJECTION_PATTERN, "");
-    }
+    sanitized = sanitized.replace(COMMAND_INJECTION_PATTERN, "");
   }
 
-  // Check for path traversal
+  // Apply path traversal sanitization
   if (mergedOptions.preventPathTraversal) {
-    if (PATH_TRAVERSAL_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("path_traversal");
-      logger.warn("Path traversal pattern detected in input", {
-        preview: sanitized.slice(0, 50),
-      });
-      sanitized = sanitized.replace(PATH_TRAVERSAL_PATTERN, "");
-    }
+    sanitized = sanitized.replace(PATH_TRAVERSAL_PATTERN, "");
   }
 
-  // Check for LDAP injection
+  // Apply LDAP injection sanitization
   if (mergedOptions.preventLdapInjection) {
-    if (LDAP_INJECTION_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("ldap_injection");
-      logger.warn("LDAP injection pattern detected in input", {
-        preview: sanitized.slice(0, 50),
-      });
-      sanitized = sanitized.replace(/[()|&*!=]/g, "");
-    }
+    sanitized = sanitized.replace(/[()|&*!=]/g, "");
   }
 
-  // Check for NoSQL injection
+  // Apply NoSQL injection sanitization
   if (mergedOptions.preventNosqlInjection) {
-    if (NOSQL_INJECTION_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("nosql_injection");
-      logger.warn("NoSQL injection pattern detected in input", {
-        preview: sanitized.slice(0, 50),
-      });
-      // Remove MongoDB operators
-      sanitized = sanitized.replace(/\$[a-zA-Z]+/g, "");
-    }
+    sanitized = sanitized.replace(/\$[a-zA-Z]+/g, "");
   }
 
-  // Check for XSS patterns (encoded and obfuscated)
+  // Apply XSS pattern sanitization
   if (mergedOptions.preventXss) {
-    if (XSS_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("xss_pattern");
-      logger.warn("XSS pattern detected in input", {
-        preview: sanitized.slice(0, 50),
-      });
-      // Remove encoded XSS patterns
-      sanitized = sanitized.replace(/%3C|%3E|%22|%27|%3D|%3B/gi, "");
-      sanitized = sanitized.replace(/&lt;|&gt;|&quot;|&apos;/gi, "");
-      sanitized = sanitized.replace(/&#\d+;/gi, "");
-      sanitized = sanitized.replace(/&#x[0-9a-fA-F]+;/gi, "");
-    }
+    sanitized = sanitized.replace(/%3C|%3E|%22|%27|%3D|%3B/gi, "");
+    sanitized = sanitized.replace(/&lt;|&gt;|&quot;|&apos;/gi, "");
+    sanitized = sanitized.replace(/&#\d+;/gi, "");
+    sanitized = sanitized.replace(/&#x[0-9a-fA-F]+;/gi, "");
   }
 
-  // Check for template injection
+  // Apply template injection sanitization
   if (mergedOptions.preventTemplateInjection) {
-    if (TEMPLATE_INJECTION_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("template_injection");
-      logger.warn("Template injection pattern detected in input", {
-        preview: sanitized.slice(0, 50),
-      });
-      sanitized = sanitized.replace(/\{\{|\}\}|\$\{|#\{/g, "");
-    }
+    sanitized = sanitized.replace(/\{\{|\}\}|\$\{|#\{/g, "");
   }
 
-  // Check for log injection
+  // Apply log injection sanitization
   if (mergedOptions.preventLogInjection) {
-    if (LOG_INJECTION_PATTERN.test(sanitized)) {
-      sanitizationTypes.push("log_injection");
-      logger.warn("Log injection pattern detected in input", {
-        preview: sanitized.slice(0, 50),
-      });
-      // Remove log level prefixes after newlines
-      sanitized = sanitized.replace(/[\r\n]+\s*(ERROR|WARN|INFO|DEBUG|TRACE)/gi, " ");
-    }
+    // Remove log level prefixes after newlines
+    sanitized = sanitized.replace(/[\r\n]+\s*(ERROR|WARN|INFO|DEBUG|TRACE)/gi, " ");
   }
 
   // Normalize whitespace
   if (mergedOptions.normalizeWhitespace) {
-    sanitized = sanitized.replace(/\s+/g, " ").trim();
+    const normalized = sanitized.replace(/\s+/g, " ").trim();
+    if (normalized !== sanitized) {
+      sanitizationTypes.push("whitespace_normalization");
+    }
+    sanitized = normalized;
   }
 
   return {
@@ -329,6 +417,45 @@ export function sanitizeString(
  */
 export function sanitizeStringSimple(input: string, options: SanitizationOptions = {}): string {
   return sanitizeString(input, options).value;
+}
+
+/**
+ * Sanitize a string value for use as an object key.
+ *
+ * Preserves content between tags while removing the tags themselves.
+ * This is more appropriate for keys where we want to keep the readable text.
+ */
+function sanitizeKey(key: string, options: SanitizationOptions = {}): string {
+  let sanitized = key;
+
+  // Strip only the tags, not the content
+  // Default to stripHtml: true for keys to prevent tag-based injection
+  const shouldStripHtml = options.stripHtml !== false;
+
+  if (shouldStripHtml) {
+    // First remove script/style tags with content (for security)
+    sanitized = sanitized.replace(SCRIPT_STYLE_PATTERN, " ");
+    // Then remove remaining HTML tags (preserving content)
+    sanitized = sanitized.replace(HTML_TAG_PATTERN, "");
+  }
+
+  // Apply other sanitizations
+  if (options.preventCommandInjection !== false) {
+    sanitized = sanitized.replace(COMMAND_INJECTION_PATTERN, "");
+  }
+  if (options.preventPathTraversal !== false) {
+    sanitized = sanitized.replace(PATH_TRAVERSAL_PATTERN, "");
+  }
+  if (options.preventSqlInjection !== false) {
+    sanitized = sanitized.replace(/[;'"]/g, "");
+  }
+
+  // Normalize whitespace
+  if (options.normalizeWhitespace !== false) {
+    sanitized = sanitized.replace(/\s+/g, " ").trim();
+  }
+
+  return sanitized;
 }
 
 /**
@@ -353,10 +480,8 @@ export function sanitizeObject(obj: unknown, options: SanitizationOptions = {}):
     const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       // Also sanitize object keys to prevent key-based injection
-      const sanitizedKey = sanitizeStringSimple(key, {
-        ...options,
-        normalizeWhitespace: false, // Preserve key formatting
-      });
+      // Use key sanitization which preserves content between tags
+      const sanitizedKey = sanitizeKey(key, options);
       sanitized[sanitizedKey] = sanitizeObject(value, options);
     }
     return sanitized;
@@ -388,6 +513,9 @@ export function sanitizeParams(
     } else if (Array.isArray(value)) {
       // For arrays, take the first value and sanitize it
       sanitized[sanitizedKey] = sanitizeStringSimple(value[0] || "", options);
+    } else {
+      // undefined or null - use empty string
+      sanitized[sanitizedKey] = "";
     }
   }
 

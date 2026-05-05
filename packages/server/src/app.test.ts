@@ -391,11 +391,41 @@ const CommuteAnalyzeResponseSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Test helper
+// Test helpers
 // ---------------------------------------------------------------------------
 
 function createTestApp(): Hono {
   return createApp(STATIONS, ROUTES, COMPLEXES, TRANSFERS, "/nonexistent/dist");
+}
+
+/**
+ * Helper to get a CSRF token from the test app.
+ * Makes a GET request to /api/csrf-token and extracts the token.
+ */
+async function getCsrfToken(app: Hono): Promise<string> {
+  const res = await app.request("/api/csrf-token");
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  return body.token as string;
+}
+
+/**
+ * Helper to make a state-changing request with CSRF token.
+ * Gets a fresh token and includes it in the X-CSRF-Token header.
+ */
+async function requestWithCsrf(
+  app: Hono,
+  path: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = await getCsrfToken(app);
+  return app.request(path, {
+    ...options,
+    headers: {
+      ...options.headers,
+      "X-CSRF-Token": token,
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -539,7 +569,9 @@ describe("API /api/stations/search", () => {
     expect(res.status).toBe(400);
 
     const body = await res.json();
-    expect(body.error).toContain("required");
+    expect(body.error).toBe("validation failed");
+    expect(body.details).toBeDefined();
+    expect(body.details.length).toBeGreaterThan(0);
   });
 
   it("returns empty array for no matches", async () => {
@@ -645,7 +677,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("validates request body schema", async () => {
-    const res = await app.request("/api/commute/analyze", {
+    const res = await requestWithCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -667,7 +699,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("returns 404 for unknown origin station", async () => {
-    const res = await app.request("/api/commute/analyze", {
+    const res = await requestWithCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -680,7 +712,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("returns 404 for unknown destination station", async () => {
-    const res = await app.request("/api/commute/analyze", {
+    const res = await requestWithCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -693,7 +725,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("accepts optional parameters", async () => {
-    const res = await app.request("/api/commute/analyze", {
+    const res = await requestWithCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -757,7 +789,7 @@ describe("API Push notification endpoints", () => {
   });
 
   it("POST /api/push/subscribe validates request body", async () => {
-    const res = await app.request("/api/push/subscribe", {
+    const res = await requestWithCsrf(app, "/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -778,7 +810,7 @@ describe("API Push notification endpoints", () => {
   });
 
   it("DELETE /api/push/unsubscribe validates request body", async () => {
-    const res = await app.request("/api/push/unsubscribe", {
+    const res = await requestWithCsrf(app, "/api/push/unsubscribe", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

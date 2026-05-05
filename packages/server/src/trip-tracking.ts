@@ -516,7 +516,12 @@ export function calculateCommuteStats(
   // Calculate duration statistics
   const durations = allTrips.map((t) => t.actualDurationMinutes).sort((a, b) => a - b);
   const avgDuration = durations.reduce((sum, d) => sum + d, 0) / durations.length;
-  const medianDuration = durations[Math.floor(durations.length / 2)] ?? 0;
+  // Calculate median: average of two middle values for even-length arrays
+  const mid = Math.floor(durations.length / 2);
+  const medianDuration =
+    durations.length % 2 === 0
+      ? (durations[mid - 1]! + durations[mid]!) / 2
+      : (durations[mid] ?? 0);
 
   // Calculate standard deviation
   const variance =
@@ -553,7 +558,13 @@ export function calculateCommuteStats(
     (t) => t.date >= fourWeeksAgoISO && t.date < weekStartISO
   ).length;
   const prior4WeekAvg = priorWeekTrips / 4;
-  const trend = prior4WeekAvg > 0 ? ((tripsThisWeek - prior4WeekAvg) / prior4WeekAvg) * 100 : 0;
+  // If no prior week data, treat as positive trend when we have current week data
+  const trend =
+    prior4WeekAvg > 0
+      ? ((tripsThisWeek - prior4WeekAvg) / prior4WeekAvg) * 100
+      : tripsThisWeek > 0
+        ? 100
+        : 0;
 
   const stats: CommuteStats = {
     commuteId,
@@ -631,12 +642,15 @@ function cacheCommuteStats(stats: CommuteStats): void {
 }
 
 /**
- * Invalidate commute stats cache.
+ * Invalidate commute stats cache for all commutes.
+ * Since trips are global (not tied to specific commutes), any trip recording
+ * invalidates all cached stats.
  */
-function invalidateCommuteStats(commuteId: string): void {
+function invalidateCommuteStats(commuteId?: string): void {
   if (!db) return;
 
-  db.prepare("DELETE FROM commute_stats WHERE commute_id = ?").run(commuteId);
+  // Clear all commute stats since trips are global
+  db.prepare("DELETE FROM commute_stats").run();
 }
 
 /**

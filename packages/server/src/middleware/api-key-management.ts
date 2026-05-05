@@ -198,8 +198,9 @@ export function listApiKeys(
   }
 
   // Apply pagination
-  const offset = filters.offset || 0;
-  const limit = filters.limit || 50;
+  const offset = filters.offset ?? 0;
+  const limit = filters.limit ?? 50;
+  if (limit === 0) return [];
   keys = keys.slice(offset, offset + limit);
 
   return keys;
@@ -250,14 +251,15 @@ export function canGrantPermissions(
   assignerRole: UserRole | undefined,
   permissions: Permission[]
 ): boolean {
+  // Undefined role cannot grant permissions
+  if (assignerRole === undefined) return false;
+
   // Admins can grant any permission
   if (assignerRole === "admin") return true;
 
   // Non-admins cannot grant admin permissions
-  if (assignerRole !== "admin") {
-    const adminPermissions = permissions.filter((p) => p.startsWith("admin:"));
-    if (adminPermissions.length > 0) return false;
-  }
+  const adminPermissions = permissions.filter((p) => p.startsWith("admin:"));
+  if (adminPermissions.length > 0) return false;
 
   return true;
 }

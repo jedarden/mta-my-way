@@ -163,9 +163,22 @@ export function AlertBanner({
 
         {/* Most severe alert headline */}
         {mostSevere && !expanded && (
-          <p className="text-13 text-text-primary dark:text-dark-text-primary leading-snug">
-            {sanitizeUserInput(mostSevere.headline)}
-          </p>
+          <div>
+            <p className="text-13 text-text-primary dark:text-dark-text-primary leading-snug">
+              {sanitizeUserInput(mostSevere.headline)}
+              {mostSevere.source === "predicted" && (
+                <span className="ml-1.5 text-11 text-amber-600 dark:text-amber-400 font-normal">
+                  (predicted)
+                </span>
+              )}
+            </p>
+            {/* Shuttle info if available */}
+            {mostSevere.shuttleInfo && (
+              <div className="mt-1">
+                <ShuttleInfo shuttleInfo={mostSevere.shuttleInfo} compact />
+              </div>
+            )}
+          </div>
         )}
       </div>
 

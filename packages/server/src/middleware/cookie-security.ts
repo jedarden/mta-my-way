@@ -616,3 +616,6 @@ export function cookieSessionAuth(
     return next();
   };
 }
+
+// Export alias for backward compatibility
+export { getCookieCsrfToken as getCsrfToken };

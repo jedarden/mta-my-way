@@ -385,7 +385,12 @@ export function usePushNotifications(): PushNotificationsState {
   useEffect(() => {
     const handle = () => void retryPendingOp();
     window.addEventListener("online", handle);
-    return () => window.removeEventListener("online", handle);
+    return () => {
+      // Guard against window being undefined during cleanup (test environment)
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handle);
+      }
+    };
   }, [retryPendingOp]);
 
   // Retry via SW postMessage (Background Sync wakes the SW which messages us)
@@ -399,7 +404,12 @@ export function usePushNotifications(): PushNotificationsState {
     };
 
     navigator.serviceWorker.addEventListener("message", handle);
-    return () => navigator.serviceWorker.removeEventListener("message", handle);
+    return () => {
+      // Guard against serviceWorker being undefined during cleanup
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener("message", handle);
+      }
+    };
   }, [isSupported, retryPendingOp]);
 
   // ---------------------------------------------------------------------------

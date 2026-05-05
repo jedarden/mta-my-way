@@ -84,6 +84,8 @@ export const tripCreateRequestSchema = z
     line: lineIdSchema,
     departureTime: timestampSchema,
     arrivalTime: timestampSchema,
+    actualDurationMinutes: z.number().int().positive().optional(),
+    scheduledDurationMinutes: z.number().int().positive().optional(),
     notes: notesSchema.optional(),
   })
   .refine((data) => data.arrivalTime > data.departureTime, {

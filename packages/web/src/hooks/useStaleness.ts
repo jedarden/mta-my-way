@@ -39,7 +39,7 @@ function formatAge(ms: number): string {
 }
 
 function computeStaleness(updatedAt: number | null): StalenessState {
-  if (!updatedAt) {
+  if (updatedAt === null || updatedAt === undefined) {
     return { level: "fresh", ageSeconds: 0, ageText: "" };
   }
 

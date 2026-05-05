@@ -860,3 +860,14 @@ export function clearNotificationRateLimit(keyId: string, channel?: Notification
     }
   }
 }
+
+/**
+ * Reset all in-memory storage (for testing).
+ */
+export function resetNotificationStorage(): void {
+  notificationPreferences.clear();
+  recentEvents.clear();
+  notificationHistory.clear();
+  notificationRateLimits.clear();
+  notificationTemplates.clear();
+}

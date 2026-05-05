@@ -71,7 +71,7 @@ function computeCapStatus(tracking: FareTracking): FareCapStatus {
 
   // Break-even: rides where pay-per-ride = unlimited pass
   const breakEvenRides = Math.ceil(tracking.unlimitedPassPrice / tracking.currentFare);
-  const breakEvenSpend = breakEvenRides * tracking.currentFare;
+  const breakEvenSpend = tracking.unlimitedPassPrice;
 
   // Monthly spend: count all rides this month (simplified, not per-week-capped)
   // We count paid rides from rideLog for this month

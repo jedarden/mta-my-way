@@ -139,8 +139,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: now - 3600000,
         arrivalTime: now,
@@ -165,8 +165,8 @@ describe("Database Operations Integration Tests", () => {
       const trips = Array.from({ length: 20 }, (_, i) =>
         recordTrip({
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
           line: "1",
           departureTime: baseTime + i * 50000,
           arrivalTime: baseTime + i * 50000 + 3600000,
@@ -194,8 +194,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: now - 3600000,
         arrivalTime: now,
@@ -225,9 +225,9 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 50; i++) {
         const originId = i % 2 === 0 ? "101" : "102";
         recordTrip({
-          date: `2026-04-${(i % 30) + 1}`.padStart(10, "0"),
-          origin: { id: originId, name: "Origin" },
-          destination: { id: "725", name: "Dest" },
+          date: `2026-04-${String((i % 30) + 1).padStart(2, "0")}`,
+          origin: { stationId: originId, stationName: "Origin" },
+          destination: { stationId: "725", stationName: "Dest" },
           line: "1",
           departureTime: baseTime + i * 100000,
           arrivalTime: baseTime + i * 100000 + 3600000,
@@ -241,13 +241,14 @@ describe("Database Operations Integration Tests", () => {
       const trips = getTrips({ originId: "101", limit: 100 });
 
       expect(trips.length).toBe(25);
-      expect(trips.every((t) => t.origin.id === "101")).toBe(true);
+      expect(trips.every((t) => t.origin.stationId === "101")).toBe(true);
     });
 
     it("efficiently filters by date range", () => {
       const trips = getTrips({ startDate: "2026-04-01", endDate: "2026-04-10", limit: 100 });
 
-      expect(trips.length).toBe(10);
+      // With i % 30, days 01-10 appear twice (i=0-9 and i=30-39) = 20 trips
+      expect(trips.length).toBe(20);
     });
 
     it("efficiently paginates large result sets", () => {
@@ -276,8 +277,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 5; i++) {
         recordTrip({
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
           line: "1",
           departureTime: now - 3600000 - i * 100000,
           arrivalTime: now - i * 100000,
@@ -303,8 +304,8 @@ describe("Database Operations Integration Tests", () => {
       // Create trips with specific durations
       recordTrip({
         date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: now - 7200000,
         arrivalTime: now - 3600000,
@@ -315,8 +316,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip2 = recordTrip({
         date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: now - 3600000,
         arrivalTime: now,
@@ -365,8 +366,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: now - 3600000,
         arrivalTime: now,
@@ -387,8 +388,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 5; i++) {
         recordTrip({
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
           line: "1",
           departureTime: now - (5 - i) * 10000000,
           arrivalTime: now - (5 - i) * 10000000 + (40 + i * 10) * 60000,
@@ -409,8 +410,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 4; i++) {
         recordTrip({
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
           line: "1",
           departureTime: now - (4 - i) * 10000000,
           arrivalTime: now - (4 - i) * 10000000 + (40 + i * 10) * 60000,
@@ -440,8 +441,8 @@ describe("Database Operations Integration Tests", () => {
       // Create a trip
       recordTrip({
         date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: now - 3600000,
         arrivalTime: now,
@@ -463,8 +464,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: now - 3600000,
         arrivalTime: now,
@@ -498,8 +499,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 3; i++) {
         const trip = recordTrip({
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
           line: "1",
           departureTime: now - 3600000 - i * 100000,
           arrivalTime: now - i * 100000,
