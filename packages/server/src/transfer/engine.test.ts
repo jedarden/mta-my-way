@@ -1,4 +1,10 @@
-import type { ArrivalTime, ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
+import type {
+  ArrivalTime,
+  ComplexIndex,
+  RouteIndex,
+  StationArrivals,
+  StationIndex,
+} from "@mta-my-way/shared";
 import { describe, expect, it } from "vitest";
 import { TransferEngine, detectExpressService } from "./engine.js";
 
@@ -182,7 +188,18 @@ function makeEngine(arrivalsMap: Record<string, ArrivalTime[]>): TransferEngine 
     routes: ROUTES,
     transfers: {},
     complexes: COMPLEXES,
-    getArrivals: (id) => arrivalsMap[id] ?? null,
+    getArrivals: (id) => {
+      const arrivals = arrivalsMap[id];
+      if (!arrivals) return null;
+      return {
+        stationId: id,
+        stationName: STATIONS[id]?.name ?? "Unknown",
+        updatedAt: Date.now(),
+        feedAge: 5,
+        northbound: arrivals,
+        southbound: [],
+      };
+    },
   });
 }
 
@@ -305,7 +322,17 @@ describe("TransferEngine.analyzeCommute", () => {
       routes: { A: ROUTES["A"]! },
       transfers: {},
       complexes: {},
-      getArrivals: (id) => (id === "201" ? bArrivals : null),
+      getArrivals: (id) =>
+        id === "201"
+          ? {
+              stationId: "201",
+              stationName: "Alpha St",
+              updatedAt: Date.now(),
+              feedAge: 5,
+              northbound: bArrivals,
+              southbound: [],
+            }
+          : null,
     });
 
     const analysis = engineWithAOnly.analyzeCommute("201", "203");

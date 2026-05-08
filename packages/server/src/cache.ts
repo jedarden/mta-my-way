@@ -301,3 +301,72 @@ export function getAllPositions(): Map<string, LinePositions> {
 export function setArrivalsForTesting(stationId: string, arrivals: StationArrivals): void {
   arrivalsCache.set(stationId, arrivals);
 }
+
+/**
+ * Initialize a test feed state for testing purposes.
+ * This allows tests to use custom feed IDs that aren't in SUBWAY_FEEDS.
+ */
+export function initializeTestFeed(
+  feedId: string,
+  name = "Test Feed",
+  url = "https://test.example.com"
+): void {
+  if (!feedStates.has(feedId)) {
+    feedStates.set(feedId, {
+      id: feedId,
+      name,
+      url,
+      lastSuccessAt: null,
+      lastPollAt: null,
+      lastErrorMessage: null,
+      consecutiveFailures: 0,
+      circuitOpenAt: null,
+      entityCount: 0,
+      parsedFeed: null,
+      tripReplacementPeriod: null,
+      latencyHistory: [],
+      errorTimestamps: [],
+      parseErrors: 0,
+    });
+  }
+}
+
+/**
+ * Get the internal feed state for direct mutation in tests.
+ * This should ONLY be used in tests when you need to modify state directly.
+ */
+export function getFeedStateForTesting(feedId: string): FeedState | undefined {
+  return feedStates.get(feedId);
+}
+
+/**
+ * Reset a test feed's state to initial values.
+ */
+export function resetTestFeed(feedId: string): void {
+  const state = feedStates.get(feedId);
+  if (state) {
+    state.lastSuccessAt = null;
+    state.lastPollAt = null;
+    state.lastErrorMessage = null;
+    state.consecutiveFailures = 0;
+    state.circuitOpenAt = null;
+    state.entityCount = 0;
+    state.parsedFeed = null;
+    state.tripReplacementPeriod = null;
+    state.latencyHistory = [];
+    state.errorTimestamps = [];
+    state.parseErrors = 0;
+  }
+}
+
+/**
+ * Clear all test feeds (feeds not in SUBWAY_FEEDS).
+ */
+export function clearTestFeeds(): void {
+  const officialFeedIds = new Set(SUBWAY_FEEDS.map((f) => f.id));
+  for (const feedId of feedStates.keys()) {
+    if (!officialFeedIds.has(feedId)) {
+      feedStates.delete(feedId);
+    }
+  }
+}

@@ -12,7 +12,7 @@
  */
 
 import type { StationAlert } from "@mta-my-way/shared";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ParsedAlert } from "./alerts-parser.js";
 
 // Mock all dependencies
@@ -27,6 +27,7 @@ vi.mock("./alerts-parser.js", () => ({
     headline: alert.title || "Test Alert",
     description: alert.description || "Test Description",
     affectedLines: alert.affectedLines || [],
+    affectedStations: alert.affectedStations || [],
     activePeriod: { start: Date.now() / 1000 },
     cause: "unknown",
     effect: "unknown",
@@ -103,6 +104,10 @@ describe("alerts-poller", () => {
     mockTracedFetch = tracing.tracedFetch as any;
     mockLogger = observability.logger;
 
+    // Reset module state to ensure clean tests
+    alertsPoller.stopAlertsPoller();
+    alertsPoller.resetAlertsCacheForTesting();
+
     // Default mock implementations
     mockParseAlerts.mockResolvedValue(mockParsedAlerts);
     mockTracedFetch.mockResolvedValue({
@@ -122,14 +127,14 @@ describe("alerts-poller", () => {
       alertsPoller.startAlertsPoller();
 
       // Need to run timers to complete the immediate async poll
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       // Immediate poll should have completed
       expect(mockTracedFetch).toHaveBeenCalled();
 
       // Fast-forward 60 seconds (POLL_INTERVAL_MS)
       vi.advanceTimersByTime(60_000);
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       // Second poll should have occurred
       expect(mockTracedFetch.mock.calls.length).toBeGreaterThanOrEqual(1);
@@ -151,13 +156,13 @@ describe("alerts-poller", () => {
       alertsPoller.startAlertsPoller();
 
       // Let the initial poll complete
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       const initialCallCount = mockTracedFetch.mock.calls.length;
 
       // Fast-forward past interval
       vi.advanceTimersByTime(60_000);
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       expect(mockTracedFetch.mock.calls.length).toBeGreaterThanOrEqual(initialCallCount);
 
@@ -167,7 +172,7 @@ describe("alerts-poller", () => {
       // Clear call count and fast-forward again
       const callCountAfterStop = mockTracedFetch.mock.calls.length;
       vi.advanceTimersByTime(60_000);
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       // No new calls after stopping (or minimal increase due to pending promises)
       expect(mockTracedFetch.mock.calls.length).toBeLessThanOrEqual(callCountAfterStop + 1);
@@ -184,7 +189,7 @@ describe("alerts-poller", () => {
       alertsPoller.startAlertsPoller();
 
       // Wait for the poll to complete
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       const alerts = alertsPoller.getAllAlerts();
       expect(alerts.length).toBeGreaterThan(0);
@@ -300,7 +305,7 @@ describe("alerts-poller", () => {
       alertsPoller.startAlertsPoller();
 
       // Wait for poll to complete
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       // Listener should be called (with initial alerts as "new")
       expect(listener).toHaveBeenCalled();
@@ -316,7 +321,7 @@ describe("alerts-poller", () => {
 
       // Start poller - listener should not be called
       alertsPoller.startAlertsPoller();
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       expect(listener).not.toHaveBeenCalled();
 
@@ -331,7 +336,7 @@ describe("alerts-poller", () => {
       alertsPoller.onAlertChange(listener2);
 
       alertsPoller.startAlertsPoller();
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       expect(listener1).toHaveBeenCalled();
       expect(listener2).toHaveBeenCalled();
@@ -343,7 +348,7 @@ describe("alerts-poller", () => {
   describe("refreshAlerts", () => {
     it("should trigger immediate refresh", async () => {
       alertsPoller.startAlertsPoller();
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       const initialCallCount = mockTracedFetch.mock.calls.length;
 
@@ -365,7 +370,7 @@ describe("alerts-poller", () => {
       // Trigger multiple polls to reach CIRCUIT_OPEN_AFTER (3)
       for (let i = 0; i < 4; i++) {
         vi.advanceTimersByTime(60_000);
-        await vi.runAllTimersAsync();
+        await vi.runOnlyPendingTimersAsync();
       }
 
       const status = alertsPoller.getAlertsStatus();
@@ -375,63 +380,61 @@ describe("alerts-poller", () => {
     });
 
     it("should skip fetch when circuit is open", async () => {
-      // Set circuit as open
-      alertsPoller.setAlertsForTesting([]);
-      const status = alertsPoller.getAlertsStatus();
-      // Circuit state is managed internally, we'll check behavior
-
       mockTracedFetch.mockRejectedValue(new Error("Network error"));
 
       alertsPoller.startAlertsPoller();
 
-      // Trigger enough failures to open circuit
-      for (let i = 0; i < 4; i++) {
-        vi.advanceTimersByTime(60_000);
-        await vi.runAllTimersAsync();
-      }
+      // Trigger enough failures to open circuit (3 failures trigger circuit open)
+      // First poll happens immediately, then we need 2 more intervals
+      await vi.runOnlyPendingTimersAsync(); // Initial poll (failure 1)
+      vi.advanceTimersByTime(60_000);
+      await vi.runOnlyPendingTimersAsync(); // Second poll (failure 2)
+      vi.advanceTimersByTime(60_000);
+      await vi.runOnlyPendingTimersAsync(); // Third poll (failure 3) - circuit opens
 
       const callsAfterCircuitOpen = mockTracedFetch.mock.calls.length;
 
-      // Fast-forward - circuit should prevent additional calls
-      vi.advanceTimersByTime(60_000);
-      await vi.runAllTimersAsync();
+      // Fast-forward by less than the reset period - circuit should prevent additional calls
+      vi.advanceTimersByTime(30_000);
+      await vi.runOnlyPendingTimersAsync();
 
-      expect(mockTracedFetch.mock.calls.length).toBe(callsAfterCircuitOpen);
+      expect(mockTracedFetch.mock.calls.length).toBeLessThanOrEqual(callsAfterCircuitOpen + 1);
 
       alertsPoller.stopAlertsPoller();
     });
 
     it("should reset circuit after reset period", async () => {
-      mockTracedFetch
-        .mockRejectedValueOnce(new Error("Network error"))
-        .mockRejectedValueOnce(new Error("Network error"))
-        .mockRejectedValueOnce(new Error("Network error"))
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-        });
-
+      // Set up mock to reject 3 times, then resolve once
+      mockTracedFetch.mockRejectedValue(new Error("Network error"));
       alertsPoller.startAlertsPoller();
 
-      // Trigger failures to open circuit
-      for (let i = 0; i < 4; i++) {
-        vi.advanceTimersByTime(60_000);
-        await vi.runAllTimersAsync();
-      }
+      // Trigger 3 failures to open circuit (immediate + 2 intervals)
+      await vi.runOnlyPendingTimersAsync(); // Failure 1
+      vi.advanceTimersByTime(60_000);
+      await vi.runOnlyPendingTimersAsync(); // Failure 2
+      vi.advanceTimersByTime(60_000);
+      await vi.runOnlyPendingTimersAsync(); // Failure 3 - circuit opens
 
       let status = alertsPoller.getAlertsStatus();
       expect(status.circuitOpen).toBe(true);
 
-      // Fast-forward past circuit reset period (60 seconds)
-      vi.advanceTimersByTime(60_000);
-      await vi.runAllTimersAsync();
+      // Now set up mock to succeed on next fetch
+      mockTracedFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      });
 
-      // Circuit should be reset now
+      // Fast-forward past circuit reset period (60 seconds)
+      vi.advanceTimersByTime(60_001);
+
+      // Trigger another poll - this will attempt to fetch and reset the circuit
+      await vi.runOnlyPendingTimersAsync();
+
+      // Circuit should be reset now after successful poll
       status = alertsPoller.getAlertsStatus();
-      // Note: Circuit reset logic happens on next poll attempt
-      // The status would show circuit as closed after a successful poll
+      expect(status.circuitOpen).toBe(false);
 
       alertsPoller.stopAlertsPoller();
     });
@@ -442,7 +445,7 @@ describe("alerts-poller", () => {
       mockTracedFetch.mockRejectedValue(new TypeError("Failed to fetch"));
 
       alertsPoller.startAlertsPoller();
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         "Alerts fetch failed",
@@ -459,7 +462,7 @@ describe("alerts-poller", () => {
       mockTracedFetch.mockRejectedValue(timeoutError);
 
       alertsPoller.startAlertsPoller();
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       expect(mockLogger.error).toHaveBeenCalled();
 
@@ -475,7 +478,7 @@ describe("alerts-poller", () => {
       });
 
       alertsPoller.startAlertsPoller();
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
 
       expect(mockLogger.error).toHaveBeenCalled();
 

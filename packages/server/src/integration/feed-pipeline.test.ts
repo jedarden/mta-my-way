@@ -34,7 +34,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "100": {
     id: "100",
     name: "Whitehall St",
-    location: { lat: 40.703, lon: -74.014 },
+    lat: 40.703,
+    lon: -74.014,
     lines: ["1", "2"],
     northStopId: "100N",
     southStopId: "100S",
@@ -45,7 +46,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "101": {
     id: "101",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1", "2"],
     northStopId: "101N",
     southStopId: "101S",
@@ -56,7 +58,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "102": {
     id: "102",
     name: "Rector St",
-    location: { lat: 40.709, lon: -74.014 },
+    lat: 40.709,
+    lon: -74.014,
     lines: ["1"],
     northStopId: "102N",
     southStopId: "102S",
@@ -67,7 +70,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "103": {
     id: "103",
     name: "Cortlandt St",
-    location: { lat: 40.712, lon: -74.014 },
+    lat: 40.712,
+    lon: -74.014,
     lines: ["1"],
     northStopId: "103N",
     southStopId: "103S",
@@ -78,7 +82,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "724": {
     id: "724",
     name: "34 St-Herald Sq",
-    location: { lat: 40.75, lon: -73.988 },
+    lat: 40.75,
+    lon: -73.988,
     lines: ["F"],
     northStopId: "724N",
     southStopId: "724S",
@@ -89,7 +94,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "725": {
     id: "725",
     name: "Times Sq-42 St",
-    location: { lat: 40.758, lon: -73.985 },
+    lat: 40.758,
+    lon: -73.985,
     lines: ["F", "D"],
     northStopId: "725N",
     southStopId: "725S",
@@ -100,7 +106,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "726": {
     id: "726",
     name: "42 St-Bryant Pk",
-    location: { lat: 40.754, lon: -73.983 },
+    lat: 40.754,
+    lon: -73.983,
     lines: ["F"],
     northStopId: "726N",
     southStopId: "726S",
@@ -111,7 +118,8 @@ const PIPELINE_STATIONS: StationIndex = {
   "730": {
     id: "730",
     name: "145 St",
-    location: { lat: 40.824, lon: -73.946 },
+    lat: 40.824,
+    lon: -73.946,
     lines: ["D"],
     northStopId: "730N",
     southStopId: "730S",

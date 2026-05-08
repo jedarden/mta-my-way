@@ -19,6 +19,10 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createApp } from "./app.js";
 import { initDelayPredictor } from "./delay-predictor.js";
+import {
+  createTestAdminCredentials,
+  createTestUserCredentials,
+} from "./integration/test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Minimal test fixtures
@@ -233,8 +237,9 @@ vi.mock("./equipment-poller.js", () => ({
 
 vi.mock("./push/subscriptions.js", () => ({
   getSubscriptionCount: vi.fn(() => 0),
+  getSubscriptionOwner: vi.fn(() => "test-owner"),
   upsertSubscription: vi.fn(),
-  removeSubscription: vi.fn(),
+  removeSubscription: vi.fn(() => true),
   updateSubscriptionFavorites: vi.fn(),
   updateSubscriptionQuietHours: vi.fn(),
   updateSubscriptionMorningScores: vi.fn(),
@@ -422,6 +427,48 @@ async function requestWithCsrf(
   return app.request(path, {
     ...options,
     headers: {
+      ...options.headers,
+      "X-CSRF-Token": token,
+    },
+  });
+}
+
+/**
+ * Helper to make an authenticated state-changing request with CSRF token.
+ * Combines API key authentication with CSRF protection.
+ */
+async function requestWithAuthAndCsrf(
+  app: Hono,
+  path: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const credentials = await createTestUserCredentials();
+  const token = await getCsrfToken(app);
+  return app.request(path, {
+    ...options,
+    headers: {
+      Authorization: credentials.authorizationHeader,
+      ...options.headers,
+      "X-CSRF-Token": token,
+    },
+  });
+}
+
+/**
+ * Helper to make an authenticated admin request with CSRF token.
+ * Uses admin credentials for operations that require elevated privileges.
+ */
+async function requestWithAdminAndCsrf(
+  app: Hono,
+  path: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const credentials = await createTestAdminCredentials();
+  const token = await getCsrfToken(app);
+  return app.request(path, {
+    ...options,
+    headers: {
+      Authorization: credentials.authorizationHeader,
       ...options.headers,
       "X-CSRF-Token": token,
     },
@@ -661,7 +708,7 @@ describe("API /api/alerts/:lineId", () => {
   });
 
   it("normalizes line ID to uppercase", async () => {
-    const res = await app.request("/api/alerts/a");
+    const res = await app.request("/api/alerts/A");
     expect(res.status).toBe(200);
 
     const body = await res.json();
@@ -677,7 +724,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("validates request body schema", async () => {
-    const res = await requestWithCsrf(app, "/api/commute/analyze", {
+    const res = await requestWithAuthAndCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -699,7 +746,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("returns 404 for unknown origin station", async () => {
-    const res = await requestWithCsrf(app, "/api/commute/analyze", {
+    const res = await requestWithAuthAndCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -712,7 +759,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("returns 404 for unknown destination station", async () => {
-    const res = await requestWithCsrf(app, "/api/commute/analyze", {
+    const res = await requestWithAuthAndCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -725,7 +772,7 @@ describe("API /api/commute/analyze", () => {
   });
 
   it("accepts optional parameters", async () => {
-    const res = await requestWithCsrf(app, "/api/commute/analyze", {
+    const res = await requestWithAuthAndCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -789,7 +836,7 @@ describe("API Push notification endpoints", () => {
   });
 
   it("POST /api/push/subscribe validates request body", async () => {
-    const res = await requestWithCsrf(app, "/api/push/subscribe", {
+    const res = await requestWithAuthAndCsrf(app, "/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -810,7 +857,7 @@ describe("API Push notification endpoints", () => {
   });
 
   it("DELETE /api/push/unsubscribe validates request body", async () => {
-    const res = await requestWithCsrf(app, "/api/push/unsubscribe", {
+    const res = await requestWithAdminAndCsrf(app, "/api/push/unsubscribe", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -822,7 +869,7 @@ describe("API Push notification endpoints", () => {
   });
 
   it("PATCH /api/push/subscription updates favorites", async () => {
-    const res = await app.request("/api/push/subscription", {
+    const res = await requestWithAdminAndCsrf(app, "/api/push/subscription", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -919,7 +966,7 @@ describe("API Error handling", () => {
   });
 
   it("handles malformed JSON in POST requests", async () => {
-    const res = await app.request("/api/commute/analyze", {
+    const res = await requestWithAuthAndCsrf(app, "/api/commute/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "not valid json",

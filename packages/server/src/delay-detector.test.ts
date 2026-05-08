@@ -13,7 +13,7 @@
  */
 
 import type { RouteIndex, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   extractVehiclePositions,
   getDelayDetectorStatus,
@@ -25,6 +25,29 @@ import {
   resetDelayDetector,
 } from "./delay-detector.js";
 import type { DelayDetectorConfig } from "./delay-detector.js";
+
+// Mock delay-predictor to avoid config initialization issues
+vi.mock("./delay-predictor.js", () => ({
+  recordDelay: vi.fn(),
+  initDelayPredictor: vi.fn(),
+  getDelayPrediction: vi.fn(),
+  getDelayStats: vi.fn(),
+  getTimeBucket: vi.fn((hour: number) => {
+    if (hour >= 4 && hour < 6) return "early_morning";
+    if (hour >= 6 && hour < 10) return "morning_rush";
+    if (hour >= 10 && hour < 15) return "midday";
+    if (hour >= 15 && hour < 19) return "evening_rush";
+    return "night";
+  }),
+  getTimeBucketForTimestamp: vi.fn(() => "midday"),
+  getDayCategory: vi.fn(() => "weekday"),
+  getDayCategoryForTimestamp: vi.fn(() => "weekday"),
+  setWeatherOverride: vi.fn(),
+  getRouteDelaySummary: vi.fn(),
+  getAllDelayStats: vi.fn(),
+  clearDelayRecords: vi.fn(),
+  getDelayRecordsCount: vi.fn(),
+}));
 
 // ---------------------------------------------------------------------------
 // Test data

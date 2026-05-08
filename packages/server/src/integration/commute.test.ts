@@ -32,7 +32,8 @@ const TEST_STATIONS: StationIndex = {
   "101": {
     id: "101",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "101N",
     southStopId: "101S",
@@ -43,7 +44,8 @@ const TEST_STATIONS: StationIndex = {
   "725": {
     id: "725",
     name: "Times Sq-42 St",
-    location: { lat: 40.758, lon: -73.985 },
+    lat: 40.758,
+    lon: -73.985,
     lines: ["1", "2", "3", "7", "N", "Q", "R", "W", "S"],
     northStopId: "725N",
     southStopId: "725S",
@@ -55,7 +57,8 @@ const TEST_STATIONS: StationIndex = {
   "726": {
     id: "726",
     name: "42 St-Port Authority",
-    location: { lat: 40.756, lon: -73.988 },
+    lat: 40.756,
+    lon: -73.988,
     lines: ["A", "C", "E"],
     northStopId: "726N",
     southStopId: "726S",
@@ -67,7 +70,8 @@ const TEST_STATIONS: StationIndex = {
   "727": {
     id: "727",
     name: "34 St-Penn Station",
-    location: { lat: 40.75, lon: -73.99 },
+    lat: 40.75,
+    lon: -73.99,
     lines: ["A", "C", "E"],
     northStopId: "727N",
     southStopId: "727S",
@@ -205,7 +209,12 @@ describe("Commute Analysis Integration Tests", () => {
     const userCreds = await createTestUserCredentials();
     authHeaders = { Authorization: userCreds.authorizationHeader };
 
-    // Create app with test data
+    // Mock the getArrivals function BEFORE creating app
+    // The transfer engine captures getArrivals via closure, so spy must be set first
+    const { getArrivals } = await import("../cache.js");
+    getArrivalsSpy = vi.spyOn(await import("../cache.js"), "getArrivals").mockReturnValue(null);
+
+    // Create app with test data (transfer engine will now use the spy)
     app = createApp(
       TEST_STATIONS,
       TEST_ROUTES,
@@ -213,10 +222,6 @@ describe("Commute Analysis Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
-
-    // Mock the getArrivals function to return test data
-    const { getArrivals } = await import("../cache.js");
-    getArrivalsSpy = vi.spyOn(await import("../cache.js"), "getArrivals");
   });
 
   afterEach(() => {
@@ -402,6 +407,7 @@ describe("Commute Analysis Integration Tests", () => {
     });
 
     it("includes walking option for short distances", async () => {
+      // Mock to return empty array (no arrivals)
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
       const res = await requestWithCsrf("/api/commute/analyze", {
@@ -416,6 +422,11 @@ describe("Commute Analysis Integration Tests", () => {
       expect(res.status).toBe(200);
 
       const body = await res.json();
+      // When there are no arrivals, the engine should still suggest walking for very short distances
+      // based on the haversine distance calculation
+      if (!body.walkingOption) {
+        console.log("Response body:", JSON.stringify(body, null, 2));
+      }
       expect(body.walkingOption).toBeDefined();
     });
 

@@ -198,7 +198,7 @@ describe("Security Middleware Integration Tests", () => {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: { id: "101", name: "South Ferry" },
+          origin: "101",
           line: "1",
           departureTime: Date.now() - 3600000,
           arrivalTime: Date.now(),
@@ -245,11 +245,11 @@ describe("Security Middleware Integration Tests", () => {
           method: "POST",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
-            origin: { id: "101", name: "South Ferry" },
-            destination: { id: "725", name: "Times Sq-42 St" },
+            origin: "101",
+            destination: "725",
             line: "1",
-            departureTime: now - 3600000,
-            arrivalTime: now,
+            departureTime: Math.floor((now - 3600000) / 1000),
+            arrivalTime: Math.floor(now / 1000),
             notes: payload,
           }),
         });
@@ -267,11 +267,11 @@ describe("Security Middleware Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
-          departureTime: now - 3600000,
-          arrivalTime: now,
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
           notes: xssPayload,
         }),
       });
@@ -417,11 +417,11 @@ describe("Security Middleware Integration Tests", () => {
         method: "POST",
         headers: { ...authHeaders },
         body: JSON.stringify({
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
-          departureTime: now - 3600000,
-          arrivalTime: now,
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
         }),
       });
 

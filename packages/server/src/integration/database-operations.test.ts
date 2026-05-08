@@ -37,7 +37,8 @@ const TEST_STATIONS: StationIndex = {
   "101": {
     id: "101",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "101N",
     southStopId: "101S",
@@ -48,7 +49,8 @@ const TEST_STATIONS: StationIndex = {
   "102": {
     id: "102",
     name: "Rector St",
-    location: { lat: 40.709, lon: -74.014 },
+    lat: 40.709,
+    lon: -74.014,
     lines: ["1"],
     northStopId: "102N",
     southStopId: "102S",
@@ -59,7 +61,8 @@ const TEST_STATIONS: StationIndex = {
   "725": {
     id: "725",
     name: "Times Sq-42 St",
-    location: { lat: 40.758, lon: -73.985 },
+    lat: 40.758,
+    lon: -73.985,
     lines: ["1", "2", "3"],
     northStopId: "725N",
     southStopId: "725S",
@@ -70,7 +73,8 @@ const TEST_STATIONS: StationIndex = {
   "726": {
     id: "726",
     name: "42 St-Port Authority",
-    location: { lat: 40.756, lon: -73.988 },
+    lat: 40.756,
+    lon: -73.988,
     lines: ["A", "C", "E"],
     northStopId: "726N",
     southStopId: "726S",
@@ -139,8 +143,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -165,8 +169,8 @@ describe("Database Operations Integration Tests", () => {
       const trips = Array.from({ length: 20 }, (_, i) =>
         recordTrip({
           date: "2026-04-06",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "Test Station" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
           departureTime: baseTime + i * 50000,
           arrivalTime: baseTime + i * 50000 + 3600000,
@@ -194,8 +198,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -228,7 +232,7 @@ describe("Database Operations Integration Tests", () => {
         recordTrip({
           date: `2026-04-${String((i % 30) + 1).padStart(2, "0")}`,
           origin: { stationId: originId, stationName: originName },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
           departureTime: baseTime + i * 100000,
           arrivalTime: baseTime + i * 100000 + 3600000,
@@ -278,8 +282,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 5; i++) {
         recordTrip({
           date: "2026-04-06",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "Test Station" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
           departureTime: Math.floor((now - 3600000) / 1000) - i * 100000,
           arrivalTime: Math.floor(now / 1000) - i * 100000,
@@ -305,8 +309,8 @@ describe("Database Operations Integration Tests", () => {
       // Create trips with specific durations
       recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
         departureTime: Math.floor((now - 7200000) / 1000),
         arrivalTime: Math.floor(now / 1000) - 3600000,
@@ -317,8 +321,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip2 = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -367,8 +371,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -389,8 +393,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 5; i++) {
         recordTrip({
           date: "2026-04-06",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "Test Station" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
           departureTime: now - (5 - i) * 10000000,
           arrivalTime: Math.floor(now / 1000) - (5 - i) * 10000000 + (40 + i * 10) * 60000,
@@ -411,8 +415,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 4; i++) {
         recordTrip({
           date: "2026-04-06",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "Test Station" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
           departureTime: now - (4 - i) * 10000000,
           arrivalTime: Math.floor(now / 1000) - (4 - i) * 10000000 + (40 + i * 10) * 60000,
@@ -442,8 +446,8 @@ describe("Database Operations Integration Tests", () => {
       // Create a trip
       recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -465,8 +469,8 @@ describe("Database Operations Integration Tests", () => {
 
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -500,8 +504,8 @@ describe("Database Operations Integration Tests", () => {
       for (let i = 0; i < 3; i++) {
         const trip = recordTrip({
           date: "2026-04-06",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "Test Station" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
           departureTime: Math.floor((now - 3600000) / 1000) - i * 100000,
           arrivalTime: Math.floor(now / 1000) - i * 100000,

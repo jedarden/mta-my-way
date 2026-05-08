@@ -68,13 +68,18 @@ export function usePrefetch(): UsePrefetchReturn {
 
   /**
    * Handle geofence entry — trigger prefetch.
+   * Only prefetches when online (underground = no GPS + no connectivity).
    */
   const handleGeofenceEnter = useCallback(
     (event: GeofenceEvent) => {
       lastGeofenceEventRef.current = event;
-      doPrefetch();
+      // Only prefetch immediately if online; if offline, store the event
+      // for later prefetch when connectivity returns
+      if (isOnline) {
+        doPrefetch();
+      }
     },
-    [doPrefetch]
+    [doPrefetch, isOnline]
   );
 
   // Geofence watcher

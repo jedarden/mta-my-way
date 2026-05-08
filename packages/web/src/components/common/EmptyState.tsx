@@ -159,7 +159,7 @@ export function EmptyJournal({ className = "" }: EmptyStateBaseProps) {
 /**
  * Generic EmptyState - A reusable empty state with title, message, and optional action
  */
-function GenericEmptyState({
+export function GenericEmptyState({
   title,
   message,
   actionLabel,

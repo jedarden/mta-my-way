@@ -111,7 +111,8 @@ describe("Station API Integration Tests", () => {
       expect(station).toBeDefined();
       expect(station.id).toBe("101");
       expect(station.name).toBe("South Ferry");
-      expect(station.location).toBeDefined();
+      expect(station.lat).toBeDefined();
+      expect(station.lon).toBeDefined();
       expect(station.lines).toEqual(["1"]);
       expect(station.ada).toBe(true);
     });

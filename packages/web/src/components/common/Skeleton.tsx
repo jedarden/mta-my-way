@@ -273,8 +273,8 @@ export function SearchResultsSkeleton({ count = 5 }: { count?: number }) {
 /**
  * Generic skeleton for simple loading states
  */
-export function Skeleton({ className = "" }: SkeletonBaseProps) {
-  return <ShimmerBlock className={className} />;
+export function Skeleton({ className = "", style }: SkeletonBaseProps) {
+  return <ShimmerBlock className={className} style={style} />;
 }
 
 export default Skeleton;

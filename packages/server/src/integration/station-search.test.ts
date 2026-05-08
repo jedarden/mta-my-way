@@ -23,7 +23,8 @@ const TEST_STATIONS: StationIndex = {
   "101": {
     id: "101",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "101N",
     southStopId: "101S",
@@ -34,7 +35,8 @@ const TEST_STATIONS: StationIndex = {
   "102": {
     id: "102",
     name: "Rector St",
-    location: { lat: 40.709, lon: -74.014 },
+    lat: 40.709,
+    lon: -74.014,
     lines: ["1"],
     northStopId: "102N",
     southStopId: "102S",
@@ -45,7 +47,8 @@ const TEST_STATIONS: StationIndex = {
   "725": {
     id: "725",
     name: "Times Sq-42 St",
-    location: { lat: 40.758, lon: -73.985 },
+    lat: 40.758,
+    lon: -73.985,
     lines: ["1", "2", "3", "7", "N", "Q", "R", "W", "S"],
     northStopId: "725N",
     southStopId: "725S",
@@ -57,7 +60,8 @@ const TEST_STATIONS: StationIndex = {
   "726": {
     id: "726",
     name: "42 St-Port Authority",
-    location: { lat: 40.756, lon: -73.988 },
+    lat: 40.756,
+    lon: -73.988,
     lines: ["A", "C", "E"],
     northStopId: "726N",
     southStopId: "726S",
@@ -69,7 +73,8 @@ const TEST_STATIONS: StationIndex = {
   "727": {
     id: "727",
     name: "34 St-Penn Station",
-    location: { lat: 40.75, lon: -73.99 },
+    lat: 40.75,
+    lon: -73.99,
     lines: ["A", "C", "E"],
     northStopId: "727N",
     southStopId: "727S",
@@ -80,7 +85,8 @@ const TEST_STATIONS: StationIndex = {
   "728": {
     id: "728",
     name: "14 St-Union Sq",
-    location: { lat: 40.734, lon: -73.989 },
+    lat: 40.734,
+    lon: -73.989,
     lines: ["L", "N", "Q", "R", "W", "4", "5", "6"],
     northStopId: "728N",
     southStopId: "728S",
@@ -91,7 +97,8 @@ const TEST_STATIONS: StationIndex = {
   "729": {
     id: "729",
     name: "Grand Central",
-    location: { lat: 40.752, lon: -73.977 },
+    lat: 40.752,
+    lon: -73.977,
     lines: ["4", "5", "6", "7", "S"],
     northStopId: "729N",
     southStopId: "729S",
@@ -340,7 +347,8 @@ describe("Station Search Integration Tests", () => {
         const station = body[0];
         expect(station).toHaveProperty("id");
         expect(station).toHaveProperty("name");
-        expect(station).toHaveProperty("location");
+        expect(station).toHaveProperty("lat");
+        expect(station).toHaveProperty("lon");
         expect(station).toHaveProperty("lines");
         expect(station).toHaveProperty("northStopId");
         expect(station).toHaveProperty("southStopId");

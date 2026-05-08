@@ -179,7 +179,7 @@ export function DataState<T>({
       )}
 
       {/* Actual content */}
-      {hasData ? isEmptyArray && empty ? <>{empty}</> : <>{children(data as T)}</> : null}
+      {isEmptyArray && empty ? <>{empty}</> : hasData ? <>{children(data as T)}</> : null}
     </div>
   );
 }

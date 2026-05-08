@@ -11,7 +11,8 @@ const mockStations: StationIndex = {
   R01: {
     id: "R01",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "R01N",
     southStopId: "R01S",
@@ -20,7 +21,8 @@ const mockStations: StationIndex = {
   R02: {
     id: "R02",
     name: "Rector Street",
-    location: { lat: 40.704, lon: -74.013 },
+    lat: 40.704,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "R02N",
     southStopId: "R02S",
@@ -29,7 +31,8 @@ const mockStations: StationIndex = {
   R03: {
     id: "R03",
     name: "WTC Cortlandt",
-    location: { lat: 40.707, lon: -74.013 },
+    lat: 40.707,
+    lon: -74.013,
     lines: ["1", "2"], // Transfer station
     northStopId: "R03N",
     southStopId: "R03S",
@@ -38,7 +41,8 @@ const mockStations: StationIndex = {
   R04: {
     id: "R04",
     name: "Chambers Street",
-    location: { lat: 40.714, lon: -74.008 },
+    lat: 40.714,
+    lon: -74.008,
     lines: ["1"],
     northStopId: "R04N",
     southStopId: "R04S",
@@ -47,7 +51,8 @@ const mockStations: StationIndex = {
   R05: {
     id: "R05",
     name: "Park Place",
-    location: { lat: 40.716, lon: -74.007 },
+    lat: 40.716,
+    lon: -74.007,
     lines: ["1"],
     northStopId: "R05N",
     southStopId: "R05S",

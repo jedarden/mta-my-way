@@ -145,8 +145,17 @@ describe("Transfer Engine Integration Tests", () => {
       complexes: TEST_COMPLEXES,
       getArrivals: (stationId) => {
         const arrivals = createMockArrivals(stationId);
+        const stationArrivals = {
+          stationId,
+          stationName: TEST_STATIONS[stationId]?.name || "Test Station",
+          updatedAt: Math.floor(Date.now() / 1000),
+          feedAge: 0,
+          northbound: arrivals,
+          southbound: [],
+          alerts: [],
+        };
         setArrivalsForTesting(stationId, { northbound: arrivals, southbound: [] });
-        return arrivals;
+        return stationArrivals;
       },
     });
   });
@@ -492,8 +501,17 @@ describe("Transfer Engine Integration Tests", () => {
         complexes: TEST_COMPLEXES,
         getArrivals: (stationId) => {
           const arrivals = createMockArrivals(stationId);
+          const stationArrivals = {
+            stationId,
+            stationName: TEST_STATIONS[stationId]?.name || "Test Station",
+            updatedAt: Math.floor(Date.now() / 1000),
+            feedAge: 0,
+            northbound: arrivals,
+            southbound: [],
+            alerts: [],
+          };
           setArrivalsForTesting(stationId, { northbound: arrivals, southbound: [] });
-          return arrivals;
+          return stationArrivals;
         },
       });
 
@@ -564,7 +582,15 @@ describe("Transfer Engine Integration Tests", () => {
         routes: TEST_ROUTES,
         transfers: TEST_TRANSFERS,
         complexes: TEST_COMPLEXES,
-        getArrivals: () => [],
+        getArrivals: () => ({
+          stationId: "101",
+          stationName: TEST_STATIONS["101"]?.name || "Test Station",
+          updatedAt: Math.floor(Date.now() / 1000),
+          feedAge: 0,
+          northbound: [],
+          southbound: [],
+          alerts: [],
+        }),
       });
 
       const result = noDataEngine.analyzeCommute("101", "725");
