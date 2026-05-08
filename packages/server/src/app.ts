@@ -96,14 +96,17 @@ import {
   generateCsrfToken,
   hostHeaderProtection,
   hppProtection,
+  httpMethodRestrictions,
   httpRequestSmuggling,
   httpResponseSplitting,
   inputSanitization,
+  jsonDepthProtection,
   optionalAuth,
   rateLimiter,
   requestSizeLimits,
   requireResourceAccess,
   requireSameOrigin,
+  responseSizeLimits,
   securityHeaders,
   securityLogging,
   validateBody,
@@ -393,6 +396,10 @@ export function createApp(
   // Logs authentication failures, authorization failures, rate limit exceeded, and blocked attacks
   app.use("*", securityLogging());
 
+  // HTTP method restrictions (OWASP A01, A05)
+  // Blocks dangerous HTTP methods (TRACE, CONNECT) that could be used for attacks
+  app.use("*", httpMethodRestrictions());
+
   // HTTP Request Smuggling protection (OWASP A01, A03)
   // Detects and blocks request smuggling attempts
   app.use("*", httpRequestSmuggling());
@@ -426,6 +433,10 @@ export function createApp(
 
   // Input sanitization for all API routes (XSS, SQL injection prevention)
   app.use("/api/*", inputSanitization());
+
+  // JSON depth protection for API routes (OWASP A01, A03)
+  // Prevents DoS via deeply nested JSON structures
+  app.use("/api/*", jsonDepthProtection());
 
   // Optional authentication for all API routes
   // Parses Authorization header and sets auth context if present
@@ -471,6 +482,10 @@ export function createApp(
 
   // Rate limiting on all API routes (60 req/min per IP, token bucket)
   app.use("/api/*", rateLimiter());
+
+  // Response size limits for API routes (OWASP A01, A04)
+  // Prevents DoS via large response payloads
+  app.use("/api/*", responseSizeLimits());
 
   // Compression for API responses
   app.use("/api/*", compressionMiddleware());
