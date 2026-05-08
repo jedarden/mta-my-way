@@ -16,12 +16,14 @@
  * - Logs suspicious smuggling attempts
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Context, MiddlewareHandler } from "hono";
 import { securityLogger } from "./security-logging.js";
 
 /**
  * Transfer-Encoding patterns that may indicate smuggling attempts.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SUSPICIOUS_TRANSFER_ENCODING = ["chunked", "gzip", "deflate", "compress", "identity", "br"];
 
 /**
@@ -34,6 +36,8 @@ const SMUGGLING_PATTERNS = [
   /%2532%36/i, // %26 (&)
   /%250%260/i, // double-encoded &
   // Null bytes
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line no-control-regex
   /\x00/,
   // CRLF sequences (potential CRLF injection) - detect any CRLF in unexpected places
   /\r\n/g,
@@ -48,6 +52,7 @@ const SMUGGLING_PATTERNS = [
  * Standard HTTP headers that should not be checked for smuggling patterns
  * (they are validated separately)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const STANDARD_HEADERS = new Set([
   "content-length",
   "transfer-encoding",

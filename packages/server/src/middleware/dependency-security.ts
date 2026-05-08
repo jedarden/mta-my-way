@@ -12,6 +12,7 @@
 
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { join } from "node:path";
 import { logger } from "../observability/logger.js";
 

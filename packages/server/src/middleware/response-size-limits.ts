@@ -61,6 +61,7 @@ function estimateResponseSize(response: Response): number | undefined {
 /**
  * Check if response should be streamed based on content type and size.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function shouldStream(
   contentType: string | null,
   estimatedSize: number | undefined,

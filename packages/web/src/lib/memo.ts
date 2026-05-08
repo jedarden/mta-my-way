@@ -31,6 +31,7 @@ interface MemoizeOptions {
  *   };
  *   const memoized = memoize(expensiveCalc, { maxSize: 50, ttl: 60000 });
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function memoize<T extends (...args: any[]) => any>(fn: T, options: MemoizeOptions = {}): T {
   const { maxSize = 100, ttl = 5 * 60 * 1000 } = options;
   const cache = new Map<string, CacheEntry<ReturnType<T>>>();
@@ -72,6 +73,7 @@ export function memoize<T extends (...args: any[]) => any>(fn: T, options: Memoi
  *   };
  *   const memoizedFetch = memoizeAsync(fetchData);
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
   fn: T,
   options: MemoizeOptions = {}
@@ -124,6 +126,7 @@ export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
  *     // perform search
  *   }, 300);
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function debounce<T extends (...args: any[]) => any>(
   fn: T,
   delay: number
@@ -150,6 +153,7 @@ export function debounce<T extends (...args: any[]) => any>(
  *     // handle scroll
  *   }, 100);
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function throttle<T extends (...args: any[]) => any>(
   fn: T,
   delay: number

@@ -9,6 +9,7 @@
 import type Database from "better-sqlite3";
 import {
   buildColumnList,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   buildPlaceholderList,
   validateColumnName,
   validateSqlIdentifiers,

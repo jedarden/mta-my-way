@@ -129,7 +129,7 @@ describe("parseFeed - field presence", () => {
 
   it("NYCT trip descriptor is accessible via extension key", () => {
     const result = parseFeed("gtfs", aDivisionFeed());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const entity = result.message.entity[0] as any;
     const nyctTrip = entity.tripUpdate?.trip?.[".transit_realtime.nyctTripDescriptor"];
     expect(nyctTrip).toBeDefined();
@@ -138,7 +138,7 @@ describe("parseFeed - field presence", () => {
 
   it("NYCT stop time update is accessible for rerouted feed", () => {
     const result = parseFeed("gtfs-bdfm", reroutedTrackFeed());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const entity = result.message.entity[0] as any;
     const stu = entity.tripUpdate?.stopTimeUpdate?.[0];
     const nyctStu = stu?.[".transit_realtime.nyctStopTimeUpdate"];
@@ -161,7 +161,7 @@ describe("parseFeed - field presence", () => {
 describe("parseFeed - NYCT stop time extensions", () => {
   it("rerouted feed has mismatched scheduled/actual track", () => {
     const result = parseFeed("gtfs-bdfm", reroutedTrackFeed());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const entity = result.message.entity[0] as any;
     const firstStu = entity.tripUpdate.stopTimeUpdate[0];
     const nyctStu = firstStu[".transit_realtime.nyctStopTimeUpdate"];
@@ -171,7 +171,7 @@ describe("parseFeed - NYCT stop time extensions", () => {
 
   it("normal feed has matching scheduled/actual track (or no extension)", () => {
     const result = parseFeed("gtfs", aDivisionFeed());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const entity = result.message.entity[0] as any;
     const nyctStu =
       entity.tripUpdate?.stopTimeUpdate?.[0]?.[".transit_realtime.nyctStopTimeUpdate"];

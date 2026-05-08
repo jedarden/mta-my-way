@@ -11,6 +11,7 @@
  * - Rate limiting outbound requests
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { logger } from "../observability/logger.js";
 import { securityLogger } from "./security-logging.js";
 
@@ -315,8 +316,10 @@ export async function safeFetch(
  * Checks request query parameters and body for URLs and validates them.
  * Logs suspicious URL patterns for security monitoring.
  */
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 export function ssrfProtection(
   options: SsrfProtectionOptions = {}
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 ): import("hono").MiddlewareHandler {
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 

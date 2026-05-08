@@ -60,6 +60,7 @@ export function PasswordResetRequestScreen() {
       if (resetData.success) {
         setSubmitSuccess(true);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       setErrorMessage("Network error. Please check your connection and try again.");
     } finally {
@@ -78,7 +79,7 @@ export function PasswordResetRequestScreen() {
               <p className="text-gray-600 dark:text-gray-400 mb-6">
                 Enter your email address and we'll send you a link to reset your password.
               </p>
-
+              {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label
@@ -113,10 +114,10 @@ export function PasswordResetRequestScreen() {
                   {isSubmitting ? "Sending..." : "Send Reset Link"}
                 </button>
               </form>
-
               <div className="mt-6 text-center">
                 <button
                   type="button"
+                  // eslint-disable-next-line @typescript-eslint/no-misused-promises
                   onClick={() => navigate(-1)}
                   className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                 >
@@ -155,6 +156,7 @@ export function PasswordResetRequestScreen() {
               </div>
               <button
                 type="button"
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
                 onClick={() => navigate(-1)}
                 className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
               >

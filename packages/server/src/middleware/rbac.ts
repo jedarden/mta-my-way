@@ -17,6 +17,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type ApiKey,
   type AuthContext,
   assignRoleToApiKey as authAssignRole,

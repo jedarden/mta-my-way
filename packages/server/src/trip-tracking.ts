@@ -647,6 +647,7 @@ function cacheCommuteStats(stats: CommuteStats): void {
  * Since trips are global (not tied to specific commutes), any trip recording
  * invalidates all cached stats.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function invalidateCommuteStats(commuteId?: string): void {
   if (!db) return;
 

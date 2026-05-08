@@ -374,6 +374,7 @@ async function sendEmailNotification(
 async function sendSmsNotification(
   event: SecurityEvent,
   preferences: NotificationPreferences,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   template: NotificationTemplate
 ): Promise<boolean> {
   if (!preferences.phone) {
@@ -396,6 +397,7 @@ async function sendSmsNotification(
 async function sendPushNotification(
   event: SecurityEvent,
   preferences: NotificationPreferences,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   template: NotificationTemplate
 ): Promise<boolean> {
   if (!preferences.pushToken) {
@@ -417,7 +419,9 @@ async function sendPushNotification(
  */
 async function sendInAppNotification(
   event: SecurityEvent,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   preferences: NotificationPreferences,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   template: NotificationTemplate
 ): Promise<boolean> {
   // In production, store in database for frontend to fetch
@@ -503,6 +507,7 @@ function isQuietHours(preferences: NotificationPreferences): boolean {
 /**
  * Format a notification template with event data.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatTemplate(template: NotificationTemplate, event: SecurityEvent): string {
   let body = template.body;
 

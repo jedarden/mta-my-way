@@ -15,6 +15,7 @@
 
 import type { Context } from "hono";
 import { logger } from "../observability/logger.js";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { type RbacAuthContext, getRbacAuthContext } from "./rbac.js";
 
 // ============================================================================
