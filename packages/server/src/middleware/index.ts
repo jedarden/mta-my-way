@@ -77,7 +77,16 @@ export {
   type PasswordHistoryEntry,
 } from "./authentication.js";
 
-export { getDeviceInfo } from "./password-management.js";
+export {
+  getDeviceInfo,
+  isAccountLocked,
+  recordFailedResetAttempt,
+  clearFailedResetAttempts,
+  getFailedResetAttemptCount,
+  cleanupExpiredTokens,
+  _startTokenCleanup,
+  _stopTokenCleanup,
+} from "./password-management.js";
 export {
   csrfProtection,
   validateCsrf,

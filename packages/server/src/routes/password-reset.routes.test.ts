@@ -121,6 +121,16 @@ describe("Password Reset Routes", () => {
 
     vi.mocked(passwordManagement.storePasswordInHistory).mockReturnValue(undefined);
 
+    vi.mocked(passwordManagement.isAccountLocked).mockReturnValue({
+      locked: false,
+    });
+
+    vi.mocked(passwordManagement.cleanupExpiredTokens).mockReturnValue(0);
+
+    vi.mocked(passwordManagement.clearFailedResetAttempts).mockReturnValue(undefined);
+
+    vi.mocked(passwordManagement._getPasswordResetTokensMap).mockReturnValue(new Map());
+
     vi.mocked(passwordManagement.getDeviceInfo).mockReturnValue({
       deviceType: "desktop",
       browser: "chrome",
@@ -320,7 +330,7 @@ describe("Password Reset Routes", () => {
 
     it("should reject invalid token", async () => {
       vi.mocked(passwordManagement.validatePasswordResetToken).mockResolvedValue({
-        keyId: undefined,
+        keyId: null,
         deviceChanged: false,
       });
 

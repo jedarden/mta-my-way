@@ -349,6 +349,20 @@ const RESET_TOKEN_LENGTH = 32; // bytes
 const PASSWORD_VALIDATION_WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_PASSWORD_VALIDATIONS_PER_MINUTE = 10;
 
+/**
+ * Password reset attempt tracking configuration.
+ * Tracks failed reset attempts to prevent brute force attacks.
+ */
+const RESET_ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_RESET_ATTEMPTS = 5; // Maximum attempts before lockout
+const ACCOUNT_LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
+/**
+ * Token cleanup interval.
+ * Runs periodic cleanup of expired tokens.
+ */
+const TOKEN_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 // ============================================================================
 // In-Memory Storage (Replace with database in production)
 // ============================================================================
@@ -356,6 +370,30 @@ const MAX_PASSWORD_VALIDATIONS_PER_MINUTE = 10;
 const passwordResetTokens = new Map<string, PasswordResetToken>();
 const passwordHistory = new Map<string, PasswordHistoryEntry[]>();
 const passwordValidationAttempts = new Map<string, { count: number; resetAt: number }>();
+
+/**
+ * Password reset attempt tracking.
+ * Tracks failed reset attempts per email/IP combination to prevent brute force.
+ * Key format: "email:ip" or "email" for IP-agnostic tracking
+ */
+const passwordResetAttempts = new Map<
+  string,
+  { count: number; resetAt: number; lockedUntil?: number }
+>();
+
+/**
+ * Account lockout tracking.
+ * Tracks accounts that are temporarily locked due to suspicious activity.
+ */
+const accountLockouts = new Map<
+  string,
+  { lockedUntil: number; reason: string; attempts: number }
+>();
+
+/**
+ * Token cleanup interval reference.
+ */
+let tokenCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Breached password cache to reduce API calls.
@@ -420,6 +458,236 @@ export function setPasswordPepper(pepper: string): void {
  */
 function getPasswordPepper(): string {
   return PASSWORD_PEPPER;
+}
+
+// ============================================================================
+// Password Reset Attempt Tracking & Account Lockout
+// ============================================================================
+
+/**
+ * Check if an account is currently locked due to too many failed reset attempts.
+ *
+ * @param email - The email address to check
+ * @returns Object indicating if locked and when it will be unlocked
+ */
+export function isAccountLocked(email: string): {
+  locked: boolean;
+  reason?: string;
+  unlockTime?: number;
+  remainingMinutes?: number;
+} {
+  const normalizedEmail = email.toLowerCase();
+  const lockout = accountLockouts.get(normalizedEmail);
+
+  if (!lockout) {
+    return { locked: false };
+  }
+
+  // Check if lockout has expired
+  if (Date.now() > lockout.lockedUntil) {
+    accountLockouts.delete(normalizedEmail);
+    passwordResetAttempts.delete(normalizedEmail);
+    return { locked: false };
+  }
+
+  const remainingMinutes = Math.ceil((lockout.lockedUntil - Date.now()) / (60 * 1000));
+
+  return {
+    locked: true,
+    reason: lockout.reason,
+    unlockTime: lockout.lockedUntil,
+    remainingMinutes,
+  };
+}
+
+/**
+ * Record a failed password reset attempt.
+ * Tracks attempts and implements account lockout after too many failures.
+ *
+ * @param email - The email address
+ * @param clientIp - The client IP address
+ * @returns Object indicating if account is now locked and details
+ */
+export function recordFailedResetAttempt(
+  email: string,
+  clientIp: string
+): {
+  locked: boolean;
+  attemptCount: number;
+  remainingAttempts: number;
+  lockedUntil?: number;
+} {
+  const normalizedEmail = email.toLowerCase();
+  const key = `${normalizedEmail}:${clientIp}`;
+  const now = Date.now();
+
+  let attempt = passwordResetAttempts.get(key);
+
+  // Reset if window has expired
+  if (!attempt || now > attempt.resetAt) {
+    attempt = { count: 0, resetAt: now + RESET_ATTEMPT_WINDOW_MS };
+  }
+
+  attempt.count++;
+  passwordResetAttempts.set(key, attempt);
+
+  // Also track IP-agnostic attempts (same email from any IP)
+  let globalAttempt = passwordResetAttempts.get(normalizedEmail);
+  if (!globalAttempt || now > globalAttempt.resetAt) {
+    globalAttempt = { count: 0, resetAt: now + RESET_ATTEMPT_WINDOW_MS };
+  }
+  globalAttempt.count++;
+  passwordResetAttempts.set(normalizedEmail, globalAttempt);
+
+  const remainingAttempts = Math.max(0, MAX_RESET_ATTEMPTS - globalAttempt.count);
+
+  // Check if we should lock the account
+  if (globalAttempt.count >= MAX_RESET_ATTEMPTS) {
+    const lockedUntil = now + ACCOUNT_LOCKOUT_DURATION_MS;
+    accountLockouts.set(normalizedEmail, {
+      lockedUntil,
+      reason: "Too many failed password reset attempts",
+      attempts: globalAttempt.count,
+    });
+
+    logger.warn("Account locked due to too many failed reset attempts", {
+      email: normalizedEmail,
+      clientIp,
+      attempts: globalAttempt.count,
+      lockedUntil: new Date(lockedUntil).toISOString(),
+    });
+
+    return {
+      locked: true,
+      attemptCount: globalAttempt.count,
+      remainingAttempts: 0,
+      lockedUntil,
+    };
+  }
+
+  return {
+    locked: false,
+    attemptCount: globalAttempt.count,
+    remainingAttempts,
+  };
+}
+
+/**
+ * Clear failed reset attempts for an email (e.g., after successful reset).
+ *
+ * @param email - The email address
+ */
+export function clearFailedResetAttempts(email: string): void {
+  const normalizedEmail = email.toLowerCase();
+
+  // Remove all entries that start with this email
+  for (const key of passwordResetAttempts.keys()) {
+    if (key === normalizedEmail || key.startsWith(`${normalizedEmail}:`)) {
+      passwordResetAttempts.delete(key);
+    }
+  }
+
+  // Also remove from lockouts
+  accountLockouts.delete(normalizedEmail);
+}
+
+/**
+ * Get current failed reset attempt count for an email/IP combination.
+ *
+ * @param email - The email address
+ * @param clientIp - The client IP address
+ * @returns Number of failed attempts
+ */
+export function getFailedResetAttemptCount(email: string, clientIp: string): number {
+  const normalizedEmail = email.toLowerCase();
+  const key = `${normalizedEmail}:${clientIp}`;
+  const attempt = passwordResetAttempts.get(key);
+
+  if (!attempt || Date.now() > attempt.resetAt) {
+    return 0;
+  }
+
+  return attempt.count;
+}
+
+/**
+ * Start the automatic token cleanup interval.
+ * Removes expired tokens periodically to prevent memory leaks.
+ *
+ * @internal
+ */
+export function _startTokenCleanup(): void {
+  if (tokenCleanupInterval) {
+    return; // Already running
+  }
+
+  tokenCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [tokenId, tokenData] of passwordResetTokens.entries()) {
+      // Remove expired or used tokens
+      if (now > tokenData.expiresAt || tokenData.used) {
+        passwordResetTokens.delete(tokenId);
+        cleaned++;
+      }
+    }
+
+    // Clean expired lockouts
+    for (const [email, lockout] of accountLockouts.entries()) {
+      if (now > lockout.lockedUntil) {
+        accountLockouts.delete(email);
+        passwordResetAttempts.delete(email);
+      }
+    }
+
+    if (cleaned > 0) {
+      logger.debug("Token cleanup completed", { cleaned, remaining: passwordResetTokens.size });
+    }
+  }, TOKEN_CLEANUP_INTERVAL_MS);
+
+  logger.info("Token cleanup interval started", { intervalMs: TOKEN_CLEANUP_INTERVAL_MS });
+}
+
+/**
+ * Stop the automatic token cleanup interval.
+ *
+ * @internal
+ */
+export function _stopTokenCleanup(): void {
+  if (tokenCleanupInterval) {
+    clearInterval(tokenCleanupInterval);
+    tokenCleanupInterval = null;
+    logger.info("Token cleanup interval stopped");
+  }
+}
+
+/**
+ * Manually trigger token cleanup.
+ * Useful for testing or immediate cleanup.
+ *
+ * @returns Number of tokens cleaned up
+ */
+export function cleanupExpiredTokens(): number {
+  const now = Date.now();
+  let cleaned = 0;
+
+  for (const [tokenId, tokenData] of passwordResetTokens.entries()) {
+    if (now > tokenData.expiresAt || tokenData.used) {
+      passwordResetTokens.delete(tokenId);
+      cleaned++;
+    }
+  }
+
+  // Clean expired lockouts
+  for (const [email, lockout] of accountLockouts.entries()) {
+    if (now > lockout.lockedUntil) {
+      accountLockouts.delete(email);
+      passwordResetAttempts.delete(email);
+    }
+  }
+
+  return cleaned;
 }
 
 // ============================================================================
