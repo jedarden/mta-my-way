@@ -30,8 +30,12 @@ vi.mock("./observability/tracing.js", () => ({
 
 describe("equipment-poller", () => {
   let equipmentPoller: typeof import("./equipment-poller.js");
-  let mockLogger: any;
-  let mockTracedFetch: any;
+  let mockLogger: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  let mockTracedFetch: ReturnType<typeof vi.fn>;
 
   const mockStations: StationIndex = {
     "101": {
@@ -371,7 +375,7 @@ describe("equipment-poller", () => {
       equipmentPoller.startEquipmentPoller();
       equipmentPoller.stopEquipmentPoller();
 
-      const clearIntervalSpy = vi.spyOn(global, "clearInterval");
+      const _clearIntervalSpy = vi.spyOn(global, "clearInterval");
 
       // Starting and stopping should call clearInterval
       equipmentPoller.startEquipmentPoller();

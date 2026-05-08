@@ -8,12 +8,7 @@
  * - Cross-component integration
  */
 
-import type {
-  ComplexIndex,
-  RouteIndex,
-  StationIndex,
-  TransferConnection,
-} from "@mta-my-way/shared";
+import type { ComplexIndex, RouteIndex, TransferConnection } from "@mta-my-way/shared";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -23,13 +18,7 @@ import {
   getSubscriptionCount,
   initPushDatabase,
 } from "../push/subscriptions.js";
-import {
-  deleteTrip,
-  getTripById,
-  getTrips,
-  initTripTracking,
-  recordTrip,
-} from "../trip-tracking.js";
+import { getTripById, initTripTracking, recordTrip } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
   closeDatabase,

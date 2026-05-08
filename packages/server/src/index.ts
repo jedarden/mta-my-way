@@ -29,7 +29,7 @@ import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predic
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { runMigrations } from "./migration/index.js";
-import { LogLevel, createLogger, logger } from "./observability/logger.js";
+import { logger } from "./observability/logger.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";

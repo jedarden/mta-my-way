@@ -14,7 +14,7 @@
 
 import type { RouteIndex, StationAlert, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
 import { isADivision } from "@mta-my-way/shared";
-import { recordAlertsChange, setAlertsActive, setAlertsMatchRate } from "./middleware/metrics.js";
+import { recordAlertsChange, setAlertsActive } from "./middleware/metrics.js";
 import { logger } from "./observability/logger.js";
 import { getTravelTime } from "./transfer/travel-times.js";
 
