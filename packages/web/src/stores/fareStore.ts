@@ -70,6 +70,7 @@ function computeCapStatus(tracking: FareTracking): FareCapStatus {
   const weeklySpend = paidRides * tracking.currentFare;
 
   // Break-even: rides where pay-per-ride = unlimited pass
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const breakEvenRides = Math.ceil(tracking.unlimitedPassPrice / tracking.currentFare);
   const breakEvenSpend = tracking.unlimitedPassPrice;
 

@@ -47,15 +47,20 @@ export function encodeHtml(unsafe: string): string {
  * @returns HTML-encoded string safe for use in attribute context
  */
 export function encodeHtmlAttribute(unsafe: string): string {
-  return String(unsafe)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-    .replace(/\x00/g, "")
-    .replace(/\x0A/g, "&#10;")
-    .replace(/\x0D/g, "&#13;");
+  return (
+    String(unsafe)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x00/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x0A/g, "&#10;")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x0D/g, "&#13;")
+  );
 }
 
 /**
@@ -231,5 +236,6 @@ export function truncate(str: string, maxLength = 1000): string {
  * @returns String with control characters removed
  */
 export function stripControlCharacters(str: string): string {
+  // eslint-disable-next-line no-control-regex
   return String(str).replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, "");
 }

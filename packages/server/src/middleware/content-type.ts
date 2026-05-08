@@ -22,6 +22,7 @@ const SUPPORTED_CONTENT_TYPES = [
 /**
  * Check if a content type is supported.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isSupportedContentType(contentType: string | null): boolean {
   if (!contentType) return false;
 

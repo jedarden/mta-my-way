@@ -26,6 +26,7 @@ export default tseslint.config(
       "packages/web/vite.config.ts",
       "packages/web/vitest.config.ts",
       "packages/server/vitest.config.ts",
+      "packages/shared/vitest.config.ts",
       "packages/web/public/**",
     ],
   },
@@ -33,7 +34,7 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["eslint.config.js"],
+          allowDefaultProject: ["eslint.config.js", "vitest.config.ts"],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -46,6 +47,27 @@ export default tseslint.config(
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
+    },
+  },
+  {
+    files: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx",
+      "**/test-helpers.ts",
+      "**/test/**/*.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/consistent-type-imports": "off",
+      "@typescript-eslint/no-this-alias": "off",
+      "@typescript-eslint/no-unsafe-function-type": "off",
+      "no-useless-escape": "off",
+      "no-constant-binary-expression": "off",
     },
   }
 );

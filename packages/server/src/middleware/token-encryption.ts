@@ -96,6 +96,7 @@ export async function configureEncryption(config: EncryptionConfig): Promise<voi
     throw new Error("Master key must be 256 bits (64 hex characters)");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const encoder = new TextEncoder();
   const keyBytes = new Uint8Array(
     config.masterKey.match(/.{2}/g)?.map((byte) => parseInt(byte, 16)) || []

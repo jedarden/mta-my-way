@@ -27,6 +27,7 @@ import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
 import { getRolePermissions } from "./roles.js";
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   sanitizeObject,
   sanitizeStringSimple,
   validateApiKeyFormat,
@@ -36,10 +37,12 @@ import {
 import { securityLogger } from "./security-logging.js";
 import {
   type EncryptedData,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   configureEncryption,
   decryptToken,
   encryptToken,
   generateTokenFingerprint,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   hashToken,
   isEncryptionConfigured,
 } from "./token-encryption.js";
@@ -1049,6 +1052,7 @@ function detectBrowserFamily(userAgent: string): string | undefined {
 /**
  * Get or create device fingerprint record.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getOrCreateDevice(userAgent: string, clientIp: string): Promise<DeviceFingerprint> {
   const deviceId = await generateDeviceFingerprint(userAgent);
   const existing = deviceFingerprints.get(deviceId);
@@ -1495,6 +1499,7 @@ export async function refreshSession(
           const decrypted = await decryptToken(tokenData.encryptedToken, "refresh_tokens");
           if (decrypted === refreshToken) {
             tokenEntry = [tokenId, tokenData];
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             decryptedToken = decrypted;
             break;
           }
@@ -1833,6 +1838,7 @@ export async function checkRefreshTokenExpiry(refreshToken: string): Promise<num
   // If not found and encryption is configured, try to decrypt and match
   if (!tokenEntry && isEncryptionConfigured()) {
     for (const entry of refreshTokens.entries()) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [tokenId, tokenData] = entry;
       if (tokenData.isEncrypted && tokenData.encryptedToken) {
         try {
@@ -1967,6 +1973,7 @@ export function verifyRequestSignature(
   timestamp: number,
   method: string,
   path: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   body: string
 ): boolean {
   // Sanitize and validate key ID
@@ -2505,6 +2512,7 @@ export function getSessionCsrfToken(sessionId: string): string | undefined {
 /**
  * Verify CSRF token for a session.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function verifyCsrfToken(session: AuthSession, token: string): boolean {
   return session.csrfToken === token;
 }

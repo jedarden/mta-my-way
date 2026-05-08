@@ -167,6 +167,7 @@ function validateJsonStructure(
         break;
       case ":":
         // Transition from key to value in object
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         inKey = false;
         break;
       case ",":

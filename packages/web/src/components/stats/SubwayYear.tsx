@@ -344,6 +344,7 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
       <div className="flex justify-end">
         <button
           type="button"
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           onClick={handleShare}
           disabled={sharing}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-mta-primary text-white font-medium disabled:opacity-50 min-h-touch"

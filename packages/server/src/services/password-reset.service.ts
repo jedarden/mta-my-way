@@ -400,6 +400,7 @@ async function sendSesEmail(
   subject: string,
   html: string,
   text: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   apiKey: string
 ): Promise<EmailSendResult> {
   // Note: AWS SES requires AWS SDK

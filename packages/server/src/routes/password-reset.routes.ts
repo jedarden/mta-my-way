@@ -16,7 +16,9 @@ import {
   passwordResetRequestSchema,
 } from "@mta-my-way/shared";
 import type { MiddlewareHandler } from "hono";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { HTTPException } from "hono/http-exception";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { z } from "zod";
 import {
   generatePasswordResetToken,
@@ -26,9 +28,11 @@ import {
   verifyPasswordHash,
 } from "../middleware/authentication.js";
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type Permission,
   auditLogAccess,
   getRbacAuthContext,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   requirePermission,
   requireResourceAccess,
 } from "../middleware/index.js";
@@ -50,12 +54,14 @@ import {
 import { securityLogger } from "../middleware/security-logging.js";
 import { logger } from "../observability/logger.js";
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   configureEmailProvider,
   sendPasswordResetEmail,
   sendPasswordResetNotificationEmail,
 } from "../services/password-reset.service.js";
 
 // Types for route context
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type AuthContext = {
   keyId: string;
   role?: string;

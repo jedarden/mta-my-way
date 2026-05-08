@@ -20,6 +20,7 @@
 import * as argon2 from "argon2";
 import { logger } from "../observability/logger.js";
 import { sanitizeStringSimple } from "./sanitization.js";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { securityLogger } from "./security-logging.js";
 
 // ============================================================================
@@ -1059,7 +1060,9 @@ const ARGON2_OPTIONS: argon2.Options = {
  * NOTE: PBKDF2 is kept for backward compatibility with existing hashes.
  * New passwords should use Argon2id.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PBKDF2_ITERATIONS = 600_000;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PBKDF2_HASH_LENGTH = 32;
 
 /**
@@ -1819,6 +1822,8 @@ function calculatePasswordStrength(password: string): number {
   // Complexity bonus (up to 10 points)
   const hasMixedCase = /[a-z]/.test(password) && /[A-Z]/.test(password);
   const hasNumbers = /\d/.test(password);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line no-useless-escape
   const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
   if (hasMixedCase && hasNumbers && hasSpecial) score += 10;
 
@@ -1993,6 +1998,7 @@ export async function hashPassword(password: string): Promise<PasswordHash> {
 export async function verifyPasswordHash(
   password: string,
   hash: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   salt: string
 ): Promise<boolean> {
   // Validate inputs

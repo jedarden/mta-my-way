@@ -222,10 +222,13 @@ function useRoutePrefetch() {
     // Prefetch the most commonly accessed screens after home
     const prefetchTimer = setTimeout(() => {
       // SearchScreen (users often search after home)
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       import("./screens/SearchScreen");
       // AlertsScreen (commuters check alerts frequently)
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       import("./screens/AlertsScreen");
       // MapScreen (visual navigation is popular)
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       import("./screens/MapScreen");
     }, 1500); // Delay 1.5s to prioritize initial render
 

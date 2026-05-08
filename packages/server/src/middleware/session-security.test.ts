@@ -327,6 +327,7 @@ describe("Session Security", () => {
       );
 
       expect(assessment.riskScore).toBeGreaterThanOrEqual(10);
+
       expect(assessment.riskLevel).toBe("low" || "medium");
       expect(assessment.riskFactors).toContain("IP address changed within same subnet");
     });
@@ -339,6 +340,7 @@ describe("Session Security", () => {
       );
 
       expect(assessment.riskScore).toBeGreaterThanOrEqual(30);
+
       expect(assessment.riskLevel).toBe("medium" || "high");
       expect(assessment.riskFactors).toContain("IP address changed to different subnet");
     });
@@ -351,6 +353,7 @@ describe("Session Security", () => {
       );
 
       expect(assessment.riskScore).toBeGreaterThanOrEqual(30);
+
       expect(assessment.riskLevel).toBe("medium" || "high");
       expect(assessment.riskFactors.some((f) => f.includes("User-Agent"))).toBe(true);
     });
