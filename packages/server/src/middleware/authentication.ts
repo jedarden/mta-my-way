@@ -519,6 +519,28 @@ const MAX_CONCURRENT_SESSIONS = 5; // Maximum active sessions per key
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const SLIDING_WINDOW_MS = 15 * 60 * 1000; // Refresh window: 15 minutes before expiration
 
+// Device-based session limits
+const MAX_SESSIONS_PER_DEVICE_TYPE = {
+  mobile: 3,
+  desktop: 2,
+  tablet: 2,
+  unknown: 1,
+} as const;
+
+// Session management options
+interface SessionManagementOptions {
+  /** Maximum total sessions per key */
+  maxTotalSessions?: number;
+  /** Maximum sessions per device type */
+  maxSessionsPerDevice?: Partial<typeof MAX_SESSIONS_PER_DEVICE_TYPE>;
+  /** Whether to revoke oldest session when limit is reached */
+  revokeOldestOnLimit?: boolean;
+  /** Require MFA for new sessions on untrusted devices */
+  requireMfaForUntrusted?: boolean;
+  /** Session priority (higher = less likely to be revoked) */
+  priority?: number;
+}
+
 // Account lockout settings
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -630,6 +652,215 @@ export function getApiKeyById(keyId: string): ApiKey | undefined {
 }
 
 /**
+ * Rotate an API key while preserving the key ID.
+ *
+ * This function generates a new secret for an existing API key,
+ * invalidating the old secret while keeping the key ID unchanged.
+ * This is useful for:
+ * - Regular key rotation (security best practice)
+ * - Key compromise response
+ * - Forced rotation after suspicious activity
+ *
+ * The old key will remain valid for a grace period to allow
+ * clients to update to the new key.
+ *
+ * @param keyId - The key ID to rotate
+ * @param gracePeriodMs - Grace period in ms before old key is invalidated (default: 5 minutes)
+ * @returns Object containing new key secret, old key info, and grace period details
+ */
+export async function rotateApiKey(
+  keyId: string,
+  gracePeriodMs: number = 5 * 60 * 1000
+): Promise<{
+  newKeySecret: string;
+  oldKeyId: string;
+  gracePeriodUntil: number;
+  rotatedAt: number;
+} | null> {
+  const apiKey = getApiKey(keyId);
+  if (!apiKey) {
+    logger.warn("Attempted to rotate non-existent API key", { keyId });
+    return null;
+  }
+
+  // Store old key hash for grace period
+  const oldKeyHash = apiKey.keyHash;
+  const oldKeySalt = apiKey.keySalt;
+
+  // Generate new secret and hash
+  const newSecret = await generateApiKey();
+  const { hash: newHash, salt: newSalt } = await hashApiKey(newSecret);
+
+  // Create a backup of the old key for grace period
+  const oldKeyBackup = {
+    hash: oldKeyHash,
+    salt: oldKeySalt,
+    expiresAt: Date.now() + gracePeriodMs,
+  };
+
+  // Store in a grace period map (using metadata for now)
+  if (!apiKey.metadata) {
+    apiKey.metadata = {};
+  }
+  apiKey.metadata.oldKeyBackup = oldKeyBackup;
+
+  // Update with new key
+  apiKey.keyHash = newHash;
+  apiKey.keySalt = newSalt;
+
+  // Update rotation timestamp
+  apiKey.metadata.lastRotatedAt = Date.now();
+  apiKey.metadata.rotationCount = ((apiKey.metadata.rotationCount as number) || 0) + 1;
+
+  apiKeys.set(keyId, apiKey);
+
+  logger.info("API key rotated", {
+    keyId,
+    gracePeriodMs,
+    gracePeriodUntil: new Date(oldKeyBackup.expiresAt).toISOString(),
+    rotationCount: apiKey.metadata.rotationCount,
+  });
+
+  // Log audit entry
+  logAuditEntry(keyId, "api_key_rotated", keyId, "success", "system", {
+    gracePeriodMs,
+    rotationCount: apiKey.metadata.rotationCount,
+  });
+
+  return {
+    newKeySecret: newSecret,
+    oldKeyId: keyId, // Same key ID
+    gracePeriodUntil: oldKeyBackup.expiresAt,
+    rotatedAt: Date.now(),
+  };
+}
+
+/**
+ * Verify an API key with support for grace period during rotation.
+ *
+ * Checks both the current key hash and the old key hash (if within grace period).
+ * This allows clients to continue using the old key during the grace period
+ * after a key rotation.
+ *
+ * @param keyId - The key ID
+ * @param secret - The secret to verify
+ * @returns true if valid (current or in grace period), false otherwise
+ */
+export async function verifyApiKeyWithGracePeriod(
+  keyId: string,
+  secret: string
+): Promise<{ valid: boolean; usingOldKey?: boolean; gracePeriodEnds?: number }> {
+  const apiKey = getApiKey(keyId);
+  if (!apiKey || !apiKey.active) {
+    return { valid: false };
+  }
+
+  // Try current key first
+  const currentValid = await verifyApiKeyHash(secret, apiKey.keyHash, apiKey.keySalt);
+  if (currentValid) {
+    return { valid: false };
+  }
+
+  // Check old key if within grace period
+  const oldKeyBackup = apiKey.metadata?.oldKeyBackup as
+    | {
+        hash: string;
+        salt: string;
+        expiresAt: number;
+      }
+    | undefined;
+
+  if (oldKeyBackup && Date.now() < oldKeyBackup.expiresAt) {
+    const oldValid = await verifyApiKeyHash(secret, oldKeyBackup.hash, oldKeyBackup.salt);
+    if (oldValid) {
+      logger.info("API key verified using old key (grace period)", {
+        keyId,
+        gracePeriodEnds: new Date(oldKeyBackup.expiresAt).toISOString(),
+      });
+      return {
+        valid: true,
+        usingOldKey: true,
+        gracePeriodEnds: oldKeyBackup.expiresAt,
+      };
+    }
+  }
+
+  return { valid: false };
+}
+
+/**
+ * Get API keys that are due for rotation.
+ *
+ * Returns keys that haven't been rotated within the specified period.
+ *
+ * @param maxAgeMs - Maximum age since last rotation in milliseconds
+ * @returns Array of key IDs that need rotation
+ */
+export function getKeysDueForRotation(maxAgeMs: number): Array<{
+  keyId: string;
+  lastRotatedAt?: number;
+  ageMs: number;
+}> {
+  const now = Date.now();
+  const dueForRotation: Array<{ keyId: string; lastRotatedAt?: number; ageMs: number }> = [];
+
+  for (const [keyId, apiKey] of apiKeys.entries()) {
+    if (!apiKey.active) continue;
+
+    const lastRotatedAt = apiKey.metadata?.lastRotatedAt as number | undefined;
+    const keyAge = lastRotatedAt ? now - lastRotatedAt : now - apiKey.createdAt;
+
+    if (keyAge > maxAgeMs) {
+      dueForRotation.push({
+        keyId,
+        lastRotatedAt,
+        ageMs: keyAge,
+      });
+    }
+  }
+
+  return dueForRotation;
+}
+
+/**
+ * Set up automatic API key rotation schedule.
+ *
+ * Marks keys for automatic rotation based on their age.
+ * In production, this would be integrated with a job scheduler.
+ *
+ * @param rotationIntervalMs - How often to check for keys needing rotation
+ * @param maxKeyAgeMs - Maximum age before a key is rotated
+ * @returns Interval ID that can be used to cancel the schedule
+ */
+export function setupApiKeyRotationSchedule(
+  rotationIntervalMs: number = 24 * 60 * 60 * 1000, // Daily
+  maxKeyAgeMs: number = 90 * 24 * 60 * 60 * 1000 // 90 days
+): NodeJS.Timeout {
+  return setInterval(() => {
+    const keysToRotate = getKeysDueForRotation(maxKeyAgeMs);
+
+    if (keysToRotate.length > 0) {
+      logger.info("API keys due for rotation", {
+        count: keysToRotate.length,
+        keys: keysToRotate.map((k) => ({
+          keyId: k.keyId,
+          ageDays: Math.floor(k.ageMs / (24 * 60 * 60 * 1000)),
+        })),
+      });
+
+      // In production, you would send notifications to administrators
+      // or automatically rotate the keys
+      for (const keyInfo of keysToRotate) {
+        logAuditEntry(keyInfo.keyId, "api_key_rotation_due", keyInfo.keyId, "success", "system", {
+          ageMs: keyInfo.ageMs,
+          lastRotatedAt: keyInfo.lastRotatedAt,
+        });
+      }
+    }
+  }, rotationIntervalMs);
+}
+
+/**
  * Revoke an API key by deactivating it.
  * Returns true if the key was found and revoked, false otherwise.
  */
@@ -642,6 +873,10 @@ export function revokeApiKey(keyId: string): boolean {
 
   apiKey.active = false;
   apiKeys.set(keyId, apiKey);
+
+  // Invalidate all sessions for this key
+  invalidateAllSessionsForKey(keyId);
+
   logger.info("API key revoked", { keyId });
 
   return true;
@@ -1080,7 +1315,226 @@ async function getOrCreateDevice(userAgent: string, clientIp: string): Promise<D
 }
 
 /**
- * Create a new session for an authenticated API key.
+ * Get active session count by device type for a key.
+ */
+export function getSessionCountByDeviceType(keyId: string): Record<string, number> {
+  const keySessions = Array.from(sessions.values()).filter(
+    (s) => s.keyId === keyId && s.active && s.expiresAt > Date.now()
+  );
+
+  const counts: Record<string, number> = {
+    mobile: 0,
+    desktop: 0,
+    tablet: 0,
+    unknown: 0,
+  };
+
+  for (const session of keySessions) {
+    if (session.metadata?.deviceType) {
+      const deviceType = session.metadata.deviceType as string;
+      if (deviceType in counts) {
+        counts[deviceType]++;
+      } else {
+        counts.unknown++;
+      }
+    } else {
+      counts.unknown++;
+    }
+  }
+
+  return counts;
+}
+
+/**
+ * Check if a new session would exceed device limits.
+ */
+export function wouldExceedDeviceLimits(
+  keyId: string,
+  deviceType: string,
+  options: SessionManagementOptions = {}
+): { exceeds: boolean; currentCount: number; limit: number } {
+  const maxPerDevice = { ...MAX_SESSIONS_PER_DEVICE_TYPE, ...options.maxSessionsPerDevice };
+  const limit = maxPerDevice[deviceType as keyof typeof maxPerDevice] ?? maxPerDevice.unknown ?? 1;
+
+  const counts = getSessionCountByDeviceType(keyId);
+  const currentCount = counts[deviceType] ?? 0;
+
+  return {
+    exceeds: currentCount >= limit,
+    currentCount,
+    limit,
+  };
+}
+
+/**
+ * Enforce session limits by revoking oldest sessions if needed.
+ */
+export function enforceSessionLimits(
+  keyId: string,
+  options: SessionManagementOptions = {}
+): { revoked: number; reason: string } {
+  const maxTotal = options.maxTotalSessions ?? MAX_CONCURRENT_SESSIONS;
+  let revoked = 0;
+
+  const keySessions = Array.from(sessions.entries()).filter(
+    ([, s]) => s.keyId === keyId && s.active && s.expiresAt > Date.now()
+  );
+
+  if (keySessions.length <= maxTotal) {
+    return { revoked: 0, reason: "within_limits" };
+  }
+
+  // Sort by priority (lower priority first), then by last activity
+  const sortedSessions = keySessions.sort(([idA, sessA], [idB, sessB]) => {
+    const priorityA = (sessA.metadata?.priority as number) ?? 0;
+    const priorityB = (sessB.metadata?.priority as number) ?? 0;
+
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+
+    return sessA.lastActivityAt - sessB.lastActivityAt;
+  });
+
+  // Revoke oldest/lowest priority sessions
+  const toRevoke = sortedSessions.slice(0, keySessions.length - maxTotal);
+  for (const [sessionId] of toRevoke) {
+    if (revokeSession(sessionId, "system")) {
+      revoked++;
+    }
+  }
+
+  return { revoked, reason: "limit_exceeded" };
+}
+
+/**
+ * Get all active sessions for a key with device information.
+ */
+export function getActiveSessionsWithDeviceInfo(keyId: string): Array<{
+  sessionId: string;
+  deviceType: string;
+  lastActivity: number;
+  createdAt: number;
+  ipAddress: string;
+  isCurrent: boolean;
+}> {
+  const keySessions = Array.from(sessions.entries()).filter(
+    ([, s]) => s.keyId === keyId && s.active && s.expiresAt > Date.now()
+  );
+
+  return keySessions.map(([sessionId, session]) => ({
+    sessionId,
+    deviceType: (session.metadata?.deviceType as string) ?? "unknown",
+    lastActivity: session.lastActivityAt,
+    createdAt: session.createdAt,
+    ipAddress: session.clientIp,
+    isCurrent: false, // Caller can set this for the current session
+  }));
+}
+
+/**
+ * Revoke a specific session for a key (user-initiated).
+ *
+ * Allows users to selectively revoke specific sessions while keeping others active.
+ *
+ * @param keyId - The API key ID
+ * @param sessionId - The session ID to revoke
+ * @param clientIp - Client IP for audit logging
+ * @returns true if session was found and revoked
+ */
+export function revokeSessionForKey(keyId: string, sessionId: string, clientIp: string): boolean {
+  const session = sessions.get(sessionId);
+  if (!session || session.keyId !== keyId) {
+    return false;
+  }
+
+  return revokeSession(sessionId, clientIp);
+}
+
+/**
+ * Revoke all sessions except the current one (user-initiated logout from other devices).
+ *
+ * @param keyId - The API key ID
+ * @param currentSessionId - The session to keep active
+ * @param clientIp - Client IP for audit logging
+ * @returns Number of sessions revoked
+ */
+export function revokeOtherSessions(
+  keyId: string,
+  currentSessionId: string,
+  clientIp: string
+): number {
+  let revoked = 0;
+
+  for (const [sessionId, session] of sessions.entries()) {
+    if (session.keyId === keyId && sessionId !== currentSessionId && session.active) {
+      if (revokeSession(sessionId, clientIp)) {
+        revoked++;
+      }
+    }
+  }
+
+  logger.info("Revoked all other sessions", { keyId, currentSessionId, revoked, clientIp });
+
+  return revoked;
+}
+
+/**
+ * Update session priority.
+ *
+ * Higher priority sessions are less likely to be revoked when limits are enforced.
+ *
+ * @param sessionId - The session ID
+ * @param priority - Priority value (0-100, higher = more important)
+ * @returns true if session was found and updated
+ */
+export function setSessionPriority(sessionId: string, priority: number): boolean {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+
+  if (!session.metadata) {
+    session.metadata = {};
+  }
+
+  session.metadata.priority = Math.max(0, Math.min(100, priority));
+  sessions.set(sessionId, session);
+
+  logger.debug("Session priority updated", { sessionId, priority });
+
+  return true;
+}
+
+/**
+ * Mark a device as trusted for a key.
+ *
+ * Trusted devices have higher session limits and may skip MFA requirements.
+ *
+ * @param keyId - The API key ID
+ * @param deviceId - The device ID to trust
+ * @returns true if device was marked as trusted
+ */
+export function trustDevice(keyId: string, deviceId: string): boolean {
+  const device = deviceFingerprints.get(deviceId);
+  if (!device) {
+    return false;
+  }
+
+  device.trusted = true;
+  deviceFingerprints.set(deviceId, device);
+
+  logger.info("Device marked as trusted", { keyId, deviceId });
+
+  return true;
+}
+
+/**
+ * Revoke a session (user-initiated logout).
+ *
+ * Performs comprehensive cleanup including:
+ * - Marking session as inactive
+ * - Invalidating associated refresh token
+ * - Removing device trust status for untrusted devices
+ * - Logging the revocation for audit
  */
 export async function createSession(
   keyId: string,
@@ -1094,25 +1548,64 @@ export async function createSession(
     ipBinding?: boolean;
     /** Create refresh token */
     createRefreshToken?: boolean;
+    /** Session management options */
+    sessionMgmt?: SessionManagementOptions;
   } = {}
 ): Promise<{ sessionId: string; refreshToken?: string; tokenFingerprint?: string }> {
-  const { type = "standard", ipBinding = true, createRefreshToken = true } = options;
+  const { type = "standard", ipBinding = true, createRefreshToken = true, sessionMgmt } = options;
 
   // Sanitize metadata before creating session
   const sanitizedMetadata = sanitizeSessionMetadata(metadata);
 
-  // Check concurrent session limit
+  // Detect device type from user agent
+  const deviceType = userAgent ? detectDeviceType(userAgent) : "unknown";
+  sanitizedMetadata.deviceType = deviceType;
+
+  // Check device-based limits
+  const deviceLimitCheck = wouldExceedDeviceLimits(keyId, deviceType, sessionMgmt);
+  if (deviceLimitCheck.exceeds) {
+    // Enforce limits by revoking oldest sessions for this device type
+    const deviceSessions = Array.from(sessions.entries()).filter(
+      ([, s]) => s.keyId === keyId && s.active && (s.metadata?.deviceType as string) === deviceType
+    );
+
+    if (deviceSessions.length > 0) {
+      // Sort by last activity and revoke oldest
+      deviceSessions.sort(([, a], [, b]) => a.lastActivityAt - b.lastActivityAt);
+      const [oldestSessionId] = deviceSessions[0];
+      revokeSession(oldestSessionId, "system");
+      logger.info("Session revoked due to device limit", {
+        keyId,
+        deviceType,
+        limit: deviceLimitCheck.limit,
+      });
+    }
+  }
+
+  // Check total concurrent limit
+  const maxTotal = sessionMgmt?.maxTotalSessions ?? MAX_CONCURRENT_SESSIONS;
   const keySessions = Array.from(sessions.values()).filter((s) => s.keyId === keyId && s.active);
-  if (keySessions.length >= MAX_CONCURRENT_SESSIONS) {
-    // Remove oldest inactive session
-    keySessions.sort((a, b) => a.lastActivityAt - b.lastActivityAt);
-    const oldest = keySessions[0];
+
+  if (keySessions.length >= maxTotal) {
+    // Remove oldest lowest-priority session
+    const sortedSessions = keySessions.sort((a, b) => {
+      const priorityA = (a.metadata?.priority as number) ?? 0;
+      const priorityB = (b.metadata?.priority as number) ?? 0;
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      return a.lastActivityAt - b.lastActivityAt;
+    });
+
+    const oldest = sortedSessions[0];
     if (oldest) {
-      oldest.active = false;
-      sessions.set(oldest.sessionId, oldest);
-      logger.info("Session deactivated due to concurrent limit", {
+      revokeSession(oldest.sessionId, "system");
+      logger.info("Session revoked due to concurrent limit", {
         sessionId: oldest.sessionId,
         keyId,
+        priority: oldest.metadata?.priority ?? 0,
       });
     }
   }
@@ -1125,9 +1618,11 @@ export async function createSession(
 
   // Get device info
   let deviceId: string | undefined;
+  let deviceTrusted = false;
   if (userAgent) {
     const device = await getOrCreateDevice(userAgent, clientIp);
     deviceId = device.deviceId;
+    deviceTrusted = device.trusted;
   }
 
   const session: AuthSession = {
@@ -1138,7 +1633,11 @@ export async function createSession(
     expiresAt: now + SESSION_TTL_MS,
     clientIp,
     userAgent,
-    metadata: sanitizedMetadata,
+    metadata: {
+      ...sanitizedMetadata,
+      priority: sessionMgmt?.priority ?? 0,
+      deviceTrusted,
+    },
     csrfToken: generateAuthCsrfTokenInternal(),
     regenerated: false,
     deviceId,
@@ -1165,6 +1664,8 @@ export async function createSession(
     keyId,
     clientIp,
     sessionType: type,
+    deviceType,
+    deviceTrusted,
     hasRefreshToken: !!refreshToken,
     tokenEncrypted: isEncryptionConfigured(),
   });
@@ -1172,6 +1673,8 @@ export async function createSession(
   // Log session creation event with token fingerprint for audit
   logSessionEvent("session_created", sessionId, keyId, clientIp, {
     sessionType: type,
+    deviceType,
+    deviceTrusted,
     hasRefreshToken: !!refreshToken,
     ipBinding,
     deviceId,

@@ -38,7 +38,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       const id = useFavoritesStore.getState().addFavorite(favorite);
@@ -58,7 +58,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       useFavoritesStore.getState().addFavorite(favorite);
@@ -72,7 +72,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
         pinned: true,
       };
 
@@ -87,7 +87,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       useFavoritesStore.getState().addFavorite(favorite);
@@ -108,7 +108,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       const id = useFavoritesStore.getState().addFavorite(favorite);
@@ -124,11 +124,11 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       const id1 = useFavoritesStore.getState().addFavorite(favorite);
-      const id2 = useFavoritesStore.getState().addFavorite(favorite);
+      useFavoritesStore.getState().addFavorite(favorite);
 
       useFavoritesStore.getState().updateFavorite(id1, { stationName: "Updated Name" });
 
@@ -144,7 +144,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       const id1 = useFavoritesStore.getState().addFavorite(favorite);
@@ -164,7 +164,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       useFavoritesStore.getState().addFavorite(favorite);
@@ -188,7 +188,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       useFavoritesStore.getState().addFavorite({ ...favorite, stationName: "Station 1" });
@@ -208,7 +208,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       useFavoritesStore.getState().addFavorite(favorite);
@@ -230,7 +230,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
         pinned: false,
       };
 
@@ -252,8 +252,10 @@ describe("favoritesStore", () => {
     it("adds a commute with generated ID", () => {
       const commute = {
         name: "Work Commute",
-        originId: "123",
-        destinationId: "456",
+        origin: { stationId: "123", stationName: "Origin Station" },
+        destination: { stationId: "456", stationName: "Destination Station" },
+        preferredLines: [],
+        enableTransferSuggestions: false,
       };
 
       const id = useFavoritesStore.getState().addCommute(commute);
@@ -271,8 +273,10 @@ describe("favoritesStore", () => {
     it("updates existing commute", () => {
       const commute = {
         name: "Work Commute",
-        originId: "123",
-        destinationId: "456",
+        origin: { stationId: "123", stationName: "Origin Station" },
+        destination: { stationId: "456", stationName: "Destination Station" },
+        preferredLines: [],
+        enableTransferSuggestions: false,
       };
 
       const id = useFavoritesStore.getState().addCommute(commute);
@@ -288,8 +292,10 @@ describe("favoritesStore", () => {
     it("removes commute by ID", () => {
       const commute = {
         name: "Work Commute",
-        originId: "123",
-        destinationId: "456",
+        origin: { stationId: "123", stationName: "Origin Station" },
+        destination: { stationId: "456", stationName: "Destination Station" },
+        preferredLines: [],
+        enableTransferSuggestions: false,
       };
 
       const id = useFavoritesStore.getState().addCommute(commute);
@@ -306,8 +312,10 @@ describe("favoritesStore", () => {
     it("toggles isPinned state", () => {
       const commute = {
         name: "Work Commute",
-        originId: "123",
-        destinationId: "456",
+        origin: { stationId: "123", stationName: "Origin Station" },
+        destination: { stationId: "456", stationName: "Destination Station" },
+        preferredLines: [],
+        enableTransferSuggestions: false,
         isPinned: false,
       };
 
@@ -327,7 +335,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       const id = useFavoritesStore.getState().addFavorite(favorite);
@@ -347,7 +355,7 @@ describe("favoritesStore", () => {
         stationId: "123",
         stationName: "Test Station",
         lines: ["1"],
-        direction: "north" as const,
+        direction: "N" as const,
       };
 
       const id = useFavoritesStore.getState().addFavorite(favorite);

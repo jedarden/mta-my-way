@@ -62,9 +62,8 @@ describe("fareStore", () => {
       const entry: RideLogEntry = {
         date: new Date().toISOString(),
         stationId: "101",
-        stationName: "South Ferry",
-        line: "1",
-        fare: 2.9,
+        time: Date.now(),
+        source: "tracked",
       };
 
       useFareStore.getState().addRideLogEntry(entry);
@@ -80,9 +79,8 @@ describe("fareStore", () => {
       const entry: RideLogEntry = {
         date: new Date().toISOString(),
         stationId: "101",
-        stationName: "South Ferry",
-        line: "1",
-        fare: 2.9,
+        time: Date.now(),
+        source: "tracked",
       };
 
       useFareStore.getState().addRideLogEntry(entry);
@@ -101,8 +99,6 @@ describe("fareStore", () => {
           date: new Date().toISOString(),
           stationId: `${i}`,
           stationName: `Station ${i}`,
-          line: "1",
-          fare: 2.9,
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
@@ -143,9 +139,8 @@ describe("fareStore", () => {
       const entry: RideLogEntry = {
         date: new Date().toISOString(),
         stationId: "101",
-        stationName: "South Ferry",
-        line: "1",
-        fare: 2.9,
+        time: Date.now(),
+        source: "tracked",
       };
       useFareStore.getState().addRideLogEntry(entry);
 
@@ -168,9 +163,8 @@ describe("fareStore", () => {
       const entry: RideLogEntry = {
         date: new Date().toISOString(),
         stationId: "101",
-        stationName: "South Ferry",
-        line: "1",
-        fare: 2.9,
+        time: Date.now(),
+        source: "tracked",
       };
       useFareStore.getState().addRideLogEntry(entry);
 
@@ -214,9 +208,8 @@ describe("fareStore", () => {
       const entry: RideLogEntry = {
         date: new Date().toISOString(),
         stationId: "101",
-        stationName: "South Ferry",
-        line: "1",
-        fare: 2.9,
+        time: Date.now(),
+        source: "tracked",
       };
       useFareStore.getState().addRideLogEntry(entry);
 
@@ -252,9 +245,8 @@ describe("fareStore", () => {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
           stationId: "101",
-          stationName: "South Ferry",
-          line: "1",
-          fare: 2.9,
+          time: Date.now(),
+          source: "tracked",
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
@@ -274,9 +266,8 @@ describe("fareStore", () => {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
           stationId: "101",
-          stationName: "South Ferry",
-          line: "1",
-          fare: 2.9,
+          time: Date.now(),
+          source: "tracked",
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
@@ -296,9 +287,8 @@ describe("fareStore", () => {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
           stationId: "101",
-          stationName: "South Ferry",
-          line: "1",
-          fare: 2.9,
+          time: Date.now(),
+          source: "tracked",
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
@@ -316,9 +306,8 @@ describe("fareStore", () => {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
           stationId: "101",
-          stationName: "South Ferry",
-          line: "1",
-          fare: 2.9,
+          time: Date.now(),
+          source: "tracked",
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
@@ -346,9 +335,8 @@ describe("fareStore", () => {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
           stationId: "101",
-          stationName: "South Ferry",
-          line: "1",
-          fare: 2.9,
+          time: Date.now(),
+          source: "tracked",
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
@@ -366,9 +354,8 @@ describe("fareStore", () => {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
           stationId: "101",
-          stationName: "South Ferry",
-          line: "1",
-          fare: 2.9,
+          time: Date.now(),
+          source: "tracked",
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
@@ -410,9 +397,8 @@ describe("fareStore", () => {
       const entry: RideLogEntry = {
         date: new Date().toISOString(),
         stationId: "101",
-        stationName: "South Ferry",
-        line: "1",
-        fare: 0,
+        time: Date.now(),
+        source: "tracked",
       };
       useFareStore.getState().addRideLogEntry(entry);
 
