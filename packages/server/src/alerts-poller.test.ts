@@ -11,7 +11,6 @@
  * - Status reporting
  */
 
-import type { StationAlert } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ParsedAlert } from "./alerts-parser.js";
 
@@ -57,9 +56,13 @@ vi.mock("./observability/tracing.js", () => ({
 
 describe("alerts-poller", () => {
   let alertsPoller: typeof import("./alerts-poller.js");
-  let mockParseAlerts: any;
-  let mockTracedFetch: any;
-  let mockLogger: any;
+  let mockParseAlerts: ReturnType<typeof vi.fn>;
+  let mockTracedFetch: ReturnType<typeof vi.fn>;
+  let mockLogger: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
 
   const mockParsedAlerts: ParsedAlert[] = [
     {

@@ -89,7 +89,6 @@ import {
   // verifyTotpCode,
 } from "./middleware/authentication.js";
 import {
-  apiKeyAuth,
   auditLogAccess,
   cors,
   csrfProtection,

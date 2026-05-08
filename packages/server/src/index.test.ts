@@ -212,27 +212,30 @@ describe("Server Entry Point", () => {
 
     // Configure @hono/node-server mock using dynamic import
     const { serve } = await import("@hono/node-server");
-    (serve as any).mockImplementation(({ fetch }: any, callback?: any) => {
-      if (callback) {
-        callback?.({ port: parseInt(process.env.PORT || "3001", 10) });
+    (serve as ReturnType<typeof vi.fn>).mockImplementation(
+      (_fetch: unknown, _callback?: unknown) => {
+        const callback = _callback as ((info: { port: number }) => void) | undefined;
+        if (callback) {
+          callback?.({ port: parseInt(process.env.PORT || "3001", 10) });
+        }
+        return { port: parseInt(process.env.PORT || "3001", 10), close: vi.fn() };
       }
-      return { port: parseInt(process.env.PORT || "3001", 10), close: vi.fn() };
-    });
+    );
 
     // Configure push subscriptions mock
     const { getPushDatabase } = await import("./push/subscriptions.js");
-    (getPushDatabase as any).mockReturnValue(mockDb);
+    (getPushDatabase as ReturnType<typeof vi.fn>).mockReturnValue(mockDb);
 
     // Configure vapid mock
     const { loadOrGenerateVapidKeys } = await import("./push/vapid.js");
-    (loadOrGenerateVapidKeys as any).mockResolvedValue({
+    (loadOrGenerateVapidKeys as ReturnType<typeof vi.fn>).mockResolvedValue({
       publicKey: "test-public-key",
       privateKey: "test-private-key",
     });
 
     // Configure travel times mock
     const { loadTravelTimes } = await import("./transfer/travel-times.js");
-    (loadTravelTimes as any).mockResolvedValue(mockTravelTimes);
+    (loadTravelTimes as ReturnType<typeof vi.fn>).mockResolvedValue(mockTravelTimes);
   });
 
   afterEach(() => {

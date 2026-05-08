@@ -418,7 +418,7 @@ async function getCsrfToken(app: Hono): Promise<string> {
  * Helper to make a state-changing request with CSRF token.
  * Gets a fresh token and includes it in the X-CSRF-Token header.
  */
-async function requestWithCsrf(
+async function _requestWithCsrf(
   app: Hono,
   path: string,
   options: RequestInit = {}
