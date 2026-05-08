@@ -1555,7 +1555,7 @@ export async function createSession(
   const { type = "standard", ipBinding = true, createRefreshToken = true, sessionMgmt } = options;
 
   // Sanitize metadata before creating session
-  const sanitizedMetadata = sanitizeSessionMetadata(metadata);
+  const sanitizedMetadata = sanitizeSessionMetadata(metadata) || {};
 
   // Detect device type from user agent
   const deviceType = userAgent ? detectDeviceType(userAgent) : "unknown";

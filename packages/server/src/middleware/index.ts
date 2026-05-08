@@ -450,3 +450,20 @@ export {
   getBlockedMethods,
   type HttpMethodRestrictionsOptions,
 } from "./http-method-restrictions.js";
+export {
+  checkTimeBasedAccess,
+  requireTimeBasedAccess,
+  checkLocationAccess,
+  requireLocationAccess,
+  analyzeAccessBehavior,
+  updateAccessPattern,
+  analyzeBehavior,
+  checkSessionSecurity,
+  clearAccessPatterns,
+  getAccessPatternStats,
+  type TimeBasedAccessRule,
+  type LocationAccessRule,
+  type BehavioralAnalysis,
+  type AccessPattern,
+  type SessionSecurityConfig,
+} from "./authorization-security.js";
