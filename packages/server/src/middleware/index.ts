@@ -419,3 +419,25 @@ export {
   type BatchAuthorizationResult,
   type OwnerIdResolver,
 } from "./enhanced-authorization.js";
+export {
+  jsonDepthProtection,
+  type JsonDepthProtectionOptions,
+} from "./json-depth-protection.js";
+export {
+  responseSizeLimits,
+  createStreamResponse,
+  createPaginatedResponse,
+  estimatePayloadSize,
+  type ResponseSizeLimitOptions,
+  type PaginatedResponse,
+} from "./response-size-limits.js";
+export {
+  httpMethodRestrictions,
+  strictHttpMethodRestrictions,
+  isSafeMethod,
+  isDangerousMethod,
+  isIdempotentMethod,
+  getAllowedMethods,
+  getBlockedMethods,
+  type HttpMethodRestrictionsOptions,
+} from "./http-method-restrictions.js";
