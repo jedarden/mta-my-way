@@ -34,6 +34,12 @@ import {
 } from "../middleware/index.js";
 import { authRateLimit, requireCaptcha } from "../middleware/index.js";
 import {
+  cleanupExpiredTokens,
+  clearFailedResetAttempts,
+  isAccountLocked,
+  recordFailedResetAttempt,
+} from "../middleware/password-management.js";
+import {
   consumePasswordResetToken,
   getDeviceInfo,
   invalidateResetTokensForKey,
@@ -166,11 +172,12 @@ export const getPasswordPolicyHandler: MiddlewareHandler = async (c) => {
  *
  * Initiates the password reset flow by:
  * 1. Validating the email address
- * 2. Rate limiting (strict tier: 5 requests/minute)
- * 3. Checking if user exists (but not revealing this)
- * 4. Generating a secure reset token with device fingerprinting
- * 5. Sending email with reset link
- * 6. Invalidating any existing reset tokens
+ * 2. Checking if account is locked (too many failed attempts)
+ * 3. Rate limiting (strict tier: 5 requests/minute)
+ * 4. Checking if user exists (but not revealing this)
+ * 5. Generating a secure reset token with device fingerprinting
+ * 6. Sending email with reset link
+ * 7. Invalidating any existing reset tokens
  */
 export const requestPasswordResetHandler: MiddlewareHandler = async (c) => {
   try {
@@ -197,12 +204,32 @@ export const requestPasswordResetHandler: MiddlewareHandler = async (c) => {
       "unknown";
     const userAgent = c.req.header("User-Agent");
 
+    // Check if account is locked (prevent enumeration - same response)
+    const lockStatus = isAccountLocked(email);
+    if (lockStatus.locked) {
+      // Return same response as success to prevent enumeration
+      // But log internally for monitoring
+      logger.warn("Password reset request blocked - account locked", {
+        email,
+        clientIp,
+        remainingMinutes: lockStatus.remainingMinutes,
+      });
+
+      return c.json({
+        success: true,
+        message: "If an account exists with this email, a password reset link has been sent.",
+      });
+    }
+
     // Check if user exists
     const user = findUserByEmail(email);
 
     // Always return success to prevent email enumeration
     // Only send email if user exists
     if (user) {
+      // Cleanup expired tokens first
+      cleanupExpiredTokens();
+
       // Invalidate any existing reset tokens for this user
       invalidateResetTokensForKey(user.userId);
 
@@ -258,12 +285,14 @@ export const requestPasswordResetHandler: MiddlewareHandler = async (c) => {
  *
  * Completes the password reset flow by:
  * 1. Validating the reset token with device verification
- * 2. Validating the new password against policy
- * 3. Updating the user's password
- * 4. Consuming the reset token (single-use)
- * 5. Invalidating all other reset tokens
- * 6. Invalidating all existing sessions (force re-login)
- * 7. Sending security notification email
+ * 2. Recording failed attempts and checking account lockout
+ * 3. Validating the new password against policy
+ * 4. Updating the user's password
+ * 5. Consuming the reset token (single-use)
+ * 6. Invalidating all other reset tokens
+ * 7. Invalidating all existing sessions (force re-login)
+ * 8. Clearing failed attempts on success
+ * 9. Sending security notification email
  */
 export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
   try {
@@ -293,7 +322,27 @@ export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
     const validationResult_ = await validatePasswordResetToken(tokenId, token, clientIp, userAgent);
 
     if (!validationResult_.keyId) {
+      // Record failed attempt
       securityLogger.logSuspiciousActivity(c, "invalid_password_reset_token");
+
+      // Try to get user email from token for attempt tracking
+      const tokenData = (await import("../middleware/password-management.js"))
+        ._getPasswordResetTokensMap()
+        .get(tokenId);
+      if (tokenData) {
+        const user = getUserById(tokenData.keyId);
+        if (user) {
+          const attemptResult = recordFailedResetAttempt(user.email, clientIp);
+          if (attemptResult.locked) {
+            logger.warn("Account locked after too many failed reset attempts", {
+              email: user.email,
+              clientIp,
+              attempts: attemptResult.attemptCount,
+            });
+          }
+        }
+      }
+
       return c.json(
         {
           error: "Invalid or expired reset token",
@@ -315,6 +364,18 @@ export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
           message: "The account associated with this reset link no longer exists.",
         },
         404
+      );
+    }
+
+    // Check if account is locked
+    const lockStatus = isAccountLocked(user.email);
+    if (lockStatus.locked) {
+      return c.json(
+        {
+          error: "Account temporarily locked",
+          message: `Too many failed password reset attempts. Please try again in ${lockStatus.remainingMinutes} minutes.`,
+        },
+        429
       );
     }
 
@@ -351,6 +412,9 @@ export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
 
     // Invalidate all existing sessions for this user (force re-login)
     const sessionsInvalidated = invalidateAllSessionsForKey(keyId);
+
+    // Clear failed reset attempts on successful reset
+    clearFailedResetAttempts(user.email);
 
     // Send security notification email
     const deviceInfo = getDeviceInfo(userAgent);
