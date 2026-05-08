@@ -156,6 +156,7 @@ export const getPasswordPolicyHandler: MiddlewareHandler = async (c) => {
       allowSpaces: policy.allowSpaces,
       expirationDays: policy.expirationDays,
       historyCount: policy.historyCount,
+      gracePeriodDays: policy.gracePeriodDays,
     },
     tips: [
       "Use at least 12 characters",
@@ -540,7 +541,23 @@ export const changePasswordHandler: MiddlewareHandler = async (c) => {
     user.updatedAt = Date.now();
     upsertUser(user);
 
-    logger.info("Password changed", { userId: auth.keyId });
+    // Send password change notification email
+    const deviceInfo = getDeviceInfo(c.req.header("User-Agent"));
+    const clientIp =
+      c.req.header("CF-Connecting-IP") ||
+      c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+      c.req.header("X-Real-IP") ||
+      "unknown";
+    const notificationResult = await sendPasswordResetNotificationEmail({
+      email: user.email,
+      clientIp,
+      deviceInfo,
+    });
+
+    logger.info("Password changed", {
+      userId: auth.keyId,
+      notificationSent: notificationResult.success,
+    });
 
     return c.json({
       success: true,
