@@ -20,6 +20,7 @@ import type {
   DirectRoute,
   RecommendationDetails,
   RouteIndex,
+  StationArrivals,
   StationIndex,
   StationRef,
   TransferGraph,
@@ -61,7 +62,7 @@ export interface EngineConfig {
     Array<{ toStationId: string; toLines: string[]; walkingSeconds: number; accessible: boolean }>
   >;
   complexes: ComplexIndex;
-  getArrivals: (stationId: string) => ArrivalTime[] | null;
+  getArrivals: (stationId: string) => StationArrivals | null;
 }
 
 /**
@@ -71,13 +72,15 @@ export class TransferEngine {
   private stations: StationIndex;
   private routes: RouteIndex;
   private graph: TransferGraph;
-  private getArrivalsFn: (stationId: string) => ArrivalTime[] | null;
+  private getArrivalsFn: (stationId: string) => StationArrivals | null;
   private travelTimes: TravelTimeIndex | null;
+  private complexes: ComplexIndex;
 
   constructor(config: EngineConfig) {
     this.stations = config.stations;
     this.routes = config.routes;
     this.getArrivalsFn = config.getArrivals;
+    this.complexes = config.complexes;
     this.graph = buildTransferGraph(config.stations, config.transfers, config.complexes);
     this.travelTimes = getTravelTimes();
   }
@@ -148,6 +151,17 @@ export class TransferEngine {
   }
 
   /**
+   * Extract all arrivals from a StationArrivals object
+   * Combines northbound and southbound arrivals into a single array
+   */
+  private extractAllArrivals(stationArrivals: StationArrivals | null): ArrivalTime[] {
+    if (!stationArrivals) {
+      return [];
+    }
+    return [...stationArrivals.northbound, ...stationArrivals.southbound];
+  }
+
+  /**
    * Compute walking option for short trips or when delays are significant
    */
   private computeWalkingOption(
@@ -193,24 +207,42 @@ export class TransferEngine {
     // Determine if walking should be suggested
     const walkingIsFaster = walkingMinutes < transitMinutes;
 
+    // Check if stations are in the same complex (very close, within walking distance)
+    const originStation = this.stations[originId];
+    const destStation = this.stations[destinationId];
+    const sameComplex =
+      originStation?.complex &&
+      destStation?.complex &&
+      originStation.complex === destStation.complex;
+
     // Check if this is a short trip (walking under 20 min, 3 or fewer stops)
-    const route = this.routes[origin.lines.find((line) => destination.lines.includes(line)) ?? ""];
-    const stopCount = route
-      ? Math.abs(
-          (route.stops.indexOf(originId) - route.stops.indexOf(destinationId)) * -1 ||
-            route.stops.indexOf(destinationId) - route.stops.indexOf(originId)
-        ) + 1
-      : 10;
+    // For stations in the same complex, treat as 1 stop (very close)
+    let stopCount = 10; // default when no route exists
+    if (sameComplex) {
+      stopCount = 1; // Stations in same complex are very close
+    } else {
+      const route =
+        this.routes[origin.lines.find((line) => destination.lines.includes(line)) ?? ""];
+      if (route) {
+        stopCount =
+          Math.abs(
+            (route.stops.indexOf(originId) - route.stops.indexOf(destinationId)) * -1 ||
+              route.stops.indexOf(destinationId) - route.stops.indexOf(originId)
+          ) + 1;
+      }
+    }
     const isShortTrip = isWalkingViable(walkingMinutes, stopCount);
 
     // Show walking option if:
     // 1. It's a short trip (< 20 min walk, <= 3 stops), OR
     // 2. Walking is faster than transit, OR
-    // 3. Transit delays are significant (5+ min wait for short trip)
+    // 3. Transit delays are significant (5+ min wait for short trip), OR
+    // 4. No transit options available and walking is under 10 minutes
     const hasSignificantDelays =
       bestOption !== "none" && transitMinutes - walkingMinutes > 5 && walkingMinutes < 15;
+    const noTransitOptions = bestOption === "none" && walkingMinutes < 10;
 
-    if (isShortTrip || walkingIsFaster || hasSignificantDelays) {
+    if (isShortTrip || walkingIsFaster || hasSignificantDelays || noTransitOptions) {
       let reason: WalkingOption["reason"] = "always";
       if (walkingIsFaster) {
         reason = "delays";
@@ -241,8 +273,9 @@ export class TransferEngine {
     const routes: DirectRoute[] = [];
 
     // Get origin arrivals
-    const originArrivals = this.getArrivalsFn(originId);
-    if (!originArrivals || originArrivals.length === 0) {
+    const stationArrivals = this.getArrivalsFn(originId);
+    const originArrivals = this.extractAllArrivals(stationArrivals);
+    if (originArrivals.length === 0) {
       return routes;
     }
 
@@ -358,8 +391,9 @@ export class TransferEngine {
         : Infinity;
 
     // Get origin arrivals
-    const originArrivals = this.getArrivalsFn(originId);
-    if (!originArrivals || originArrivals.length === 0) {
+    const stationArrivals = this.getArrivalsFn(originId);
+    const originArrivals = this.extractAllArrivals(stationArrivals);
+    if (originArrivals.length === 0) {
       return routes;
     }
 
@@ -382,8 +416,9 @@ export class TransferEngine {
       const transferStationId = transferEdge.toStationId;
 
       // Get arrivals at transfer station
-      const transferArrivals = this.getArrivalsFn(transferStationId);
-      if (!transferArrivals || transferArrivals.length === 0) continue;
+      const transferStationArrivals = this.getArrivalsFn(transferStationId);
+      const transferArrivals = this.extractAllArrivals(transferStationArrivals);
+      if (transferArrivals.length === 0) continue;
 
       // Find lines at transfer station that go to destination
       const transferStation = this.stations[transferStationId];

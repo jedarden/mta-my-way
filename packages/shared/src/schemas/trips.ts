@@ -84,8 +84,8 @@ export const tripCreateRequestSchema = z
     line: lineIdSchema,
     departureTime: timestampSchema,
     arrivalTime: timestampSchema,
-    actualDurationMinutes: z.number().int().positive().optional(),
-    scheduledDurationMinutes: z.number().int().positive().optional(),
+    actualDurationMinutes: z.number().int().min(1).optional(),
+    scheduledDurationMinutes: z.number().int().min(1).optional(),
     notes: notesSchema.optional(),
   })
   .refine((data) => data.arrivalTime > data.departureTime, {
@@ -93,7 +93,8 @@ export const tripCreateRequestSchema = z
   })
   .refine((data) => data.origin !== data.destination, {
     message: "Origin and destination must be different",
-  });
+  })
+  .passthrough();
 
 /** PATCH /api/trips/:tripId/notes */
 export const tripNotesUpdateRequestSchema = z.object({

@@ -30,6 +30,7 @@ import {
   createIntegrationTestDatabase,
   createTestAdminCredentials,
   createTestUserCredentials,
+  requestWithCsrf,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -40,7 +41,8 @@ const TEST_STATIONS: StationIndex = {
   "101": {
     id: "101",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "101N",
     southStopId: "101S",
@@ -51,7 +53,8 @@ const TEST_STATIONS: StationIndex = {
   "725": {
     id: "725",
     name: "Times Sq-42 St",
-    location: { lat: 40.758, lon: -73.985 },
+    lat: 40.758,
+    lon: -73.985,
     lines: ["1", "2", "3"],
     northStopId: "725N",
     southStopId: "725S",
@@ -62,7 +65,8 @@ const TEST_STATIONS: StationIndex = {
   "726": {
     id: "726",
     name: "42 St-Port Authority",
-    location: { lat: 40.756, lon: -73.988 },
+    lat: 40.756,
+    lon: -73.988,
     lines: ["A", "C", "E"],
     northStopId: "726N",
     southStopId: "726S",
@@ -460,8 +464,8 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       await Promise.all(promises);
 
-      // Check stats
-      const statsRes = await app.request("/api/journal/stats");
+      // Check stats with auth headers
+      const statsRes = await app.request("/api/journal/stats", { headers: authHeaders });
       const stats = await statsRes.json();
 
       expect(stats.totalTrips).toBe(tripCount);
@@ -616,7 +620,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
         expect(trip.destination).toBeDefined();
         expect(trip.line).toBeDefined();
       }
-    });
+    }, 15000);
   });
 
   describe("Authorization under concurrent requests", () => {

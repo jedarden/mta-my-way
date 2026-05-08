@@ -21,12 +21,14 @@ vi.mock("node:fs/promises", () => ({
             {
               stopId: "101N",
               stationName: "Van Cortlandt Park - 242 St",
-              location: { lat: 40.8895, lon: -73.8877 },
+              lat: 40.8895,
+              lon: -73.8877,
             },
             {
               stopId: "127S",
               stationName: "South Ferry",
-              location: { lat: 40.7022, lon: -74.0121 },
+              lat: 40.7022,
+              lon: -74.0121,
             },
           ],
           frequencyMinutes: "10",

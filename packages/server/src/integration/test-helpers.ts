@@ -23,7 +23,8 @@ export const TEST_STATIONS: StationIndex = {
   "101": {
     id: "101",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "101N",
     southStopId: "101S",
@@ -34,7 +35,8 @@ export const TEST_STATIONS: StationIndex = {
   "102": {
     id: "102",
     name: "Rector St",
-    location: { lat: 40.709, lon: -74.014 },
+    lat: 40.709,
+    lon: -74.014,
     lines: ["1"],
     northStopId: "102N",
     southStopId: "102S",
@@ -45,7 +47,8 @@ export const TEST_STATIONS: StationIndex = {
   "725": {
     id: "725",
     name: "Times Sq-42 St",
-    location: { lat: 40.758, lon: -73.985 },
+    lat: 40.758,
+    lon: -73.985,
     lines: ["1", "2", "3", "7", "N", "Q", "R", "W", "S"],
     northStopId: "725N",
     southStopId: "725S",
@@ -59,7 +62,8 @@ export const TEST_STATIONS: StationIndex = {
   "726": {
     id: "726",
     name: "42 St-Port Authority",
-    location: { lat: 40.756, lon: -73.988 },
+    lat: 40.756,
+    lon: -73.988,
     lines: ["A", "C", "E"],
     northStopId: "726N",
     southStopId: "726S",
@@ -71,7 +75,8 @@ export const TEST_STATIONS: StationIndex = {
   "727": {
     id: "727",
     name: "50 St",
-    location: { lat: 40.763, lon: -73.989 },
+    lat: 40.763,
+    lon: -73.989,
     lines: ["A", "C", "E"],
     northStopId: "727N",
     southStopId: "727S",
@@ -425,7 +430,7 @@ export async function getCsrfToken(app: {
   if (res.status !== 200) {
     throw new Error(`Failed to get CSRF token: ${res.status}`);
   }
-  const body = await res.json() as { token: string };
+  const body = (await res.json()) as { token: string };
   return body.token;
 }
 

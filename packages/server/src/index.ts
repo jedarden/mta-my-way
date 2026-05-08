@@ -25,7 +25,7 @@ import { createApp } from "./app.js";
 // Context-aware switching service disabled to reduce security surface area
 // import { initContextService } from "./context-service.js";
 import { initDelayDetector } from "./delay-detector.js";
-import { initDelayPredictor } from "./delay-predictor.js";
+import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { runMigrations } from "./migration/index.js";
@@ -97,6 +97,9 @@ async function main(): Promise<void> {
     initDelayDetector(travelTimes, routes, stations);
 
     // Initialize delay predictor for historical pattern analysis
+    if (testMode) {
+      initDelayPredictorForTesting();
+    }
     initDelayPredictor(travelTimes, stations);
 
     logger.info("Static data loaded", {

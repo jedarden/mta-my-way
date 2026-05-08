@@ -484,9 +484,7 @@ export function createApp(
     transfers,
     complexes,
     getArrivals: (stationId: string) => {
-      const stationArrivals = getArrivals(stationId);
-      if (!stationArrivals) return null;
-      return [...stationArrivals.northbound, ...stationArrivals.southbound];
+      return getArrivals(stationId);
     },
   });
 
@@ -1453,6 +1451,9 @@ export function createApp(
         const body = await validateBody(c, tripCreateRequestSchema);
         if (body instanceof Response) return body;
 
+        // Debug: log the full parsed body before destructuring
+        console.log("DEBUG: parsed body from validateBody:", JSON.stringify(body));
+
         const {
           date,
           origin,
@@ -1464,6 +1465,9 @@ export function createApp(
           scheduledDurationMinutes,
           notes,
         } = body;
+
+        // Debug: log the received scheduledDurationMinutes
+        console.log("DEBUG: received scheduledDurationMinutes:", scheduledDurationMinutes);
 
         // Calculate actual duration if not provided
         const actualDurationMinutes =

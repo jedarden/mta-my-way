@@ -10,7 +10,11 @@
 
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getUserSummaries, revokeAllUserApiKeys } from "../middleware/admin-operations.js";
+import {
+  getSystemStatus,
+  getUserSummaries,
+  revokeAllUserApiKeys,
+} from "../middleware/admin-operations.js";
 import {
   type ApiKeyCreateRequest,
   canAssignRole,
@@ -593,8 +597,3 @@ describe("Enhanced Authorization Integration Tests", () => {
     });
   });
 });
-
-// Helper function to import getSystemStatus
-function getSystemStatus() {
-  return require("../middleware/admin-operations.js").getSystemStatus();
-}

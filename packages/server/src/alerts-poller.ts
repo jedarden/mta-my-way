@@ -434,3 +434,19 @@ export function setAlertsForTesting(alerts: ParsedAlert[]): void {
   cache.consecutiveFailures = 0;
   cache.circuitOpen = false;
 }
+
+/**
+ * Reset alerts cache to initial state.
+ * This helper is only used in tests to reset module state.
+ */
+export function resetAlertsCacheForTesting(): void {
+  cache.alerts = [];
+  cache.lastFetchAt = null;
+  cache.lastSuccessAt = null;
+  cache.matchRate = 0;
+  cache.consecutiveFailures = 0;
+  cache.circuitOpen = false;
+  cache.circuitOpenAt = null;
+  previousAlertIds.clear();
+  changeListeners.length = 0;
+}

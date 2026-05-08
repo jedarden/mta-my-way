@@ -49,44 +49,47 @@ export function useIntersectionObserver(
   const elementRef = useRef<Element | null>(null);
 
   // Use a callback ref pattern - when ref is called with an element, create the observer
-  const ref = useCallback((node: Element | null) => {
-    elementRef.current = node;
+  const ref = useCallback(
+    (node: Element | null) => {
+      elementRef.current = node;
 
-    // Disconnect previous observer
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-      observerRef.current = null;
-    }
+      // Disconnect previous observer
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
 
-    if (!node) return;
+      if (!node) return;
 
-    // Create new observer for the element
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry) return;
-        const isElementIntersecting = entry.isIntersecting;
+      // Create new observer for the element
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (!entry) return;
+          const isElementIntersecting = entry.isIntersecting;
 
-        setIsIntersecting(isElementIntersecting);
+          setIsIntersecting(isElementIntersecting);
 
-        setHasIntersected((prev) => {
-          if (isElementIntersecting && !prev) {
-            return true;
+          setHasIntersected((prev) => {
+            if (isElementIntersecting && !prev) {
+              return true;
+            }
+            return prev;
+          });
+
+          // Disconnect if triggerOnce and element has intersected
+          if (triggerOnce && isElementIntersecting) {
+            observer.disconnect();
+            observerRef.current = null;
           }
-          return prev;
-        });
+        },
+        { root, rootMargin, threshold }
+      );
 
-        // Disconnect if triggerOnce and element has intersected
-        if (triggerOnce && isElementIntersecting) {
-          observer.disconnect();
-          observerRef.current = null;
-        }
-      },
-      { root, rootMargin, threshold }
-    );
-
-    observer.observe(node);
-    observerRef.current = observer;
-  }, [root, rootMargin, threshold, triggerOnce]);
+      observer.observe(node);
+      observerRef.current = observer;
+    },
+    [root, rootMargin, threshold, triggerOnce]
+  );
 
   // Cleanup on unmount
   useEffect(() => {

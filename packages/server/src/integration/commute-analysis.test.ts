@@ -114,10 +114,7 @@ describe("Commute Analysis Integration Tests", () => {
   /**
    * Helper to make a state-changing request with CSRF token.
    */
-  async function requestWithCsrf(
-    path: string,
-    options: RequestInit = {}
-  ): Promise<Response> {
+  async function requestWithCsrf(path: string, options: RequestInit = {}): Promise<Response> {
     const token = await getCsrfToken();
     return app.request(path, {
       ...options,
@@ -431,27 +428,17 @@ describe("Commute Analysis Integration Tests", () => {
         destinationId: "725",
       });
 
-      const res1 = await requestWithAuthAndCsrf(
-        app,
-        "/api/commute/analyze",
-        authHeaders,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: requestBody,
-        }
-      );
+      const res1 = await requestWithAuthAndCsrf(app, "/api/commute/analyze", authHeaders, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: requestBody,
+      });
 
-      const res2 = await requestWithAuthAndCsrf(
-        app,
-        "/api/commute/analyze",
-        authHeaders,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: requestBody,
-        }
-      );
+      const res2 = await requestWithAuthAndCsrf(app, "/api/commute/analyze", authHeaders, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: requestBody,
+      });
 
       expect(res1.status).toBe(200);
       expect(res2.status).toBe(200);

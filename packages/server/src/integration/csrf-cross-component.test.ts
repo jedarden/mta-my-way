@@ -164,8 +164,8 @@ describe("CSRF and Cross-Component Integration Tests", () => {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime: Date.now() - 3600000,
           arrivalTime: Date.now(),
@@ -181,7 +181,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           // Missing required fields
-          origin: { id: "101" },
+          origin: { stationId: "101" },
         }),
       });
 

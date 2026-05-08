@@ -482,7 +482,18 @@ export function sanitizeObject(obj: unknown, options: SanitizationOptions = {}):
       // Also sanitize object keys to prevent key-based injection
       // Use key sanitization which preserves content between tags
       const sanitizedKey = sanitizeKey(key, options);
-      sanitized[sanitizedKey] = sanitizeObject(value, options);
+      // Debug: check if key was modified
+      if (sanitizedKey !== key) {
+        console.log(`DEBUG sanitizeObject: key "${key}" -> "${sanitizedKey}"`);
+      }
+      // Check if value type is preserved
+      const sanitizedValue = sanitizeObject(value, options);
+      if (typeof sanitizedValue !== typeof value && value !== null) {
+        console.log(
+          `DEBUG sanitizeObject: value type changed for key "${key}": ${typeof value} -> ${typeof sanitizedValue}`
+        );
+      }
+      sanitized[sanitizedKey] = sanitizedValue;
     }
     return sanitized;
   }

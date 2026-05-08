@@ -279,7 +279,7 @@ describe("useDebounce", () => {
       const refetchFn = vi.fn().mockResolvedValue("success");
       const { result } = renderHook(() => useRefetch(refetchFn, 1000));
 
-      act(() => {
+      await act(async () => {
         void result.current.refetch();
       });
 

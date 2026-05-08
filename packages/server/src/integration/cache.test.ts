@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import {
   avgLatency,
+  clearTestFeeds,
   errorCount24h,
   getAllArrivals,
   getAllFeedAges,
@@ -28,13 +29,16 @@ import {
   getArrivals,
   getFeedAgeSeconds,
   getFeedMetrics,
+  getFeedStateForTesting,
   getFeedStates,
   getLastGoodParsed,
   getPositions,
+  initializeTestFeed,
   isCircuitOpen,
   isFeedStale,
   recordFeedFailure,
   recordFeedSuccess,
+  resetTestFeed,
   updateArrivals,
   updatePositions,
 } from "../cache.js";
@@ -135,17 +139,24 @@ describe("Cache Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
+
+    // Initialize test feeds
+    initializeTestFeed("test-feed-1", "Test Feed 1");
+    initializeTestFeed("test-feed-2", "Test Feed 2");
+    initializeTestFeed("test-feed-a", "Test Feed A");
+    initializeTestFeed("test-feed-b", "Test Feed B");
+    initializeTestFeed("test-feed-c", "Test Feed C");
   });
 
   afterEach(() => {
     closeDatabase(db);
+    clearTestFeeds();
   });
 
   describe("Feed State Management", () => {
     beforeEach(() => {
-      // Reset feed state before each test by recording a fresh success
-      const parsed = createMockParsedFeed();
-      recordFeedSuccess("gtfs", parsed, 0, 0);
+      // Reset feed state before each test
+      resetTestFeed("gtfs");
     });
 
     describe("recordFeedSuccess", () => {
@@ -246,12 +257,16 @@ describe("Cache Integration Tests", () => {
       });
 
       it("tracks latency on failure", () => {
+        // Clear latency history from beforeEach
+        const gtfsState = getFeedStateForTesting("gtfs")!;
+        gtfsState.latencyHistory = [];
+
         recordFeedFailure("gtfs", "Error", 250);
 
         const states = getFeedStates();
-        const gtfsState = states.find((s) => s.id === "gtfs");
+        const gtfsState2 = states.find((s) => s.id === "gtfs");
 
-        expect(gtfsState?.latencyHistory).toEqual([250]);
+        expect(gtfsState2?.latencyHistory).toEqual([250]);
       });
     });
 
@@ -275,9 +290,8 @@ describe("Cache Integration Tests", () => {
 
         expect(isCircuitOpen("gtfs")).toBe(true);
 
-        // Manually set circuitOpenAt to be older than reset window
-        const states = getFeedStates();
-        const gtfsState = states.find((s) => s.id === "gtfs")!;
+        // Manually set circuitOpenAt to be older than reset window using the testing helper
+        const gtfsState = getFeedStateForTesting("gtfs")!;
         gtfsState.circuitOpenAt = Date.now() - 70000; // > 60 seconds ago
 
         expect(isCircuitOpen("gtfs")).toBe(false);
@@ -299,9 +313,8 @@ describe("Cache Integration Tests", () => {
       it("returns true for stale feed", () => {
         recordFeedSuccess("gtfs-ir", createMockParsedFeed(), 100, 100);
 
-        // Manually set lastSuccessAt to be older than stale threshold
-        const states = getFeedStates();
-        const gtfsState = states.find((s) => s.id === "gtfs-ir")!;
+        // Manually set lastSuccessAt to be older than stale threshold using the testing helper
+        const gtfsState = getFeedStateForTesting("gtfs-ir")!;
         if (gtfsState) {
           gtfsState.lastSuccessAt = Date.now() - 400000; // > 5 minutes ago
           expect(isFeedStale("gtfs-ir")).toBe(true);
@@ -342,9 +355,8 @@ describe("Cache Integration Tests", () => {
       it("includes stale flag in states", () => {
         recordFeedSuccess("gtfs", createMockParsedFeed(), 100, 100);
 
-        // Make the feed stale
-        const states = getFeedStates();
-        const gtfsState = states.find((s) => s.id === "gtfs")!;
+        // Make the feed stale using the testing helper
+        const gtfsState = getFeedStateForTesting("gtfs")!;
         gtfsState.lastSuccessAt = Date.now() - 400000;
 
         const updatedStates = getFeedStates();
@@ -654,6 +666,10 @@ describe("Cache Integration Tests", () => {
       beforeEach(() => {
         const now = Math.floor(Date.now() / 1000);
         const arrivals = {
+          stationId: "101",
+          stationName: "Test Station",
+          updatedAt: now,
+          feedAge: 10,
           northbound: [
             {
               tripId: "test-trip-1",
@@ -670,6 +686,7 @@ describe("Cache Integration Tests", () => {
             },
           ],
           southbound: [],
+          alerts: [],
         };
         updateArrivals(new Map([["101", arrivals]]));
       });
@@ -724,7 +741,7 @@ describe("Cache Integration Tests", () => {
         const body = await res.json();
         expect(body.trains).toBeDefined();
         expect(Array.isArray(body.trains)).toBe(true);
-        expect(body.feedAge).toBeDefined();
+        expect(body.computedAt).toBeDefined();
       });
 
       it("includes cache headers", async () => {
@@ -738,6 +755,11 @@ describe("Cache Integration Tests", () => {
   });
 
   describe("Cache Metrics Integration", () => {
+    beforeEach(() => {
+      // Reset feed state before each test
+      resetTestFeed("gtfs");
+    });
+
     describe("getFeedMetrics", () => {
       it("calculates average latency", () => {
         recordFeedSuccess("gtfs", createMockParsedFeed(), 100, 150);
@@ -768,9 +790,8 @@ describe("Cache Integration Tests", () => {
         const now = Date.now();
         recordFeedFailure("gtfs", "Old error", 100);
 
-        // Manually add an old error timestamp
-        const states = getFeedStates();
-        const gtfsState = states.find((s) => s.id === "gtfs")!;
+        // Manually add an old error timestamp using the testing helper
+        const gtfsState = getFeedStateForTesting("gtfs")!;
         gtfsState.errorTimestamps.push(now - 90000000); // > 24h ago
 
         const count = errorCount24h(gtfsState.errorTimestamps);
@@ -820,19 +841,14 @@ describe("Cache Integration Tests", () => {
 
       updateArrivals(new Map([["101", arrivals]]));
 
-      const res = await requestWithAuthAndCsrf(
-        app,
-        "/api/commute/analyze",
-        authHeaders,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            originId: "101",
-            destinationId: "725",
-          }),
-        }
-      );
+      const res = await requestWithAuthAndCsrf(app, "/api/commute/analyze", authHeaders, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originId: "101",
+          destinationId: "725",
+        }),
+      });
 
       expect(res.status).toBe(200);
 

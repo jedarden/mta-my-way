@@ -36,6 +36,7 @@ import {
   createIntegrationTestDatabase,
   createTestAdminCredentials,
   createTestUserCredentials,
+  requestWithAuthAndCsrf,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -89,12 +90,12 @@ const TripRecordSchema = z.object({
   id: z.string(),
   date: z.string(),
   origin: z.object({
-    id: z.string(),
-    name: z.string(),
+    stationId: z.string(),
+    stationName: z.string(),
   }),
   destination: z.object({
-    id: z.string(),
-    name: z.string(),
+    stationId: z.string(),
+    stationName: z.string(),
   }),
   line: z.string(),
   departureTime: z.number(),
@@ -115,6 +116,44 @@ const TripsResponseSchema = z.object({
 const SuccessResponseSchema = z.object({
   success: z.boolean(),
 });
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Helper functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Helper to get a CSRF token from the test app.
+ * Makes a GET request to /api/csrf-token and extracts the token.
+ */
+async function getCsrfToken(app: ReturnType<typeof createApp>): Promise<string> {
+  const res = await app.request("/api/csrf-token");
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  return body.token as string;
+}
+
+/**
+ * Helper to make a state-changing request with CSRF token.
+ * Gets a fresh token and includes it in the X-CSRF-Token header.
+ */
+async function requestWithCsrf(
+  app: ReturnType<typeof createApp>,
+  path: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = await getCsrfToken(app);
+  return app.request(path, {
+    ...options,
+    headers: {
+      ...options.headers,
+      "X-CSRF-Token": token,
+    },
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -164,11 +203,11 @@ describe("API Integration Tests", () => {
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
-          departureTime: now - 3600000,
-          arrivalTime: now,
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
           notes: "Test trip",
         }),
       });
@@ -196,19 +235,19 @@ describe("API Integration Tests", () => {
 
       expect(res.status).toBe(400);
       const body = await res.json();
-      expect(body.error).toContain("Missing required fields");
+      expect(body.error).toBe("validation failed");
     });
 
     it("calculates actual duration from timestamps", async () => {
-      const now = Date.now();
-      const departureTime = now - 5400000; // 90 minutes ago
+      const now = Math.floor(Date.now() / 1000);
+      const departureTime = now - 5400; // 90 minutes ago (in seconds)
 
       const res = await app.request("/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
           departureTime,
           arrivalTime: now,
@@ -227,11 +266,11 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
-          departureTime: now - 3600000,
-          arrivalTime: now,
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
         }),
       });
 
@@ -247,8 +286,8 @@ describe("API Integration Tests", () => {
           method: "POST",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
-            origin: { id: "101", name: "South Ferry" },
-            destination: { id: "725", name: "Times Sq-42 St" },
+            origin: "101",
+            destination: "725",
             line: "1",
             departureTime: Date.now() - 3600000,
             arrivalTime: Date.now(),
@@ -264,33 +303,41 @@ describe("API Integration Tests", () => {
     let tripIds: string[];
 
     beforeEach(() => {
-      // Create test trips
+      // Create test trips with correct structure
       const now = Date.now();
-      const t1 = recordTrip({
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
-      const t2 = recordTrip({
-        date: "2026-04-06",
-        origin: { id: "725", name: "Times Sq-42 St" },
-        destination: { id: "726", name: "42 St-Port Authority" },
-        line: "A",
-        departureTime: now - 7200000,
-        arrivalTime: now - 3600000,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
+      const t1 = recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
+      const t2 = recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "725", stationName: "Times Sq-42 St" },
+          destination: { stationId: "726", stationName: "42 St-Port Authority" },
+          line: "A",
+          departureTime: Math.floor((now - 7200000) / 1000),
+          arrivalTime: Math.floor(now / 1000) - 3600000,
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
       tripIds = [t1!.id, t2!.id];
     });
 
     it("returns trips with pagination", async () => {
-      const res = await app.request("/api/trips?limit=10&offset=0");
+      const res = await app.request("/api/trips?limit=10&offset=0", {
+        headers: authHeaders,
+      });
 
       expect(res.status).toBe(200);
 
@@ -306,23 +353,29 @@ describe("API Integration Tests", () => {
     });
 
     it("filters by origin station", async () => {
-      const res = await app.request("/api/trips?originId=101");
+      const res = await app.request("/api/trips?originId=101", {
+        headers: authHeaders,
+      });
 
       const body = await res.json();
       expect(body.trips).toHaveLength(1);
-      expect(body.trips[0]?.origin.id).toBe("101");
+      expect(body.trips[0]?.origin.stationId).toBe("101");
     });
 
     it("filters by destination station", async () => {
-      const res = await app.request("/api/trips?destinationId=726");
+      const res = await app.request("/api/trips?destinationId=726", {
+        headers: authHeaders,
+      });
 
       const body = await res.json();
       expect(body.trips).toHaveLength(1);
-      expect(body.trips[0]?.destination.id).toBe("726");
+      expect(body.trips[0]?.destination.stationId).toBe("726");
     });
 
     it("filters by line", async () => {
-      const res = await app.request("/api/trips?line=1");
+      const res = await app.request("/api/trips?line=1", {
+        headers: authHeaders,
+      });
 
       const body = await res.json();
       expect(body.trips).toHaveLength(1);
@@ -330,21 +383,27 @@ describe("API Integration Tests", () => {
     });
 
     it("filters by date range", async () => {
-      const res = await app.request("/api/trips?startDate=2026-04-06&endDate=2026-04-06");
+      const res = await app.request("/api/trips?startDate=2026-04-06&endDate=2026-04-06", {
+        headers: authHeaders,
+      });
 
       const body = await res.json();
       expect(body.trips).toHaveLength(2);
     });
 
     it("respects limit parameter", async () => {
-      const res = await app.request("/api/trips?limit=1");
+      const res = await app.request("/api/trips?limit=1", {
+        headers: authHeaders,
+      });
 
       const body = await res.json();
       expect(body.trips).toHaveLength(1);
     });
 
     it("respects offset parameter", async () => {
-      const res = await app.request("/api/trips?limit=10&offset=1");
+      const res = await app.request("/api/trips?limit=10&offset=1", {
+        headers: authHeaders,
+      });
 
       const body = await res.json();
       expect(body.trips).toHaveLength(1);
@@ -354,18 +413,23 @@ describe("API Integration Tests", () => {
   describe("GET /api/trips/:tripId", () => {
     it("returns trip by ID", async () => {
       const now = Date.now();
-      const created = recordTrip({
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
+      const created = recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
 
-      const res = await app.request(`/api/trips/${created!.id}`);
+      const res = await app.request(`/api/trips/${created!.id}`, {
+        headers: authHeaders,
+      });
 
       expect(res.status).toBe(200);
 
@@ -375,12 +439,14 @@ describe("API Integration Tests", () => {
 
       if (parsed.success) {
         expect(parsed.data.id).toBe(created!.id);
-        expect(parsed.data.origin.id).toBe("101");
+        expect(parsed.data.origin.stationId).toBe("101");
       }
     });
 
     it("returns 404 for non-existent trip", async () => {
-      const res = await app.request("/api/trips/non-existent-id");
+      const res = await app.request("/api/trips/non-existent-id", {
+        headers: authHeaders,
+      });
 
       expect(res.status).toBe(404);
 
@@ -392,16 +458,19 @@ describe("API Integration Tests", () => {
   describe("PATCH /api/trips/:tripId/notes", () => {
     it("updates trip notes", async () => {
       const now = Date.now();
-      const created = recordTrip({
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
+      const created = recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
 
       const res = await app.request(`/api/trips/${created!.id}/notes`, {
         method: "PATCH",
@@ -443,19 +512,23 @@ describe("API Integration Tests", () => {
   describe("DELETE /api/trips/:tripId", () => {
     it("deletes trip from database", async () => {
       const now = Date.now();
-      const created = recordTrip({
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
+      const created = recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
 
       const res = await app.request(`/api/trips/${created!.id}`, {
         method: "DELETE",
+        headers: authHeaders,
       });
 
       expect(res.status).toBe(200);
@@ -471,6 +544,7 @@ describe("API Integration Tests", () => {
     it("returns 404 for non-existent trip", async () => {
       const res = await app.request("/api/trips/non-existent", {
         method: "DELETE",
+        headers: authHeaders,
       });
 
       expect(res.status).toBe(404);
@@ -481,32 +555,40 @@ describe("API Integration Tests", () => {
     beforeEach(() => {
       const now = Date.now();
       // Create trips with known durations for statistics
-      recordTrip({
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 50,
-        scheduledDurationMinutes: 45,
-        source: "manual",
-      });
-      recordTrip({
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 7200000,
-        arrivalTime: now - 3600000,
-        actualDurationMinutes: 60,
-        scheduledDurationMinutes: 55,
-        source: "manual",
-      });
+      recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
+          actualDurationMinutes: 50,
+          scheduledDurationMinutes: 45,
+          source: "manual",
+        },
+        userKeyId
+      );
+      recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Math.floor((now - 7200000) / 1000),
+          arrivalTime: Math.floor(now / 1000) - 3600000,
+          actualDurationMinutes: 60,
+          scheduledDurationMinutes: 55,
+          source: "manual",
+        },
+        userKeyId
+      );
     });
 
     it("returns commute statistics", async () => {
-      const res = await app.request("/api/journal/stats");
+      const res = await app.request("/api/journal/stats", {
+        headers: authHeaders,
+      });
 
       expect(res.status).toBe(200);
 
@@ -519,14 +601,18 @@ describe("API Integration Tests", () => {
     });
 
     it("calculates correct average", async () => {
-      const res = await app.request("/api/journal/stats");
+      const res = await app.request("/api/journal/stats", {
+        headers: authHeaders,
+      });
 
       const body = await res.json();
       expect(body.averageDurationMinutes).toBe(55); // (50 + 60) / 2
     });
 
     it("accepts custom commuteId", async () => {
-      const res = await app.request("/api/journal/stats?commuteId=work");
+      const res = await app.request("/api/journal/stats?commuteId=work", {
+        headers: authHeaders,
+      });
 
       expect(res.status).toBe(200);
 
@@ -538,21 +624,25 @@ describe("API Integration Tests", () => {
   describe("GET /api/journal/summary", () => {
     beforeEach(() => {
       const now = Date.now();
-      recordTrip({
-        id: "summary-1",
-        date: "2026-04-06",
-        origin: { id: "101", name: "South Ferry" },
-        destination: { id: "725", name: "Times Sq-42 St" },
-        line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
-        actualDurationMinutes: 60,
-        source: "manual",
-      });
+      recordTrip(
+        {
+          date: "2026-04-06",
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          line: "1",
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
+          actualDurationMinutes: 60,
+          source: "manual",
+        },
+        userKeyId
+      );
     });
 
     it("returns summary with recent trips and stats", async () => {
-      const res = await app.request("/api/journal/summary");
+      const res = await app.request("/api/journal/summary", {
+        headers: authHeaders,
+      });
 
       expect(res.status).toBe(200);
 
@@ -569,9 +659,9 @@ describe("API Integration Tests", () => {
       it("stores subscription in database", async () => {
         const beforeCount = getSubscriptionCount();
 
-        const res = await app.request("/api/push/subscribe", {
+        const res = await requestWithAuthAndCsrf(app, "/api/push/subscribe", authHeaders, {
           method: "POST",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             subscription: {
               endpoint: "https://fcm.googleapis.com/fcm/send/test-endpoint",
@@ -648,11 +738,11 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: "101",
+          destination: "725",
           line: "1",
-          departureTime: now - 3600000,
-          arrivalTime: now,
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
           notes: "Integration test",
         }),
       });
@@ -672,13 +762,12 @@ describe("API Integration Tests", () => {
       const now = Date.now();
       const created = recordTrip(
         {
-          id: "flow-test-1",
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
           line: "1",
-          departureTime: now - 3600000,
-          arrivalTime: now,
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
           actualDurationMinutes: 60,
           source: "manual",
         },
@@ -707,13 +796,12 @@ describe("API Integration Tests", () => {
       const now = Date.now();
       const created = recordTrip(
         {
-          id: "flow-test-2",
           date: "2026-04-06",
-          origin: { id: "101", name: "South Ferry" },
-          destination: { id: "725", name: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "South Ferry" },
+          destination: { stationId: "725", stationName: "Times Sq-42 St" },
           line: "1",
-          departureTime: now - 3600000,
-          arrivalTime: now,
+          departureTime: Math.floor((now - 3600000) / 1000),
+          arrivalTime: Math.floor(now / 1000),
           actualDurationMinutes: 60,
           source: "manual",
         },

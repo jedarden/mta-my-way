@@ -112,6 +112,7 @@ export function recordTrip(
       destination: trip.destination.stationName,
       source: trip.source,
       ownerId,
+      scheduledDurationMinutes: trip.scheduledDurationMinutes,
     });
 
     return { ...trip, id };
@@ -528,8 +529,8 @@ export function calculateCommuteStats(
     durations.reduce((sum, d) => sum + Math.pow(d - avgDuration, 2), 0) / durations.length;
   const stdDev = Math.sqrt(variance);
 
-  // Calculate delay statistics
-  const tripsWithSchedule = allTrips.filter((t) => t.scheduledDurationMinutes);
+  // Calculate delay statistics - filter trips that have scheduledDurationMinutes set
+  const tripsWithSchedule = allTrips.filter((t) => t.scheduledDurationMinutes != null);
   const delays = tripsWithSchedule.map((t) => ({
     delay: t.actualDurationMinutes - (t.scheduledDurationMinutes ?? 0),
     onTime: Math.abs(t.actualDurationMinutes - (t.scheduledDurationMinutes ?? 0)) <= 2,

@@ -39,7 +39,8 @@ const TEST_STATIONS: StationIndex = {
   "101": {
     id: "101",
     name: "South Ferry",
-    location: { lat: 40.702, lon: -74.013 },
+    lat: 40.702,
+    lon: -74.013,
     lines: ["1"],
     northStopId: "101N",
     southStopId: "101S",
@@ -50,7 +51,8 @@ const TEST_STATIONS: StationIndex = {
   "102": {
     id: "102",
     name: "Rector St",
-    location: { lat: 40.709, lon: -74.014 },
+    lat: 40.709,
+    lon: -74.014,
     lines: ["1"],
     northStopId: "102N",
     southStopId: "102S",
@@ -61,7 +63,8 @@ const TEST_STATIONS: StationIndex = {
   "725": {
     id: "725",
     name: "Times Sq-42 St",
-    location: { lat: 40.758, lon: -73.985 },
+    lat: 40.758,
+    lon: -73.985,
     lines: ["1", "2", "3", "7", "N", "Q", "R", "W", "S"],
     northStopId: "725N",
     southStopId: "725S",
@@ -75,7 +78,8 @@ const TEST_STATIONS: StationIndex = {
   "726": {
     id: "726",
     name: "42 St-Port Authority",
-    location: { lat: 40.756, lon: -73.988 },
+    lat: 40.756,
+    lon: -73.988,
     lines: ["A", "C", "E"],
     northStopId: "726N",
     southStopId: "726S",
@@ -87,7 +91,8 @@ const TEST_STATIONS: StationIndex = {
   "727": {
     id: "727",
     name: "34 St-Penn Station",
-    location: { lat: 40.75, lon: -73.99 },
+    lat: 40.75,
+    lon: -73.99,
     lines: ["A", "C", "E"],
     northStopId: "727N",
     southStopId: "727S",
@@ -196,11 +201,11 @@ describe("End-to-End Workflow Integration Tests", () => {
       // Step 1: Record a trip
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 60,
         scheduledDurationMinutes: 55,
         source: "manual",
@@ -248,8 +253,8 @@ describe("End-to-End Workflow Integration Tests", () => {
       for (let i = 0; i < trips.length; i++) {
         recordTrip({
           date: "2026-04-06",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "Test Station" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
           departureTime: baseTime + i * 1000000,
           arrivalTime: baseTime + i * 1000000 + trips[i]!.duration * 60000,
@@ -301,11 +306,11 @@ describe("End-to-End Workflow Integration Tests", () => {
       // Create trip
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         notes: "Test",
         actualDurationMinutes: 60,
         source: "manual",
@@ -339,11 +344,11 @@ describe("End-to-End Workflow Integration Tests", () => {
       // Create a trip
       const trip = recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         notes: "Original",
         actualDurationMinutes: 60,
         source: "manual",
@@ -372,11 +377,11 @@ describe("End-to-End Workflow Integration Tests", () => {
       // Add first trip
       recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 50,
         scheduledDurationMinutes: 45,
         source: "manual",
@@ -389,11 +394,11 @@ describe("End-to-End Workflow Integration Tests", () => {
       // Add second trip
       recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
-        departureTime: now - 7200000,
-        arrivalTime: now - 3600000,
+        departureTime: Math.floor((now - 7200000) / 1000),
+        arrivalTime: Math.floor(now / 1000) - 3600000,
         actualDurationMinutes: 70,
         scheduledDurationMinutes: 45,
         source: "manual",
@@ -410,11 +415,11 @@ describe("End-to-End Workflow Integration Tests", () => {
       // Add trip for default commute
       recordTrip({
         date: "2026-04-06",
-        origin: { stationId: "101", stationName: "South Ferry" },
-        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        origin: { stationId: "101", stationName: "Test Station" },
+        destination: { stationId: "725", stationName: "Test Station" },
         line: "1",
-        departureTime: now - 3600000,
-        arrivalTime: now,
+        departureTime: Math.floor((now - 3600000) / 1000),
+        arrivalTime: Math.floor(now / 1000),
         actualDurationMinutes: 60,
         source: "manual",
       });
@@ -451,8 +456,8 @@ describe("End-to-End Workflow Integration Tests", () => {
       for (const data of testData) {
         recordTrip({
           date: data.date,
-          origin: { stationId: data.originId, stationName: "Origin" },
-          destination: { stationId: data.destId, stationName: "Dest" },
+          origin: { stationId: data.originId, stationName: TEST_STATIONS[data.originId]!.name },
+          destination: { stationId: data.destId, stationName: TEST_STATIONS[data.destId]!.name },
           line: data.line,
           departureTime: baseTime + data.offset * 1000000,
           arrivalTime: baseTime + data.offset * 1000000 + 3600000,
@@ -497,11 +502,11 @@ describe("End-to-End Workflow Integration Tests", () => {
       for (let i = 0; i < 3; i++) {
         const trip = recordTrip({
           date: "2026-04-06",
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
+          origin: { stationId: "101", stationName: "Test Station" },
+          destination: { stationId: "725", stationName: "Test Station" },
           line: "1",
-          departureTime: now - 3600000 - i * 100000,
-          arrivalTime: now - i * 100000,
+          departureTime: Math.floor((now - 3600000) / 1000) - i * 100000,
+          arrivalTime: Math.floor(now / 1000) - i * 100000,
           actualDurationMinutes: 60,
           source: "manual",
         });

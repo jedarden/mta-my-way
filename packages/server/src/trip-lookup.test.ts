@@ -65,15 +65,16 @@ function createMockFeed(
     departureTime?: number;
     scheduledTrack?: string;
     actualTrack?: string;
-  }>
+  }>,
+  feedTimestamp?: number
 ): ParsedFeed {
-  const now = Math.floor(Date.now() / 1000);
+  const now = feedTimestamp ?? Math.floor(Date.now() / 1000);
 
   return {
     feedId: "feed1",
     message: {
       header: {
-        timestamp: now,
+        timestamp: { toNumber: () => now, toJSON: () => ({}) },
         toJSON: () => ({}),
       },
       entity: [
@@ -83,6 +84,7 @@ function createMockFeed(
             trip: {
               tripId,
               routeId,
+              // @ts-expect-error - nyct extension
               ".transit_realtime.nyctTripDescriptor": {
                 isAssigned: true,
                 trainId: "123",
@@ -290,10 +292,12 @@ describe("lookupTrip", () => {
   it("calculates feed age correctly", () => {
     const feedTime = Math.floor(Date.now() / 1000) - 45; // 45 seconds ago
 
-    const mockFeed = createMockFeed("trip-age", "1", [{ stopId: "R01N", departureTime: feedTime }]);
-
-    // Update feed timestamp in the header (not feedTimestamp which doesn't exist)
-    mockFeed.message.header.timestamp = feedTime;
+    const mockFeed = createMockFeed(
+      "trip-age",
+      "1",
+      [{ stopId: "R01N", departureTime: feedTime }],
+      feedTime
+    );
 
     vi.mocked(getAllParsedFeeds).mockReturnValue(new Map([["feed1", mockFeed]]));
 
