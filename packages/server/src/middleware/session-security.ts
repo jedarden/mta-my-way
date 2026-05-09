@@ -835,9 +835,7 @@ export interface SessionSecurityMiddlewareOptions {
  */
 export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {}) {
   const {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     enforceIpBinding = true,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     checkUserAgent = true,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     riskThreshold = 80,
@@ -858,6 +856,62 @@ export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {}) 
       "unknown";
 
     const userAgent = c.req.header("User-Agent");
+
+    // Enforce IP binding if enabled and session has ipBinding set
+    if (enforceIpBinding && session.ipBinding && session.clientIp) {
+      // Check if IP is in the same /24 subnet (allows for DHCP changes within same network)
+      const ipInfo = parseIpAddress(clientIp);
+      const sessionIpInfo = parseIpAddress(session.clientIp);
+
+      if (ipInfo.type === sessionIpInfo.type && ipInfo.type === "ipv4") {
+        // For IPv4, check if within same /24 subnet (first 3 octets match)
+        const ipsInSameSubnet = areIpsInSameSubnet(session.clientIp, clientIp, 24);
+
+        if (!ipsInSameSubnet) {
+          securityLogger.logSuspiciousActivity(
+            c,
+            "ip_binding_violation",
+            `Session IP binding violation: ${session.clientIp} -> ${clientIp}`
+          );
+          throw new Error("Session IP binding violation - session terminated");
+        }
+      } else if (ipInfo.type === sessionIpInfo.type && ipInfo.type === "ipv6") {
+        // For IPv6, check if within same /64 subnet
+        const ipsInSameSubnet = areIpsInSameSubnet(session.clientIp, clientIp, 64);
+
+        if (!ipsInSameSubnet) {
+          securityLogger.logSuspiciousActivity(
+            c,
+            "ip_binding_violation",
+            `Session IP binding violation: ${session.clientIp} -> ${clientIp}`
+          );
+          throw new Error("Session IP binding violation - session terminated");
+        }
+      } else if (ipInfo.type !== sessionIpInfo.type) {
+        // IP type changed (IPv4 <-> IPv6)
+        securityLogger.logSuspiciousActivity(
+          c,
+          "ip_type_change",
+          `Session IP type change: ${sessionIpInfo.type} -> ${ipInfo.type}`
+        );
+        throw new Error("Session IP type changed - session terminated");
+      }
+    }
+
+    // Check User-Agent changes if enabled
+    if (checkUserAgent && session.userAgent && userAgent !== session.userAgent) {
+      const similarity = calculateUserAgentSimilarity(session.userAgent, userAgent);
+
+      // Significant user agent change without being a legitimate update
+      if (similarity < 50 && !isLegitimateUserAgentChange(session.userAgent, userAgent)) {
+        securityLogger.logSuspiciousActivity(
+          c,
+          "user_agent_change",
+          `Suspicious User-Agent change detected`
+        );
+        // Log but don't necessarily block - will be factored into risk assessment
+      }
+    }
 
     // Assess session risk
     const riskAssessment = await assessSessionRisk(session, clientIp, userAgent);
