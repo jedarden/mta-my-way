@@ -1011,10 +1011,19 @@ describe("Authentication Middleware", () => {
       // Clear existing sessions for test_key_123
       invalidateAllSessionsForKey("test_key_123");
 
-      // Create exactly 5 concurrent sessions
+      // Create exactly 5 concurrent sessions with different device types
+      // to avoid per-device limits interfering
       const sessionIds: string[] = [];
+      const userAgents = [
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+        "Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      ];
+
       for (let i = 0; i < 5; i++) {
-        const { sessionId } = await createSession("test_key_123", `127.0.0.${i}`, `agent${i}`);
+        const { sessionId } = await createSession("test_key_123", `127.0.0.${i}`, userAgents[i]);
         sessionIds.push(sessionId);
       }
 
@@ -1026,7 +1035,7 @@ describe("Authentication Middleware", () => {
       const { sessionId: newSessionId } = await createSession(
         "test_key_123",
         "127.0.0.10",
-        "agent10"
+        "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36"
       );
 
       const newSessions = getActiveSessionsForApiKey("test_key_123");
@@ -1042,13 +1051,20 @@ describe("Authentication Middleware", () => {
       // Clear existing sessions
       invalidateAllSessionsForKey("test_key_123");
 
-      // Create many sessions rapidly
+      // Create many sessions rapidly with different device types
       const sessionIds: string[] = [];
+      const userAgents = [
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+        "Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      ];
+
       for (let i = 0; i < 20; i++) {
         const { sessionId } = await createSession(
           "test_key_123",
           `127.0.0.${i % 256}`,
-          `agent${i}`
+          userAgents[i % userAgents.length]
         );
         sessionIds.push(sessionId);
       }
@@ -2140,13 +2156,21 @@ describe("Authentication Middleware", () => {
     });
 
     it("should handle cleanup of expired sessions and refresh tokens", async () => {
-      // Create multiple sessions with refresh tokens
+      // Create multiple sessions with refresh tokens using different device types
       const refreshTokens: string[] = [];
+      const userAgents = [
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+        "Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      ];
+
       for (let i = 0; i < 5; i++) {
         const { refreshToken } = await createSession(
           "test_key_123",
           `127.0.0.${(i + 1) % 256}`,
-          `agent${i}`,
+          userAgents[i],
           undefined,
           { createRefreshToken: true }
         );

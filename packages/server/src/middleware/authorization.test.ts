@@ -6,7 +6,12 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { _clearAllRateLimits } from "./auth-rate-limit.js";
-import { type ApiKeyScope, type AuthContext, registerApiKey } from "./authentication.js";
+import {
+  type ApiKeyScope,
+  type AuthContext,
+  assignRoleToApiKey,
+  registerApiKey,
+} from "./authentication.js";
 import { resetAuthFailureTracking, resetSuspiciousActivityTracking } from "./authentication.js";
 import {
   type PermissionAction,
@@ -76,6 +81,7 @@ describe("Authorization Middleware", () => {
       createdAt: Date.now(),
       expiresAt: 0,
     });
+    assignRoleToApiKey("test_key_admin", "admin");
 
     testApiKey = "test_key_read:test-secret-key";
   });

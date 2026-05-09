@@ -187,6 +187,8 @@ export function requireResourceAccess(
 /**
  * Require admin scope for privileged operations.
  * Use for operations that affect system configuration or other users.
+ *
+ * Enhanced security: Validates both admin scope AND admin role.
  */
 export function requireAdmin(): MiddlewareHandler {
   return async (c, next) => {
@@ -197,14 +199,28 @@ export function requireAdmin(): MiddlewareHandler {
       throw new HTTPException(401, { message: "Authentication required" });
     }
 
-    if (auth.scope !== "admin") {
+    // Enhanced check: require BOTH admin scope AND admin role
+    const hasAdminScope = auth.scope === "admin";
+    const hasAdminRole = auth.role === "admin" || auth.roles?.includes("admin");
+
+    if (!hasAdminScope || !hasAdminRole) {
       securityLogger.logAuthzFailure(c, "admin", "admin");
+      logger.warn("Admin access denied - insufficient privileges", {
+        keyId: auth.keyId,
+        scope: auth.scope,
+        role: auth.role,
+        roles: auth.roles,
+      });
       throw new HTTPException(403, {
         message: "Admin privileges required",
       });
     }
 
-    logger.info("Admin operation authorized", { keyId: auth.keyId });
+    logger.info("Admin operation authorized", {
+      keyId: auth.keyId,
+      path: c.req.path,
+      method: c.req.method,
+    });
     return next();
   };
 }
@@ -406,6 +422,8 @@ export function checkAuthorization(
 /**
  * Require MFA verification for sensitive operations.
  * Use for operations that should require multi-factor authentication.
+ *
+ * Enhanced security: Logs MFA requirements and validates session integrity.
  */
 export function requireMfa(): MiddlewareHandler {
   return async (c, next) => {
@@ -419,12 +437,78 @@ export function requireMfa(): MiddlewareHandler {
     // Check if MFA was verified for this session
     if (!auth.mfaVerified) {
       securityLogger.logAuthzFailure(c, "mfa", "required");
+      logger.warn("MFA required but not verified", {
+        keyId: auth.keyId,
+        path: c.req.path,
+        method: c.req.method,
+        authMethod: auth.authMethod,
+      });
       throw new HTTPException(403, {
         message: "Multi-factor authentication required for this operation",
       });
     }
 
-    logger.info("MFA-verified operation authorized", { keyId: auth.keyId });
+    logger.info("MFA-verified operation authorized", {
+      keyId: auth.keyId,
+      path: c.req.path,
+      method: c.req.method,
+    });
+    return next();
+  };
+}
+
+/**
+ * Require both admin privileges AND MFA verification for highly sensitive operations.
+ * Use for operations like:
+ * - Managing other users' accounts
+ * - Changing system configuration
+ * - Accessing sensitive audit logs
+ * - Modifying API keys
+ */
+export function requireAdminWithMfa(): MiddlewareHandler {
+  return async (c, next) => {
+    const auth = getAuthContext(c);
+
+    if (!auth) {
+      securityLogger.logAuthzFailure(c, "admin_mfa", "required");
+      throw new HTTPException(401, { message: "Authentication required" });
+    }
+
+    // Check admin scope and role
+    const hasAdminScope = auth.scope === "admin";
+    const hasAdminRole = auth.role === "admin" || auth.roles?.includes("admin");
+
+    if (!hasAdminScope || !hasAdminRole) {
+      securityLogger.logAuthzFailure(c, "admin_mfa", "insufficient_privileges");
+      logger.warn("Admin+MFA access denied - insufficient privileges", {
+        keyId: auth.keyId,
+        scope: auth.scope,
+        role: auth.role,
+        roles: auth.roles,
+      });
+      throw new HTTPException(403, {
+        message: "Admin privileges required",
+      });
+    }
+
+    // Check MFA verification
+    if (!auth.mfaVerified) {
+      securityLogger.logAuthzFailure(c, "admin_mfa", "mfa_required");
+      logger.warn("Admin+MFA access denied - MFA not verified", {
+        keyId: auth.keyId,
+        path: c.req.path,
+        method: c.req.method,
+      });
+      throw new HTTPException(403, {
+        message: "Multi-factor authentication required for admin operations",
+      });
+    }
+
+    logger.info("Admin+MFA operation authorized", {
+      keyId: auth.keyId,
+      path: c.req.path,
+      method: c.req.method,
+    });
     return next();
   };
 }

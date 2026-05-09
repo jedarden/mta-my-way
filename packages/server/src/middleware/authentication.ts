@@ -140,7 +140,37 @@ export async function hashApiKey(
 }
 
 /**
- * Verify an API key against a hash.
+ * Timing-safe string comparison to prevent timing attacks.
+ * Uses crypto.subtle.timingSafeEqual if available, falls back to constant-time comparison.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  // Ensure strings have the same length
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  // Use Web Crypto API for timing-safe comparison if available
+  if (typeof crypto !== "undefined" && crypto.subtle && crypto.subtle.timingSafeEqual) {
+    const encoder = new TextEncoder();
+    const bufferA = encoder.encode(a);
+    const bufferB = encoder.encode(b);
+    try {
+      return crypto.subtle.timingSafeEqual(bufferA, bufferB);
+    } catch {
+      // Fall through to manual implementation if timingSafeEqual fails
+    }
+  }
+
+  // Manual constant-time comparison
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+/**
+ * Verify an API key against a hash using timing-safe comparison.
  */
 export async function verifyApiKeyHash(
   apiKey: string,
@@ -148,7 +178,7 @@ export async function verifyApiKeyHash(
   salt: string
 ): Promise<boolean> {
   const computed = await hashApiKey(apiKey, salt);
-  return computed.hash === hash;
+  return timingSafeEqual(computed.hash, hash);
 }
 
 // ============================================================================
@@ -758,7 +788,7 @@ export async function verifyApiKeyWithGracePeriod(
   // Try current key first
   const currentValid = await verifyApiKeyHash(secret, apiKey.keyHash, apiKey.keySalt);
   if (currentValid) {
-    return { valid: false };
+    return { valid: true };
   }
 
   // Check old key if within grace period
@@ -1894,11 +1924,11 @@ function cleanupOldSessions(keyId: string): void {
   const keySessions = Array.from(sessions.values()).filter((s) => s.keyId === keyId);
 
   // Use MAX_CONCURRENT_SESSIONS for cleanup to enforce concurrent session limit
-  if (keySessions.length >= MAX_CONCURRENT_SESSIONS) {
+  if (keySessions.length > MAX_CONCURRENT_SESSIONS) {
     // Sort by last activity and remove oldest
     keySessions.sort((a, b) => a.lastActivityAt - b.lastActivityAt);
 
-    const toRemove = keySessions.slice(0, keySessions.length - MAX_CONCURRENT_SESSIONS + 1);
+    const toRemove = keySessions.slice(0, keySessions.length - MAX_CONCURRENT_SESSIONS);
     for (const session of toRemove) {
       sessions.delete(session.sessionId);
     }
@@ -2352,18 +2382,10 @@ export function validateRefreshTokenFormat(token: string): boolean {
  * expiration timestamp. Handles encrypted tokens.
  */
 export async function checkRefreshTokenExpiry(refreshToken: string): Promise<number | null> {
-  // First, try to find by direct token match (for unencrypted tokens)
+  // First, try to find by direct token match (for unencrypted tokens or when encryption failed)
   let tokenEntry = Array.from(refreshTokens.entries()).find(([, t]) => t.token === refreshToken);
 
-  // If not found and encryption is configured, check encryptedToken field
-  // When encryption is enabled, the token field contains the encrypted ciphertext
-  if (!tokenEntry && isEncryptionConfigured()) {
-    tokenEntry = Array.from(refreshTokens.entries()).find(
-      ([, t]) => t.token === refreshToken && t.isEncrypted
-    );
-  }
-
-  // If still not found and encryption is configured, try to decrypt and match
+  // If not found and encryption is configured, try to decrypt and match
   // This handles the case where the caller has the original plaintext token
   if (!tokenEntry && isEncryptionConfigured()) {
     for (const entry of refreshTokens.entries()) {
