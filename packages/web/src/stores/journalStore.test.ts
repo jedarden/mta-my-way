@@ -458,18 +458,20 @@ describe("journalStore", () => {
     it("returns null for commute with no day-of-week stats", async () => {
       const { useJournalStore } = await import("./journalStore");
 
+      // Add a record for a specific day (Sunday, day 0)
+      const recordDate = new Date("2024-01-07T12:00:00Z"); // Sunday
       const record = makeTripRecord({
         id: "trip-1",
-        date: new Date().toISOString(),
+        date: recordDate.toISOString(),
         actualDurationMinutes: 30,
       });
 
       useJournalStore.getState().addTripRecord("work", record);
 
-      // Day 6 (Saturday) might not have stats
+      // Query for a different day (Saturday, day 6) which should have no stats
       const result = useJournalStore.getState().getDayOfWeekStats("work", 6);
 
-      // Result could be null or have sampleCount of 0
+      // Result should be null or have sampleCount of 0
       expect(result === null || result?.sampleCount === 0).toBe(true);
     });
 
