@@ -15,8 +15,7 @@
  */
 
 import { logger } from "../observability/logger.js";
-import { timingSafeBufferEqual, timingSafeEqual } from "./security-headers.js";
-import { securityLogger } from "./security-logging.js";
+import { timingSafeEqual } from "./security-headers.js";
 
 // ============================================================================
 // Types and Interfaces
@@ -297,7 +296,7 @@ export async function validateJwt(
       };
     }
 
-    const { header, payload, signature } = decoded;
+    const { header, payload, signature: _signature } = decoded;
 
     // Validate structure
     if (validateStructure) {
@@ -316,14 +315,9 @@ export async function validateJwt(
     // Verify signature
     const sigValid = await verifySignature(decoded, key);
     if (!sigValid) {
-      try {
-        securityLogger.logAuthFailure(
-          { req: { header: () => token.substring(0, 20) + "..." } } as any,
-          "invalid_jwt_signature"
-        );
-      } catch {
-        // Ignore logging errors
-      }
+      logger.warn("JWT signature verification failed", {
+        tokenPrefix: token.substring(0, 20) + "...",
+      });
       return {
         valid: false,
         error: "Invalid signature",
@@ -466,42 +460,42 @@ async function verifySignature(
 
       return timingSafeEqual(tokenSignature, expectedSig);
     } else if (alg.startsWith("RS") || alg.startsWith("ES")) {
-    // RSA/ECDSA verification
-    const publicKey = typeof key === "string" ? key : key.publicKey;
-    if (!publicKey) {
-      return false;
+      // RSA/ECDSA verification
+      const publicKey = typeof key === "string" ? key : key.publicKey;
+      if (!publicKey) {
+        return false;
+      }
+
+      try {
+        const verifyKey = await crypto.subtle.importKey(
+          "spki",
+          base64UrlToBytes(publicKey),
+          { name: alg.startsWith("RS") ? "RSASSA-PKCS1-v1_5" : "ECDSA", hash: { name: "SHA-256" } },
+          false,
+          ["verify"]
+        );
+
+        const data = new TextEncoder().encode(
+          `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(decoded.payload))}`
+        );
+        const sig = base64UrlToBytes(tokenSignature);
+
+        return await crypto.subtle.verify(
+          { name: alg.startsWith("RS") ? "RSASSA-PKCS1-v1_5" : "ECDSA" },
+          verifyKey,
+          sig,
+          data
+        );
+      } catch {
+        return false;
+      }
     }
 
-    try {
-      const verifyKey = await crypto.subtle.importKey(
-        "spki",
-        base64UrlToBytes(publicKey),
-        { name: alg.startsWith("RS") ? "RSASSA-PKCS1-v1_5" : "ECDSA", hash: { name: "SHA-256" } },
-        false,
-        ["verify"]
-      );
-
-      const data = new TextEncoder().encode(
-        `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(decoded.payload))}`
-      );
-      const sig = base64UrlToBytes(tokenSignature);
-
-      return await crypto.subtle.verify(
-        { name: alg.startsWith("RS") ? "RSASSA-PKCS1-v1_5" : "ECDSA" },
-        verifyKey,
-        sig,
-        data
-      );
-    } catch {
-      return false;
-    }
+    return false;
+  } catch {
+    // Any error during signature verification means the signature is invalid
+    return false;
   }
-
-  return false;
-} catch {
-  // Any error during signature verification means the signature is invalid
-  return false;
-}
 }
 
 /**

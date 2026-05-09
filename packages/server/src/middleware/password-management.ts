@@ -1822,7 +1822,7 @@ function calculatePasswordStrength(password: string): number {
   // Complexity bonus (up to 10 points)
   const hasMixedCase = /[a-z]/.test(password) && /[A-Z]/.test(password);
   const hasNumbers = /\d/.test(password);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   // eslint-disable-next-line no-useless-escape
   const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
   if (hasMixedCase && hasNumbers && hasSpecial) score += 10;

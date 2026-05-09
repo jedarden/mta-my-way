@@ -465,7 +465,7 @@ export function validateJwtStructure(
     }
 
     return { valid: true, payload };
-  } catch (error) {
+  } catch {
     return { valid: false, error: "Failed to decode token" };
   }
 }
@@ -522,8 +522,8 @@ export function sanitizeErrorMessage(error: unknown): string {
     // Remove stack traces and internal paths from error messages
     const message = error.message;
     const sanitized = message
-      .replace(/\/[^\/\s]+\/[^\/\s]+/g, "/[path]/") // Replace file paths
-      .replace(/at [^\/]+\/[^\/\n]+/g, "at [internal]") // Replace stack traces
+      .replace(/\/[^/\s]+\/[^/\s]+/g, "/[path]/") // Replace file paths
+      .replace(/at [^/]+\/[^/\n]+/g, "at [internal]") // Replace stack traces
       .replace(/\b[a-f0-9]{32,}\b/g, "[redacted]"); // Replace long hex strings (hashes, tokens)
 
     return sanitized;
@@ -532,7 +532,7 @@ export function sanitizeErrorMessage(error: unknown): string {
   if (typeof error === "string") {
     return error
       .replace(/\b[a-f0-9]{32,}\b/g, "[redacted]")
-      .replace(/\/[^\/\s]+\/[^\/\s]+/g, "/[path]/");
+      .replace(/\/[^/\s]+\/[^/\s]+/g, "/[path]/");
   }
 
   return "An error occurred";

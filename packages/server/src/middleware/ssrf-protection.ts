@@ -316,7 +316,7 @@ export async function safeFetch(
  * Checks request query parameters and body for URLs and validates them.
  * Logs suspicious URL patterns for security monitoring.
  */
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+
 export function ssrfProtection(
   options: SsrfProtectionOptions = {}
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports

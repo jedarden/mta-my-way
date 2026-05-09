@@ -31,7 +31,7 @@ const PATH_TRAVERSAL_PATTERNS = [
   /%2e%2e%2f/i, // ../ fully encoded
   /%2e%2e%5c/i, // ..\ fully encoded
   /%u002e%u002e/i, // Unicode-encoded ..
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   // eslint-disable-next-line no-control-regex
   /\x00/, // Null byte injection
 ];
@@ -40,7 +40,6 @@ const PATH_TRAVERSAL_PATTERNS = [
  * Additional suspicious patterns that may indicate path traversal attempts.
  */
 const SUSPICIOUS_PATTERNS = [
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   // eslint-disable-next-line no-useless-escape
   /\.\.[\/\\]/, // ../ or ..\
   /%5c/i, // Encoded backslash

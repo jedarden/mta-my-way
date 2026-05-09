@@ -844,7 +844,6 @@ export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {}) 
     reauthOnHighRisk = true,
   } = options;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async (c: any, next: any) => {
     const session = c.get("session");

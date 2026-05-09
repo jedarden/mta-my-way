@@ -1092,7 +1092,7 @@ async function verifyApiKeySecret(keyId: string, secret: string): Promise<boolea
 // ============================================================================
 
 const SESSION_TTL_MS = 86_400_000; // 24 hours
-const MAX_SESSIONS_PER_KEY = 100;
+const _MAX_SESSIONS_PER_KEY = 100;
 const SESSION_METADATA_MAX_KEYS = 20;
 const SESSION_METADATA_MAX_VALUE_LENGTH = 500;
 
@@ -1107,23 +1107,27 @@ const SESSION_METADATA_MAX_VALUE_LENGTH = 500;
  * - Value type validation (string, number, boolean, null only)
  * - Nested object depth limit (max 3 levels)
  * - String value length limit (500 chars)
- * - Total key count limit (20 keys)
+ * - Total key count limit (20 keys by default)
  * - Sanitization of all string values against injection patterns
+ *
+ * @param metadata - The metadata to sanitize
+ * @param maxKeys - Maximum number of keys allowed (default: SESSION_METADATA_MAX_KEYS)
  */
 function sanitizeSessionMetadata(
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  maxKeys: number = SESSION_METADATA_MAX_KEYS
 ): Record<string, unknown> | undefined {
   if (!metadata) return undefined;
 
   // Check metadata size limits
   const keys = Object.keys(metadata);
-  if (keys.length > SESSION_METADATA_MAX_KEYS) {
+  if (keys.length > maxKeys) {
     logger.warn("Session metadata exceeds maximum key limit", {
       keyCount: keys.length,
-      maxKeys: SESSION_METADATA_MAX_KEYS,
+      maxKeys,
     });
     // Truncate to max keys
-    keys.splice(SESSION_METADATA_MAX_KEYS);
+    keys.splice(maxKeys);
   }
 
   const sanitized: Record<string, unknown> = {};
@@ -1385,7 +1389,7 @@ export function enforceSessionLimits(
   }
 
   // Sort by priority (lower priority first), then by last activity
-  const sortedSessions = keySessions.sort(([idA, sessA], [idB, sessB]) => {
+  const sortedSessions = keySessions.sort(([_idA, sessA], [_idB, sessB]) => {
     const priorityA = (sessA.metadata?.priority as number) ?? 0;
     const priorityB = (sessB.metadata?.priority as number) ?? 0;
 
@@ -1554,12 +1558,24 @@ export async function createSession(
 ): Promise<{ sessionId: string; refreshToken?: string; tokenFingerprint?: string }> {
   const { type = "standard", ipBinding = true, createRefreshToken = true, sessionMgmt } = options;
 
-  // Sanitize metadata before creating session
-  const sanitizedMetadata = sanitizeSessionMetadata(metadata) || {};
-
   // Detect device type from user agent
   const deviceType = userAgent ? detectDeviceType(userAgent) : "unknown";
-  sanitizedMetadata.deviceType = deviceType;
+
+  // Build complete metadata including system fields BEFORE sanitization
+  // This ensures system fields count toward the metadata key limit
+  // Reserve space for priority and deviceTrusted (2 system fields that will be added)
+  const SYSTEM_METADATA_KEY_COUNT = 2;
+  const userMetadataKeyLimit = SESSION_METADATA_MAX_KEYS - SYSTEM_METADATA_KEY_COUNT - 1; // -1 for deviceType
+
+  // Sanitize user metadata first with reduced key limit
+  const sanitizedUserMetadata = sanitizeSessionMetadata(metadata, userMetadataKeyLimit) || {};
+
+  // Build final metadata with system fields
+  // Only include metadata if there's user metadata or we need to track system info
+  const finalMetadata: Record<string, unknown> = {
+    ...sanitizedUserMetadata,
+    deviceType,
+  };
 
   // Check device-based limits
   const deviceLimitCheck = wouldExceedDeviceLimits(keyId, deviceType, sessionMgmt);
@@ -1634,7 +1650,7 @@ export async function createSession(
     clientIp,
     userAgent,
     metadata: {
-      ...sanitizedMetadata,
+      ...finalMetadata,
       priority: sessionMgmt?.priority ?? 0,
       deviceTrusted,
     },
@@ -1877,11 +1893,12 @@ function validateSession(session: AuthSession, clientIp: string, context?: Conte
 function cleanupOldSessions(keyId: string): void {
   const keySessions = Array.from(sessions.values()).filter((s) => s.keyId === keyId);
 
-  if (keySessions.length >= MAX_SESSIONS_PER_KEY) {
+  // Use MAX_CONCURRENT_SESSIONS for cleanup to enforce concurrent session limit
+  if (keySessions.length >= MAX_CONCURRENT_SESSIONS) {
     // Sort by last activity and remove oldest
     keySessions.sort((a, b) => a.lastActivityAt - b.lastActivityAt);
 
-    const toRemove = keySessions.slice(0, keySessions.length - MAX_SESSIONS_PER_KEY + 1);
+    const toRemove = keySessions.slice(0, keySessions.length - MAX_CONCURRENT_SESSIONS + 1);
     for (const session of toRemove) {
       sessions.delete(session.sessionId);
     }
@@ -2338,7 +2355,16 @@ export async function checkRefreshTokenExpiry(refreshToken: string): Promise<num
   // First, try to find by direct token match (for unencrypted tokens)
   let tokenEntry = Array.from(refreshTokens.entries()).find(([, t]) => t.token === refreshToken);
 
-  // If not found and encryption is configured, try to decrypt and match
+  // If not found and encryption is configured, check encryptedToken field
+  // When encryption is enabled, the token field contains the encrypted ciphertext
+  if (!tokenEntry && isEncryptionConfigured()) {
+    tokenEntry = Array.from(refreshTokens.entries()).find(
+      ([, t]) => t.token === refreshToken && t.isEncrypted
+    );
+  }
+
+  // If still not found and encryption is configured, try to decrypt and match
+  // This handles the case where the caller has the original plaintext token
   if (!tokenEntry && isEncryptionConfigured()) {
     for (const entry of refreshTokens.entries()) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

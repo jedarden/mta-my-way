@@ -10,18 +10,18 @@
  * - Token creation
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  decodeJwt,
-  validateJwt,
-  createJwt,
-  verifyJwt,
+  type DecodedJwt,
+  type JwtPayload,
+  type JwtValidationOptions,
   checkTokenReplay,
   cleanupReplayStore,
+  createJwt,
+  decodeJwt,
+  validateJwt,
   validateJwtStructure,
-  type JwtValidationOptions,
-  type JwtPayload,
-  type DecodedJwt,
+  verifyJwt,
 } from "./jwt-validation.js";
 
 describe("JWT Validation Module", () => {
@@ -111,11 +111,9 @@ describe("JWT Validation Module", () => {
     });
 
     it("should accept token with valid issuer", async () => {
-      const token = await createJwt(
-        { ...testPayload, iss: "https://allowed.com" },
-        testSecret,
-        { expiresIn: 3600 }
-      );
+      const token = await createJwt({ ...testPayload, iss: "https://allowed.com" }, testSecret, {
+        expiresIn: 3600,
+      });
       const result = await validateJwt(token, testSecret, {
         issuer: ["https://allowed.com", "https://also-allowed.com"],
       });
@@ -135,11 +133,9 @@ describe("JWT Validation Module", () => {
     });
 
     it("should accept token with valid audience", async () => {
-      const token = await createJwt(
-        { ...testPayload, aud: ["api-a", "api-b"] },
-        testSecret,
-        { expiresIn: 3600 }
-      );
+      const token = await createJwt({ ...testPayload, aud: ["api-a", "api-b"] }, testSecret, {
+        expiresIn: 3600,
+      });
       const result = await validateJwt(token, testSecret, {
         audience: "api-a",
       });
@@ -313,11 +309,10 @@ describe("JWT Validation Module", () => {
     });
 
     it("should work with validateJwt checkReplay option", async () => {
-      const token = await createJwt(
-        { ...testPayload, jti: "test-replay-jti" },
-        testSecret,
-        { expiresIn: 3600, jwtId: "test-replay-jti" }
-      );
+      const token = await createJwt({ ...testPayload, jti: "test-replay-jti" }, testSecret, {
+        expiresIn: 3600,
+        jwtId: "test-replay-jti",
+      });
 
       // First validation should succeed
       const result1 = await validateJwt(token, testSecret, { checkReplay: true });
@@ -460,11 +455,9 @@ describe("JWT Validation Module", () => {
 
     it("should reject token used before nbf", async () => {
       const futureNbf = Math.floor(Date.now() / 1000) + 3600; // 1 hour in future
-      const token = await createJwt(
-        { ...testPayload, nbf: futureNbf },
-        testSecret,
-        { expiresIn: 7200 }
-      );
+      const token = await createJwt({ ...testPayload, nbf: futureNbf }, testSecret, {
+        expiresIn: 7200,
+      });
 
       const result = await validateJwt(token, testSecret);
       expect(result.valid).toBe(false);
@@ -473,11 +466,9 @@ describe("JWT Validation Module", () => {
 
     it("should accept token after nbf time", async () => {
       const pastNbf = Math.floor(Date.now() / 1000) - 60; // 1 minute ago
-      const token = await createJwt(
-        { ...testPayload, nbf: pastNbf },
-        testSecret,
-        { expiresIn: 3600 }
-      );
+      const token = await createJwt({ ...testPayload, nbf: pastNbf }, testSecret, {
+        expiresIn: 3600,
+      });
 
       const result = await validateJwt(token, testSecret);
       expect(result.valid).toBe(true);

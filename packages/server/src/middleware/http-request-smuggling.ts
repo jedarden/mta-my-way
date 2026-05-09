@@ -36,7 +36,7 @@ const SMUGGLING_PATTERNS = [
   /%2532%36/i, // %26 (&)
   /%250%260/i, // double-encoded &
   // Null bytes
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   // eslint-disable-next-line no-control-regex
   /\x00/,
   // CRLF sequences (potential CRLF injection) - detect any CRLF in unexpected places
