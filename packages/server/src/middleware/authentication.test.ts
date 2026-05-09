@@ -1949,7 +1949,11 @@ describe("Authentication Middleware", () => {
       const session = sessions.find((s) => s.sessionId === sessionId);
 
       expect(session).toBeDefined();
-      expect(session?.metadata).toBeUndefined();
+      // Metadata should contain system fields (deviceType, priority, deviceTrusted)
+      expect(session?.metadata).toBeDefined();
+      expect(session?.metadata).toHaveProperty("deviceType");
+      expect(session?.metadata).toHaveProperty("priority");
+      expect(session?.metadata).toHaveProperty("deviceTrusted");
     });
   });
 

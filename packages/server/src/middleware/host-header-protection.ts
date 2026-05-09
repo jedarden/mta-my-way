@@ -128,7 +128,7 @@ function validateHostnameFormat(hostname: string): boolean {
   }
 
   // Check for control characters
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1F\x7F]/.test(hostname)) {
     return false;

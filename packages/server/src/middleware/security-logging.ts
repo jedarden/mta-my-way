@@ -102,7 +102,10 @@ function extractUserAgent(c: Context): string | undefined {
  * Removes potential PII like email addresses, phone numbers, and IDs
  * from the path before logging.
  */
-function sanitizePathForLogging(path: string): string {
+function sanitizePathForLogging(path: string | undefined): string {
+  if (!path) {
+    return ":unknown";
+  }
   // Remove potential IDs (UUIDs, numbers)
   let sanitized = path.replace(
     /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,

@@ -12,7 +12,7 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
-import { getAuthContext, type AuthContext } from "./authentication.js";
+import { type AuthContext, getAuthContext } from "./authentication.js";
 import { securityLogger } from "./security-logging.js";
 
 // ============================================================================
@@ -95,9 +95,7 @@ export function checkTimeBasedAccess(rules: TimeBasedAccessRule): boolean {
   const timezone = rules.timezone || "UTC";
 
   // Get current time in specified timezone
-  const currentTime = new Date(
-    now.toLocaleString("en-US", { timeZone: timezone })
-  );
+  const currentTime = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
 
   const currentDay = currentTime.getDay();
   const currentHour = currentTime.getHours();
@@ -167,7 +165,7 @@ export function requireTimeBasedAccess(rules: TimeBasedAccessRule) {
  * @param ip - IP address
  * @returns Country code or null
  */
-function extractCountryFromIp(ip: string): string | null {
+function extractCountryFromIp(_ip: string): string | null {
   // Simplified implementation - in production, use GeoIP database
   // This is a placeholder that returns null (no location data)
   return null;
@@ -206,7 +204,10 @@ function isPrivateIp(ip: string): boolean {
  * @param trustedRanges - Trusted IP ranges
  * @returns true if IP is in trusted range
  */
-function isIpInTrustedRange(ip: string, trustedRanges: Array<{ ip: string; prefixLength: number }>): boolean {
+function isIpInTrustedRange(
+  ip: string,
+  trustedRanges: Array<{ ip: string; prefixLength: number }>
+): boolean {
   for (const range of trustedRanges) {
     const ipParts = ip.split(".").map((p) => parseInt(p, 10));
     const rangeIpParts = range.ip.split(".").map((p) => parseInt(p, 10));

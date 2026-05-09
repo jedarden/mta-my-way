@@ -65,7 +65,6 @@ const JAVASCRIPT_FUNCTION_PATTERN =
  * on legitimate text containing "and", "or", etc.
  */
 const SQL_INJECTION_PATTERN =
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   // eslint-disable-next-line no-useless-escape
   /(\bOR\b\s+\d+\s*=\s*\d+)|(\bAND\b\s+\d+\s*=\s*\d+)|('\s*\|\|?\s*')|('\s*(OR|AND)\s+'[^']+'\s*=\s*'[^']*')|('\s*;)|(\bor\s+\d+\s*=\s*\d+\b)|(\band\s+\d+\s*=\s*\d+\b)|(\bunion\b\s+\bselect\b)|(\/\*)|(\*\/)|(\-\-)|(;)|(waitfor\s+delay)|(\bsleep\s*\()/gi;
 
@@ -105,7 +104,7 @@ const XSS_PATTERN =
  * Template injection patterns.
  * Detects attempts to inject template engine syntax.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 // eslint-disable-next-line no-useless-escape
 const TEMPLATE_INJECTION_PATTERN = /(\{\{|\}\}|\$\{|\#{|@{{)/gi;
 
