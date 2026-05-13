@@ -51,3 +51,9 @@ closes the bead properly via `br close bf-46dl`.
 
 Second worker confirmed everything was already done but the bead was still
 `in_progress`. Updating notes and closing via `br close bf-46dl` again.
+
+## Closure note (fourth attempt)
+
+Third worker also found bead `in_progress`. All code work is confirmed complete:
+`password-reset.service.ts` has real SES (via `@aws-sdk/client-ses`) and SMTP
+(via `nodemailer`) implementations — no stubs remain. Closing via `br close`.
