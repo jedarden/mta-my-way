@@ -27,6 +27,9 @@ import { createApp } from "./app.js";
 import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
+import { initApiKeyRegistryFromDb } from "./middleware/api-key-management.js";
+import { loadRateLimitDataFromDb } from "./middleware/auth-rate-limit.js";
+import { initPasswordManagementFromDb } from "./middleware/password-management.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { runMigrations } from "./migration/index.js";
 import { logger } from "./observability/logger.js";
@@ -35,6 +38,7 @@ import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
 import { getPushDatabase, initPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
+import { setSecurityDb } from "./security/security-db.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
@@ -156,6 +160,12 @@ async function main(): Promise<void> {
     logger.error("Database migration failed", err as Error);
     throw err;
   }
+
+  // Wire security persistence — must run after migrations so tables exist
+  setSecurityDb(pushDb);
+  await initApiKeyRegistryFromDb();
+  loadRateLimitDataFromDb();
+  initPasswordManagementFromDb();
 
   const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
   configureWebPush(vapidKeys);

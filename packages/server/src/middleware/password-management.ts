@@ -19,6 +19,24 @@
 
 import * as argon2 from "argon2";
 import { logger } from "../observability/logger.js";
+import {
+  appendPasswordHistory,
+  clearPasswordHistoryForKey,
+  deleteAccountLockout,
+  deleteExpiredPasswordResetTokens,
+  deletePasswordResetAttempt,
+  deletePasswordResetToken,
+  deletePasswordResetTokensForKey,
+  loadAccountLockouts,
+  loadAllPasswordHistory,
+  loadPasswordResetAttempts,
+  loadPasswordResetTokens,
+  markPasswordResetTokenUsed,
+  prunePasswordHistory,
+  saveAccountLockout,
+  savePasswordResetAttempt,
+  savePasswordResetToken,
+} from "../security/security-db.js";
 import { sanitizeStringSimple } from "./sanitization.js";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { securityLogger } from "./security-logging.js";
@@ -1119,6 +1137,39 @@ const accountLockouts = new Map<
 >();
 
 /**
+ * Hydrate in-memory password security stores from the database.
+ * Call once on startup after setSecurityDb().
+ */
+export function initPasswordManagementFromDb(): void {
+  const tokens = loadPasswordResetTokens();
+  for (const t of tokens) {
+    passwordResetTokens.set(t.tokenId, t as PasswordResetToken);
+  }
+
+  const history = loadAllPasswordHistory();
+  for (const [keyId, entries] of history) {
+    passwordHistory.set(keyId, entries as PasswordHistoryEntry[]);
+  }
+
+  const attempts = loadPasswordResetAttempts();
+  for (const [key, value] of attempts) {
+    passwordResetAttempts.set(key, value);
+  }
+
+  const lockouts = loadAccountLockouts();
+  for (const [keyId, value] of lockouts) {
+    accountLockouts.set(keyId, value);
+  }
+
+  logger.info("Password management stores loaded from database", {
+    tokens: tokens.length,
+    historyKeys: history.size,
+    attempts: attempts.size,
+    lockouts: lockouts.size,
+  });
+}
+
+/**
  * Token cleanup interval reference.
  */
 let tokenCleanupInterval: ReturnType<typeof setInterval> | null = null;
@@ -1214,7 +1265,9 @@ export function isAccountLocked(email: string): {
   // Check if lockout has expired
   if (Date.now() > lockout.lockedUntil) {
     accountLockouts.delete(normalizedEmail);
+    deleteAccountLockout(normalizedEmail);
     passwordResetAttempts.delete(normalizedEmail);
+    deletePasswordResetAttempt(normalizedEmail);
     return { locked: false };
   }
 
@@ -1258,6 +1311,7 @@ export function recordFailedResetAttempt(
 
   attempt.count++;
   passwordResetAttempts.set(key, attempt);
+  savePasswordResetAttempt(key, attempt);
 
   // Also track IP-agnostic attempts (same email from any IP)
   let globalAttempt = passwordResetAttempts.get(normalizedEmail);
@@ -1266,17 +1320,20 @@ export function recordFailedResetAttempt(
   }
   globalAttempt.count++;
   passwordResetAttempts.set(normalizedEmail, globalAttempt);
+  savePasswordResetAttempt(normalizedEmail, globalAttempt);
 
   const remainingAttempts = Math.max(0, MAX_RESET_ATTEMPTS - globalAttempt.count);
 
   // Check if we should lock the account
   if (globalAttempt.count >= MAX_RESET_ATTEMPTS) {
     const lockedUntil = now + ACCOUNT_LOCKOUT_DURATION_MS;
-    accountLockouts.set(normalizedEmail, {
+    const lockoutData = {
       lockedUntil,
       reason: "Too many failed password reset attempts",
       attempts: globalAttempt.count,
-    });
+    };
+    accountLockouts.set(normalizedEmail, lockoutData);
+    saveAccountLockout(normalizedEmail, lockoutData);
 
     logger.warn("Account locked due to too many failed reset attempts", {
       email: normalizedEmail,
@@ -1312,11 +1369,13 @@ export function clearFailedResetAttempts(email: string): void {
   for (const key of passwordResetAttempts.keys()) {
     if (key === normalizedEmail || key.startsWith(`${normalizedEmail}:`)) {
       passwordResetAttempts.delete(key);
+      deletePasswordResetAttempt(key);
     }
   }
 
   // Also remove from lockouts
   accountLockouts.delete(normalizedEmail);
+  deleteAccountLockout(normalizedEmail);
 }
 
 /**
@@ -1360,12 +1419,15 @@ export function _startTokenCleanup(): void {
         cleaned++;
       }
     }
+    if (cleaned > 0) deleteExpiredPasswordResetTokens();
 
     // Clean expired lockouts
     for (const [email, lockout] of accountLockouts.entries()) {
       if (now > lockout.lockedUntil) {
         accountLockouts.delete(email);
+        deleteAccountLockout(email);
         passwordResetAttempts.delete(email);
+        deletePasswordResetAttempt(email);
       }
     }
 
@@ -1406,12 +1468,15 @@ export function cleanupExpiredTokens(): number {
       cleaned++;
     }
   }
+  if (cleaned > 0) deleteExpiredPasswordResetTokens();
 
   // Clean expired lockouts
   for (const [email, lockout] of accountLockouts.entries()) {
     if (now > lockout.lockedUntil) {
       accountLockouts.delete(email);
+      deleteAccountLockout(email);
       passwordResetAttempts.delete(email);
+      deletePasswordResetAttempt(email);
     }
   }
 
@@ -2023,13 +2088,6 @@ export async function verifyPasswordHash(
   }
 }
 
-/**
- * Store a password in history for a key.
- *
- * @param keyId - The key ID
- * @param hash - The password hash
- * @param salt - The salt used
- */
 export function storePasswordInHistory(keyId: string, hash: string, salt: string): void {
   const history = passwordHistory.get(keyId) ?? [];
   const entry: PasswordHistoryEntry = {
@@ -2045,6 +2103,8 @@ export function storePasswordInHistory(keyId: string, hash: string, salt: string
   }
 
   passwordHistory.set(keyId, history);
+  appendPasswordHistory(keyId, entry);
+  prunePasswordHistory(keyId, DEFAULT_PASSWORD_POLICY.passwordHistoryCount);
 }
 
 /**

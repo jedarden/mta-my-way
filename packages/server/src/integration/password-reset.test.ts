@@ -107,7 +107,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data).toHaveProperty("policy");
       expect(data).toHaveProperty("requirements");
       expect(data).toHaveProperty("tips");
@@ -135,7 +135,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.success).toBe(true);
       expect(data.message).toContain("email");
     });
@@ -149,7 +149,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.success).toBe(true);
       // Should not reveal whether email exists
     });
@@ -163,7 +163,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(400);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.error).toBeDefined();
     });
 
@@ -176,7 +176,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(400);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.error).toBeDefined();
     });
 
@@ -197,11 +197,11 @@ describe("Password Reset Flow Integration", () => {
 
       // First 5 should succeed
       for (let i = 0; i < 5; i++) {
-        expect(responses[i].status).toBe(200);
+        expect(responses[i]!.status).toBe(200);
       }
 
       // 6th request should be rate limited
-      expect(responses[5].status).toBe(429);
+      expect(responses[5]!.status).toBe(429);
     });
   });
 
@@ -233,7 +233,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.success).toBe(true);
       expect(data.message).toContain("reset successfully");
 
@@ -246,8 +246,8 @@ describe("Password Reset Flow Integration", () => {
       // Verify new password works
       const isValid = await verifyPasswordHash(
         "Xk9mP2vL5sec!",
-        user.passwordHash,
-        user.passwordSalt
+        user!.passwordHash,
+        user!.passwordSalt
       );
       expect(isValid).toBe(true);
     });
@@ -311,7 +311,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.success).toBe(true);
       expect(data.warning).toBeDefined();
       expect(data.warning).toContain("different device");
@@ -330,7 +330,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(400);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.error).toContain("Invalid or expired");
     });
 
@@ -390,7 +390,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(400);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.error).toContain("Invalid or expired");
     });
 
@@ -427,7 +427,7 @@ describe("Password Reset Flow Integration", () => {
 
       expect(response.status).toBe(400);
 
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.error).toBeDefined();
       // Schema validation returns "Invalid request" with details
       expect(["Invalid request", "Password does not meet security requirements"]).toContain(
@@ -545,7 +545,7 @@ describe("Password Reset Flow Integration", () => {
 
       // Should be rejected because it's in password history
       expect(response3.status).toBe(400);
-      const data = await response3.json();
+      const data = await response3.json() as any;
       // The error from password validation
       expect(data.error).toBe("Password does not meet security requirements");
       // Check that password history error is present
@@ -753,7 +753,7 @@ describe("Password Reset Flow Integration", () => {
 
       // Should still return 200 to prevent email enumeration
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.success).toBe(true);
     });
 

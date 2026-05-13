@@ -101,7 +101,7 @@ export function validateSecurityConfiguration(): ValidationResult {
 
   // Log errors and fail in production
   if (result.errors.length > 0) {
-    logger.error("Security configuration errors", {
+    logger.error("Security configuration errors", undefined, {
       errors: result.errors,
       fatal: true,
     });

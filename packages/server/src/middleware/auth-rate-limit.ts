@@ -17,6 +17,14 @@
 
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
+import {
+  deleteRateLimitBan,
+  deleteTrustedIp,
+  loadRateLimitBans,
+  loadTrustedIps,
+  saveRateLimitBan,
+  saveTrustedIp,
+} from "../security/security-db.js";
 import { logger } from "../observability/logger.js";
 import { securityLogger } from "./security-logging.js";
 
@@ -243,6 +251,7 @@ function checkRateLimit(
       entry.banned = true;
       entry.bannedUntil = now + (config.banDurationMs || 60 * 60 * 1000);
       rateLimitStore.set(identifier, entry);
+      saveRateLimitBan(identifier, entry.bannedUntil, entry.violationCount);
 
       logger.warn("IP banned due to repeated rate limit violations", {
         identifier,
@@ -488,6 +497,7 @@ export function banIp(ip: string, durationMs: number = 60 * 60 * 1000, reason?: 
   entry.banned = true;
   entry.bannedUntil = Date.now() + durationMs;
   rateLimitStore.set(ip, entry);
+  saveRateLimitBan(ip, entry.bannedUntil, entry.violationCount);
 
   logger.warn("IP manually banned", { ip, durationMs, reason });
 }
@@ -504,6 +514,7 @@ export function unbanIp(ip: string): void {
     rateLimitStore.set(ip, entry);
   }
   unbannedIps.add(ip);
+  deleteRateLimitBan(ip);
   logger.info("IP unbanned", { ip });
 }
 
@@ -512,6 +523,7 @@ export function unbanIp(ip: string): void {
  */
 export function addTrustedIp(ip: string): void {
   trustedIps.add(ip);
+  saveTrustedIp(ip);
   logger.info("Trusted IP added", { ip });
 }
 
@@ -520,7 +532,35 @@ export function addTrustedIp(ip: string): void {
  */
 export function removeTrustedIp(ip: string): void {
   trustedIps.delete(ip);
+  deleteTrustedIp(ip);
   logger.info("Trusted IP removed", { ip });
+}
+
+/**
+ * Hydrate in-memory rate limit bans and trusted IPs from the database.
+ * Call once on startup after setSecurityDb().
+ */
+export function loadRateLimitDataFromDb(): void {
+  const bans = loadRateLimitBans();
+  for (const [identifier, ban] of bans) {
+    const entry: RateLimitEntry = rateLimitStore.get(identifier) ?? {
+      count: 0,
+      windowStart: Date.now(),
+      windowMs: 60 * 60 * 1000,
+      violationCount: ban.violationCount,
+    };
+    entry.banned = true;
+    entry.bannedUntil = ban.bannedUntil;
+    entry.violationCount = ban.violationCount;
+    rateLimitStore.set(identifier, entry);
+  }
+
+  const ips = loadTrustedIps();
+  for (const ip of ips) {
+    trustedIps.add(ip);
+  }
+
+  logger.info("Rate limit data loaded from DB", { bans: bans.size, trustedIps: ips.size });
 }
 
 /**
