@@ -86,6 +86,7 @@ export {
   cleanupExpiredTokens,
   _startTokenCleanup,
   _stopTokenCleanup,
+  _getPasswordResetTokensMap,
 } from "./password-management.js";
 export {
   csrfProtection,
