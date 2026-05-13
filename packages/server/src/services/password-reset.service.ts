@@ -325,7 +325,7 @@ If you need assistance, please contact our support team.
 async function sendConsoleEmail(
   to: string,
   subject: string,
-  html: string,
+  _html: string,
   text: string
 ): Promise<EmailSendResult> {
   logger.info("Password reset email (console mode)", {
@@ -522,7 +522,7 @@ export async function sendPasswordResetEmail(
         clientIp: data.clientIp,
       });
     } else {
-      logger.error("Failed to send password reset email", {
+      logger.error("Failed to send password reset email", undefined, {
         to: data.email,
         provider: result.provider,
         error: result.error,
@@ -532,7 +532,7 @@ export async function sendPasswordResetEmail(
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    logger.error("Error sending password reset email", error as Error, {
+    logger.error("Error sending password reset email", error instanceof Error ? error : undefined, {
       to: data.email,
       provider: emailConfig.provider,
     });
@@ -605,7 +605,7 @@ export async function sendPasswordResetNotificationEmail(
         clientIp: data.clientIp,
       });
     } else {
-      logger.error("Failed to send password reset notification email", {
+      logger.error("Failed to send password reset notification email", undefined, {
         to: data.email,
         provider: result.provider,
         error: result.error,
@@ -615,10 +615,14 @@ export async function sendPasswordResetNotificationEmail(
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    logger.error("Error sending password reset notification email", error as Error, {
-      to: data.email,
-      provider: emailConfig.provider,
-    });
+    logger.error(
+      "Error sending password reset notification email",
+      error instanceof Error ? error : undefined,
+      {
+        to: data.email,
+        provider: emailConfig.provider,
+      }
+    );
 
     return {
       success: false,
