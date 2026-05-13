@@ -22,7 +22,7 @@ import { securityLogger } from "./security-logging.js";
 /**
  * JSON depth protection options.
  */
-interface JsonDepthProtectionOptions {
+export interface JsonDepthProtectionOptions {
   /** Maximum allowed nesting depth (default: 32) */
   maxDepth?: number;
   /** Maximum array length (default: 1000) */
@@ -110,7 +110,6 @@ function validateJsonStructure(
   let objectKeys = 0;
   let inString = false;
   let escapeNext = false;
-  let inKey = true; // true when parsing object key, false for value
 
   for (let i = 0; i < jsonString.length; i++) {
     const char = jsonString[i];
@@ -142,14 +141,12 @@ function validateJsonStructure(
         depth++;
         maxDepth = Math.max(maxDepth, depth);
         objectKeys = 0;
-        inKey = true;
         if (depth > options.maxDepth) {
           return { valid: false, reason: "Maximum object depth exceeded", depth: maxDepth };
         }
         break;
       case "}":
         depth--;
-        inKey = false;
         break;
       case "[":
         depth++;
@@ -167,8 +164,6 @@ function validateJsonStructure(
         break;
       case ":":
         // Transition from key to value in object
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        inKey = false;
         break;
       case ",":
         // Increment counters for next element
@@ -242,10 +237,11 @@ export function jsonDepthProtection(options: JsonDepthProtectionOptions = {}): M
         maxObjectKeys,
       });
       if (!structureCheck.valid) {
-        securityLogger.logBlockedAttack(c, "json_depth_protection", {
-          reason: structureCheck.reason,
-          depth: structureCheck.depth,
-        });
+        securityLogger.logBlockedAttack(
+          c,
+          "json_depth_protection",
+          `${structureCheck.reason} (depth: ${structureCheck.depth})`
+        );
         return c.json({ error: `Invalid JSON structure: ${structureCheck.reason}` }, 413);
       }
 
@@ -258,10 +254,11 @@ export function jsonDepthProtection(options: JsonDepthProtectionOptions = {}): M
       });
 
       if (actualDepth > maxDepth) {
-        securityLogger.logBlockedAttack(c, "json_depth_protection", {
-          reason: "Maximum depth exceeded",
-          depth: actualDepth,
-        });
+        securityLogger.logBlockedAttack(
+          c,
+          "json_depth_protection",
+          `Maximum depth exceeded (actual: ${actualDepth}, max: ${maxDepth})`
+        );
         return c.json({ error: `JSON depth exceeds maximum of ${maxDepth}` }, 413);
       }
 
@@ -275,9 +272,11 @@ export function jsonDepthProtection(options: JsonDepthProtectionOptions = {}): M
       }
 
       // Log and return generic error for parse failures
-      securityLogger.logBlockedAttack(c, "json_parse_error", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      securityLogger.logBlockedAttack(
+        c,
+        "json_parse_error",
+        `JSON parse error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
       return c.json({ error: "Invalid JSON" }, 400);
     }
   };

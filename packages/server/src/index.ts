@@ -35,6 +35,7 @@ import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
 import { getPushDatabase, initPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
+import { configureEmailProvider } from "./services/password-reset.service.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 import { initTripTracking } from "./trip-tracking.js";
@@ -61,6 +62,24 @@ async function loadJsonFile<T>(filename: string): Promise<T> {
 async function main(): Promise<void> {
   // Validate security configuration first (fail-fast on critical issues)
   validateSecurityOrThrow();
+
+  // Configure email provider for password reset emails
+  const emailProvider = (process.env["EMAIL_PROVIDER"] ?? "console") as
+    | "sendgrid"
+    | "ses"
+    | "smtp"
+    | "console";
+  configureEmailProvider({
+    provider: emailProvider,
+    apiKey: process.env["SENDGRID_API_KEY"],
+    fromEmail: process.env["EMAIL_FROM"] ?? "noreply@mtamyway.com",
+    fromName: process.env["EMAIL_FROM_NAME"] ?? "MTA My Way",
+    replyTo: process.env["EMAIL_REPLY_TO"],
+    smtpHost: process.env["SMTP_HOST"],
+    smtpPort: process.env["SMTP_PORT"] ? parseInt(process.env["SMTP_PORT"], 10) : undefined,
+    smtpUser: process.env["SMTP_USER"],
+    smtpPassword: process.env["SMTP_PASSWORD"],
+  });
 
   // Enable test mode if environment variable is set (for E2E tests)
   const testMode = process.env["TEST_MODE"] === "true";
