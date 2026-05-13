@@ -33,6 +33,11 @@ import {
   revokePermissionsFromApiKey,
 } from "./authentication.js";
 import {
+  loadApiKeyRegistry,
+  saveApiKey as dbSaveApiKey,
+  updateApiKeyLastUsed as dbUpdateApiKeyLastUsed,
+} from "../security/security-db.js";
+import {
   type RbacAuthContext,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getRbacAuthContext,
@@ -136,13 +141,50 @@ export function registerApiKeyWithMetadata(key: ApiKey, description?: string): v
   if (description) {
     API_KEY_DESCRIPTIONS.set(key.keyId, description);
   }
+  dbSaveApiKey(key, description);
 }
 
 /**
  * Update the last used timestamp for an API key.
  */
 export function updateApiKeyLastUsed(keyId: string): void {
-  API_KEY_LAST_USED.set(keyId, Date.now());
+  const now = Date.now();
+  API_KEY_LAST_USED.set(keyId, now);
+  dbUpdateApiKeyLastUsed(keyId, now);
+}
+
+/**
+ * Load API key registry from the database into the in-memory Maps.
+ * Also registers each key with the authentication system so auth survives restart.
+ */
+export async function initApiKeyRegistryFromDb(): Promise<void> {
+  const entries = loadApiKeyRegistry();
+  for (const { key, description, lastUsedAt } of entries) {
+    const apiKey: ApiKey = {
+      keyId: key.keyId,
+      keyHash: key.keyHash,
+      keySalt: key.keySalt,
+      scope: key.scope as ApiKeyScope,
+      role: key.role as UserRole | undefined,
+      additionalPermissions: (key.additionalPermissions ?? []) as Permission[],
+      owner: key.owner,
+      rateLimitTier: key.rateLimitTier,
+      active: key.active,
+      createdAt: key.createdAt,
+      expiresAt: key.expiresAt,
+      failedAttempts: key.failedAttempts,
+      lastFailedAt: key.lastFailedAt,
+      lockedUntil: key.lockedUntil,
+    };
+    API_KEY_REGISTRY.set(key.keyId, apiKey);
+    if (description) API_KEY_DESCRIPTIONS.set(key.keyId, description);
+    if (lastUsedAt) API_KEY_LAST_USED.set(key.keyId, lastUsedAt);
+    // Re-register in the auth system so API keys survive pod restarts.
+    await registerApiKey(apiKey);
+  }
+  if (entries.length > 0) {
+    logger.info("API key registry loaded from database", { count: entries.length });
+  }
 }
 
 /**
@@ -198,8 +240,9 @@ export function listApiKeys(
   if (filters.scope) {
     keys = keys.filter((k) => k.scope === filters.scope);
   }
-  if (filters.ownerId && !isAdmin) {
-    keys = keys.filter((k) => k.keyId.startsWith(filters.ownerId));
+  const ownerId = filters.ownerId;
+  if (ownerId && !isAdmin) {
+    keys = keys.filter((k) => k.keyId.startsWith(ownerId));
   }
 
   // Apply pagination
