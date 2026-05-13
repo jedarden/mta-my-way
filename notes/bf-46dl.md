@@ -63,3 +63,8 @@ Third worker also found bead `in_progress`. All code work is confirmed complete:
 Root cause identified: previous agents hit max-turns (30) before closing the bead,
 causing NEEDLE to retry. This agent closes immediately after a minimal commit.
 No code changes needed — implementation has been complete since commit 32c2da3.
+
+## Closure note (sixth attempt)
+
+Same situation — bead still in_progress despite five prior closure commits. All work
+is complete. Running `br close` immediately with minimal context overhead.
