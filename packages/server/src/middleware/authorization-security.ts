@@ -517,8 +517,8 @@ const DEFAULT_SESSION_SECURITY: SessionSecurityConfig = {
  */
 export function checkSessionSecurity(
   auth: AuthContext,
-  clientIp: string,
-  userAgent: string | undefined,
+  _clientIp: string,
+  _userAgent: string | undefined,
   config: SessionSecurityConfig = {}
 ): { secure: boolean; issues: string[]; recommendations: string[] } {
   const mergedConfig = { ...DEFAULT_SESSION_SECURITY, ...config };

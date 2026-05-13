@@ -11,6 +11,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SESClient } from "@aws-sdk/client-ses";
+import nodemailer from "nodemailer";
 import * as logger from "../observability/logger.js";
 import {
   type PasswordResetEmailData,
@@ -27,6 +29,15 @@ import {
 vi.mock("../observability/logger.js");
 vi.mock("../utils/fetch.js", () => ({
   tracedFetch: vi.fn(),
+}));
+vi.mock("@aws-sdk/client-ses", () => ({
+  SESClient: vi.fn(),
+  SendEmailCommand: vi.fn().mockImplementation((params: unknown) => params),
+}));
+vi.mock("nodemailer", () => ({
+  default: {
+    createTransport: vi.fn(),
+  },
 }));
 
 describe("Password Reset Email Service", () => {
@@ -45,6 +56,16 @@ describe("Password Reset Email Service", () => {
     vi.mocked(logger.logger).info = vi.fn();
     vi.mocked(logger.logger).warn = vi.fn();
     vi.mocked(logger.logger).error = vi.fn();
+
+    // Default SES mock: succeeds with a fake message ID
+    vi.mocked(SESClient).mockImplementation(
+      () => ({ send: vi.fn().mockResolvedValue({ MessageId: "ses-msg-123" }) }) as any
+    );
+
+    // Default nodemailer mock: succeeds with a fake message ID
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail: vi.fn().mockResolvedValue({ messageId: "smtp-msg-123" }),
+    } as any);
   });
 
   describe("configuration", () => {
@@ -234,7 +255,7 @@ describe("Password Reset Email Service", () => {
   });
 
   describe("AWS SES provider", () => {
-    it("should use console fallback for unimplemented SES", async () => {
+    it("should send email via SES when configured", async () => {
       configureEmailProvider({
         provider: "ses",
         apiKey: "aws-test-key",
@@ -252,16 +273,19 @@ describe("Password Reset Email Service", () => {
 
       const result = await sendPasswordResetEmail(data);
 
-      // Falls back to console
-      expect(result.provider).toBe("console");
       expect(result.success).toBe(true);
-
-      expect(logger.logger.warn).toHaveBeenCalledWith(
-        "AWS SES not implemented, using console fallback"
-      );
+      expect(result.provider).toBe("ses");
+      expect(result.messageId).toBe("ses-msg-123");
     });
 
-    it("should fail when credentials are not configured", async () => {
+    it("should fail when SES call throws a credential error", async () => {
+      vi.mocked(SESClient).mockImplementationOnce(
+        () =>
+          ({
+            send: vi.fn().mockRejectedValue(new Error("SES credentials not configured")),
+          }) as any
+      );
+
       configureEmailProvider({
         provider: "ses",
         apiKey: undefined,
@@ -297,7 +321,7 @@ describe("Password Reset Email Service", () => {
       });
     });
 
-    it("should use console fallback for unimplemented SMTP", async () => {
+    it("should send email via SMTP when configured", async () => {
       const data: PasswordResetEmailData = {
         email: "user@example.com",
         tokenId: "token123",
@@ -308,12 +332,9 @@ describe("Password Reset Email Service", () => {
 
       const result = await sendPasswordResetEmail(data);
 
-      expect(result.provider).toBe("console");
       expect(result.success).toBe(true);
-
-      expect(logger.logger.warn).toHaveBeenCalledWith(
-        "SMTP not implemented, using console fallback"
-      );
+      expect(result.provider).toBe("smtp");
+      expect(result.messageId).toBe("smtp-msg-123");
     });
   });
 

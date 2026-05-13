@@ -23,7 +23,7 @@ import { securityLogger } from "./security-logging.js";
 /**
  * Response size limit options.
  */
-interface ResponseSizeLimitOptions {
+export interface ResponseSizeLimitOptions {
   /** Maximum response body size in bytes (default: 10MB) */
   maxResponseSize?: number;
   /** Maximum response body size for JSON responses (default: 1MB) */

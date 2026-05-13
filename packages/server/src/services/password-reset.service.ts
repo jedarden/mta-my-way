@@ -12,6 +12,8 @@
  * - Security best practices (no tokens in logs, etc.)
  */
 
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import nodemailer from "nodemailer";
 import { logger } from "../observability/logger.js";
 
 // ============================================================================
@@ -394,23 +396,43 @@ async function sendSendGridEmail(
 
 /**
  * Send email using AWS SES.
+ * Reads credentials from AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY env vars.
  */
 async function sendSesEmail(
   to: string,
   subject: string,
   html: string,
-  text: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  apiKey: string
+  text: string
 ): Promise<EmailSendResult> {
-  // Note: AWS SES requires AWS SDK
-  // This is a placeholder implementation
-  logger.warn("AWS SES not implemented, using console fallback");
-  return sendConsoleEmail(to, subject, html, text);
+  const region = process.env["AWS_REGION"] ?? "us-east-1";
+  const client = new SESClient({ region });
+
+  const command = new SendEmailCommand({
+    Source: emailConfig.fromName
+      ? `${emailConfig.fromName} <${emailConfig.fromEmail}>`
+      : emailConfig.fromEmail,
+    Destination: { ToAddresses: [to] },
+    ReplyToAddresses: emailConfig.replyTo ? [emailConfig.replyTo] : undefined,
+    Message: {
+      Subject: { Data: subject, Charset: "UTF-8" },
+      Body: {
+        Text: { Data: text, Charset: "UTF-8" },
+        Html: { Data: html, Charset: "UTF-8" },
+      },
+    },
+  });
+
+  const response = await client.send(command);
+  return {
+    success: true,
+    messageId: response.MessageId,
+    provider: "ses",
+  };
 }
 
 /**
- * Send email using SMTP.
+ * Send email using SMTP via nodemailer.
+ * Uses smtpHost, smtpPort, smtpUser, smtpPassword from emailConfig.
  */
 async function sendSmtpEmail(
   to: string,
@@ -418,10 +440,39 @@ async function sendSmtpEmail(
   html: string,
   text: string
 ): Promise<EmailSendResult> {
-  // Note: SMTP requires nodemailer or similar
-  // This is a placeholder implementation
-  logger.warn("SMTP not implemented, using console fallback");
-  return sendConsoleEmail(to, subject, html, text);
+  if (!emailConfig.smtpHost) {
+    throw new Error("SMTP host not configured");
+  }
+
+  const port = emailConfig.smtpPort ?? 587;
+  const secure = port === 465;
+
+  const transporter = nodemailer.createTransport({
+    host: emailConfig.smtpHost,
+    port,
+    secure,
+    auth:
+      emailConfig.smtpUser && emailConfig.smtpPassword
+        ? { user: emailConfig.smtpUser, pass: emailConfig.smtpPassword }
+        : undefined,
+  });
+
+  const info = await transporter.sendMail({
+    from: emailConfig.fromName
+      ? `"${emailConfig.fromName}" <${emailConfig.fromEmail}>`
+      : emailConfig.fromEmail,
+    replyTo: emailConfig.replyTo,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  return {
+    success: true,
+    messageId: info.messageId,
+    provider: "smtp",
+  };
 }
 
 // ============================================================================
@@ -450,10 +501,7 @@ export async function sendPasswordResetEmail(
         break;
 
       case "ses":
-        if (!emailConfig.apiKey) {
-          throw new Error("AWS SES credentials not configured");
-        }
-        result = await sendSesEmail(data.email, subject, html, text, emailConfig.apiKey);
+        result = await sendSesEmail(data.email, subject, html, text);
         break;
 
       case "smtp":
@@ -536,10 +584,7 @@ export async function sendPasswordResetNotificationEmail(
         break;
 
       case "ses":
-        if (!emailConfig.apiKey) {
-          throw new Error("AWS SES credentials not configured");
-        }
-        result = await sendSesEmail(data.email, subject, html, text, emailConfig.apiKey);
+        result = await sendSesEmail(data.email, subject, html, text);
         break;
 
       case "smtp":

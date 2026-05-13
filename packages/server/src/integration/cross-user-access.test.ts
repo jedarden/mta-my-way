@@ -10,24 +10,24 @@
 
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
+import { generateApiKey, hashApiKey, registerApiKey } from "../middleware/authentication.js";
 import {
-  generateApiKey,
-  hashApiKey,
-  registerApiKey,
-} from "../middleware/authentication.js";
-import { assignRoleToApiKey, requireOwnershipOrAdmin, requirePermission } from "../middleware/rbac.js";
+  assignRoleToApiKey,
+  requireOwnershipOrAdmin,
+  requirePermission,
+} from "../middleware/rbac.js";
 import type { Permission } from "../middleware/rbac.js";
+import { initPushDatabase } from "../push/subscriptions.js";
 import {
+  checkTripOwnership,
+  deleteTrip,
+  getTripOwner,
   getTrips,
   recordTrip,
-  checkTripOwnership,
-  getTripOwner,
-  deleteTrip,
   updateTripNotes,
 } from "../trip-tracking.js";
 import { initTripTracking } from "../trip-tracking.js";
-import { initPushDatabase } from "../push/subscriptions.js";
-import { createTripTrackingDatabase, TEST_STATIONS } from "./test-helpers.js";
+import { TEST_STATIONS, createTripTrackingDatabase } from "./test-helpers.js";
 
 describe("Cross-User Data Access Prevention", () => {
   // Test user IDs

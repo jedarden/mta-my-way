@@ -28,7 +28,7 @@ import { securityLogger } from "./security-logging.js";
 /**
  * HTTP method restrictions options.
  */
-interface HttpMethodRestrictionsOptions {
+export interface HttpMethodRestrictionsOptions {
   /** Additional allowed methods beyond the safe defaults (default: []) */
   additionalAllowedMethods?: string[];
   /** Additional blocked methods beyond the dangerous defaults (default: []) */
@@ -102,18 +102,12 @@ export function httpMethodRestrictions(
 
     // Log all method requests if enabled
     if (logAllMethods) {
-      securityLogger.logSecurityEvent(c, "http_method_request", {
-        method,
-        path,
-      });
+      securityLogger.logUnusualActivity(c, "http_method_request", `${method} ${path}`);
     }
 
     // Check if method is explicitly blocked
     if (blockedMethods.has(method)) {
-      securityLogger.logBlockedAttack(c, "http_method_blocked", {
-        method,
-        path,
-      });
+      securityLogger.logBlockedAttack(c, "http_method_blocked", `${method} ${path}`);
 
       // Return 405 with Allow header showing valid methods
       c.header("Allow", Array.from(allowedMethods).join(", "));
@@ -126,10 +120,7 @@ export function httpMethodRestrictions(
 
     // Optionally warn about uncommon methods
     if (OTHER_METHODS.includes(method as (typeof OTHER_METHODS)[number])) {
-      securityLogger.logSecurityEvent(c, "http_method_uncommon", {
-        method,
-        path,
-      });
+      securityLogger.logUnusualActivity(c, "http_method_uncommon", `${method} ${path}`);
     }
 
     // Add Allow header for OPTIONS requests
@@ -210,18 +201,12 @@ export function strictHttpMethodRestrictions(
 
     // Log all method requests if enabled
     if (logAllMethods) {
-      securityLogger.logSecurityEvent(c, "http_method_request", {
-        method,
-        path,
-      });
+      securityLogger.logUnusualActivity(c, "http_method_request", `${method} ${path}`);
     }
 
     // Check if method is allowed
     if (!allowedMethods.has(method)) {
-      securityLogger.logBlockedAttack(c, "http_method_blocked_strict", {
-        method,
-        path,
-      });
+      securityLogger.logBlockedAttack(c, "http_method_blocked_strict", `${method} ${path}`);
 
       c.header("Allow", Array.from(allowedMethods).join(", "));
       c.header("Content-Type", "text/plain; charset=utf-8");
