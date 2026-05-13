@@ -59,7 +59,7 @@ export function ArrivalRow({
   onTrackTrip,
   isEstimated = false,
 }: ArrivalRowProps) {
-  const { line, destination, minutesAway, confidence, isAssigned, isExpress, feedAge } = arrival;
+  const { line, destination, minutesAway, confidence, isAssigned, isExpress, feedAge, isCancelled } = arrival;
 
   // Format arrival time - "now", "2 min", "12 min"
   const timeDisplay = formatMinutesAway(minutesAway);
@@ -78,13 +78,13 @@ export function ArrivalRow({
 
   // In compact mode, show less info
   if (compact) {
-    const accessibleLabel = `${line} train to ${encodeForAria(destination)}, ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`;
+    const accessibleLabel = `${line} train to ${encodeForAria(destination)}, ${isCancelled ? "Cancelled, " : ""}${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`;
 
     return (
       <div
         className={`
           flex items-center gap-2 py-1 transition-opacity duration-300
-          ${mergedClass}
+          ${isCancelled ? "opacity-50" : mergedClass}
           ${onClick ? "cursor-pointer active:bg-surface dark:active:bg-dark-surface" : ""}
         `}
         onClick={onClick}
@@ -105,8 +105,9 @@ export function ArrivalRow({
         {showLine && <LineBullet line={line} size="sm" />}
         {isExpress && <ExpressBadge />}
         {isEstimated && <EstimatedBadge />}
+        {isCancelled && <CancelledBadge />}
         <span
-          className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums"
+          className={`text-2xl font-extrabold tabular-nums ${isCancelled ? "line-through text-text-secondary dark:text-dark-text-secondary" : "text-text-primary dark:text-dark-text-primary"}`}
           aria-hidden="true"
         >
           {timeDisplay}
@@ -129,7 +130,7 @@ export function ArrivalRow({
           bg-surface dark:bg-dark-surface rounded-lg
           transition-opacity duration-300
           ${showTrackButton && !compact ? "rounded-b-none" : ""}
-          ${mergedClass}
+          ${isCancelled ? "opacity-50" : mergedClass}
           ${onClick ? "cursor-pointer active:opacity-80" : ""}
           min-h-touch
         `}
@@ -138,7 +139,7 @@ export function ArrivalRow({
         tabIndex={onClick ? 0 : undefined}
         aria-label={
           onClick
-            ? `${line} train to ${encodeForAria(destination)}, arriving in ${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`
+            ? `${line} train to ${encodeForAria(destination)}, ${isCancelled ? "Cancelled, " : "arriving in "}${timeDisplay}${isExpress ? ", express" : ""}${isEstimated ? ", estimated" : ""}${freshness.isOutdated ? ", data may be outdated" : ""}`
             : undefined
         }
         onKeyDown={(e) => {
@@ -153,13 +154,14 @@ export function ArrivalRow({
 
         {/* Destination */}
         <div className="flex-1 min-w-0">
-          <p className="text-base font-medium text-text-primary dark:text-dark-text-primary truncate">
+          <p className={`text-base font-medium truncate ${isCancelled ? "line-through text-text-secondary dark:text-dark-text-secondary" : "text-text-primary dark:text-dark-text-primary"}`}>
             {sanitizeUserInput(destination)}
           </p>
           <div className="flex items-center gap-2" role="group" aria-label="Trip details">
             {isExpress && <ExpressBadge />}
             {isEstimated && <EstimatedBadge />}
-            {!isAssigned && (
+            {isCancelled && <CancelledBadge />}
+            {!isAssigned && !isCancelled && (
               <p className="text-13 text-text-secondary dark:text-dark-text-secondary">Scheduled</p>
             )}
             {freshness.isOutdated && (
@@ -171,9 +173,9 @@ export function ArrivalRow({
         </div>
 
         {/* Arrival time - HERO number */}
-        <div className="flex flex-col items-end" aria-label={`Arrives in ${timeDisplay}`}>
+        <div className="flex flex-col items-end" aria-label={isCancelled ? "Cancelled" : `Arrives in ${timeDisplay}`}>
           <span
-            className="text-2xl font-extrabold text-text-primary dark:text-dark-text-primary tabular-nums"
+            className={`text-2xl font-extrabold tabular-nums ${isCancelled ? "line-through text-text-secondary dark:text-dark-text-secondary" : "text-text-primary dark:text-dark-text-primary"}`}
             aria-hidden="true"
           >
             {timeDisplay}
@@ -232,6 +234,20 @@ function EstimatedBadge() {
       title="Offline estimate — refresh when connected"
     >
       EST
+    </span>
+  );
+}
+
+// ─── Cancelled badge ────────────────────────────────────────────────────────
+
+function CancelledBadge() {
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-red-500/10 text-red-600 dark:text-red-400"
+      aria-label="Trip cancelled"
+      title="Trip cancelled — absent from live feed within replacement window"
+    >
+      CNCL
     </span>
   );
 }

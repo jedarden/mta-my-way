@@ -19,12 +19,14 @@ import { parseFeed } from "./parser.js";
 import {
   aDivisionFeed,
   bDivisionFeed,
+  bDivisionFeedMissingFTrip,
   deletedEntitiesFeed,
   emptyFeed,
+  noNyctExtensionFeed,
   pastArrivalsFeed,
   reroutedTrackFeed,
 } from "./test/fixtures.js";
-import { buildStopToStationMap, transformFeeds } from "./transformer.js";
+import { buildStopToStationMap, resetTransformerState, transformFeeds } from "./transformer.js";
 
 // ---------------------------------------------------------------------------
 // Minimal test data
@@ -202,6 +204,8 @@ let stopToStation: ReturnType<typeof buildStopToStationMap>;
 
 beforeEach(() => {
   stopToStation = buildStopToStationMap(STATIONS);
+  // Reset module-level state so cancelled-trip detection doesn't bleed between tests.
+  resetTransformerState();
 });
 
 // ---------------------------------------------------------------------------
@@ -467,6 +471,120 @@ describe("transformFeeds - edge cases", () => {
     for (const [, arrivals] of result) {
       for (const a of [...arrivals.northbound, ...arrivals.southbound]) {
         expect(a.feedAge).toBe(42);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// transformFeeds: cancelled trip detection (NYCT trip_replacement_period)
+// ---------------------------------------------------------------------------
+
+describe("transformFeeds - cancelled trip detection", () => {
+  it("emits isCancelled arrival when a trip vanishes within the replacement window", () => {
+    // Poll 1: bDivisionFeed includes F-trip-001 (B2024-01-01_001) northbound at 725N.
+    const parsedFirst = parseFeed("gtfs-bdfm", bDivisionFeed());
+    const feedsFirst = new Map<string, ParsedFeed>([["gtfs-bdfm", parsedFirst]]);
+    transformFeeds(feedsFirst, STATIONS, ROUTES, stopToStation, new Map([["gtfs-bdfm", 0]]));
+
+    // Poll 2: bDivisionFeedMissingFTrip omits B2024-01-01_001 but keeps the replacement period.
+    const parsedSecond = parseFeed("gtfs-bdfm", bDivisionFeedMissingFTrip());
+    const feedsSecond = new Map<string, ParsedFeed>([["gtfs-bdfm", parsedSecond]]);
+    const result = transformFeeds(
+      feedsSecond,
+      STATIONS,
+      ROUTES,
+      stopToStation,
+      new Map([["gtfs-bdfm", 0]])
+    );
+
+    // Expect a cancelled arrival for the missing F-train at station 725 (northbound).
+    const arrivals725 = result.get("725");
+    expect(arrivals725).toBeDefined();
+    const cancelledN = arrivals725!.northbound.filter((a) => a.isCancelled);
+    expect(cancelledN.length).toBeGreaterThan(0);
+    expect(cancelledN[0]!.line).toBe("F");
+    expect(cancelledN[0]!.tripId).toBe("B2024-01-01_001");
+    expect(cancelledN[0]!.isCancelled).toBe(true);
+    expect(cancelledN[0]!.isAssigned).toBe(false);
+    expect(cancelledN[0]!.confidence).toBe("low");
+  });
+
+  it("does not emit cancelled arrivals when no replacement period exists in the feed", () => {
+    // noNyctExtensionFeed has no NYCT header → no replacement period.
+    const parsedFirst = parseFeed("gtfs", noNyctExtensionFeed());
+    const feedsFirst = new Map<string, ParsedFeed>([["gtfs", parsedFirst]]);
+    transformFeeds(feedsFirst, STATIONS, ROUTES, stopToStation, new Map([["gtfs", 0]]));
+
+    // Second poll with an empty feed — no replacement period → no cancelled entries.
+    const parsedSecond = parseFeed("gtfs", emptyFeed());
+    const feedsSecond = new Map<string, ParsedFeed>([["gtfs", parsedSecond]]);
+    const result = transformFeeds(
+      feedsSecond,
+      STATIONS,
+      ROUTES,
+      stopToStation,
+      new Map([["gtfs", 0]])
+    );
+
+    let cancelledCount = 0;
+    for (const [, arrivals] of result) {
+      cancelledCount += [...arrivals.northbound, ...arrivals.southbound].filter(
+        (a) => a.isCancelled
+      ).length;
+    }
+    expect(cancelledCount).toBe(0);
+  });
+
+  it("does not emit cancelled arrivals for trips in inactive (circuit-broken) feeds", () => {
+    // Poll 1: record trip state from gtfs-bdfm.
+    const parsedFirst = parseFeed("gtfs-bdfm", bDivisionFeed());
+    const feedsFirst = new Map<string, ParsedFeed>([["gtfs-bdfm", parsedFirst]]);
+    transformFeeds(feedsFirst, STATIONS, ROUTES, stopToStation, new Map([["gtfs-bdfm", 0]]));
+
+    // Poll 2: gtfs-bdfm feed is absent (circuit open) — only gtfs present.
+    // Since gtfs-bdfm is not in parsedFeeds, no cancellations should be emitted for its trips.
+    const parsedGtfs = parseFeed("gtfs", aDivisionFeed());
+    const feedsSecond = new Map<string, ParsedFeed>([["gtfs", parsedGtfs]]);
+    const result = transformFeeds(
+      feedsSecond,
+      STATIONS,
+      ROUTES,
+      stopToStation,
+      new Map([["gtfs", 0]])
+    );
+
+    let cancelledCount = 0;
+    for (const [, arrivals] of result) {
+      cancelledCount += [...arrivals.northbound, ...arrivals.southbound].filter(
+        (a) => a.isCancelled
+      ).length;
+    }
+    expect(cancelledCount).toBe(0);
+  });
+
+  it("normal arrivals from same feed are not marked cancelled", () => {
+    // After the two-poll sequence, trips still in the feed must not be flagged.
+    const parsedFirst = parseFeed("gtfs-bdfm", bDivisionFeed());
+    const feedsFirst = new Map<string, ParsedFeed>([["gtfs-bdfm", parsedFirst]]);
+    transformFeeds(feedsFirst, STATIONS, ROUTES, stopToStation, new Map([["gtfs-bdfm", 0]]));
+
+    const parsedSecond = parseFeed("gtfs-bdfm", bDivisionFeedMissingFTrip());
+    const feedsSecond = new Map<string, ParsedFeed>([["gtfs-bdfm", parsedSecond]]);
+    const result = transformFeeds(
+      feedsSecond,
+      STATIONS,
+      ROUTES,
+      stopToStation,
+      new Map([["gtfs-bdfm", 0]])
+    );
+
+    for (const [, arrivals] of result) {
+      for (const a of [...arrivals.northbound, ...arrivals.southbound]) {
+        if (!a.isCancelled) {
+          // Normal arrivals must not accidentally carry the cancelled flag.
+          expect(a.isCancelled).toBeFalsy();
+        }
       }
     }
   });

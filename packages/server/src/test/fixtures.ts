@@ -397,6 +397,38 @@ export function pastArrivalsFeed(): Uint8Array {
   });
 }
 
+/**
+ * B Division feed identical to bDivisionFeed() but with the first F-train trip
+ * (B2024-01-01_001) removed, simulating a cancellation detected via the NYCT
+ * trip_replacement_period extension. The replacement period is still 12000 s.
+ */
+export function bDivisionFeedMissingFTrip(): Uint8Array {
+  return encodeFeed({
+    header: makeHeader(NOW, 12000),
+    entity: [
+      // F-trip-001 (B2024-01-01_001) intentionally absent
+      makeEntity(
+        "F-trip-002",
+        makeTripUpdate(
+          "B2024-01-01_002",
+          "F",
+          [makeStopTimeUpdate("725S", futureTime(6)), makeStopTimeUpdate("724S", futureTime(10))],
+          { isAssigned: false }
+        )
+      ),
+      makeEntity(
+        "D-trip-001",
+        makeTripUpdate(
+          "B2024-01-01_003",
+          "D",
+          [makeStopTimeUpdate("725N", futureTime(3)), makeStopTimeUpdate("730N", futureTime(9))],
+          { isAssigned: false }
+        )
+      ),
+    ],
+  });
+}
+
 /** Multi-line feed (N/Q/R/W) for testing multiple routes */
 export function nqrwFeed(): Uint8Array {
   return encodeFeed({
