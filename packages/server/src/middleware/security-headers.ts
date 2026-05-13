@@ -183,6 +183,9 @@ export function securityHeaders(options: SecurityHeadersOptions = {}): Middlewar
     // Cross-Origin-Embedder-Policy - require COOP/COEP for certain features
     c.res.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
 
+    // Prevent Adobe Flash and PDF from making cross-domain requests
+    c.res.headers.set("X-Permitted-Cross-Domain-Policies", "none");
+
     // X-XSS-Protection - legacy but still supported by some browsers
     c.res.headers.set("X-XSS-Protection", "1; mode=block");
   };

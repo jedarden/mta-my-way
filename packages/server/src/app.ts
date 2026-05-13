@@ -420,7 +420,7 @@ export function createApp(
       blockMissingHost: isProduction, // Only require Host header in production
       blockIpAddresses: isProduction,
       blockPrivateNetworks: isProduction,
-      blockLocalhost: !isProduction, // Block localhost only in production
+      blockLocalhost: isProduction, // Block localhost requests in production
     })
   );
 
@@ -668,6 +668,20 @@ export function createApp(
       logger.error("Failed to process CSP report", error as Error);
       return c.json({ error: "Failed to process report" }, 400);
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // Security disclosure policy (RFC 9116)
+  // -------------------------------------------------------------------------
+  app.get("/.well-known/security.txt", (c) => {
+    const contact = process.env["SECURITY_CONTACT"] ?? "mailto:security@jedarden.com";
+    const body =
+      `Contact: ${contact}\n` +
+      `Preferred-Languages: en\n` +
+      `Policy: https://github.com/jedarden/mta-my-way/security/policy\n`;
+    c.header("Content-Type", "text/plain; charset=utf-8");
+    c.header("Cache-Control", "max-age=86400");
+    return c.text(body);
   });
 
   // -------------------------------------------------------------------------
@@ -2374,6 +2388,13 @@ export function createApp(
   // -------------------------------------------------------------------------
   // Password Reset & Management
   // -------------------------------------------------------------------------
+
+  // Prevent caching of all auth responses — tokens and session data must never be cached
+  app.use("/api/auth/*", (c, next) => {
+    c.header("Cache-Control", "no-store");
+    c.header("Pragma", "no-cache");
+    return next();
+  });
 
   // Apply same-origin protection to password reset operations
   app.use("/api/auth/password/*", requireSameOrigin());
