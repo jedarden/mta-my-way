@@ -46,3 +46,8 @@ The first worker (commit `dbe5008`) implemented the bead close by directly
 editing `.beads/issues.jsonl` rather than running `br close`. Subsequent bead
 operations overwrote the JSONL, leaving the bead `in_progress`. This attempt
 closes the bead properly via `br close bf-46dl`.
+
+## Closure note (third attempt)
+
+Second worker confirmed everything was already done but the bead was still
+`in_progress`. Updating notes and closing via `br close bf-46dl` again.
