@@ -102,6 +102,7 @@ import {
   jsonDepthProtection,
   optionalAuth,
   rateLimiter,
+  requestId,
   requestSizeLimits,
   requireResourceAccess,
   requireSameOrigin,
@@ -381,6 +382,10 @@ export function createApp(
   webDistPath: string
 ): Hono {
   const app = new Hono();
+
+  // Request ID for correlation across logs and audit events.
+  // Must run before security logging and audit middleware.
+  app.use("*", requestId);
 
   // Security headers on all responses (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
   // CSP includes report-uri for violation monitoring at /api/security/csp-report

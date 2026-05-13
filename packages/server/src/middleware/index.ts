@@ -1,3 +1,4 @@
+export { requestId } from "./request-id.js";
 export { rateLimiter } from "./rate-limiter.js";
 export {
   securityHeaders,
