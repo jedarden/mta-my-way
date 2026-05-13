@@ -40,6 +40,12 @@ export interface ArrivalTime {
   feedName: string;
   /** Seconds since this feed was last successfully polled */
   feedAge: number;
+  /**
+   * Whether this trip was detected as cancelled via the NYCT trip_replacement_period extension.
+   * A trip absent from the feed within its route's replacement window is shown as Cancelled
+   * rather than silently omitted.
+   */
+  isCancelled?: boolean;
 }
 
 /**
