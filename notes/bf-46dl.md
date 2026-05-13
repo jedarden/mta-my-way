@@ -57,3 +57,9 @@ Second worker confirmed everything was already done but the bead was still
 Third worker also found bead `in_progress`. All code work is confirmed complete:
 `password-reset.service.ts` has real SES (via `@aws-sdk/client-ses`) and SMTP
 (via `nodemailer`) implementations — no stubs remain. Closing via `br close`.
+
+## Closure note (fifth attempt)
+
+Root cause identified: previous agents hit max-turns (30) before closing the bead,
+causing NEEDLE to retry. This agent closes immediately after a minimal commit.
+No code changes needed — implementation has been complete since commit 32c2da3.

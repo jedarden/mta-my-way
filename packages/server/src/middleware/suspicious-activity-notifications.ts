@@ -16,6 +16,16 @@
  */
 
 import { logger } from "../observability/logger.js";
+import {
+  loadNotificationPreferences,
+  loadNotificationHistory,
+  loadNotificationTemplates,
+  loadRecentSecurityEvents,
+  saveNotificationPreferences,
+  saveNotificationHistoryEntry,
+  saveNotificationTemplate,
+  saveSecurityEvent,
+} from "../security/security-db.js";
 
 // ============================================================================
 // Types and Interfaces
@@ -743,10 +753,9 @@ export async function notifySecurityEvent(
 
   // Store event for deduplication
   recent.push(event);
-  recentEvents.set(
-    event.keyId,
-    recent.filter((e) => Date.now() - e.timestamp < 60 * 60 * 1000).slice(-100)
-  );
+  const pruned = recent.filter((e) => Date.now() - e.timestamp < 60 * 60 * 1000).slice(-100);
+  recentEvents.set(event.keyId, pruned);
+  saveSecurityEvent(event as unknown as Record<string, unknown>);
 
   // Get template
   const template = getTemplate(event.type);
@@ -764,6 +773,11 @@ export async function notifySecurityEvent(
 
   // Store notification history
   notificationHistory.set(event.eventId, results);
+  saveNotificationHistoryEntry(
+    event.eventId,
+    event.keyId,
+    results as unknown as Record<string, unknown>[]
+  );
 
   // Update event
   event.notificationSent = results.some((r) => r.success);
@@ -805,6 +819,7 @@ export function createSecurityEvent(
  */
 export function setNotificationPreferences(preferences: NotificationPreferences): void {
   notificationPreferences.set(preferences.keyId, preferences);
+  saveNotificationPreferences(preferences.keyId, preferences as unknown as Record<string, unknown>);
   logger.info("Notification preferences updated", { keyId: preferences.keyId });
 }
 
@@ -820,6 +835,7 @@ export function getNotificationPreferences(keyId: string): NotificationPreferenc
  */
 export function registerNotificationTemplate(template: NotificationTemplate): void {
   notificationTemplates.set(template.eventType, template);
+  saveNotificationTemplate(template.eventType, template as unknown as Record<string, unknown>);
   logger.info("Notification template registered", { eventType: template.eventType });
 }
 
@@ -864,6 +880,39 @@ export function clearNotificationRateLimit(keyId: string, channel?: Notification
       }
     }
   }
+}
+
+/**
+ * Hydrate in-memory notification stores from the database.
+ * Call once on startup after setSecurityDb().
+ */
+export function initNotificationsFromDb(): void {
+  const prefs = loadNotificationPreferences();
+  for (const [keyId, raw] of prefs) {
+    notificationPreferences.set(keyId, raw as unknown as NotificationPreferences);
+  }
+
+  const events = loadRecentSecurityEvents();
+  for (const [keyId, rawEvents] of events) {
+    recentEvents.set(keyId, rawEvents as unknown as SecurityEvent[]);
+  }
+
+  const history = loadNotificationHistory();
+  for (const [eventId, results] of history) {
+    notificationHistory.set(eventId, results as unknown as NotificationDeliveryResult[]);
+  }
+
+  const templates = loadNotificationTemplates();
+  for (const [eventType, raw] of templates) {
+    notificationTemplates.set(eventType as SecurityEventType, raw as unknown as NotificationTemplate);
+  }
+
+  logger.info("Notification stores loaded from database", {
+    preferences: prefs.size,
+    recentEventKeys: events.size,
+    historyEntries: history.size,
+    templates: templates.size,
+  });
 }
 
 /**

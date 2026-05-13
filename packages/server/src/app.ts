@@ -1558,7 +1558,7 @@ export function createApp(
     "/api/trips/:tripId",
     requireOwnershipOrAdmin("trips", {
       getOwnerId: (c) => {
-        const tripId = c.req.param("tripId");
+        const tripId = c.req.param("tripId") ?? "";
         const trip = getTripById(tripId);
         return trip?.ownerId || "";
       },
@@ -1585,7 +1585,7 @@ export function createApp(
     "/api/trips/:tripId/notes",
     requireOwnershipOrAdmin("trips", {
       getOwnerId: (c) => {
-        const tripId = c.req.param("tripId");
+        const tripId = c.req.param("tripId") ?? "";
         const trip = getTripById(tripId);
         return trip?.ownerId || "";
       },
@@ -1620,7 +1620,7 @@ export function createApp(
     "/api/trips/:tripId",
     requireOwnershipOrAdmin("trips", {
       getOwnerId: (c) => {
-        const tripId = c.req.param("tripId");
+        const tripId = c.req.param("tripId") ?? "";
         const trip = getTripById(tripId);
         return trip?.ownerId || "";
       },
