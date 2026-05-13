@@ -1,0 +1,41 @@
+# bf-46dl: Wire real email delivery for password reset
+
+## Summary
+
+The SES and SMTP email delivery stubs had already been replaced with real
+implementations in a prior commit (`32c2da3`) before this bead worker ran.
+This task verified the implementations are complete and committed the
+corresponding Kubernetes manifest changes to declarative-config.
+
+## What was completed
+
+### Code (already done in prior commit 32c2da3)
+
+`packages/server/src/services/password-reset.service.ts`:
+- `sendSesEmail()` — real implementation using `@aws-sdk/client-ses`
+  (`SESClient` + `SendEmailCommand`). Reads `AWS_REGION` from env; relies on
+  standard AWS credential chain (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`).
+- `sendSmtpEmail()` — real implementation using `nodemailer.createTransport()`.
+  Reads `smtpHost`, `smtpPort`, `smtpUser`, `smtpPassword` from `emailConfig`.
+- `sendSendGridEmail()` — already implemented via direct `fetch` to SendGrid API.
+- All providers are selected via `EMAIL_PROVIDER` env var at startup.
+
+All 20 unit tests pass (console, SendGrid, SES, SMTP providers all covered).
+
+### Kubernetes manifests (declarative-config commit 005fdab)
+
+`k8s/apexalgo-iad/mta-my-way/deployment.yaml`:
+- Added `EMAIL_PROVIDER=console` (safe default — logs reset links to stdout).
+- Added `EMAIL_FROM`, `EMAIL_FROM_NAME`, `RESET_BASE_URL`.
+- Commented blocks with full env-var + secret-key stanzas for SES, SMTP,
+  and SendGrid — ready to uncomment when credentials are sealed.
+
+`k8s/apexalgo-iad/mta-my-way/sealedsecret-template.yaml`:
+- Documented optional email secret keys for all three providers.
+
+## How to activate a real provider
+
+1. Seal the credentials for the chosen provider into `mta-my-way-secrets`.
+2. In `deployment.yaml`, set `EMAIL_PROVIDER` to `ses`, `smtp`, or `sendgrid`.
+3. Uncomment the corresponding credential env-var block.
+4. Push declarative-config; ArgoCD will sync the deployment.
