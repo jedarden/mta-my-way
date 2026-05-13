@@ -39,3 +39,10 @@ All 20 unit tests pass (console, SendGrid, SES, SMTP providers all covered).
 2. In `deployment.yaml`, set `EMAIL_PROVIDER` to `ses`, `smtp`, or `sendgrid`.
 3. Uncomment the corresponding credential env-var block.
 4. Push declarative-config; ArgoCD will sync the deployment.
+
+## Closure note (second attempt)
+
+The first worker (commit `dbe5008`) implemented the bead close by directly
+editing `.beads/issues.jsonl` rather than running `br close`. Subsequent bead
+operations overwrote the JSONL, leaving the bead `in_progress`. This attempt
+closes the bead properly via `br close bf-46dl`.
