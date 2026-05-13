@@ -111,6 +111,34 @@ vi.mock("./security-startup.js", () => ({
   validateSecurityOrThrow: vi.fn(),
 }));
 
+vi.mock("./security/security-db.js", () => ({
+  setSecurityDb: vi.fn(),
+  isSecurityDbReady: vi.fn(() => false),
+  loadApiKeyRegistry: vi.fn(() => []),
+  loadRateLimitBans: vi.fn(() => new Map()),
+  loadTrustedIps: vi.fn(() => new Set()),
+  loadPasswordResetTokens: vi.fn(() => []),
+  loadAllPasswordHistory: vi.fn(() => new Map()),
+  loadPasswordResetAttempts: vi.fn(() => new Map()),
+  loadAccountLockouts: vi.fn(() => new Map()),
+}));
+
+vi.mock("./middleware/api-key-management.js", () => ({
+  initApiKeyRegistryFromDb: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock("./middleware/auth-rate-limit.js", () => ({
+  loadRateLimitDataFromDb: vi.fn(),
+}));
+
+vi.mock("./middleware/password-management.js", () => ({
+  initPasswordManagementFromDb: vi.fn(),
+}));
+
+vi.mock("./services/password-reset.service.js", () => ({
+  configureEmailProvider: vi.fn(),
+}));
+
 vi.mock("./transfer/travel-times.js", () => ({
   loadTravelTimes: vi.fn(),
 }));

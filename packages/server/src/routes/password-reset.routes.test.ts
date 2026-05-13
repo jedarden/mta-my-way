@@ -351,7 +351,8 @@ describe("Password Reset Routes", () => {
 
       expect(securityLogging.securityLogger.logSuspiciousActivity).toHaveBeenCalledWith(
         expect.any(Object),
-        "invalid_password_reset_token"
+        "invalid_password_reset_token",
+        "Invalid or expired password reset token used"
       );
     });
 

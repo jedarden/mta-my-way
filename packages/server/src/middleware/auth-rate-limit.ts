@@ -415,7 +415,7 @@ export function authRateLimit(
 
     // Handle banned IP
     if (result.banned) {
-      securityLogger.logSuspiciousActivity(c, "banned_ip_auth_attempt");
+      securityLogger.logSuspiciousActivity(c, "banned_ip_auth_attempt", "Request from banned IP address");
       throw new HTTPException(429, {
         message: "Too many requests. IP temporarily banned due to repeated violations.",
       });
@@ -489,9 +489,11 @@ export function getRateLimitStatus(identifier: string): RateLimitEntry | undefin
  * Manually ban an IP address.
  */
 export function banIp(ip: string, durationMs: number = 60 * 60 * 1000, reason?: string): void {
-  const entry = rateLimitStore.get(ip) || {
+  const existing = rateLimitStore.get(ip);
+  const entry: RateLimitEntry = existing ?? {
     count: 0,
     windowStart: Date.now(),
+    windowMs: DEFAULT_RATE_LIMITS.standard.windowMs,
     violationCount: 0,
   };
   entry.banned = true;
