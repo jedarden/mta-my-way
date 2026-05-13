@@ -88,11 +88,6 @@ export async function validateBody<T>(c: Context, schema: ZodSchema<T>): Promise
   let body: unknown;
   try {
     body = await c.req.json();
-
-    // Debug: log raw body for trip creation
-    if (c.req.path === "/api/trips" && c.req.method === "POST") {
-      console.log("DEBUG validateBody: raw body:", JSON.stringify(body));
-    }
   } catch {
     const errorResponse: ValidationErrorResponse = {
       error: "validation failed",
@@ -109,20 +104,7 @@ export async function validateBody<T>(c: Context, schema: ZodSchema<T>): Promise
   // This prevents XSS, SQL injection, and other injection attacks
   body = sanitizeObject(body);
 
-  // Debug: log sanitized body for trip creation
-  if (c.req.path === "/api/trips" && c.req.method === "POST") {
-    console.log("DEBUG validateBody: sanitized body:", JSON.stringify(body));
-  }
-
   const result = schema.safeParse(body);
-
-  // Debug: log validation result for trip creation
-  if (c.req.path === "/api/trips" && c.req.method === "POST") {
-    console.log("DEBUG validateBody: schema.safeParse success:", result.success);
-    if (!result.success) {
-      console.log("DEBUG validateBody: validation errors:", JSON.stringify(result.error.errors));
-    }
-  }
 
   if (!result.success) {
     const errorResponse: ValidationErrorResponse = {
@@ -135,19 +117,6 @@ export async function validateBody<T>(c: Context, schema: ZodSchema<T>): Promise
       errors: formatZodError(result.error),
     });
     return c.json(errorResponse, 400);
-  }
-
-  // Debug: log the parsed result for trip creation
-  if (c.req.path === "/api/trips" && c.req.method === "POST") {
-    console.log("DEBUG validateBody: parsed result.data:", JSON.stringify(result.data));
-    console.log(
-      "DEBUG validateBody: actualDurationMinutes in result:",
-      result.data.actualDurationMinutes
-    );
-    console.log(
-      "DEBUG validateBody: scheduledDurationMinutes in result:",
-      result.data.scheduledDurationMinutes
-    );
   }
 
   return result.data;
