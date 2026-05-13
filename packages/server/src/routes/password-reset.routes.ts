@@ -54,20 +54,9 @@ import {
 import { securityLogger } from "../middleware/security-logging.js";
 import { logger } from "../observability/logger.js";
 import {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  configureEmailProvider,
   sendPasswordResetEmail,
   sendPasswordResetNotificationEmail,
 } from "../services/password-reset.service.js";
-
-// Types for route context
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type AuthContext = {
-  keyId: string;
-  role?: string;
-  scope?: string;
-  sessionId?: string;
-};
 
 // ============================================================================
 // In-Memory User Storage (Replace with database in production)
@@ -195,7 +184,7 @@ export const requestPasswordResetHandler: MiddlewareHandler = async (c) => {
       return c.json(
         {
           error: "Invalid request",
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         },
         400
       );
@@ -261,7 +250,7 @@ export const requestPasswordResetHandler: MiddlewareHandler = async (c) => {
           messageId: emailResult.messageId,
         });
       } else {
-        logger.error("Failed to send password reset email", {
+        logger.error("Failed to send password reset email", undefined, {
           userId: user.userId,
           email,
           error: emailResult.error,
@@ -310,7 +299,7 @@ export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
       return c.json(
         {
           error: "Invalid request",
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         },
         400
       );
@@ -330,7 +319,7 @@ export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
 
     if (!validationResult_.keyId) {
       // Record failed attempt
-      securityLogger.logSuspiciousActivity(c, "invalid_password_reset_token");
+      securityLogger.logSuspiciousActivity(c, "invalid_password_reset_token", "Invalid or expired password reset token used");
 
       // Try to get user email from token for attempt tracking
       const tokenData = (await import("../middleware/password-management.js"))
@@ -492,7 +481,7 @@ export const changePasswordHandler: MiddlewareHandler = async (c) => {
       return c.json(
         {
           error: "Invalid request",
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         },
         400
       );
@@ -597,7 +586,7 @@ export function buildPasswordResetRoutes() {
       authRateLimit("strict", { addHeaders: true }),
       // Require CAPTCHA after rate limit violations
       requireCaptcha({ alwaysRequired: false }),
-      auditLogAccess("password", "reset_request"),
+      auditLogAccess("password", "create"),
       requestPasswordResetHandler,
     ],
     confirmPasswordReset: [
@@ -605,12 +594,12 @@ export function buildPasswordResetRoutes() {
       authRateLimit("strict", { addHeaders: true }),
       // Require CAPTCHA after rate limit violations
       requireCaptcha({ alwaysRequired: false }),
-      auditLogAccess("password", "reset_confirm"),
+      auditLogAccess("password", "update"),
       confirmPasswordResetHandler,
     ],
     changePassword: [
       requireResourceAccess("password", "update"),
-      auditLogAccess("password", "change"),
+      auditLogAccess("password", "update"),
       changePasswordHandler,
     ],
   };
