@@ -590,7 +590,9 @@ export function createApp(
           lastPollAt: f.lastPollAt ? new Date(f.lastPollAt).toISOString() : null,
           consecutiveFailures: f.consecutiveFailures,
           entityCount: f.entityCount,
-          lastError: f.lastErrorMessage,
+          lastError: f.lastErrorMessage
+            ? f.lastErrorMessage.slice(0, 100).replace(/[\r\n]/g, " ")
+            : null,
           tripReplacementPeriod: f.tripReplacementPeriod,
           avgLatencyMs: avgLatency(f.latencyHistory),
           errorCount24h: errorCount24h(f.errorTimestamps),
@@ -639,6 +641,13 @@ export function createApp(
   // -------------------------------------------------------------------------
   app.post("/api/security/csp-report", async (c) => {
     try {
+      const contentType = c.req.header("Content-Type") ?? "";
+      const baseContentType = contentType.split(";")[0]!.trim().toLowerCase();
+      const allowed = ["application/csp-report", "application/json", "application/reports+json"];
+      if (!allowed.includes(baseContentType)) {
+        return c.json({ error: "Unsupported Media Type" }, 415);
+      }
+
       const report = await c.req.json().catch(() => null);
 
       if (!report) {
@@ -878,13 +887,7 @@ export function createApp(
         recordCommuteAnalysisDuration(duration);
         recordCommuteAnalysisRequest(false, false, accessibleMode);
 
-        return c.json(
-          {
-            error: "Failed to analyze commute",
-            message: error instanceof Error ? error.message : "Unknown error",
-          },
-          500
-        );
+        return c.json({ error: "Failed to analyze commute" }, 500);
       }
     }
   );
@@ -1465,9 +1468,6 @@ export function createApp(
         const body = await validateBody(c, tripCreateRequestSchema);
         if (body instanceof Response) return body;
 
-        // Debug: log the full parsed body before destructuring
-        console.log("DEBUG: parsed body from validateBody:", JSON.stringify(body));
-
         const {
           date,
           origin,
@@ -1479,9 +1479,6 @@ export function createApp(
           scheduledDurationMinutes,
           notes,
         } = body;
-
-        // Debug: log the received scheduledDurationMinutes
-        console.log("DEBUG: received scheduledDurationMinutes:", scheduledDurationMinutes);
 
         // Calculate actual duration if not provided
         const actualDurationMinutes =
@@ -1520,13 +1517,7 @@ export function createApp(
         return c.json({ success: true, trip }, 201);
       } catch (error) {
         logger.error("Trip recording failed", error as Error);
-        return c.json(
-          {
-            error: "Failed to record trip",
-            message: error instanceof Error ? error.message : "Unknown error",
-          },
-          500
-        );
+        return c.json({ error: "Failed to record trip" }, 500);
       }
     }
   );
