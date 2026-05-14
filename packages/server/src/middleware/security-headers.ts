@@ -8,6 +8,7 @@
 
 import type { MiddlewareHandler } from "hono";
 import type { Context } from "hono";
+import { logger } from "../observability/logger.js";
 
 /**
  * Security headers middleware options.
@@ -349,7 +350,7 @@ export function verifyTokenTimingSafe(
   if (!result && providedToken.length === expectedToken.length) {
     // Log failed verification with same length (might be brute force)
     // Use a safe logging approach that doesn't leak the tokens
-    console.warn(`Failed ${tokenType} verification: length match but content differs`);
+    logger.warn("Token verification failed: length match but content differs", { tokenType });
   }
 
   return result;
