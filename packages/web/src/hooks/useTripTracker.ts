@@ -13,6 +13,17 @@ import { api } from "../lib/api";
 import { EnhancedApiError } from "../lib/apiEnhanced";
 import { ErrorCategory, getUserErrorMessage } from "../lib/errorMessages";
 
+export type DelayRisk = "low" | "medium" | "high";
+
+export interface TripPrediction {
+  baseEta: string | null;
+  adjustedEta: string | null;
+  remainingStops: number;
+  totalStops: number;
+  delayRisk: DelayRisk | null;
+  delayMinutesRange: string | null;
+}
+
 export interface TripStopProgress {
   stopId: string;
   stationId: string | null;
@@ -44,6 +55,8 @@ export interface TripTrackerState {
   isExpired: boolean;
   /** Last update timestamp */
   updatedAt: number | null;
+  /** Delay prediction data (null when not available) */
+  prediction: TripPrediction | null;
 }
 
 const POLL_INTERVAL_MS = 30_000;
@@ -99,6 +112,7 @@ export function useTripTracker(
     error: null,
     isExpired: false,
     updatedAt: null,
+    prediction: null,
   });
 
   const fetchGenRef = useRef(0);
