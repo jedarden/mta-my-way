@@ -84,7 +84,7 @@ describe("pathTraversalPrevention middleware", () => {
 
     expect(consoleWarnSpy).toHaveBeenCalled();
     const logArg = JSON.parse(consoleWarnSpy.mock.calls[0]![0]!);
-    expect(logArg.event).toBe("path_traversal_blocked");
+    expect(logArg.context?.event).toBe("path_traversal_blocked");
 
     consoleWarnSpy.mockRestore();
   });

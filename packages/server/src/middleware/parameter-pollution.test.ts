@@ -175,7 +175,7 @@ describe("hppProtection middleware", () => {
 
       expect(consoleWarnSpy).toHaveBeenCalled();
       const logArg = JSON.parse(consoleWarnSpy.mock.calls[0]![0]!);
-      expect(logArg.event).toBe("hpp_blocked");
+      expect(logArg.context?.event).toBe("hpp_blocked");
 
       consoleWarnSpy.mockRestore();
     });
@@ -188,7 +188,7 @@ describe("hppProtection middleware", () => {
       });
 
       const logArg = JSON.parse(consoleWarnSpy.mock.calls[0]![0]!);
-      expect(logArg.ip).toBe("1.2.3.4");
+      expect(logArg.context?.ip).toBe("1.2.3.4");
 
       consoleWarnSpy.mockRestore();
     });
