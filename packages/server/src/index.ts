@@ -22,8 +22,7 @@ import type {
 } from "@mta-my-way/shared";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
-// Context-aware switching service disabled to reduce security surface area
-// import { initContextService } from "./context-service.js";
+import { initContextService } from "./context-service.js";
 import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
@@ -181,8 +180,7 @@ async function main(): Promise<void> {
   // Initialize trip tracking and journal (Phase 5)
   initTripTracking(pushDb, stations);
 
-  // Context-aware switching service disabled to reduce security surface area
-  // initContextService(pushDb, stations);
+  initContextService(pushDb, stations);
 
   // Feed poller (also triggers immediate first poll)
   initPoller(stations, routes);

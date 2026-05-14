@@ -16,7 +16,8 @@ interface FavoritesListProps {
   favorites: Favorite[];
   forceRefreshId?: number;
   onEdit: (favorite: Favorite) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
+  /** Omit to disable drag-to-reorder (e.g. during frequency-sorted display) */
+  onReorder?: (fromIndex: number, toIndex: number) => void;
 }
 
 export function FavoritesList({
@@ -49,7 +50,7 @@ export function FavoritesList({
 
   function handleDrop(index: number) {
     if (draggedIndex !== null && draggedIndex !== index) {
-      onReorder(draggedIndex, index);
+      onReorder?.(draggedIndex, index);
     }
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -68,7 +69,7 @@ export function FavoritesList({
       if (newIndex < 0 || newIndex >= favorites.length) return;
 
       const name = favorites[index]?.stationName ?? "";
-      onReorder(index, newIndex);
+      onReorder?.(index, newIndex);
       announcePosition(name, newIndex + 1, favorites.length);
     }
   }
@@ -85,7 +86,7 @@ export function FavoritesList({
           return (
             <li
               key={favorite.id}
-              draggable
+              draggable={!!onReorder}
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={() => handleDrop(index)}
@@ -138,7 +139,7 @@ export function FavoritesList({
                     aria-label={`Move ${encodeForAria(favorite.stationName)} up`}
                     disabled={!canMoveUp}
                     onClick={() => {
-                      onReorder(index, index - 1);
+                      onReorder?.(index, index - 1);
                       announcePosition(favorite.stationName, index, favorites.length);
                     }}
                     className="p-1 rounded bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-600 disabled:opacity-30"
@@ -152,7 +153,7 @@ export function FavoritesList({
                     aria-label={`Move ${encodeForAria(favorite.stationName)} down`}
                     disabled={!canMoveDown}
                     onClick={() => {
-                      onReorder(index, index + 1);
+                      onReorder?.(index, index + 1);
                       announcePosition(favorite.stationName, index + 2, favorites.length);
                     }}
                     className="p-1 rounded bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-600 disabled:opacity-30"

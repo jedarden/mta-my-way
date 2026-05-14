@@ -49,6 +49,7 @@ export function initPushDatabase(dbPath: string): void {
       favorites TEXT NOT NULL DEFAULT '[]',
       quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
       morning_scores TEXT NOT NULL DEFAULT '{}',
+      briefing_hour INTEGER NOT NULL DEFAULT 7,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
@@ -60,6 +61,13 @@ export function initPushDatabase(dbPath: string): void {
     CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
       ON push_subscriptions(owner_id);
   `);
+
+  // Migration: add briefing_hour column to existing tables
+  try {
+    db.exec("ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7");
+  } catch {
+    // Column already exists — ignore
+  }
 
   logger.info("Push database initialized", { path: dbPath });
 }
@@ -119,13 +127,13 @@ export function upsertSubscription(
   endpointHash: string;
 } {
   const database = getDb();
-  const { subscription, favorites, quietHours, morningScores } = request;
+  const { subscription, favorites, quietHours, morningScores, briefingHour } = request;
   const endpointHash = hashEndpoint(subscription.endpoint);
   const now = new Date().toISOString();
 
   const stmt = database.prepare(`
-    INSERT INTO push_subscriptions (endpoint_hash, endpoint, p256dh, auth, favorites, quiet_hours, morning_scores, updated_at, owner_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO push_subscriptions (endpoint_hash, endpoint, p256dh, auth, favorites, quiet_hours, morning_scores, briefing_hour, updated_at, owner_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(endpoint_hash) DO UPDATE SET
       endpoint = excluded.endpoint,
       p256dh = excluded.p256dh,
@@ -133,6 +141,7 @@ export function upsertSubscription(
       favorites = excluded.favorites,
       quiet_hours = excluded.quiet_hours,
       morning_scores = excluded.morning_scores,
+      briefing_hour = excluded.briefing_hour,
       updated_at = excluded.updated_at,
       owner_id = excluded.owner_id
   `);
@@ -145,6 +154,7 @@ export function upsertSubscription(
     JSON.stringify(favorites),
     JSON.stringify(quietHours ?? { enabled: false, startHour: 22, endHour: 7 }),
     JSON.stringify(morningScores ?? {}),
+    briefingHour ?? 7,
     now,
     ownerId
   );
@@ -206,7 +216,7 @@ export function getAllSubscriptions(): PushSubscriptionRecord[] {
   const database = getDb();
 
   const stmt = database.prepare(
-    "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions"
+    "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, briefing_hour as briefingHour, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions"
   );
 
   return stmt.all() as PushSubscriptionRecord[];
@@ -231,7 +241,7 @@ export function getSubscriptionsByOwner(
   const database = getDb();
 
   const stmt = database.prepare(
-    "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions WHERE owner_id = ?"
+    "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, briefing_hour as briefingHour, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions WHERE owner_id = ?"
   );
 
   return stmt.all(ownerId) as PushSubscriptionRecord[];
@@ -333,6 +343,37 @@ export function updateSubscriptionMorningScores(
 
   if (result.changes === 0) {
     logger.warn("Subscription morning scores update failed: ownership check failed", {
+      endpointHash,
+      ownerId,
+    });
+  }
+
+  return result.changes > 0;
+}
+
+/**
+ * Update briefing hour for an existing subscription.
+ *
+ * @param endpoint - Subscription endpoint
+ * @param briefingHour - Hour (0–23) at which to send morning briefing
+ * @param ownerId - Owner ID for access control
+ */
+export function updateSubscriptionBriefingHour(
+  endpoint: string,
+  briefingHour: number,
+  ownerId: string
+): boolean {
+  const database = getDb();
+  const endpointHash = hashEndpoint(endpoint);
+  const now = new Date().toISOString();
+
+  const stmt = database.prepare(
+    "UPDATE push_subscriptions SET briefing_hour = ?, updated_at = ? WHERE endpoint_hash = ? AND owner_id = ?"
+  );
+  const result = stmt.run(briefingHour, now, endpointHash, ownerId);
+
+  if (result.changes === 0) {
+    logger.warn("Subscription briefing hour update failed: ownership check failed", {
       endpointHash,
       ownerId,
     });

@@ -13,12 +13,11 @@
  * - Empty state with CTA to search/add stations
  */
 
-// Context-aware UI adaptation feature disabled to reduce security surface area
-// import { useContextAware } from "../hooks/useContextAware";
+import { useContextAware } from "../hooks/useContextAware";
 
-import { formatTimeAgo } from "@mta-my-way/shared";
+import { calculateTapFrequency, formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ComponentErrorBoundary, EmptyFavorites, Skeleton } from "../components/common";
 import { CommuteCard } from "../components/commute/CommuteCard";
@@ -48,10 +47,20 @@ export default function HomeScreen() {
   const { favorites, hasFavorites, updateFavorite, removeFavorite, reorderFavorites } =
     useFavorites();
   const commutes = useFavoritesStore((s) => s.commutes);
+  const tapHistory = useFavoritesStore((s) => s.tapHistory);
   const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
 
-  // Context-aware UI adaptation feature disabled to reduce security surface area
-  // const { context, uiHints } = useContextAware();
+  const { context, uiHints } = useContextAware();
+
+  // Sort favorites by tap-frequency score when context warrants frequent-station display.
+  // Non-destructive: only affects display order; stored order and drag-to-reorder are unaffected.
+  const isFrequencySorted = uiHints.showFrequentStations && tapHistory.length > 0;
+  const displayFavorites = useMemo(() => {
+    if (!isFrequencySorted) return favorites;
+    return [...favorites].sort(
+      (a, b) => calculateTapFrequency(b.id, tapHistory) - calculateTapFrequency(a.id, tapHistory)
+    );
+  }, [favorites, tapHistory, isFrequencySorted]);
 
   // Start geofence-based prefetching for underground pre-fetch
   usePrefetch();
@@ -156,22 +165,22 @@ export default function HomeScreen() {
     }
   }, [editingFavorite, removeFavorite]);
 
-  // Auto-refresh - fixed 15 second interval (context-aware feature disabled)
+  // Auto-refresh - interval scales with context refresh priority (priority 2–10 → 50s–10s)
   useEffect(() => {
     if (!hasFavorites) return;
 
-    const interval = 15000; // Fixed 15s interval
+    const interval = Math.round(100_000 / uiHints.refreshPriority);
 
     const timer = setInterval(() => {
       triggerRefresh();
     }, interval);
 
     return () => clearInterval(timer);
-  }, [hasFavorites, triggerRefresh]);
+  }, [hasFavorites, triggerRefresh, uiHints.refreshPriority]);
 
-  // Fixed section order (context-aware feature disabled)
-  const showCommutesFirst = false; // Always show favorites first
-  const showFareTracker = true; // Always show fare tracker
+  // Section order and fare tracker driven by detected context
+  const showCommutesFirst = context === "commuting" || context === "at_station";
+  const showFareTracker = context !== "commuting" && context !== "at_station";
 
   return (
     <Screen>
@@ -241,10 +250,10 @@ export default function HomeScreen() {
 
           {hasFavorites ? (
             <FavoritesList
-              favorites={favorites}
+              favorites={displayFavorites}
               forceRefreshId={forceRefreshId}
               onEdit={setEditingFavorite}
-              onReorder={reorderFavorites}
+              onReorder={isFrequencySorted ? undefined : reorderFavorites}
             />
           ) : (
             <EmptyFavorites />
