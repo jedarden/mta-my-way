@@ -54,8 +54,14 @@ COPY packages/server/data/ ./packages/server/data/
 # Copy built web assets (served by Hono static middleware)
 COPY --from=build-web /app/packages/web/dist/ ./packages/web/dist/
 
+# Give the node user write access to the data dir for SQLite databases
+RUN chown -R node:node /app/packages/server/data
+
 ENV PORT=3000
 ENV NODE_ENV=production
+
+# Run as non-root for container security
+USER node
 
 EXPOSE 3000
 

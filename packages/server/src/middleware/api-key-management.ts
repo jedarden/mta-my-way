@@ -110,12 +110,13 @@ export interface ApiKeyListFilters {
 }
 
 // ============================================================================
-// In-Memory Storage (TODO: Replace with database)
+// In-Memory Storage (write-through cache backed by security-db.ts)
 // ============================================================================
 
 /**
- * In-memory storage for API key metadata.
- * In production, this would be stored in a database with proper indexing.
+ * In-memory cache for API key metadata; authoritative store is SQLite via
+ * security-db.ts. Writes go to both Maps and DB; on startup, initApiKeyRegistryFromDb
+ * rehydrates these Maps from the database so state survives pod restarts.
  */
 const API_KEY_REGISTRY = new Map<string, ApiKey>();
 
