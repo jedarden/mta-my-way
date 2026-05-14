@@ -298,24 +298,13 @@ export function processVehicleUpdates(
     // Resolve stopId to parent stationId
     const stationId = resolveStationId(pos.currentStopId);
     if (!stationId) {
-      console.log(
-        "[DELAY-DETECTOR] Skipping position - could not resolve station ID for stop:",
-        pos.currentStopId
-      );
+      logger.debug("Skipping position - could not resolve station ID", { stopId: pos.currentStopId });
       continue;
     }
 
     const track = trackedTrips.get(pos.tripId);
 
     if (!track) {
-      console.log(
-        "[DELAY-DETECTOR] New trip - creating track for",
-        pos.tripId,
-        "at station",
-        stationId,
-        "stop",
-        pos.currentStopId
-      );
       // New trip — start tracking
       if (trackedTrips.size >= MAX_TRACKED_TRIPS) continue;
 
@@ -345,82 +334,33 @@ export function processVehicleUpdates(
     const lastObs = track.observations[track.observations.length - 1];
     if (!lastObs) continue;
 
-    console.log(
-      "[DELAY-DETECTOR] Existing trip",
-      pos.tripId,
-      "lastObs:",
-      {
-        stationId: lastObs.stationId,
-        stopSequence: lastObs.stopSequence,
-        timestamp: lastObs.timestamp,
-      },
-      "newPos:",
-      {
-        stationId,
-        stopSequence: pos.currentStopSequence,
-        timestamp: pos.timestamp,
-      }
-    );
-
     // Skip if the position hasn't changed (same stop, similar timestamp)
     if (lastObs.stationId === stationId && Math.abs(pos.timestamp - lastObs.timestamp) < 15) {
-      console.log("[DELAY-DETECTOR] Skipping - same stop, similar timestamp");
       // Update timestamp but don't process
       lastObs.timestamp = pos.timestamp;
       lastObs.status = pos.status;
       continue;
     }
 
-    console.log(
-      "[DELAY-DETECTOR] Checking movement conditions:",
-      "stationId !== lastObs.stationId:",
-      stationId !== lastObs.stationId,
-      "pos.currentStopSequence > lastObs.stopSequence:",
-      pos.currentStopSequence > lastObs.stopSequence
-    );
-
     // Check if the train has moved to a new stop
     if (stationId !== lastObs.stationId && pos.currentStopSequence > lastObs.stopSequence) {
-      console.log("[DELAY-DETECTOR] Train moved - calculating delay");
       // Train moved — compute traversal time for the segment
       const traversalTime = pos.timestamp - lastObs.timestamp;
 
-      console.log(
-        "[DELAY-DETECTOR] Traversal time:",
-        traversalTime,
-        "seconds, MIN_OBSERVATION_SECONDS:",
-        MIN_OBSERVATION_SECONDS
-      );
-
       if (traversalTime > 0 && traversalTime >= MIN_OBSERVATION_SECONDS) {
         const scheduled = getScheduledTravelTime(pos.routeId, lastObs.stationId, stationId);
-        console.log("[DELAY-DETECTOR] Scheduled travel time:", scheduled, "seconds");
 
         if (scheduled > 0) {
           const ratio = traversalTime / scheduled;
-          console.log(
-            "[DELAY-DETECTOR] Ratio:",
-            ratio,
-            "threshold:",
-            config.thresholdMultiplier,
-            "ratio >= threshold:",
-            ratio >= config.thresholdMultiplier
-          );
 
           if (ratio >= config.thresholdMultiplier) {
             // Skip terminal stations - trains legitimately dwell there
             // Both arriving at terminal and departing from terminal are excluded
             const isFromTerminal = isTerminalStop(pos.routeId, stationId);
             const isToTerminal = isTerminalStop(pos.routeId, lastObs.stationId);
-            console.log(
-              "[DELAY-DETECTOR] Terminal check - isFromTerminal:",
-              isFromTerminal,
-              "isToTerminal:",
-              isToTerminal
-            );
 
             if (!isFromTerminal && !isToTerminal) {
-              console.log("[DELAY-DETECTOR] DELAY DETECTED - adding to delayedSegments");
+              logger.debug("Delay detected", { tripId: pos.tripId, routeId: pos.routeId, ratio, traversalTime, scheduled });
               const segment: DelayedSegment = {
                 routeId: pos.routeId,
                 direction: pos.direction,
