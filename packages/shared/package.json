@@ -10,6 +10,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing/security-helpers": {
+      "types": "./src/testing/security-helpers.ts",
+      "import": "./src/testing/security-helpers.ts"
+    },
+    "./testing/observability-helpers": {
+      "types": "./src/testing/observability-helpers.ts",
+      "import": "./src/testing/observability-helpers.ts"
+    },
+    "./testing/test-helpers": {
+      "types": "./src/testing/test-helpers.ts",
+      "import": "./src/testing/test-helpers.ts"
     }
   },
   "scripts": {

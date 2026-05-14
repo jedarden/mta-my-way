@@ -413,15 +413,15 @@ describe("Cache and Database Coherency Integration Tests", () => {
         });
       }
 
-      // Query twice with auth headers
+      // Query twice sequentially (can't read response body twice in parallel)
       const res1 = await app.request("/api/trips?limit=5", {
         headers: authHeaders,
       });
+      const body1 = await res1.json();
+
       const res2 = await app.request("/api/trips?limit=5", {
         headers: authHeaders,
       });
-
-      const body1 = await res1.json();
       const body2 = await res2.json();
 
       // Should return same results

@@ -100,7 +100,65 @@ jobs:
         run: npm audit --production
         continue-on-error: true
 
+      - name: Run SAST with CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      - name: Run npm audit with fix suggestions
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
       - name: Check for security headers
         run: |
           grep -r "Content-Security-Policy" packages/server/src/middleware/ || exit 1
           grep -r "X-Frame-Options" packages/server/src/middleware/ || exit 1
+          grep -r "Strict-Transport-Security" packages/server/src/middleware/ || exit 1
+
+      - name: Check for dependencies with known vulnerabilities
+        run: |
+          npm audit --json > audit-report.json || true
+          if [ -s audit-report.json ]; then
+            echo "Security audit report generated"
+          fi
+        continue-on-error: true
+
+  snyk:
+    name: Snyk Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk.sarif
+
+      - name: Upload Snyk results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif

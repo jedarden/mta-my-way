@@ -35,6 +35,7 @@ import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
 import { runMigrations } from "./migration/index.js";
 import { logger } from "./observability/logger.js";
+import { initOpenTelemetry, shutdownOpenTelemetry } from "./observability/opentelemetry.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
@@ -66,6 +67,9 @@ async function loadJsonFile<T>(filename: string): Promise<T> {
 }
 
 async function main(): Promise<void> {
+  // Initialize OpenTelemetry for distributed tracing (optional, graceful if disabled)
+  await initOpenTelemetry();
+
   // Validate security configuration first (fail-fast on critical issues)
   validateSecurityOrThrow();
 
@@ -196,13 +200,31 @@ async function main(): Promise<void> {
   startGtfsRefreshScheduler();
 
   // HTTP server
-  serve({ fetch: app.fetch, port: PORT }, (info) => {
+  const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
     logger.info("Server started", {
       port: info.port,
       pid: process.pid,
       uptime: 0,
     });
   });
+
+  // Graceful shutdown handler
+  const shutdown = async (signal: string) => {
+    logger.info("Received shutdown signal", { signal });
+
+    try {
+      // Flush OpenTelemetry spans before shutdown
+      await shutdownOpenTelemetry();
+    } catch (err) {
+      logger.error("Error during OpenTelemetry shutdown", err as Error);
+    }
+
+    process.exit(0);
+  };
+
+  // Register shutdown handlers
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 main().catch((err) => {
