@@ -73,12 +73,8 @@ export function getTableColumns(db: Database.Database, tableName: string): Colum
 export function getTableIndexes(db: Database.Database, tableName: string): IndexInfo[] {
   // Validate table name to prevent SQL injection
   const validatedTableName = validateTableName(tableName);
-  const indexes = db
-    .prepare(
-      "SELECT name, unique, origin, partial FROM sqlite_master WHERE type='index' AND tbl_name=?"
-    )
-    .all(validatedTableName) as IndexInfo[];
-  return indexes;
+  // PRAGMA index_list returns: seq, name, unique, origin, partial
+  return db.pragma(`index_list(${validatedTableName})`) as IndexInfo[];
 }
 
 /**
