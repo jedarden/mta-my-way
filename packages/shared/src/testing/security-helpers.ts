@@ -199,28 +199,45 @@ export const MALICIOUS_INPUTS = {
  * Test if input contains malicious patterns.
  */
 export function containsMaliciousPatterns(input: string): boolean {
-  const allPatterns = [
-    ...MALICIOUS_INPUTS.sqlInjection,
-    ...MALICIOUS_INPUTS.xss,
-    ...MALICIOUS_INPUTS.pathTraversal,
-    ...MALICIOUS_INPUTS.commandInjection,
-    ...MALICIOUS_INPUTS.ldapInjection,
-    ...MALICIOUS_INPUTS.nosqlInjection,
-    ...MALICIOUS_INPUTS.headerInjection,
+  const dangerousPatterns = [
+    // SQL injection patterns
+    /('|(--)|(;)|(\/\*)|(\*\/)|(\bunion\b)|(\bselect\b)|(\binsert\b)|(\bupdate\b)|(\bdelete\b)|(\bdrop\b)|(\bexec\b)|(\bexecute\b))/i,
+    // XSS patterns
+    /(<script|<iframe|<img|javascript:|onerror=|onload=|onclick=)/i,
+    // Path traversal - check for dot-dot sequences and sensitive system paths
+    /(\.\.\/)|(\.\.\\)|(%2e%2e)|(@@)|\/etc\/|C:\\\\Windows|C:\\Windows/i,
+    // Command injection - check for command separators and command substitution
+    /(;&|\|&|`|\$\(|&|\|)/i,
+    // Header injection
+    /(\r\n|\n|\r)/i,
+    // NoSQL injection
+    /(\$ne|\$gt|\$lt|\$regex|\$where)/i,
   ];
 
-  return allPatterns.some((pattern) => input.includes(pattern));
+  return dangerousPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
  * Sanitize input for testing (compare with actual sanitization).
+ *
+ * Removes:
+ * - HTML tags and script content
+ * - SQL special characters (quotes, semicolons, comments)
+ * - Path traversal sequences
+ * - Command injection characters
+ * - Header injection sequences (CRLF)
  */
 export function sanitizeInput(input: string): string {
   return input
     .replace(/<script[^>]*>.*?<\/script>/gi, "")
     .replace(/<[^>]*>/g, "")
+    .replace(/[;'"]/g, "")
+    .replace(/\b(DROP|SELECT|INSERT|UPDATE|DELETE|UNION|EXEC|EXECUTE)\b/gi, "")
+    .replace(/--|\/\*|\*\//g, "")
     .replace(/[;&|`$()]/g, "")
     .replace(/\.\.\/|\.\.\\/g, "")
+    .replace(/[\r\n]/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 

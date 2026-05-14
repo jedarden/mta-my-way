@@ -1,0 +1,1131 @@
+openapi: 3.0.3
+info:
+  title: MTA My Way API
+  description: |
+    Real-time NYC subway information service with push notifications,
+    trip tracking, commute analysis, and equipment status monitoring.
+
+    ## Authentication
+
+    Most endpoints are public read-only. Write operations (push subscriptions,
+    trip tracking, context overrides) require authentication via:
+
+    - **API Key**: Include `X-API-Key` header
+    - **Session Token**: Include `Authorization: Bearer <token>` header
+
+    ## Rate Limiting
+
+    API requests are rate-limited based on authentication tier and endpoint.
+    Rate limit headers are included in all responses:
+
+    - `X-RateLimit-Limit`: Request limit per window
+    - `X-RateLimit-Remaining`: Remaining requests
+    - `X-RateLimit-Reset`: Unix timestamp of limit reset
+
+  version: 0.0.1
+  contact:
+    name: MTA My Way
+    url: https://github.com/jedarden/mta-my-way
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.mta-my-way.com
+    description: Production
+
+tags:
+  - name: Health
+    description: Health check and metrics endpoints
+  - name: Stations
+    description: Station information and search
+  - name: Arrivals
+    description: Real-time arrival predictions
+  - name: Routes
+    description: Route information
+  - name: Alerts
+    description: Service alerts and disruptions
+  - name: Equipment
+    description: Elevator and escalator status
+  - name: Push
+    description: Push notification subscriptions
+  - name: Trips
+    description: Trip tracking and journal
+  - name: Commute
+    description: Commute analysis and planning
+  - name: Context
+    description: Context detection and overrides
+  - name: Positions
+    description: Train position data
+  - name: Admin
+    description: Administrative operations
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns service health status including feed freshness
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/metrics:
+    get:
+      tags: [Health]
+      summary: Prometheus metrics
+      description: Returns metrics in Prometheus text format
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metrics export
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/stations:
+    get:
+      tags: [Stations]
+      summary: List all stations
+      description: Returns the complete GTFS static station index
+      operationId: listStations
+      responses:
+        '200':
+          description: Station list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StationIndex'
+
+  /api/stations/search:
+    get:
+      tags: [Stations]
+      summary: Search stations
+      description: Type-ahead search by name, line, or cross-street
+      operationId: searchStations
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          description: Maximum results
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Station'
+
+  /api/stations/{id}:
+    get:
+      tags: [Stations]
+      summary: Get station details
+      description: Returns detailed station information with complex expansion
+      operationId: getStation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Station GTFS ID
+      responses:
+        '200':
+          description: Station details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StationComplex'
+        '404':
+          description: Station not found
+
+  /api/arrivals/{stationId}:
+    get:
+      tags: [Arrivals]
+      summary: Get real-time arrivals
+      description: Returns arrival predictions for a specific station
+      operationId: getArrivals
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Station GTFS ID
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [N, S]
+          description: Filter by direction (N/S)
+      responses:
+        '200':
+          description: Arrival predictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Arrival'
+
+  /api/routes:
+    get:
+      tags: [Routes]
+      summary: List all routes
+      description: Returns the complete route index
+      operationId: listRoutes
+      responses:
+        '200':
+          description: Route list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteIndex'
+
+  /api/alerts:
+    get:
+      tags: [Alerts]
+      summary: Get all alerts
+      description: Returns all current service alerts
+      operationId: listAlerts
+      responses:
+        '200':
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+
+  /api/alerts/{lineId}:
+    get:
+      tags: [Alerts]
+      summary: Get alerts for line
+      description: Returns alerts filtered by transit line
+      operationId: getAlertsByLine
+      parameters:
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Line ID (e.g., '1', 'A', 'L')
+      responses:
+        '200':
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+
+  /api/equipment:
+    get:
+      tags: [Equipment]
+      summary: Get equipment status
+      description: Returns elevator and escalator status
+      operationId: getEquipmentStatus
+      responses:
+        '200':
+          description: Equipment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentStatus'
+
+  /api/equipment/{stationId}:
+    get:
+      tags: [Equipment]
+      summary: Get station equipment
+      description: Returns equipment status for a specific station
+      operationId: getStationEquipment
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Station GTFS ID
+      responses:
+        '200':
+          description: Equipment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Equipment'
+
+  /api/push/vapid-public-key:
+    get:
+      tags: [Push]
+      summary: Get VAPID public key
+      description: Returns VAPID public key for push subscription
+      operationId: getVapidPublicKey
+      responses:
+        '200':
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey:
+                    type: string
+                    description: Base64-encoded VAPID public key
+
+  /api/push/subscribe:
+    post:
+      tags: [Push]
+      summary: Subscribe to push notifications
+      description: Registers a new push subscription
+      operationId: subscribePush
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscribeRequest'
+      responses:
+        '200':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushSubscription'
+        '400':
+          description: Invalid request
+        '429':
+          description: Rate limit exceeded
+
+  /api/push/unsubscribe:
+    delete:
+      tags: [Push]
+      summary: Unsubscribe from push notifications
+      description: Removes an existing push subscription
+      operationId: unsubscribePush
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushUnsubscribeRequest'
+      responses:
+        '204':
+          description: Subscription removed
+        '400':
+          description: Invalid request
+        '404':
+          description: Subscription not found
+
+  /api/push/subscription:
+    patch:
+      tags: [Push]
+      summary: Update push subscription
+      description: Updates favorites and quiet hours for a subscription
+      operationId: updatePushSubscription
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushUpdateRequest'
+      responses:
+        '200':
+          description: Subscription updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushSubscription'
+        '400':
+          description: Invalid request
+        '404':
+          description: Subscription not found
+
+  /api/trip:
+    post:
+      tags: [Trips]
+      summary: Create trip
+      description: Records a new trip for tracking
+      operationId: createTrip
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripCreateRequest'
+      responses:
+        '201':
+          description: Trip created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Invalid request
+
+  /api/trip/{tripId}:
+    get:
+      tags: [Trips]
+      summary: Get trip details
+      description: Returns live trip progress and details
+      operationId: getTrip
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Trip ID
+      responses:
+        '200':
+          description: Trip details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripDetails'
+        '404':
+          description: Trip not found
+
+  /api/trip/{tripId}/notes:
+    patch:
+      tags: [Trips]
+      summary: Update trip notes
+      description: Updates notes for a trip
+      operationId: updateTripNotes
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Trip ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  description: Trip notes
+      responses:
+        '200':
+          description: Notes updated
+        '400':
+          description: Invalid request
+        '404':
+          description: Trip not found
+
+  /api/trips:
+    get:
+      tags: [Trips]
+      summary: List trips
+      description: Returns all trips for the authenticated user
+      operationId: listTrips
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+          description: Maximum trips to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Number of trips to skip
+      responses:
+        '200':
+          description: Trip list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trip'
+
+  /api/commute/analyze:
+    post:
+      tags: [Commute]
+      summary: Analyze commute
+      description: Analyzes routes between origin and destination
+      operationId: analyzeCommute
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommuteAnalyzeRequest'
+      responses:
+        '200':
+          description: Commute analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommuteAnalysis'
+        '400':
+          description: Invalid request
+
+  /api/context/detect:
+    post:
+      tags: [Context]
+      summary: Detect context
+      description: Detects user context from request data
+      operationId: detectContext
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextDetectRequest'
+      responses:
+        '200':
+          description: Detected context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+
+  /api/context/override:
+    post:
+      tags: [Context]
+      summary: Override context
+      description: Manually overrides detected context
+      operationId: overrideContext
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextOverrideRequest'
+      responses:
+        '200':
+          description: Context overridden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+        '400':
+          description: Invalid request
+
+  /api/context/clear:
+    post:
+      tags: [Context]
+      summary: Clear context override
+      description: Removes manual context override
+      operationId: clearContext
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      responses:
+        '204':
+          description: Override cleared
+
+  /api/context/settings:
+    patch:
+      tags: [Context]
+      summary: Update context settings
+      description: Updates context detection settings
+      operationId: updateContextSettings
+      security:
+        - ApiKeyAuth: []
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextSettingsUpdateRequest'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextSettings'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication
+    SessionAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Session token authentication
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - healthy
+        - uptime
+        - feeds
+      properties:
+        healthy:
+          type: boolean
+          description: Overall service health
+        uptime:
+          type: integer
+          description: Server uptime in seconds
+        feeds:
+          type: object
+          description: Feed status by feed ID
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [ok, degraded, down]
+                description: Feed health status
+              lastUpdate:
+                type: integer
+                description: Unix timestamp of last successful update
+              latencyMs:
+                type: number
+                description: Average latency in milliseconds
+
+    StationIndex:
+      type: object
+      description: Map of GTFS station ID to station data
+      additionalProperties:
+        $ref: '#/components/schemas/Station'
+
+    Station:
+      type: object
+      required:
+        - id
+        - name
+        - lines
+      properties:
+        id:
+          type: string
+          description: GTFS station ID
+          example: "127"
+        name:
+          type: string
+          description: Station name
+          example: "Times Sq - 42 St"
+        lines:
+          type: array
+          description: Lines serving this station
+          items:
+            type: string
+          example: ["1", "2", "3", "N", "Q", "R"]
+        location:
+          type: object
+          description: Station location
+          properties:
+            lat:
+              type: number
+              description: Latitude
+            lon:
+              type: number
+              description: Longitude
+
+    StationComplex:
+      allOf:
+        - $ref: '#/components/schemas/Station'
+        - type: object
+          properties:
+            complexes:
+              type: array
+              description: Complex IDs this station belongs to
+              items:
+                type: string
+            transfers:
+              type: array
+              description: Transfer connections within complex
+              items:
+                $ref: '#/components/schemas/TransferConnection'
+
+    TransferConnection:
+      type: object
+      required:
+        - fromStationId
+        - toStationId
+        - path
+      properties:
+        fromStationId:
+          type: string
+          description: Origin station ID
+        toStationId:
+          type: string
+          description: Destination station ID
+        path:
+          type: array
+          description: Transfer path as station IDs
+          items:
+            type: string
+        duration:
+          type: integer
+          description: Transfer duration in seconds (if known)
+
+    RouteIndex:
+      type: object
+      description: Map of route ID to route data
+      additionalProperties:
+        $ref: '#/components/schemas/Route'
+
+    Route:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: Route ID
+          example: "1"
+        name:
+          type: string
+          description: Route name
+          example: "Broadway - 7 Ave Local"
+        color:
+          type: string
+          description: Route color (hex)
+          example: "#EE352E"
+
+    Arrival:
+      type: object
+      required:
+        - tripId
+        - routeId
+        - destination
+        - arrivalTime
+        - minutes
+      properties:
+        tripId:
+          type: string
+          description: GTFS trip ID
+        routeId:
+          type: string
+          description: Route ID
+        destination:
+          type: string
+          description: Destination station name
+        arrivalTime:
+          type: integer
+          description: Unix timestamp of arrival
+        minutes:
+          type: integer
+          description: Minutes until arrival
+        track:
+          type: string
+          description: Track number (if available)
+
+    Alert:
+      type: object
+      required:
+        - id
+        - type
+        - summary
+      properties:
+        id:
+          type: string
+          description: Alert ID
+        type:
+          type: string
+          enum: [delay, suspension, planned_work, elevator]
+          description: Alert type
+        summary:
+          type: string
+          description: Alert summary
+        description:
+          type: string
+          description: Full alert description
+        affectedLines:
+          type: array
+          description: Affected line IDs
+          items:
+            type: string
+        affectedStations:
+          type: array
+          description: Affected station IDs
+          items:
+            type: string
+        startsAt:
+          type: integer
+          description: Unix timestamp of alert start
+        endsAt:
+          type: integer
+          description: Unix timestamp of alert end (if known)
+
+    EquipmentStatus:
+      type: object
+      required:
+        - elevators
+        - escalators
+      properties:
+        elevators:
+          type: object
+          description: Elevator status by station ID
+          additionalProperties:
+            type: integer
+            description: Number of elevators out of service
+        escalators:
+          type: object
+          description: Escalator status by station ID
+          additionalProperties:
+            type: integer
+            description: Number of escalators out of service
+
+    Equipment:
+      type: object
+      required:
+        - id
+        - stationId
+        - type
+        - status
+      properties:
+        id:
+          type: string
+          description: Equipment ID
+        stationId:
+          type: string
+          description: Station GTFS ID
+        type:
+          type: string
+          enum: [elevator, escalator]
+          description: Equipment type
+        status:
+          type: string
+          enum: [operational, out_of_service, maintenance]
+          description: Equipment status
+        location:
+          type: string
+          description: Equipment location within station
+
+    PushSubscribeRequest:
+      type: object
+      required:
+        - endpoint
+        - keys
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: Push endpoint URL
+        keys:
+          type: object
+          required:
+            - p256dh
+            - auth
+          properties:
+            p256dh:
+              type: string
+              description: P-256 ECDH key
+            auth:
+              type: string
+              description: Authentication secret
+
+    PushUnsubscribeRequest:
+      type: object
+      required:
+        - endpoint
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: Push endpoint URL to unsubscribe
+
+    PushUpdateRequest:
+      type: object
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: Push endpoint URL
+        favorites:
+          type: array
+          description: Favorite station IDs
+          items:
+            type: string
+        quietHoursStart:
+          type: string
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+          description: Quiet hours start (HH:MM)
+        quietHoursEnd:
+          type: string
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+          description: Quiet hours end (HH:MM)
+
+    PushSubscription:
+      type: object
+      required:
+        - id
+        - endpoint
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Subscription ID
+        endpoint:
+          type: string
+          format: uri
+          description: Push endpoint URL
+        favorites:
+          type: array
+          description: Favorite station IDs
+          items:
+            type: string
+        quietHoursStart:
+          type: string
+          description: Quiet hours start (HH:MM)
+        quietHoursEnd:
+          type: string
+          description: Quiet hours end (HH:MM)
+        createdAt:
+          type: integer
+          description: Unix timestamp of subscription creation
+
+    TripCreateRequest:
+      type: object
+      required:
+        - routeId
+        - fromStationId
+        - toStationId
+      properties:
+        routeId:
+          type: string
+          description: Route ID
+        fromStationId:
+          type: string
+          description: Origin station ID
+        toStationId:
+          type: string
+          description: Destination station ID
+        startTime:
+          type: integer
+          description: Trip start time (Unix timestamp, defaults to now)
+
+    Trip:
+      type: object
+      required:
+        - id
+        - routeId
+        - fromStationId
+        - toStationId
+        - startTime
+        - status
+      properties:
+        id:
+          type: string
+          description: Trip ID
+        routeId:
+          type: string
+          description: Route ID
+        fromStationId:
+          type: string
+          description: Origin station ID
+        toStationId:
+          type: string
+          description: Destination station ID
+        startTime:
+          type: integer
+          description: Trip start time (Unix timestamp)
+        status:
+          type: string
+          enum: [tracking, completed, failed]
+          description: Trip status
+        notes:
+          type: string
+          description: Trip notes
+
+    TripDetails:
+      allOf:
+        - $ref: '#/components/schemas/Trip'
+        - type: object
+          properties:
+            progress:
+              type: array
+              description: Stop-by-stop progress
+              items:
+                type: object
+                properties:
+                  stationId:
+                    type: string
+                  stationName:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, at_station, departed]
+                  arrivalTime:
+                    type: integer
+                    description: Unix timestamp of arrival (if known)
+
+    CommuteAnalyzeRequest:
+      type: object
+      required:
+        - fromStationId
+        - toStationId
+      properties:
+        fromStationId:
+          type: string
+          description: Origin station ID
+        toStationId:
+          type: string
+          description: Destination station ID
+        time:
+          type: integer
+          description: Departure time (Unix timestamp, defaults to now)
+
+    CommuteAnalysis:
+      type: object
+      required:
+        - routes
+      properties:
+        routes:
+          type: array
+          description: Available routes
+          items:
+            type: object
+            properties:
+              routeId:
+                type: string
+              transfers:
+                type: array
+                items:
+                  type: string
+                description: Transfer station IDs
+              duration:
+                type: integer
+                description: Estimated duration in minutes
+              confidence:
+                type: number
+                minimum: 0
+                maximum: 1
+                description: Confidence score (0-1)
+
+    Context:
+      type: object
+      required:
+        - id
+        - label
+      properties:
+        id:
+          type: string
+          description: Context ID
+        label:
+          type: string
+          description: Human-readable context label
+        icon:
+          type: string
+          description: Icon identifier
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Detection confidence (0-1)
+        source:
+          type: string
+          description: Detection source (e.g., 'ip', 'manual')
+
+    ContextDetectRequest:
+      type: object
+      properties:
+        timezone:
+          type: string
+          description: User timezone (IANA)
+        ip:
+          type: string
+          format: ipv4
+          description: User IP address
+
+    ContextOverrideRequest:
+      type: object
+      required:
+        - contextId
+      properties:
+        contextId:
+          type: string
+          description: Context ID to override to
+
+    ContextSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Whether context detection is enabled
+        allowedSources:
+          type: array
+          description: Allowed detection sources
+          items:
+            type: string
+
+    ContextSettingsUpdateRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        allowedSources:
+          type: array
+          items:
+            type: string
