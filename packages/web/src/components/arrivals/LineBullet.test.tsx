@@ -7,11 +7,12 @@
  * - Click handlers
  * - MTA color application
  * - Accessibility attributes
+ * - Long-press tooltip (line name, division, express/local)
  */
 
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LineBullet } from "./LineBullet";
 
 // Mock the color utilities
@@ -29,6 +30,25 @@ vi.mock("@mta-my-way/shared", () => ({
   },
   getLineTextColor: (line: string) => {
     return line === "L" || line === "S" ? "#000000" : "#FFFFFF";
+  },
+  getLineMetadata: (line: string) => {
+    const meta: Record<string, object> = {
+      "1": {
+        id: "1",
+        shortName: "1",
+        longName: "Broadway-7th Ave Local",
+        division: "A",
+        isExpress: false,
+      },
+      A: {
+        id: "A",
+        shortName: "A",
+        longName: "8th Ave Express",
+        division: "B",
+        isExpress: true,
+      },
+    };
+    return meta[line];
   },
 }));
 
@@ -84,14 +104,14 @@ describe("LineBullet", () => {
 
   describe("colors", () => {
     it("applies correct background color for line A", () => {
-      const { container } = render(<LineBullet line="A" />);
+      render(<LineBullet line="A" />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveStyle({ backgroundColor: "#0039A6" });
     });
 
     it("applies correct background color for line 1", () => {
-      const { container } = render(<LineBullet line="1" />);
+      render(<LineBullet line="1" />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveStyle({ backgroundColor: "#EE352E" });
@@ -105,7 +125,7 @@ describe("LineBullet", () => {
     });
 
     it("applies correct text color for dark background lines (L, S)", () => {
-      const { container } = render(<LineBullet line="L" />);
+      render(<LineBullet line="L" />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveStyle({ color: "#000000" });
@@ -137,6 +157,137 @@ describe("LineBullet", () => {
 
       const button = screen.getByRole("button");
       expect(button).not.toBeDisabled();
+    });
+  });
+
+  describe("long press tooltip", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("shows tooltip after 300ms hold", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    });
+
+    it("tooltip contains full line name", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Broadway-7th Ave Local");
+    });
+
+    it("tooltip contains division info", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Division A");
+    });
+
+    it("tooltip shows Local for non-express lines", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Local");
+    });
+
+    it("tooltip shows Express for express lines", () => {
+      render(<LineBullet line="A" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Express");
+    });
+
+    it("does not show tooltip before 300ms", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(299));
+
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("hides tooltip on pointer up", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+      fireEvent.pointerUp(wrapper);
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("hides tooltip on pointer leave", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+      fireEvent.pointerLeave(wrapper);
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("cancels long press if released before 300ms", () => {
+      render(<LineBullet line="1" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(100));
+      fireEvent.pointerUp(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("does not show tooltip for unknown line with no metadata", () => {
+      render(<LineBullet line="X" />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("does not call onClick after long press", async () => {
+      vi.useRealTimers();
+      vi.useFakeTimers();
+      const handleClick = vi.fn();
+      render(<LineBullet line="1" onClick={handleClick} />);
+      const wrapper = screen.getByRole("button").parentElement!;
+
+      fireEvent.pointerDown(wrapper);
+      act(() => vi.advanceTimersByTime(300));
+      fireEvent.pointerUp(wrapper);
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(handleClick).not.toHaveBeenCalled();
     });
   });
 
