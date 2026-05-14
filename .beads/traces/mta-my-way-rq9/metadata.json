@@ -1,15 +1,15 @@
 {
-  "bead_id": "mta-my-way-u6u",
+  "bead_id": "mta-my-way-rq9",
   "agent": "claude-anthropic-sonnet",
   "provider": "anthropic",
   "model": "claude-sonnet-4-6",
   "exit_code": 0,
   "outcome": "success",
-  "duration_ms": 226043,
+  "duration_ms": 3685,
   "input_tokens": null,
   "output_tokens": null,
   "cost_usd": null,
-  "captured_at": "2026-05-14T05:51:23.974442422Z",
+  "captured_at": "2026-05-14T06:38:20.791789231Z",
   "trace_format": "claude_json",
   "pruned": false,
   "template_version": null

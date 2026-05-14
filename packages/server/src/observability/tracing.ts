@@ -50,11 +50,16 @@ function generateSpanId(): string {
   ).join("");
 }
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 /**
  * Active span stack for async context tracking.
+ * Uses AsyncLocalStorage so concurrent requests get isolated span stacks.
+ * Falls back to a global stack when called outside a withSpan context (e.g., unit tests).
  */
 class Tracer {
-  private activeSpans: Span[] = [];
+  private storage = new AsyncLocalStorage<Span[]>();
+  private globalStack: Span[] = [];
   private completedSpans: Span[] = [];
 
   /**
@@ -135,11 +140,16 @@ class Tracer {
     return span ? span.context.spanId : null;
   }
 
+  private currentStack(): Span[] {
+    return this.storage.getStore() ?? this.globalStack;
+  }
+
   /**
-   * Start a new span.
+   * Start a new span within the current async context.
    */
   startSpan(name: string, parentContext?: SpanContext): Span {
-    const parentSpan = this.activeSpans[this.activeSpans.length - 1];
+    const stack = this.currentStack();
+    const parentSpan = stack[stack.length - 1];
     const traceId = parentContext?.traceId || parentSpan?.context.traceId || generateTraceId();
     const spanId = generateSpanId();
 
@@ -158,7 +168,7 @@ class Tracer {
       events: [],
     };
 
-    this.activeSpans.push(span);
+    stack.push(span);
     return span;
   }
 
@@ -166,7 +176,8 @@ class Tracer {
    * End the current active span.
    */
   endSpan(attributes?: Record<string, string | number | boolean>): Span | null {
-    const span = this.activeSpans.pop();
+    const stack = this.currentStack();
+    const span = stack.pop();
     if (!span) {
       return null;
     }
@@ -184,7 +195,8 @@ class Tracer {
    * Get the current active span.
    */
   activeSpan(): Span | null {
-    return this.activeSpans[this.activeSpans.length - 1] || null;
+    const stack = this.currentStack();
+    return stack[stack.length - 1] || null;
   }
 
   /**
@@ -237,22 +249,29 @@ class Tracer {
 
   /**
    * Run a function within a span.
+   * Each call runs in an isolated AsyncLocalStorage context so concurrent
+   * requests cannot inherit each other's span stacks.
    */
   async withSpan<T>(
     name: string,
     fn: (span: Span) => Promise<T> | T,
     parentContext?: SpanContext
   ): Promise<T> {
-    const span = this.startSpan(name, parentContext);
-    try {
-      const result = await fn(span);
-      this.endSpan();
-      return result;
-    } catch (error) {
-      this.setStatus(1, error instanceof Error ? error.message : String(error));
-      this.endSpan();
-      throw error;
-    }
+    const parentStack = this.currentStack();
+    const isolatedStack: Span[] = [...parentStack];
+
+    return this.storage.run(isolatedStack, async () => {
+      const span = this.startSpan(name, parentContext);
+      try {
+        const result = await fn(span);
+        this.endSpan();
+        return result;
+      } catch (error) {
+        this.setStatus(1, error instanceof Error ? error.message : String(error));
+        this.endSpan();
+        throw error;
+      }
+    });
   }
 
   /**

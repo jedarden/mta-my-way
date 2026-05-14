@@ -52,6 +52,7 @@ interface LabeledMetric {
  */
 class MetricsRegistry {
   private metrics: Map<string, Map<string, LabeledMetric>> = new Map();
+  private metricMeta: Map<string, { type: string; help: string }> = new Map();
   private defaultLabels: Record<string, string> = {};
 
   /**
@@ -80,6 +81,7 @@ class MetricsRegistry {
   } {
     if (!this.metrics.has(name)) {
       this.metrics.set(name, new Map());
+      this.metricMeta.set(name, { type: "counter", help });
     }
 
     return {
@@ -127,6 +129,7 @@ class MetricsRegistry {
   } {
     if (!this.metrics.has(name)) {
       this.metrics.set(name, new Map());
+      this.metricMeta.set(name, { type: "gauge", help });
     }
 
     return {
@@ -200,6 +203,7 @@ class MetricsRegistry {
   } {
     if (!this.metrics.has(name)) {
       this.metrics.set(name, new Map());
+      this.metricMeta.set(name, { type: "histogram", help });
     }
 
     return {
@@ -246,6 +250,7 @@ class MetricsRegistry {
    */
   clear(): void {
     this.metrics.clear();
+    this.metricMeta.clear();
   }
 
   /**
@@ -276,12 +281,13 @@ class MetricsRegistry {
     for (const [name, metricMap] of this.metrics) {
       const sanitizedName = this.sanitizeName(name);
 
-      // Get help from first metric instance
+      // Get help/type from stored metadata or from first labeled instance
+      const meta = this.metricMeta.get(name);
       const firstInstance = metricMap.values().next().value;
-      if (firstInstance) {
-        lines.push(`# HELP ${sanitizedName} ${firstInstance.metric.help}`);
-        lines.push(`# TYPE ${sanitizedName} ${firstInstance.metric.type}`);
-      }
+      const help = meta?.help ?? firstInstance?.metric.help ?? "";
+      const type = meta?.type ?? firstInstance?.metric.type ?? "untyped";
+      lines.push(`# HELP ${sanitizedName} ${help}`);
+      lines.push(`# TYPE ${sanitizedName} ${type}`);
 
       for (const labeled of metricMap.values()) {
         const labelStr = this.formatLabels(labeled.labels);
