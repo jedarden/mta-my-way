@@ -104,6 +104,7 @@ describe("HomeScreen", () => {
       const state = {
         onboardingComplete: true,
         commutes: mockCommutes,
+        tapHistory: [],
       };
       return selector ? selector(state) : state;
     });
@@ -180,6 +181,7 @@ describe("HomeScreen", () => {
         const state = {
           onboardingComplete: false,
           commutes: [],
+          tapHistory: [],
         };
         return selector ? selector(state) : state;
       });
@@ -244,6 +246,7 @@ describe("HomeScreen", () => {
         const state = {
           onboardingComplete: true,
           commutes: [],
+          tapHistory: [],
         };
         return selector ? selector(state) : state;
       });
