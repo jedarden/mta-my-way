@@ -10,8 +10,7 @@
 
 import type Database from "better-sqlite3";
 
-export const description =
-  "Add SQLite tables for persisting security middleware in-memory stores";
+export const description = "Add SQLite tables for persisting security middleware in-memory stores";
 
 export function up(db: Database.Database): void {
   // ── API key registry ──────────────────────────────────────────────────────
@@ -35,12 +34,8 @@ export function up(db: Database.Database): void {
       last_used_at        INTEGER
     )
   `);
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_sakr_active ON security_api_key_registry(active)`
-  );
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_sakr_scope  ON security_api_key_registry(scope)`
-  );
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sakr_active ON security_api_key_registry(active)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sakr_scope  ON security_api_key_registry(scope)`);
 
   // ── Password reset tokens ─────────────────────────────────────────────────
   db.exec(`
@@ -56,9 +51,7 @@ export function up(db: Database.Database): void {
       device_fingerprint TEXT
     )
   `);
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_sprt_key_id  ON security_password_reset_tokens(key_id)`
-  );
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sprt_key_id  ON security_password_reset_tokens(key_id)`);
   db.exec(
     `CREATE INDEX IF NOT EXISTS idx_sprt_expires ON security_password_reset_tokens(expires_at)`
   );
@@ -73,9 +66,7 @@ export function up(db: Database.Database): void {
       timestamp INTEGER NOT NULL
     )
   `);
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_sph_key_id ON security_password_history(key_id)`
-  );
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sph_key_id ON security_password_history(key_id)`);
 
   // ── Password reset attempts & account lockouts ────────────────────────────
   db.exec(`
@@ -133,12 +124,8 @@ export function up(db: Database.Database): void {
       event_data TEXT NOT NULL DEFAULT '{}'
     )
   `);
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_sre_key_id    ON security_recent_events(key_id)`
-  );
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_sre_timestamp ON security_recent_events(timestamp)`
-  );
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sre_key_id    ON security_recent_events(key_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sre_timestamp ON security_recent_events(timestamp)`);
 
   // ── Notification delivery history ─────────────────────────────────────────
   db.exec(`
@@ -149,9 +136,7 @@ export function up(db: Database.Database): void {
       recorded_at INTEGER NOT NULL
     )
   `);
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_snh_key_id ON security_notification_history(key_id)`
-  );
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_snh_key_id ON security_notification_history(key_id)`);
 
   // ── Custom notification templates ─────────────────────────────────────────
   db.exec(`

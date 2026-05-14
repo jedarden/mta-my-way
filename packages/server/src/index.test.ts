@@ -135,6 +135,10 @@ vi.mock("./middleware/password-management.js", () => ({
   initPasswordManagementFromDb: vi.fn(),
 }));
 
+vi.mock("./middleware/suspicious-activity-notifications.js", () => ({
+  initNotificationsFromDb: vi.fn(),
+}));
+
 vi.mock("./services/password-reset.service.js", () => ({
   configureEmailProvider: vi.fn(),
 }));

@@ -30,8 +30,8 @@ import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js
 import { initApiKeyRegistryFromDb } from "./middleware/api-key-management.js";
 import { loadRateLimitDataFromDb } from "./middleware/auth-rate-limit.js";
 import { initPasswordManagementFromDb } from "./middleware/password-management.js";
-import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
+import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
 import { runMigrations } from "./migration/index.js";
 import { logger } from "./observability/logger.js";
 import { initPoller, startPoller } from "./poller.js";
@@ -39,9 +39,9 @@ import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
 import { getPushDatabase, initPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
+import { validateSecurityOrThrow } from "./security-startup.js";
 import { setSecurityDb } from "./security/security-db.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
-import { validateSecurityOrThrow } from "./security-startup.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 import { initTripTracking } from "./trip-tracking.js";
 

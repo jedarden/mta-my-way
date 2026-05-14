@@ -16,6 +16,11 @@ import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
 import {
+  saveApiKey as dbSaveApiKey,
+  updateApiKeyLastUsed as dbUpdateApiKeyLastUsed,
+  loadApiKeyRegistry,
+} from "../security/security-db.js";
+import {
   type ApiKey,
   type ApiKeyScope,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -32,11 +37,6 @@ import {
   revokeApiKey,
   revokePermissionsFromApiKey,
 } from "./authentication.js";
-import {
-  loadApiKeyRegistry,
-  saveApiKey as dbSaveApiKey,
-  updateApiKeyLastUsed as dbUpdateApiKeyLastUsed,
-} from "../security/security-db.js";
 import {
   type RbacAuthContext,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

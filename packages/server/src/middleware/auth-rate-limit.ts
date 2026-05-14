@@ -17,6 +17,7 @@
 
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { logger } from "../observability/logger.js";
 import {
   deleteRateLimitBan,
   deleteTrustedIp,
@@ -25,7 +26,6 @@ import {
   saveRateLimitBan,
   saveTrustedIp,
 } from "../security/security-db.js";
-import { logger } from "../observability/logger.js";
 import { securityLogger } from "./security-logging.js";
 
 // ============================================================================
@@ -415,7 +415,11 @@ export function authRateLimit(
 
     // Handle banned IP
     if (result.banned) {
-      securityLogger.logSuspiciousActivity(c, "banned_ip_auth_attempt", "Request from banned IP address");
+      securityLogger.logSuspiciousActivity(
+        c,
+        "banned_ip_auth_attempt",
+        "Request from banned IP address"
+      );
       throw new HTTPException(429, {
         message: "Too many requests. IP temporarily banned due to repeated violations.",
       });

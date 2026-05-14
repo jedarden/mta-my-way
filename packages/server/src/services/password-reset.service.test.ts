@@ -10,9 +10,9 @@
  * - Error handling
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SESClient } from "@aws-sdk/client-ses";
 import nodemailer from "nodemailer";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as logger from "../observability/logger.js";
 import {
   type PasswordResetEmailData,
