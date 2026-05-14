@@ -7,6 +7,7 @@ import {
   ScreenErrorBoundary,
   useRouteChangeAnnouncer,
 } from "./components/common";
+import { usePeriodicSync } from "./lib/periodicSync";
 
 // HomeScreen is eagerly loaded (initial route, critical for FCP)
 import HomeScreen from "./screens/HomeScreen";
@@ -60,6 +61,9 @@ function AppRoutes() {
 
   // Prefetch likely next routes based on current location
   useRoutePrefetch();
+
+  // Keep IDB sync config current and register Periodic Background Sync
+  usePeriodicSync();
 
   return (
     <>
