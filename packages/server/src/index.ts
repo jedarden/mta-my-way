@@ -22,6 +22,7 @@ import type {
 } from "@mta-my-way/shared";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
+import { startGtfsRefreshScheduler } from "./gtfs-refresh.js";
 import { initContextService } from "./context-service.js";
 import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
@@ -190,6 +191,9 @@ async function main(): Promise<void> {
   // Equipment poller (elevator/escalator outages)
   initEquipmentPoller(stations);
   startEquipmentPoller();
+
+  // Weekly GTFS static data refresh (first run fires 7 days after startup)
+  startGtfsRefreshScheduler();
 
   // HTTP server
   serve({ fetch: app.fetch, port: PORT }, (info) => {

@@ -34,7 +34,7 @@ RUN npm run build -w packages/server
 FROM node:22-slim AS runtime
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install production dependencies only (workspace symlinks are set up here)
@@ -50,6 +50,9 @@ COPY --from=build-server /app/packages/server/dist/ ./packages/server/dist/
 
 # Bake in GTFS static JSON data
 COPY packages/server/data/ ./packages/server/data/
+
+# Copy GTFS processing script for the weekly in-server refresh scheduler
+COPY packages/server/scripts/ ./packages/server/scripts/
 
 # Copy built web assets (served by Hono static middleware)
 COPY --from=build-web /app/packages/web/dist/ ./packages/web/dist/
