@@ -50,6 +50,7 @@ export type ResourceCategory =
   | "alerts"
   | "equipment"
   | "predictions"
+  | "context"
   | "admin"
   | "oauth"
   | "mfa"

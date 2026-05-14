@@ -33,8 +33,8 @@ interface QuietHoursConfig {
 // Configuration
 // ---------------------------------------------------------------------------
 
-/** Hour at which to send the morning briefing (0–23) */
-const BRIEFING_HOUR = 7;
+/** Default hour at which to send the morning briefing (0–23) when subscription has no preference */
+const DEFAULT_BRIEFING_HOUR = 7;
 
 /** Minute at which to send the morning briefing */
 const BRIEFING_MINUTE = 0;
@@ -182,17 +182,22 @@ export function startBriefingScheduler(): void {
       lastCheckDate = todayKey;
     }
 
-    // Only send at the configured time
-    if (now.getHours() !== BRIEFING_HOUR || now.getMinutes() !== BRIEFING_MINUTE) {
+    // Only run during the minute window when briefings may be due
+    if (now.getMinutes() !== BRIEFING_MINUTE) {
       return;
     }
 
+    const currentHour = now.getHours();
     const subscriptions = getAllSubscriptions();
     if (subscriptions.length === 0) return;
 
     for (const sub of subscriptions) {
       // Skip if already sent today
       if (sentToday.has(sub.endpointHash)) continue;
+
+      // Send at each subscription's personalized briefing hour (default 7 AM)
+      const subBriefingHour = sub.briefingHour ?? DEFAULT_BRIEFING_HOUR;
+      if (currentHour !== subBriefingHour) continue;
 
       let favorites: PushFavoriteTuple[];
       let quietHours: QuietHoursConfig;
@@ -242,7 +247,8 @@ export function startBriefingScheduler(): void {
   }, CHECK_INTERVAL_MS);
 
   logger.info("Briefing scheduler started", {
-    briefing_time: `${String(BRIEFING_HOUR).padStart(2, "0")}:${String(BRIEFING_MINUTE).padStart(2, "0")}`,
+    default_briefing_time: `${String(DEFAULT_BRIEFING_HOUR).padStart(2, "0")}:${String(BRIEFING_MINUTE).padStart(2, "0")}`,
     check_interval_ms: CHECK_INTERVAL_MS,
+    note: "per-subscription briefingHour overrides default",
   });
 }

@@ -39,9 +39,16 @@ import {
   commuteAnalyzeRequestSchema,
   commuteIdQuerySchema,
   complexIdParamsSchema,
+  contextClearRequestSchema,
+  contextDetectRequestSchema,
+  contextOverrideRequestSchema,
+  contextSettingsUpdateRequestSchema,
   dateRangeParamsSchema,
   emptyQuerySchema,
   equipmentQuerySchema,
+  getContextIcon,
+  getContextLabel,
+  getContextUIHints,
   lineIdParamsSchema,
   positionsQuerySchema,
   pushSubscribeRequestSchema,
@@ -59,21 +66,18 @@ import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
-// Context-aware switching service imports - DISABLED: Feature not used by frontend
-// Uncomment to re-enable context detection functionality.
-// import {
-//   DEFAULT_CONTEXT,
-//   checkContextOwnership,
-//   clearManualOverride,
-//   clearManualOverrideForOwner,
-//   detectAndUpdateContextWithOwner,
-//   getContextByOwner,
-//   getContextOwner,
-//   getContextSettings,
-//   getContextTransitionsForOwner,
-//   getCurrentContext,
-//   updateContextSettings,
-// } from "./context-service.js";
+import {
+  DEFAULT_CONTEXT,
+  clearManualOverrideForOwner,
+  detectAndUpdateContextWithOwner,
+  detectContextFromRequest,
+  getContextByOwner,
+  getContextSettings,
+  getContextTransitions,
+  getContextTransitionsForOwner,
+  getCurrentContext,
+  updateContextSettings,
+} from "./context-service.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
@@ -93,6 +97,7 @@ import {
   rateLimiter,
   requestId,
   requestSizeLimits,
+  requireAdmin,
   requireResourceAccess,
   requireSameOrigin,
   responseSizeLimits,
@@ -114,6 +119,7 @@ import {
   getRbacAuthContext,
   requireOwnershipOrAdmin,
   requirePermission,
+  requireRole,
 } from "./middleware/rbac.js";
 // OAuth 2.0 imports - DISABLED: Feature not used by frontend
 // Uncomment to re-enable OAuth 2.0 authentication functionality.
@@ -1713,250 +1719,226 @@ export function createApp(
   });
 
   // -------------------------------------------------------------------------
-  // Context-aware switching API (Phase 5) - DISABLED: Feature not used by frontend
-  // These endpoints are disabled to reduce security surface area.
-  // Uncomment to re-enable context detection functionality.
+  // Context-aware switching API (Phase 5)
   // -------------------------------------------------------------------------
 
-  // // Apply same-origin protection to context operations
-  // app.use("/api/context/*", requireSameOrigin());
-  //
-  // /** Get current context and UI hints - scoped to authenticated user */
-  // app.get("/api/context", (c) => {
-  //   // Validate that no unexpected query parameters are passed
-  //   const query = validateQuery(c, emptyQuerySchema);
-  //   if (query instanceof Response) return query;
-  //
-  //   const auth = getRbacAuthContext(c);
-  //   const ownerId = auth?.keyId || "anonymous";
-  //
-  //   // Get context settings (global)
-  //   const settings = getContextSettings();
-  //
-  //   // Admin users get full summary, regular users get scoped data
-  //   let currentContext: ReturnType<typeof getCurrentContext>;
-  //   let recentTransitions: ReturnType<typeof getContextTransitions>;
-  //
-  //   if (auth?.role === "admin") {
-  //     // Admins see the global context (for system monitoring)
-  //     currentContext = getCurrentContext();
-  //     recentTransitions = getContextTransitions(10);
-  //   } else {
-  //     // Regular users get their own context if available, otherwise default
-  //     const userContext = getContextByOwner(ownerId);
-  //     currentContext = userContext || { ...DEFAULT_CONTEXT };
-  //
-  //     // Get user's own transitions
-  //     const userTransitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-  //     recentTransitions = userTransitions || [];
-  //   }
-  //
-  //   const uiHints = getContextUIHints(currentContext.context);
-  //   const label = getContextLabel(currentContext.context);
-  //   const icon = getContextIcon(currentContext.context);
-  //
-  //   c.header("Cache-Control", "public, max-age=15");
-  //   return c.json({
-  //     current: currentContext,
-  //     settings,
-  //     uiHints,
-  //     label,
-  //     icon,
-  //     recentTransitions,
-  //   });
-  // });
-  //
-  // /** Get context for a specific owner with ownership check */
-  // app.get(
-  //   "/api/context/owner/:ownerId",
-  //   requireOwnershipOrAdmin("context", {
-  //     getOwnerId: (c) => {
-  //       return c.req.param("ownerId") || "";
-  //     },
-  //     adminBypass: true,
-  //   }),
-  //   (c) => {
-  //     const ownerId = c.req.param("ownerId");
-  //
-  //     if (!ownerId) {
-  //       return c.json({ error: "Owner ID is required" }, 400);
-  //     }
-  //
-  //     const contextState = getContextByOwner(ownerId);
-  //     const transitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-  //
-  //     if (!contextState) {
-  //       return c.json({ error: "Context not found" }, 404);
-  //     }
-  //
-  //     c.header("Cache-Control", "public, max-age=15");
-  //     return c.json({
-  //       current: contextState,
-  //       settings: getContextSettings(),
-  //       uiHints: getContextUIHints(contextState.context),
-  //       label: getContextLabel(contextState.context),
-  //       icon: getContextIcon(contextState.context),
-  //       recentTransitions: transitions || [],
-  //     });
-  //   }
-  // );
-  //
-  // /** Detect context from request parameters */
-  // app.post(
-  //   "/api/context/detect",
-  //   requireResourceAccess("context", "create"),
-  //   requirePermission("predictions:create" as Permission),
-  //   async (c) => {
-  //     try {
-  //       const auth = getRbacAuthContext(c);
-  //       const body = await validateBody(c, contextDetectRequestSchema);
-  //       if (body instanceof Response) return body;
-  //
-  //       // Get owner ID from auth context - users can only detect context for themselves
-  //       const ownerId = auth?.keyId || "anonymous";
-  //
-  //       // Explicit ownership check: non-admin users can only detect their own context
-  //       if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
-  //         return c.json(
-  //           {
-  //             error: "Access denied: you can only detect context for yourself",
-  //           },
-  //           403
-  //         );
-  //       }
-  //
-  //       const context = detectContextFromRequest(body);
-  //
-  //       // Store context with ownership - always use authenticated user's ID
-  //       const { context: detectedContext } = detectAndUpdateContextWithOwner(
-  //         {
-  //           nearStation: context.factors.location.nearStation,
-  //           nearStationId: context.factors.location.stationId,
-  //           distanceToStation: context.factors.location.distance,
-  //           tapHistory: body.tapHistory || [],
-  //           currentScreen: body.currentScreen || "home",
-  //           screenTime: body.screenTime || 0,
-  //           recentActions: body.recentActions || [],
-  //         },
-  //         ownerId
-  //       );
-  //
-  //       c.header("Cache-Control", "no-cache");
-  //       return c.json({ context: detectedContext });
-  //     } catch (err) {
-  //       logger.error("Context detection failed", err as Error);
-  //       return c.json(
-  //         {
-  //           error: "Failed to detect context",
-  //           message: err instanceof Error ? err.message : "Unknown error",
-  //         },
-  //         500
-  //       );
-  //     }
-  //   }
-  // );
-  //
-  // /** Set manual context override */
-  // app.post(
-  //   "/api/context/override",
-  //   requireResourceAccess("context", "update"),
-  //   requirePermission("predictions:create" as Permission),
-  //   auditLogAccess("context", "update"),
-  //   async (c) => {
-  //     try {
-  //       const auth = getRbacAuthContext(c);
-  //       const body = await validateBody(c, contextOverrideRequestSchema);
-  //       if (body instanceof Response) return body;
-  //
-  //       const { context } = body;
-  //       const ownerId = auth?.keyId || "anonymous";
-  //
-  //       // Explicit ownership check: non-admin users can only override their own context
-  //       if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
-  //         return c.json(
-  //           {
-  //             error: "Access denied: you can only override your own context",
-  //           },
-  //           403
-  //         );
-  //       }
-  //
-  //       // Store context with ownership - always use authenticated user's ID
-  //       const { context: newContext } = detectAndUpdateContextWithOwner(
-  //         {
-  //           nearStation: false,
-  //           tapHistory: [],
-  //           currentScreen: "home",
-  //           screenTime: 0,
-  //           recentActions: [],
-  //           manualOverride: context,
-  //         },
-  //         ownerId
-  //       );
-  //
-  //       c.header("Cache-Control", "no-cache");
-  //       return c.json({ success: true, context: newContext });
-  //     } catch (error) {
-  //       logger.error("Context override failed", error as Error);
-  //       return c.json({ error: "Failed to set context override" }, 500);
-  //     }
-  //   }
-  // );
-  //
-  // /** Clear manual context override - requires authentication */
-  // app.post(
-  //   "/api/context/clear",
-  //   requireResourceAccess("context", "update"),
-  //   requirePermission("predictions:create" as Permission),
-  //   auditLogAccess("context", "clear"),
-  //   async (c) => {
-  //     const auth = getRbacAuthContext(c);
-  //     const body = await validateBody(c, contextClearRequestSchema);
-  //     if (body instanceof Response) return body;
-  //
-  //     // Get owner ID from auth context
-  //     const ownerId = auth?.keyId || "anonymous";
-  //
-  //     // Explicit ownership check: non-admin users can only clear their own context
-  //     if (auth?.role !== "admin" && body.ownerId && body.ownerId !== ownerId) {
-  //       return c.json(
-  //         {
-  //           error: "Access denied: you can only clear your own context",
-  //         },
-  //         403
-  //       );
-  //     }
-  //
-  //     // Clear manual override for authenticated user only (owner-scoped)
-  //     const context = clearManualOverrideForOwner(ownerId);
-  //
-  //     logger.info("Manual context override cleared", { ownerId });
-  //
-  //     c.header("Cache-Control", "no-cache");
-  //     return c.json({ success: true, context });
-  //   }
-  // );
-  //
-  // /** Update context settings - admin only */
-  // app.patch(
-  //   "/api/context/settings",
-  //   requireRole("admin"),
-  //   requireAdmin(),
-  //   auditLogAccess("context", "update"),
-  //   async (c) => {
-  //     try {
-  //       const body = await validateBody(c, contextSettingsUpdateRequestSchema);
-  //       if (body instanceof Response) return body;
-  //
-  //       updateContextSettings(body);
-  //
-  //       return c.json({ success: true, settings: getContextSettings() });
-  //     } catch (error) {
-  //       logger.error("Context settings update failed", error as Error);
-  //       return c.json({ error: "Failed to update context settings" }, 500);
-  //     }
-  //   }
-  // );
+  // Apply same-origin protection to context operations
+  app.use("/api/context/*", requireSameOrigin());
+
+  /** Get current context and UI hints - scoped to authenticated user */
+  app.get("/api/context", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
+    const auth = getRbacAuthContext(c);
+    const ownerId = auth?.keyId || "anonymous";
+
+    // Get context settings (global)
+    const settings = getContextSettings();
+
+    // Admin users get full summary, regular users get scoped data
+    let currentContext: ReturnType<typeof getCurrentContext>;
+    let recentTransitions: ReturnType<typeof getContextTransitions>;
+
+    if (auth?.role === "admin") {
+      // Admins see the global context (for system monitoring)
+      currentContext = getCurrentContext();
+      recentTransitions = getContextTransitions(10);
+    } else {
+      // Regular users get their own context if available, otherwise default
+      const userContext = getContextByOwner(ownerId);
+      currentContext = userContext || { ...DEFAULT_CONTEXT };
+
+      // Get user's own transitions
+      const userTransitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
+      recentTransitions = userTransitions || [];
+    }
+
+    const uiHints = getContextUIHints(currentContext.context);
+    const label = getContextLabel(currentContext.context);
+    const icon = getContextIcon(currentContext.context);
+
+    c.header("Cache-Control", "public, max-age=15");
+    return c.json({
+      current: currentContext,
+      settings,
+      uiHints,
+      label,
+      icon,
+      recentTransitions,
+    });
+  });
+
+  /** Get context for a specific owner with ownership check */
+  app.get(
+    "/api/context/owner/:ownerId",
+    requireOwnershipOrAdmin("context", {
+      getOwnerId: (c) => {
+        return c.req.param("ownerId") || "";
+      },
+      adminBypass: true,
+    }),
+    (c) => {
+      const ownerId = c.req.param("ownerId");
+
+      if (!ownerId) {
+        return c.json({ error: "Owner ID is required" }, 400);
+      }
+
+      const contextState = getContextByOwner(ownerId);
+      const transitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
+
+      if (!contextState) {
+        return c.json({ error: "Context not found" }, 404);
+      }
+
+      c.header("Cache-Control", "public, max-age=15");
+      return c.json({
+        current: contextState,
+        settings: getContextSettings(),
+        uiHints: getContextUIHints(contextState.context),
+        label: getContextLabel(contextState.context),
+        icon: getContextIcon(contextState.context),
+        recentTransitions: transitions || [],
+      });
+    }
+  );
+
+  /** Detect context from request parameters */
+  app.post(
+    "/api/context/detect",
+    requireResourceAccess("context", "create"),
+    requirePermission("predictions:create" as Permission),
+    async (c) => {
+      try {
+        const auth = getRbacAuthContext(c);
+        const body = await validateBody(c, contextDetectRequestSchema);
+        if (body instanceof Response) return body;
+
+        // Get owner ID from auth context - users can only detect context for themselves
+        const ownerId = auth?.keyId || "anonymous";
+
+        // tapHistory in the API schema uses a different shape than FavoriteTapEvent;
+        // location-based detection is sufficient server-side.
+        const context = detectContextFromRequest({
+          latitude: body.latitude,
+          longitude: body.longitude,
+          currentScreen: body.currentScreen,
+          screenTime: body.screenTime,
+          recentActions: body.recentActions,
+        });
+
+        // Store context with ownership - always use authenticated user's ID
+        const { context: detectedContext } = detectAndUpdateContextWithOwner(
+          {
+            nearStation: context.factors.location.nearStation,
+            nearStationId: context.factors.location.stationId,
+            distanceToStation: context.factors.location.distance,
+            tapHistory: [],
+            currentScreen: body.currentScreen || "home",
+            screenTime: body.screenTime || 0,
+            recentActions: body.recentActions || [],
+          },
+          ownerId
+        );
+
+        c.header("Cache-Control", "no-cache");
+        return c.json({ context: detectedContext });
+      } catch (err) {
+        logger.error("Context detection failed", err as Error);
+        return c.json(
+          {
+            error: "Failed to detect context",
+            message: err instanceof Error ? err.message : "Unknown error",
+          },
+          500
+        );
+      }
+    }
+  );
+
+  /** Set manual context override */
+  app.post(
+    "/api/context/override",
+    requireResourceAccess("context", "update"),
+    requirePermission("predictions:create" as Permission),
+    auditLogAccess("context", "update"),
+    async (c) => {
+      try {
+        const auth = getRbacAuthContext(c);
+        const body = await validateBody(c, contextOverrideRequestSchema);
+        if (body instanceof Response) return body;
+
+        const { context } = body;
+        const ownerId = auth?.keyId || "anonymous";
+
+        // Store context with ownership - always use authenticated user's ID
+        const { context: newContext } = detectAndUpdateContextWithOwner(
+          {
+            nearStation: false,
+            tapHistory: [],
+            currentScreen: "home",
+            screenTime: 0,
+            recentActions: [],
+            manualOverride: context,
+          },
+          ownerId
+        );
+
+        c.header("Cache-Control", "no-cache");
+        return c.json({ success: true, context: newContext });
+      } catch (error) {
+        logger.error("Context override failed", error as Error);
+        return c.json({ error: "Failed to set context override" }, 500);
+      }
+    }
+  );
+
+  /** Clear manual context override - requires authentication */
+  app.post(
+    "/api/context/clear",
+    requireResourceAccess("context", "update"),
+    requirePermission("predictions:create" as Permission),
+    auditLogAccess("context", "update"),
+    async (c) => {
+      const auth = getRbacAuthContext(c);
+      const body = await validateBody(c, contextClearRequestSchema);
+      if (body instanceof Response) return body;
+
+      // Get owner ID from auth context
+      const ownerId = auth?.keyId || "anonymous";
+
+      // Clear manual override for authenticated user only (owner-scoped)
+      const context = clearManualOverrideForOwner(ownerId);
+
+      logger.info("Manual context override cleared", { ownerId });
+
+      c.header("Cache-Control", "no-cache");
+      return c.json({ success: true, context });
+    }
+  );
+
+  /** Update context settings - admin only */
+  app.patch(
+    "/api/context/settings",
+    requireRole("admin"),
+    requireAdmin(),
+    auditLogAccess("context", "update"),
+    async (c) => {
+      try {
+        const body = await validateBody(c, contextSettingsUpdateRequestSchema);
+        if (body instanceof Response) return body;
+
+        updateContextSettings(body);
+
+        return c.json({ success: true, settings: getContextSettings() });
+      } catch (error) {
+        logger.error("Context settings update failed", error as Error);
+        return c.json({ error: "Failed to update context settings" }, 500);
+      }
+    }
+  );
 
   // -------------------------------------------------------------------------
   // OAuth 2.0 Authentication - DISABLED: Feature not used by frontend

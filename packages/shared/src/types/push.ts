@@ -46,6 +46,8 @@ export interface PushSubscribeRequest {
   };
   /** Morning relevance scores for morning briefing prioritization */
   morningScores?: MorningScoreMap;
+  /** Hour (0–23) to send the morning briefing, derived from user's tap patterns */
+  briefingHour?: number;
 }
 
 /**
@@ -107,6 +109,8 @@ export interface PushUpdateRequest {
   };
   /** Updated morning relevance scores (optional) */
   morningScores?: MorningScoreMap;
+  /** Updated briefing hour derived from tap patterns (optional) */
+  briefingHour?: number;
 }
 
 /**
@@ -127,6 +131,8 @@ export interface PushSubscriptionRecord {
   quietHours: string; // JSON-encoded quiet hours
   /** JSON object of morning relevance scores */
   morningScores: string; // JSON-encoded MorningScoreMap
+  /** Hour (0–23) at which to send the morning briefing */
+  briefingHour: number;
   /** ISO timestamp when subscription was created */
   createdAt: string;
   /** ISO timestamp of last update */

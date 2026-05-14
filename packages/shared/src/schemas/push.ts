@@ -104,6 +104,7 @@ export const pushSubscribeRequestSchema = z
       })
       .optional(),
     morningScores: z.record(z.string().max(50), z.number().int().min(0).max(100)).optional(),
+    briefingHour: z.number().int().min(4).max(11).optional(),
   })
   .strict();
 
@@ -127,13 +128,15 @@ export const pushUpdateRequestSchema = z
       })
       .optional(),
     morningScores: z.record(z.string().max(50), z.number().int().min(0).max(100)).optional(),
+    briefingHour: z.number().int().min(4).max(11).optional(),
   })
   .refine(
     (data) =>
       data.favorites !== undefined ||
       data.quietHours !== undefined ||
-      data.morningScores !== undefined,
+      data.morningScores !== undefined ||
+      data.briefingHour !== undefined,
     {
-      message: "favorites, quietHours, or morningScores is required",
+      message: "favorites, quietHours, morningScores, or briefingHour is required",
     }
   );

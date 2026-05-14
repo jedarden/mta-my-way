@@ -139,6 +139,29 @@ function computeMorningScores(
   return scores;
 }
 
+/**
+ * Derive the most common morning tap hour (6–10 AM, weekdays) from history.
+ * Returns undefined when there isn't enough data to make a meaningful pick.
+ */
+function computeBriefingHour(
+  tapHistory: { dayOfWeek: number; hour: number }[]
+): number | undefined {
+  const hourCounts: Record<number, number> = {};
+  for (const tap of tapHistory) {
+    if (
+      isWeekday(tap.dayOfWeek) &&
+      tap.hour >= MORNING_HOUR_START &&
+      tap.hour < MORNING_HOUR_END
+    ) {
+      hourCounts[tap.hour] = (hourCounts[tap.hour] ?? 0) + 1;
+    }
+  }
+  const entries = Object.entries(hourCounts);
+  if (entries.length === 0) return undefined;
+  const best = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+  return parseInt(best[0], 10);
+}
+
 /** Persist the VAPID key to localStorage so subscribe() can work when offline */
 function cacheVapidKey(key: string): void {
   try {
@@ -212,11 +235,13 @@ export function usePushNotifications(): PushNotificationsState {
   const tapHistory = useFavoritesStore((s) => s.tapHistory);
   const quietHours = useSettingsStore((s) => s.quietHours);
 
-  // Compute morning scores for push notification personalization
+  // Compute morning scores and briefing hour from tap history
   const morningScores = useMemo(
     () => computeMorningScores(favorites, tapHistory),
     [favorites, tapHistory]
   );
+
+  const briefingHour = useMemo(() => computeBriefingHour(tapHistory), [tapHistory]);
 
   // Check existing subscription status on mount
   useEffect(() => {
@@ -299,6 +324,7 @@ export function usePushNotifications(): PushNotificationsState {
         favorites: favoriteTuples,
         quietHours: quietHours ?? { enabled: false, startHour: 0, endHour: 5 },
         morningScores,
+        briefingHour,
       };
 
       try {
@@ -440,6 +466,7 @@ export function usePushNotifications(): PushNotificationsState {
             favorites: favoriteTuples,
             quietHours: quietHours ?? { enabled: false, startHour: 0, endHour: 5 },
             morningScores,
+            briefingHour,
           }),
         });
       } catch {
@@ -448,7 +475,7 @@ export function usePushNotifications(): PushNotificationsState {
     };
 
     void sync();
-  }, [isSubscribed, isSupported, favorites, quietHours, morningScores]);
+  }, [isSubscribed, isSupported, favorites, quietHours, morningScores, briefingHour]);
 
   return {
     isSupported,
