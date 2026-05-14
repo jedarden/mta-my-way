@@ -258,7 +258,7 @@ export function seedConfig(
     createIfNotExists?: boolean;
   } = {}
 ): SeedResult {
-  const { keyColumn = "key", valueColumn = "value", createIfNotExists = true } = options;
+  const { keyColumn = "name", valueColumn = "value", createIfNotExists = true } = options;
 
   // Validate table and column names
   const validatedTableName = validateTableName(tableName);
