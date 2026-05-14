@@ -93,3 +93,76 @@ self.addEventListener("sync", function (event) {
     );
   }
 });
+
+/**
+ * Periodic Background Sync: refresh cached arrivals for the user's favorite
+ * stations roughly every 5 minutes, even when the app is not open.
+ *
+ * Station IDs are written to IndexedDB by the app's usePeriodicSync hook
+ * (periodicSync.ts) because service workers cannot access localStorage.
+ * Gracefully no-ops if no station IDs have been saved yet.
+ */
+self.addEventListener("periodicsync", function (event) {
+  if (event.tag === "mta-arrivals-refresh") {
+    event.waitUntil(refreshFavoriteArrivals());
+  }
+});
+
+/** Read favorite station IDs from IndexedDB (written by the app). */
+function readFavoriteStationIds() {
+  return new Promise(function (resolve) {
+    try {
+      var openReq = indexedDB.open("mta-periodic-sync", 1);
+      openReq.onerror = function () {
+        resolve([]);
+      };
+      openReq.onupgradeneeded = function (event) {
+        var db = event.target.result;
+        if (!db.objectStoreNames.contains("sync-config")) {
+          db.createObjectStore("sync-config", { keyPath: "id" });
+        }
+      };
+      openReq.onsuccess = function () {
+        var db = openReq.result;
+        try {
+          var tx = db.transaction(["sync-config"], "readonly");
+          var store = tx.objectStore("sync-config");
+          var getReq = store.get("favorites");
+          getReq.onsuccess = function () {
+            resolve(getReq.result ? getReq.result.stationIds : []);
+          };
+          getReq.onerror = function () {
+            resolve([]);
+          };
+        } catch (_e) {
+          resolve([]);
+        }
+      };
+    } catch (_e) {
+      resolve([]);
+    }
+  });
+}
+
+/** Fetch arrivals for each favorite station and update the runtime cache. */
+async function refreshFavoriteArrivals() {
+  var stationIds = await readFavoriteStationIds();
+  if (!stationIds || stationIds.length === 0) return;
+
+  var cache = await caches.open("arrivals-cache");
+  var origin = self.location.origin;
+
+  await Promise.allSettled(
+    stationIds.map(async function (stationId) {
+      var url = origin + "/api/arrivals/" + stationId;
+      try {
+        var response = await fetch(url);
+        if (response.ok) {
+          await cache.put(url, response);
+        }
+      } catch (_e) {
+        // Network unavailable — skip, will retry on next periodicsync fire
+      }
+    })
+  );
+}
