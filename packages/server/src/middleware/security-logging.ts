@@ -11,6 +11,7 @@
  */
 
 import type { Context, MiddlewareHandler } from "hono";
+import { logger as structuredLogger } from "../observability/logger.js";
 
 /**
  * Security event severity levels.
@@ -64,10 +65,11 @@ interface SecurityLoggerOptions {
 }
 
 /**
- * Default log function - outputs to console.warn for security events.
+ * Default log function - routes security events through the structured logger
+ * for sensitive field redaction and trace correlation.
  */
 function defaultLogFn(event: SecurityEvent): void {
-  console.warn(JSON.stringify(event));
+  structuredLogger.warn("security_event", event as Record<string, unknown>);
 }
 
 /**

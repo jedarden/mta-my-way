@@ -266,9 +266,11 @@ describe("global securityLogger instance", () => {
     void app.request("/test");
 
     expect(consoleWarnSpy).toHaveBeenCalled();
-    // The global logger uses console.warn which does JSON.stringify internally
-    const loggedEvent = JSON.parse(consoleWarnSpy.mock.calls[0]![0]!);
-    expect(loggedEvent.event).toBe("auth_failure");
+    // The global logger routes through structuredLogger.warn, which outputs
+    // { level, message, timestamp, context: { event, ... } }
+    const logEntry = JSON.parse(consoleWarnSpy.mock.calls[0]![0]!);
+    expect(logEntry.message).toBe("security_event");
+    expect(logEntry.context?.event).toBe("auth_failure");
 
     consoleWarnSpy.mockRestore();
   });
