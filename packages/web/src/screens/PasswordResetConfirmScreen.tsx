@@ -8,8 +8,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Header } from "../components/layout/Header";
-import { Screen } from "../components/layout/Screen";
+import Screen from "../components/layout/Screen";
 
 interface PasswordResetConfirmResponse {
   success: boolean;
@@ -156,7 +155,6 @@ export function PasswordResetConfirmScreen() {
   if (!isValidLink && !submitSuccess) {
     return (
       <Screen>
-        <Header title="Reset Password" />
         <div className="max-w-md mx-auto px-4 py-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -197,8 +195,6 @@ export function PasswordResetConfirmScreen() {
 
   return (
     <Screen>
-      <Header title="Reset Password" showBack={!submitSuccess} />
-
       <div className="max-w-md mx-auto px-4 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           {!submitSuccess ? (

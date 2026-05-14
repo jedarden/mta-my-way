@@ -8,8 +8,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Header } from "../components/layout/Header";
-import { Screen } from "../components/layout/Screen";
+import Screen from "../components/layout/Screen";
 
 interface PasswordResetRequestResponse {
   success: boolean;
@@ -70,8 +69,6 @@ export function PasswordResetRequestScreen() {
 
   return (
     <Screen>
-      <Header title="Reset Password" showBack />
-
       <div className="max-w-md mx-auto px-4 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           {!submitSuccess ? (

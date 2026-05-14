@@ -11,6 +11,8 @@ const screenTitles: Record<string, string> = {
   "/commute": "Commute",
   "/alerts": "Alerts",
   "/settings": "Settings",
+  "/reset-password": "Reset Password",
+  "/reset-password/confirm": "Reset Password",
 };
 
 export default function Header() {
