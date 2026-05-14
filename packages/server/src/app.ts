@@ -77,17 +77,6 @@ import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } f
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
-// Authentication imports - MFA functions disabled: Feature not used by frontend
-// Uncomment to re-enable MFA functionality.
-import {
-  // createSession,
-  // disableTotp,
-  // enableTotp,
-  // getAuthContext,
-  // setupTotp,
-  // verifyMfaForSession,
-  // verifyTotpCode,
-} from "./middleware/authentication.js";
 import {
   auditLogAccess,
   cors,
