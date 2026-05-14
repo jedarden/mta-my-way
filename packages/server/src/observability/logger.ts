@@ -10,6 +10,40 @@
 
 import { tracer } from "./tracing.js";
 
+/**
+ * Field names whose values are redacted before logging.
+ * Match is case-insensitive and exact against the key name.
+ */
+const SENSITIVE_FIELDS = new Set([
+  "password",
+  "passwd",
+  "token",
+  "secret",
+  "authorization",
+  "apikey",
+  "api_key",
+  "cookie",
+  "credential",
+  "private_key",
+  "privatekey",
+  "pepper",
+  "salt",
+]);
+
+function redactContext(obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (SENSITIVE_FIELDS.has(key.toLowerCase())) {
+      out[key] = "[REDACTED]";
+    } else if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      out[key] = redactContext(value as Record<string, unknown>);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
 export enum LogLevel {
   DEBUG = "debug",
   INFO = "info",
@@ -86,7 +120,7 @@ class Logger {
     };
 
     if (context) {
-      entry.context = context;
+      entry.context = redactContext(context);
     }
 
     if (error) {

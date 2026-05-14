@@ -5,11 +5,11 @@
   "model": null,
   "exit_code": 0,
   "outcome": "success",
-  "duration_ms": 2,
+  "duration_ms": 1,
   "input_tokens": null,
   "output_tokens": null,
   "cost_usd": null,
-  "captured_at": "2026-05-05T14:20:12.247977312Z",
+  "captured_at": "2026-05-13T21:21:13.146850593Z",
   "trace_format": "raw_text",
   "pruned": false,
   "template_version": null

@@ -92,11 +92,15 @@ export function rateLimiter(): MiddlewareHandler {
 
     refillBucket(bucket, now);
 
+    // Epoch-second when the next token will be added
+    const resetEpoch = Math.ceil((bucket.lastRefill + REFILL_INTERVAL_MS) / 1000);
+
     if (bucket.tokens <= 0) {
       const retryAfter = Math.ceil(REFILL_INTERVAL_MS / 1000);
       c.header("Retry-After", String(retryAfter));
       c.header("X-RateLimit-Limit", String(MAX_TOKENS));
       c.header("X-RateLimit-Remaining", "0");
+      c.header("X-RateLimit-Reset", String(resetEpoch));
       return c.json(
         {
           error: "Too many requests",
@@ -109,6 +113,7 @@ export function rateLimiter(): MiddlewareHandler {
     bucket.tokens -= 1;
     c.header("X-RateLimit-Limit", String(MAX_TOKENS));
     c.header("X-RateLimit-Remaining", String(Math.floor(bucket.tokens)));
+    c.header("X-RateLimit-Reset", String(resetEpoch));
     await next();
   };
 }

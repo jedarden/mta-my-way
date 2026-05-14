@@ -1,0 +1,3 @@
+{"schema_version":1,"ts":1778736685.397733,"type":"tokens","input":3,"output":0,"model":"claude-sonnet-4-6","cache_read":12573,"cache_write":12193}
+{"schema_version":1,"ts":1778736685.3977778,"type":"agent_message","role":"assistant","content":"{\"splittable\": false}"}
+{"schema_version":1,"ts":1778736685.3977778,"type":"tokens","input":3,"output":0,"model":"claude-sonnet-4-6","cache_read":12573,"cache_write":12193}

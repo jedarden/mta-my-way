@@ -29,6 +29,7 @@ import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predic
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { initApiKeyRegistryFromDb } from "./middleware/api-key-management.js";
 import { loadRateLimitDataFromDb } from "./middleware/auth-rate-limit.js";
+import { startSessionCleanup } from "./middleware/concurrent-session-management.js";
 import { initPasswordManagementFromDb } from "./middleware/password-management.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
@@ -168,6 +169,9 @@ async function main(): Promise<void> {
   loadRateLimitDataFromDb();
   initPasswordManagementFromDb();
   initNotificationsFromDb();
+
+  // Start automatic session cleanup (expires idle/timed-out sessions every 5 minutes)
+  startSessionCleanup();
 
   const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
   configureWebPush(vapidKeys);

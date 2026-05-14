@@ -1,16 +1,16 @@
 {
   "bead_id": "bf-3dj0",
-  "agent": "echo-test",
-  "provider": null,
-  "model": null,
+  "agent": "claude-sonnet",
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
   "exit_code": 0,
   "outcome": "success",
-  "duration_ms": 7,
+  "duration_ms": 397320,
   "input_tokens": null,
   "output_tokens": null,
   "cost_usd": null,
-  "captured_at": "2026-05-05T14:20:10.826598941Z",
-  "trace_format": "raw_text",
+  "captured_at": "2026-05-13T21:42:05.814470205Z",
+  "trace_format": "claude_json",
   "pruned": false,
   "template_version": null
 }
