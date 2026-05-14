@@ -17,12 +17,12 @@
 
 import { logger } from "../observability/logger.js";
 import {
-  loadNotificationPreferences,
   loadNotificationHistory,
+  loadNotificationPreferences,
   loadNotificationTemplates,
   loadRecentSecurityEvents,
-  saveNotificationPreferences,
   saveNotificationHistoryEntry,
+  saveNotificationPreferences,
   saveNotificationTemplate,
   saveSecurityEvent,
 } from "../security/security-db.js";
@@ -904,7 +904,10 @@ export function initNotificationsFromDb(): void {
 
   const templates = loadNotificationTemplates();
   for (const [eventType, raw] of templates) {
-    notificationTemplates.set(eventType as SecurityEventType, raw as unknown as NotificationTemplate);
+    notificationTemplates.set(
+      eventType as SecurityEventType,
+      raw as unknown as NotificationTemplate
+    );
   }
 
   logger.info("Notification stores loaded from database", {

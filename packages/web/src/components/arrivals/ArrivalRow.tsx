@@ -59,7 +59,16 @@ export function ArrivalRow({
   onTrackTrip,
   isEstimated = false,
 }: ArrivalRowProps) {
-  const { line, destination, minutesAway, confidence, isAssigned, isExpress, feedAge, isCancelled } = arrival;
+  const {
+    line,
+    destination,
+    minutesAway,
+    confidence,
+    isAssigned,
+    isExpress,
+    feedAge,
+    isCancelled,
+  } = arrival;
 
   // Format arrival time - "now", "2 min", "12 min"
   const timeDisplay = formatMinutesAway(minutesAway);
@@ -154,7 +163,9 @@ export function ArrivalRow({
 
         {/* Destination */}
         <div className="flex-1 min-w-0">
-          <p className={`text-base font-medium truncate ${isCancelled ? "line-through text-text-secondary dark:text-dark-text-secondary" : "text-text-primary dark:text-dark-text-primary"}`}>
+          <p
+            className={`text-base font-medium truncate ${isCancelled ? "line-through text-text-secondary dark:text-dark-text-secondary" : "text-text-primary dark:text-dark-text-primary"}`}
+          >
             {sanitizeUserInput(destination)}
           </p>
           <div className="flex items-center gap-2" role="group" aria-label="Trip details">
@@ -173,7 +184,10 @@ export function ArrivalRow({
         </div>
 
         {/* Arrival time - HERO number */}
-        <div className="flex flex-col items-end" aria-label={isCancelled ? "Cancelled" : `Arrives in ${timeDisplay}`}>
+        <div
+          className="flex flex-col items-end"
+          aria-label={isCancelled ? "Cancelled" : `Arrives in ${timeDisplay}`}
+        >
           <span
             className={`text-2xl font-extrabold tabular-nums ${isCancelled ? "line-through text-text-secondary dark:text-dark-text-secondary" : "text-text-primary dark:text-dark-text-primary"}`}
             aria-hidden="true"

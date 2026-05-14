@@ -85,9 +85,7 @@ export interface StoredPasswordHistoryEntry {
 
 export function loadApiKeyRegistry(): StoredApiKeyEntry[] {
   if (!_db) return [];
-  const rows = db()
-    .prepare("SELECT * FROM security_api_key_registry")
-    .all() as Array<{
+  const rows = db().prepare("SELECT * FROM security_api_key_registry").all() as Array<{
     key_id: string;
     key_hash: string;
     key_salt: string;
@@ -128,11 +126,7 @@ export function loadApiKeyRegistry(): StoredApiKeyEntry[] {
   }));
 }
 
-export function saveApiKey(
-  key: StoredApiKey,
-  description?: string,
-  lastUsedAt?: number
-): void {
+export function saveApiKey(key: StoredApiKey, description?: string, lastUsedAt?: number): void {
   if (!_db) return;
   db()
     .prepare(
@@ -180,9 +174,7 @@ export function loadPasswordResetTokens(): StoredPasswordResetToken[] {
   if (!_db) return [];
   const now = Date.now();
   const rows = db()
-    .prepare(
-      "SELECT * FROM security_password_reset_tokens WHERE expires_at > ? AND used = 0"
-    )
+    .prepare("SELECT * FROM security_password_reset_tokens WHERE expires_at > ? AND used = 0")
     .all(now) as Array<{
     token_id: string;
     key_id: string;
@@ -238,9 +230,7 @@ export function markPasswordResetTokenUsed(tokenId: string): void {
 
 export function deletePasswordResetToken(tokenId: string): void {
   if (!_db) return;
-  db()
-    .prepare("DELETE FROM security_password_reset_tokens WHERE token_id = ?")
-    .run(tokenId);
+  db().prepare("DELETE FROM security_password_reset_tokens WHERE token_id = ?").run(tokenId);
 }
 
 export function deletePasswordResetTokensForKey(keyId: string): void {
@@ -276,10 +266,7 @@ export function loadAllPasswordHistory(): Map<string, StoredPasswordHistoryEntry
   return result;
 }
 
-export function appendPasswordHistory(
-  keyId: string,
-  entry: StoredPasswordHistoryEntry
-): void {
+export function appendPasswordHistory(keyId: string, entry: StoredPasswordHistoryEntry): void {
   if (!_db) return;
   db()
     .prepare(
@@ -362,17 +349,13 @@ export function savePasswordResetAttempt(
 
 export function deletePasswordResetAttempt(key: string): void {
   if (!_db) return;
-  db()
-    .prepare("DELETE FROM security_password_reset_attempts WHERE key = ?")
-    .run(key);
+  db().prepare("DELETE FROM security_password_reset_attempts WHERE key = ?").run(key);
 }
 
 export function deletePasswordResetAttemptsForEmail(email: string): void {
   if (!_db) return;
   db()
-    .prepare(
-      "DELETE FROM security_password_reset_attempts WHERE key = ? OR key LIKE ?"
-    )
+    .prepare("DELETE FROM security_password_reset_attempts WHERE key = ? OR key LIKE ?")
     .run(email, `${email}:%`);
 }
 
@@ -426,10 +409,7 @@ export function deleteAccountLockout(keyId: string): void {
 
 // ── Rate limit bans ───────────────────────────────────────────────────────────
 
-export function loadRateLimitBans(): Map<
-  string,
-  { bannedUntil: number; violationCount: number }
-> {
+export function loadRateLimitBans(): Map<string, { bannedUntil: number; violationCount: number }> {
   if (!_db) return new Map();
   const now = Date.now();
   const rows = db()
@@ -468,18 +448,14 @@ export function saveRateLimitBan(
 
 export function deleteRateLimitBan(identifier: string): void {
   if (!_db) return;
-  db()
-    .prepare("DELETE FROM security_rate_limit_bans WHERE identifier = ?")
-    .run(identifier);
+  db().prepare("DELETE FROM security_rate_limit_bans WHERE identifier = ?").run(identifier);
 }
 
 // ── Trusted IPs ───────────────────────────────────────────────────────────────
 
 export function loadTrustedIps(): Set<string> {
   if (!_db) return new Set();
-  const rows = db()
-    .prepare("SELECT ip FROM security_trusted_ips")
-    .all() as Array<{ ip: string }>;
+  const rows = db().prepare("SELECT ip FROM security_trusted_ips").all() as Array<{ ip: string }>;
   return new Set(rows.map((r) => r.ip));
 }
 
@@ -582,10 +558,7 @@ export function saveSecurityEvent(event: Record<string, unknown>): void {
     );
 }
 
-export function saveSecurityEventBatch(
-  keyId: string,
-  events: Record<string, unknown>[]
-): void {
+export function saveSecurityEventBatch(keyId: string, events: Record<string, unknown>[]): void {
   if (!_db) return;
   const stmt = db().prepare(
     `INSERT OR REPLACE INTO security_recent_events
@@ -611,9 +584,7 @@ export function loadNotificationHistory(): Map<string, Record<string, unknown>[]
   if (!_db) return new Map();
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const rows = db()
-    .prepare(
-      "SELECT event_id, results FROM security_notification_history WHERE recorded_at > ?"
-    )
+    .prepare("SELECT event_id, results FROM security_notification_history WHERE recorded_at > ?")
     .all(cutoff) as Array<{ event_id: string; results: string }>;
 
   const result = new Map<string, Record<string, unknown>[]>();

@@ -10,7 +10,12 @@
  * Stores context state and transitions in the database.
  */
 
-import type { ContextState, ContextTransition, FavoriteTapEvent, StationIndex } from "@mta-my-way/shared";
+import type {
+  ContextState,
+  ContextTransition,
+  FavoriteTapEvent,
+  StationIndex,
+} from "@mta-my-way/shared";
 import {
   detectContext as detectContextUtil,
   getContextIcon,
@@ -158,9 +163,10 @@ export function getContextSettings(): typeof currentSettings {
  * Detect and update context based on provided factors.
  * Uses default owner ID for backward compatibility.
  */
-export function detectAndUpdateContext(
-  params: DetectParams
-): { context: ContextState; transition: ContextTransition | null } {
+export function detectAndUpdateContext(params: DetectParams): {
+  context: ContextState;
+  transition: ContextTransition | null;
+} {
   return detectAndUpdateContextWithOwner(params, DEFAULT_OWNER_ID);
 }
 
@@ -181,10 +187,7 @@ function recordContextTransition(
     trigger = "manual";
   } else if (params.nearStation && params.nearStationId) {
     trigger = "location";
-  } else if (
-    params.currentScreen === "journal" ||
-    params.recentActions.includes("view_history")
-  ) {
+  } else if (params.currentScreen === "journal" || params.recentActions.includes("view_history")) {
     trigger = "activity";
   } else {
     trigger = "pattern";
@@ -474,9 +477,9 @@ export function getContextTransitionsForOwner(
  */
 export function checkContextOwnership(contextId: string, ownerId: string): boolean {
   if (!db) return false;
-  const row = db
-    .prepare("SELECT owner_id FROM user_context WHERE id = ?")
-    .get(contextId) as { owner_id: string } | undefined;
+  const row = db.prepare("SELECT owner_id FROM user_context WHERE id = ?").get(contextId) as
+    | { owner_id: string }
+    | undefined;
   return row?.owner_id === ownerId || row?.owner_id === DEFAULT_OWNER_ID;
 }
 
@@ -485,9 +488,9 @@ export function checkContextOwnership(contextId: string, ownerId: string): boole
  */
 export function getContextOwner(contextId: string): string | undefined {
   if (!db) return undefined;
-  const row = db
-    .prepare("SELECT owner_id FROM user_context WHERE id = ?")
-    .get(contextId) as { owner_id: string } | undefined;
+  const row = db.prepare("SELECT owner_id FROM user_context WHERE id = ?").get(contextId) as
+    | { owner_id: string }
+    | undefined;
   return row?.owner_id;
 }
 
@@ -573,10 +576,7 @@ export function detectAndUpdateContextWithOwner(
 /**
  * Get context transitions for a specific owner.
  */
-export function getContextTransitionsByOwner(
-  ownerId: string,
-  limit = 20
-): ContextTransition[] {
+export function getContextTransitionsByOwner(ownerId: string, limit = 20): ContextTransition[] {
   if (!db) return [];
 
   const rows = db

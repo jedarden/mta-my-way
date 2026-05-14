@@ -298,7 +298,9 @@ export function processVehicleUpdates(
     // Resolve stopId to parent stationId
     const stationId = resolveStationId(pos.currentStopId);
     if (!stationId) {
-      logger.debug("Skipping position - could not resolve station ID", { stopId: pos.currentStopId });
+      logger.debug("Skipping position - could not resolve station ID", {
+        stopId: pos.currentStopId,
+      });
       continue;
     }
 
@@ -360,7 +362,13 @@ export function processVehicleUpdates(
             const isToTerminal = isTerminalStop(pos.routeId, lastObs.stationId);
 
             if (!isFromTerminal && !isToTerminal) {
-              logger.debug("Delay detected", { tripId: pos.tripId, routeId: pos.routeId, ratio, traversalTime, scheduled });
+              logger.debug("Delay detected", {
+                tripId: pos.tripId,
+                routeId: pos.routeId,
+                ratio,
+                traversalTime,
+                scheduled,
+              });
               const segment: DelayedSegment = {
                 routeId: pos.routeId,
                 direction: pos.direction,

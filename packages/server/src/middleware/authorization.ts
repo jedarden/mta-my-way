@@ -313,7 +313,11 @@ export function requireSameOrigin(): MiddlewareHandler {
 
     // For browser-based requests without auth, check Origin/Referer
     if (!origin && !referer) {
-      securityLogger.logSuspiciousActivity(c, "missing_origin_referer", "Origin or Referer header missing on state-changing request");
+      securityLogger.logSuspiciousActivity(
+        c,
+        "missing_origin_referer",
+        "Origin or Referer header missing on state-changing request"
+      );
       throw new HTTPException(403, {
         message: "Origin or Referer header required for state-changing operations",
       });
@@ -323,7 +327,11 @@ export function requireSameOrigin(): MiddlewareHandler {
     if (origin && host) {
       const originHost = new URL(origin).host;
       if (originHost !== host) {
-        securityLogger.logSuspiciousActivity(c, "origin_mismatch", "Request Origin does not match Host header");
+        securityLogger.logSuspiciousActivity(
+          c,
+          "origin_mismatch",
+          "Request Origin does not match Host header"
+        );
         throw new HTTPException(403, {
           message: "Cross-origin requests not allowed for state-changing operations",
         });
@@ -334,7 +342,11 @@ export function requireSameOrigin(): MiddlewareHandler {
     if (referer && host && !origin) {
       const refererHost = new URL(referer).host;
       if (refererHost !== host) {
-        securityLogger.logSuspiciousActivity(c, "referer_mismatch", "Request Referer does not match Host header");
+        securityLogger.logSuspiciousActivity(
+          c,
+          "referer_mismatch",
+          "Request Referer does not match Host header"
+        );
         throw new HTTPException(403, {
           message: "Cross-origin requests not allowed for state-changing operations",
         });

@@ -21,21 +21,16 @@ import * as argon2 from "argon2";
 import { logger } from "../observability/logger.js";
 import {
   appendPasswordHistory,
-  clearPasswordHistoryForKey,
   deleteAccountLockout,
   deleteExpiredPasswordResetTokens,
   deletePasswordResetAttempt,
-  deletePasswordResetToken,
-  deletePasswordResetTokensForKey,
   loadAccountLockouts,
   loadAllPasswordHistory,
   loadPasswordResetAttempts,
   loadPasswordResetTokens,
-  markPasswordResetTokenUsed,
   prunePasswordHistory,
   saveAccountLockout,
   savePasswordResetAttempt,
-  savePasswordResetToken,
 } from "../security/security-db.js";
 import { sanitizeStringSimple } from "./sanitization.js";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

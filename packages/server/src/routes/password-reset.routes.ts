@@ -319,7 +319,11 @@ export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
 
     if (!validationResult_.keyId) {
       // Record failed attempt
-      securityLogger.logSuspiciousActivity(c, "invalid_password_reset_token", "Invalid or expired password reset token used");
+      securityLogger.logSuspiciousActivity(
+        c,
+        "invalid_password_reset_token",
+        "Invalid or expired password reset token used"
+      );
 
       // Try to get user email from token for attempt tracking
       const tokenData = (await import("../middleware/password-management.js"))
