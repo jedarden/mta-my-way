@@ -1,0 +1,166 @@
+# Prometheus alerting rules for mta-my-way
+#
+# These rules define alerts for the mta-my-way service.
+
+groups:
+  - name: mta-my-way-api
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: MtaMyWayHighErrorRate
+        expr: |
+          rate(http_requests_total{status_code=~"5.."}[5m])
+          / rate(http_requests_total[5m])
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      # High latency alert
+      - alert: MtaMyWayHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "High request latency detected"
+          description: "P95 latency is {{ $value }}s for the last 5 minutes"
+
+      # Service down alert
+      - alert: MtaMyWayServiceDown
+        expr: up{job="mta-my-way"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: mta-my-way
+        annotations:
+          summary: "Service is down"
+          description: "MTA My Way service has been down for 2 minutes"
+
+  - name: mta-my-way-feed
+    interval: 1m
+    rules:
+      # Feed polling stopped alert
+      - alert: MtaMyWayFeedPollingStopped
+        expr: time() - max(feed_entities_processed) > 300
+        for: 5m
+        labels:
+          severity: critical
+          service: mta-my-way
+        annotations:
+          summary: "Feed polling has stopped"
+          description: "No feed updates for 5 minutes"
+
+      # High feed error rate alert
+      - alert: MtaMyWayHighFeedErrorRate
+        expr: rate(feed_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "High feed error rate"
+          description: "Feed error rate is {{ $value }}/s for the last 5 minutes"
+
+  - name: mta-my-way-push
+    interval: 1m
+    rules:
+      # Push notification failure rate alert
+      - alert: MtaMyWayHighPushFailureRate
+        expr: |
+          rate(push_notifications_failed_total[5m])
+          / rate(push_notifications_sent_total[5m])
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "High push notification failure rate"
+          description: "Push failure rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      # No active subscriptions alert
+      - alert: MtaMyWayNoSubscriptions
+        expr: push_subscriptions_active == 0
+        for: 10m
+        labels:
+          severity: info
+          service: mta-my-way
+        annotations:
+          summary: "No active push subscriptions"
+          description: "No push subscriptions have been active for 10 minutes"
+
+  - name: mta-my-way-cache
+    interval: 1m
+    rules:
+      # Low cache hit rate alert
+      - alert: MtaMyWayLowCacheHitRate
+        expr: |
+          rate(cache_hits_total[5m])
+          / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m]))
+          < 0.5
+        for: 10m
+        labels:
+          severity: info
+          service: mta-my-way
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} for the last 10 minutes"
+
+  - name: mta-my-way-trips
+    interval: 1m
+    rules:
+      # High trip creation rate alert
+      - alert: MtaMyWayHighTripCreationRate
+        expr: rate(trips_created_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: info
+          service: mta-my-way
+        annotations:
+          summary: "High trip creation rate"
+          description: "Trip creation rate is {{ $value }}/s for the last 5 minutes"
+
+      # No active trips alert
+      - alert: MtaMyWayNoActiveTrips
+        expr: trips_active == 0
+        for: 1h
+        labels:
+          severity: info
+          service: mta-my-way
+        annotations:
+          summary: "No active trips being tracked"
+          description: "No trips have been active for 1 hour"
+
+  - name: mta-my-way-equipment
+    interval: 5m
+    rules:
+      # Many elevator outages alert
+      - alert: MtaMyWayManyElevatorOutages
+        expr: equipment_elevators_out > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "Many elevator outages detected"
+          description: "{{ $value }} elevators are out of service"
+
+      # Many escalator outages alert
+      - alert: MtaMyWayManyEscalatorOutages
+        expr: equipment_escalators_out > 20
+        for: 10m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "Many escalator outages detected"
+          description: "{{ $value }} escalators are out of service"
