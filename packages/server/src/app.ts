@@ -2,7 +2,8 @@
  * Hono application: API routes + static asset serving.
  *
  * Routes:
- *   GET /api/health                — per-feed status, circuit-breaker state
+ *   GET /status                   — public health dashboard (HTML)
+ *   GET /api/health                — per-feed status, circuit-breaker state (JSON)
  *   GET /api/metrics               — Prometheus metrics export
  *   GET /api/arrivals/:stationId   — real-time arrivals for one station
  *   GET /api/stations              — full GTFS static station list
@@ -444,6 +445,7 @@ export function createApp(
 
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
+  // NOTE: /status is a public read-only HTML page (not under /api/*, so not affected)
   // NOTE: /api/context, /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
   // NOTE: /api/auth/password is enabled for password reset functionality
   app.use(
@@ -518,6 +520,353 @@ export function createApp(
       return c.json({ token });
     }
   );
+
+  /**
+   * Format a timestamp as "X ago" for human-readable display
+   */
+  function timeAgo(isoString: string | null): string {
+    if (!isoString) return "Never";
+    const ms = Date.now() - new Date(isoString).getTime();
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  /**
+   * Format bytes as human-readable (e.g., "45.2 MB")
+   */
+  function formatBytes(bytes: number): string {
+    const units = ["B", "KB", "MB", "GB"];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) {
+      bytes /= 1024;
+      i++;
+    }
+    return `${bytes.toFixed(1)} ${units[i]}`;
+  }
+
+  /**
+   * Build the HTML response for the /status dashboard
+   */
+  function buildStatusHtml(healthData: {
+    status: string;
+    timestamp: string;
+    uptime_seconds: number;
+    feeds: Array<{
+      id: string;
+      name: string;
+      status: string;
+      lastSuccessAt: string | null;
+      lastPollAt: string | null;
+      consecutiveFailures: number;
+      entityCount: number;
+      lastError: string | null;
+      avgLatencyMs: number;
+      errorCount24h: number;
+    }>;
+    alerts: {
+      count: number;
+      lastSuccessAt: string | null;
+      matchRate: number;
+      consecutiveFailures: number;
+      circuitOpen: boolean;
+      unmatchedCount: number;
+    };
+    delayDetector: {
+      enabled: boolean;
+      activePredictions: number;
+      lastRunAt: string | null;
+    };
+    delayPredictor: {
+      enabled: boolean;
+      modelAccuracy: number;
+      lastTrainedAt: string | null;
+    };
+    equipment: {
+      lastSuccessAt: string | null;
+      outages: number;
+      consecutiveFailures: number;
+    };
+    pushSubscriptions: number;
+    cacheHitRate: number;
+    memory: {
+      rssBytes: number;
+      heapUsedBytes: number;
+      heapTotalBytes: number;
+      externalBytes: number;
+    };
+    failingFeedsCount: number;
+  }): string {
+    const uptimeHours = Math.floor(healthData.uptime_seconds / 3600);
+    const uptimeMinutes = Math.floor((healthData.uptime_seconds % 3600) / 60);
+    const statusColor =
+      healthData.status === "ok"
+        ? "#22c55e"
+        : healthData.failingFeedsCount >= UNHEALTHY_FEED_THRESHOLD
+          ? "#ef4444"
+          : "#f59e0b";
+    const statusIcon =
+      healthData.status === "ok"
+        ? "✓"
+        : healthData.failingFeedsCount >= UNHEALTHY_FEED_THRESHOLD
+          ? "✗"
+          : "⚠";
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTA My Way - System Status</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.5;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+    .status-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 24px;
+      background: ${statusColor}20;
+      border: 1px solid ${statusColor}40;
+    }
+    .status-icon { font-size: 20px; }
+    .status-text { color: ${statusColor}; }
+    .grid { display: grid; gap: 20px; }
+    .card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #334155;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #f1f5f9;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .metric { background: #0f172a; padding: 16px; border-radius: 8px; }
+    .metric-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+    .metric-value { font-size: 20px; font-weight: 600; color: #f1f5f9; }
+    .metric-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .feed-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .feed-table th {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .feed-table td {
+      padding: 12px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .feed-table tr:last-child td { border-bottom: none; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-ok { background: #22c55e20; color: #22c55e; }
+    .status-stale { background: #f59e0b20; color: #f59e0b; }
+    .status-circuit_open { background: #ef444420; color: #ef4444; }
+    .status-never_polled { background: #64748b20; color: #94a3b8; }
+    .last-updated {
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid #1e293b;
+    }
+    @media (max-width: 640px) {
+      .feed-table { display: block; overflow-x: auto; }
+      .metric-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MTA My Way</h1>
+    <p class="subtitle">Real-time subway data system status</p>
+
+    <div class="status-banner">
+      <span class="status-icon">${statusIcon}</span>
+      <span class="status-text">${healthData.status.toUpperCase()}</span>
+    </div>
+
+    <div class="grid">
+      <!-- System Overview -->
+      <div class="card">
+        <div class="card-title">System Overview</div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="metric-label">Uptime</div>
+            <div class="metric-value">${uptimeHours}h ${uptimeMinutes}m</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Cache Hit Rate</div>
+            <div class="metric-value">${(healthData.cacheHitRate * 100).toFixed(1)}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Push Subscriptions</div>
+            <div class="metric-value">${healthData.pushSubscriptions}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Failing Feeds</div>
+            <div class="metric-value" style="color: ${healthData.failingFeedsCount > 0 ? "#ef4444" : "#22c55e"}">${healthData.failingFeedsCount}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Memory Usage -->
+      <div class="card">
+        <div class="card-title">Memory Usage</div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="metric-label">RSS (Total)</div>
+            <div class="metric-value">${formatBytes(healthData.memory.rssBytes)}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Heap Used</div>
+            <div class="metric-value">${formatBytes(healthData.memory.heapUsedBytes)}</div>
+            <div class="metric-sub">of ${formatBytes(healthData.memory.heapTotalBytes)}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">External</div>
+            <div class="metric-value">${formatBytes(healthData.memory.externalBytes)}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GTFS-RT Feeds -->
+      <div class="card">
+        <div class="card-title">MTA Feeds (GTFS-RT)</div>
+        <table class="feed-table">
+          <thead>
+            <tr>
+              <th>Feed</th>
+              <th>Status</th>
+              <th>Last Success</th>
+              <th>Entities</th>
+              <th>Latency</th>
+              <th>Errors (24h)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${healthData.feeds
+              .map(
+                (feed) => `
+            <tr>
+              <td>${feed.name}</td>
+              <td><span class="status-badge status-${feed.status}">${feed.status.replace(/_/g, " ")}</span></td>
+              <td>${timeAgo(feed.lastSuccessAt)}</td>
+              <td>${feed.entityCount}</td>
+              <td>${feed.avgLatencyMs}ms</td>
+              <td>${feed.errorCount24h}</td>
+            </tr>
+          `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Alerts Status -->
+      <div class="card">
+        <div class="card-title">Service Alerts</div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="metric-label">Active Alerts</div>
+            <div class="metric-value">${healthData.alerts.count}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Match Rate</div>
+            <div class="metric-value">${(healthData.alerts.matchRate * 100).toFixed(0)}%</div>
+            <div class="metric-sub">${healthData.alerts.unmatchedCount} unmatched</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Last Update</div>
+            <div class="metric-value">${timeAgo(healthData.alerts.lastSuccessAt)}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Status</div>
+            <div class="metric-value">
+              <span class="status-badge status-${healthData.alerts.circuitOpen ? "circuit_open" : "ok"}">
+                ${healthData.alerts.circuitOpen ? "Circuit Open" : "OK"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delay Detection -->
+      <div class="card">
+        <div class="card-title">Delay Detection</div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="metric-label">Detector</div>
+            <div class="metric-value">
+              <span class="status-badge status-${healthData.delayDetector.enabled ? "ok" : "never_polled"}">
+                ${healthData.delayDetector.enabled ? "Enabled" : "Disabled"}
+              </span>
+            </div>
+            <div class="metric-sub">${healthData.delayDetector.activePredictions} active predictions</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Predictor</div>
+            <div class="metric-value">
+              <span class="status-badge status-${healthData.delayPredictor.enabled ? "ok" : "never_polled"}">
+                ${healthData.delayPredictor.enabled ? "Enabled" : "Disabled"}
+              </span>
+            </div>
+            <div class="metric-sub">${(healthData.delayPredictor.modelAccuracy * 100).toFixed(0)}% accuracy</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Equipment</div>
+            <div class="metric-value">${healthData.equipment.outages}</div>
+            <div class="metric-sub">active outages</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="last-updated">
+      Last updated: ${new Date(healthData.timestamp).toLocaleString()} •
+      <a href="/api/health" style="color: #38bdf8;">View JSON</a>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
 
   // -------------------------------------------------------------------------
   // Health endpoint
@@ -621,6 +970,112 @@ export function createApp(
       },
       httpStatus as 200 | 503
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Public status page (human-readable dashboard)
+  // -------------------------------------------------------------------------
+  app.get("/status", (c) => {
+    // Validate that no unexpected query parameters are passed
+    const query = validateQuery(c, emptyQuerySchema);
+    if (query instanceof Response) return query;
+
+    // Fetch the same data as the health endpoint
+    const feedStates = getFeedStates();
+    const alertsStatus = getAlertsStatus();
+    const allFeedsOk = feedStates.every(
+      (f) => f.circuitOpenAt === null && f.lastSuccessAt !== null && !f.isStale
+    );
+    const alertsOk = !alertsStatus.circuitOpen && alertsStatus.lastSuccessAt !== null;
+
+    // Count feeds that have been failing for >5 minutes
+    const now = Date.now();
+    const failingFeeds = feedStates.filter(
+      (f) =>
+        f.consecutiveFailures > 0 && f.lastSuccessAt !== null && now - f.lastSuccessAt > 300_000
+    );
+    const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
+
+    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
+    const httpStatus = unhealthy ? 503 : 200;
+
+    const memUsage = process.memoryUsage();
+    const allMetrics = metrics.getAll();
+
+    // Get cache hit rate from metrics
+    let cacheHitsValue = 0;
+    let cacheMissesValue = 0;
+    const cacheHitsMap = allMetrics.get("cache_hits_total");
+    const cacheMissesMap = allMetrics.get("cache_misses_total");
+    if (cacheHitsMap) {
+      for (const labeled of cacheHitsMap.values()) {
+        if (labeled.metric.type === "counter") {
+          cacheHitsValue += labeled.metric.value;
+        }
+      }
+    }
+    if (cacheMissesMap) {
+      for (const labeled of cacheMissesMap.values()) {
+        if (labeled.metric.type === "counter") {
+          cacheMissesValue += labeled.metric.value;
+        }
+      }
+    }
+    const totalCacheRequests = cacheHitsValue + cacheMissesValue;
+    const cacheHitRate =
+      totalCacheRequests > 0 ? Math.round((cacheHitsValue / totalCacheRequests) * 100) / 100 : 0;
+
+    const healthData = {
+      status,
+      timestamp: new Date().toISOString(),
+      uptime_seconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+      feeds: feedStates.map((f) => ({
+        id: f.id,
+        name: f.name,
+        status:
+          f.circuitOpenAt !== null
+            ? "circuit_open"
+            : f.lastSuccessAt === null
+              ? "never_polled"
+              : f.isStale
+                ? "stale"
+                : "ok",
+        lastSuccessAt: f.lastSuccessAt ? new Date(f.lastSuccessAt).toISOString() : null,
+        lastPollAt: f.lastPollAt ? new Date(f.lastPollAt).toISOString() : null,
+        consecutiveFailures: f.consecutiveFailures,
+        entityCount: f.entityCount,
+        lastError: f.lastErrorMessage
+          ? f.lastErrorMessage.slice(0, 100).replace(/[\r\n]/g, " ")
+          : null,
+        avgLatencyMs: avgLatency(f.latencyHistory),
+        errorCount24h: errorCount24h(f.errorTimestamps),
+      })),
+      alerts: {
+        count: alertsStatus.alertCount,
+        lastSuccessAt: alertsStatus.lastSuccessAt,
+        matchRate: alertsStatus.matchRate,
+        consecutiveFailures: alertsStatus.consecutiveFailures,
+        circuitOpen: alertsStatus.circuitOpen,
+        unmatchedCount: alertsStatus.unmatchedCount,
+      },
+      delayDetector: getDelayDetectorStatus(),
+      delayPredictor: getDelayPredictorStatus(),
+      equipment: getEquipmentStatus(),
+      pushSubscriptions: getSubscriptionCount(),
+      cacheHitRate,
+      memory: {
+        rssBytes: memUsage.rss,
+        heapUsedBytes: memUsage.heapUsed,
+        heapTotalBytes: memUsage.heapTotal,
+        externalBytes: memUsage.external,
+      },
+      failingFeedsCount: failingFeeds.length,
+    };
+
+    const html = buildStatusHtml(healthData);
+    c.header("Content-Type", "text/html; charset=utf-8");
+    c.header("Cache-Control", "public, max-age=30");
+    return c.html(html, httpStatus as 200 | 503);
   });
 
   // -------------------------------------------------------------------------
