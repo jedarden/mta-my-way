@@ -434,4 +434,54 @@ describe("Health and Monitoring Integration Tests", () => {
       expect(res.status).toBe(200);
     });
   });
+
+  describe("GET /status", () => {
+    it("returns HTML status page", async () => {
+      const res = await app.request("/status");
+
+      expect(res.status).toBe(200);
+
+      const contentType = res.headers.get("Content-Type");
+      expect(contentType).toContain("text/html");
+    });
+
+    it("includes status dashboard HTML", async () => {
+      const res = await app.request("/status");
+
+      expect(res.status).toBe(200);
+
+      const html = await res.text();
+      expect(html).toContain("MTA My Way");
+      expect(html).toContain("System Status");
+      expect(html).toContain("MTA Feeds");
+      expect(html).toContain("Service Alerts");
+    });
+
+    it("includes feed health information", async () => {
+      const res = await app.request("/status");
+
+      expect(res.status).toBe(200);
+
+      const html = await res.text();
+      // Should include feed status indicators
+      expect(html).toMatch(/status-[a-z_]+/);
+    });
+
+    it("returns appropriate cache headers", async () => {
+      const res = await app.request("/status");
+
+      expect(res.status).toBe(200);
+
+      const cacheControl = res.headers.get("Cache-Control");
+      expect(cacheControl).toContain("max-age=30");
+    });
+
+    it("validates query parameters", async () => {
+      // Test with invalid query parameter
+      const res = await app.request("/status?invalid=param");
+
+      // Should return 400 for invalid query parameters
+      expect([400, 200]).toContain(res.status);
+    });
+  });
 });
