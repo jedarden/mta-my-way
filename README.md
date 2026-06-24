@@ -1,156 +1,160 @@
 # MTA My Way
 
-A mobile-first Progressive Web App (PWA) for NYC subway commuters. Get real-time arrival predictions, personalized alerts, and commute analysis—all optimized for on-the-go use.
+A mobile-first Progressive Web App (PWA) for daily NYC subway commuters. Design philosophy: **open and see your data in under three seconds** — your pinned stations front and center, no map to dismiss, no search to type.
+
+Version 0.0.1
+
+## Preview
+
+Screenshots are available in `docs/`.
 
 ## Features
 
-- **Real-time Arrivals**: Live countdown clocks for all NYC subway stations
-- **Personalized Alerts**: Push notifications for your favorite lines and stations
-- **Commute Analysis**: Compare regular vs express service, track delays
-- **Trip Journal**: Automatic trip tracking with history and insights
-- **Fare Tracking**: OMNY fare cap progress and weekly spending
-- **Offline Support**: Works without internet via PWA caching
-- **Interactive Map**: Pan/zoom map with station filtering and tap-to-view
-- **Context-Aware**: Detects home/commute/transfer context automatically
+1. **Favorites-first home screen** — pinned stations with inline live arrival countdowns; GPS-powered 60-second onboarding for first-time users
+2. **Real-time arrivals** — live countdowns per station, both directions; pull-to-refresh; 30s auto-refresh; offline fallback via PWA cache
+3. **Transfer intelligence** — commute analyzer shows whether you should transfer using real-time train positions: RECOMMENDED / DIRECT / ALSO POSSIBLE, with walk-time comparison
+4. **Predictive delay detection** — tracks vehicle positions across consecutive 30s polls; when a train's inter-station time exceeds 2× the scheduled baseline, generates early-warning synthetic alerts before MTA publishes them
+5. **Smart alerts** — filtered to your exact stations, lines, and directions; plain-language rewrites of raw MTA alert text; push notifications via WebPush/VAPID
+6. **Context-aware switching** — detects home/commute/transfer context from location, time patterns, and tap history; frequency-sorts favorites during commute hours
+7. **Interactive transit map** — SVG map with pan/zoom, real-time pulsing train positions, line filtering, and tap-to-detail modal
+8. **Trip journal** — automatic trip tracking with full history and statistics (average, median, std dev, trends)
+9. **Subway Year** — shareable annual summary card (Spotify Wrapped-style), exportable as PNG; configurable time window
+10. **Fare tracking** — OMNY fare cap progress and weekly spending
+11. **Elevator/escalator status** — equipment status per station from the MTA ENE feed
+12. **Health dashboard** — `/status` HTML page and `/api/health` JSON endpoint with per-feed circuit-breaker state
 
-## Tech Stack
+## Transit Data
 
-### Frontend
-- **React 19** - UI framework
-- **Vite 6** - Build tool and dev server
-- **Zustand** - State management
-- **Tailwind CSS 4** - Styling
-- **Workbox** - PWA service worker and caching
+All real-time data is from the [MTA GTFS-RT Protobuf API](https://api.mta.info/). An API key is optional but recommended to avoid rate limiting — register free at https://api.mta.info/
 
-### Backend
-- **Hono** - Web framework
-- **Node.js 22** - Runtime
-- **better-sqlite3** - Database (push subscriptions, preferences)
-- **Zod** - Schema validation
+| Feed | Lines |
+|------|-------|
+| gtfs | 1 2 3 4 5 6 7 S GS |
+| gtfs-ace | A C E H FS |
+| gtfs-bdfm | B D F M |
+| gtfs-g | G |
+| gtfs-jz | J Z |
+| gtfs-l | L |
+| gtfs-nqrw | N Q R W |
+| gtfs-si | SIR (Staten Island Railway) |
 
-### Testing
-- **Vitest** - Unit/integration tests
-- **Playwright** - E2E tests
-- **Testing Library** - React component testing
-
-### Infrastructure
-- **Cloudflare Tunnel** - Reverse proxy and DDoS protection
-- **Tailscale** - Internal network and SSH access
-- **Docker** - Container deployment
+Polling intervals: 30s (arrivals), 60s (alerts), 300s (equipment). Static schedule from MTA's published GTFS ZIP.
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 22+
-- npm 10+
-
-### Installation
+**Prerequisites:** Node.js ≥ 22, npm ≥ 10
 
 ```bash
-# Clone repository
 git clone https://github.com/jedarden/mta-my-way.git
 cd mta-my-way
-
-# Install dependencies
 npm install
 
-# Build GTFS data
+# One-time: process GTFS static schedule data
 npm run process-gtfs --workspace=packages/server
 
 # Start development server
 npm run dev --workspace=packages/server
 ```
 
-The app will be available at `http://localhost:3001`.
+App available at `http://localhost:3001`. Set `MTA_API_KEY` in your environment to avoid MTA rate limits during development.
 
-### Running Tests
+## Docker
 
 ```bash
-# All tests
-npm test
-
-# E2E tests
-cd tests/e2e && npm test
-
-# Watch mode
-npm run test:watch
+docker build -t mta-my-way .
+docker run \
+  -e ALLOWED_HOSTS=your.domain.com \
+  -e MTA_API_KEY=your_key_here \
+  -p 3000:3000 \
+  mta-my-way
 ```
 
-## Documentation
+The container exposes port 3000.
 
-- [Testing Guide](docs/testing.md) - Testing infrastructure and conventions
-- [Security](docs/security.md) - Security model and implementation
-- [Observability](docs/observability.md) - Logging, metrics, and tracing
-- [Plan](docs/plan/plan.md) - Project roadmap and architecture
+## Environment Variables
+
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `PORT` | No | `3000` | HTTP listen port |
+| `NODE_ENV` | No | — | `production` or `development` |
+| `ALLOWED_HOSTS` | Yes (prod) | — | Comma-separated hostnames; server refuses to start without this in production |
+| `MTA_API_KEY` | Recommended | — | MTA GTFS-RT API key; works without but may be rate-limited. Register at https://api.mta.info/ |
+| `VAPID_PUBLIC_KEY` | For push | — | Generate: `npx web-push generate-vapid-keys` |
+| `VAPID_PRIVATE_KEY` | For push | — | Never commit to version control |
+| `VAPID_SUBJECT` | For push | `mailto:mta-my-way@example.com` | Contact URI included in push requests |
+| `PASSWORD_PEPPER` | Recommended | — | `openssl rand -hex 32` |
+| `EMAIL_PROVIDER` | No | `console` | `ses`, `smtp`, `sendgrid`, or `console` |
+| `EMAIL_FROM` | No | `noreply@mtamyway.com` | Sender address for transactional email |
+| `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, `error` |
+
+## Development Commands
+
+```bash
+npm test                        # all unit/integration tests (Vitest)
+npm run test:watch              # watch mode
+cd tests/e2e && npm test        # Playwright E2E tests
+npm run lint                    # Biome + ESLint
+npm run format                  # Biome format --write
+npm run typecheck               # tsc --build
+```
+
+**Code style:** Biome for formatting, TypeScript strict mode throughout. Commit prefix convention: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`.
+
+## API Reference
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/status` | Health dashboard (HTML) |
+| GET | `/api/health` | Per-feed status and circuit-breaker state (JSON) |
+| GET | `/api/metrics` | Prometheus metrics |
+| GET | `/api/arrivals/:stationId` | Real-time arrivals for a station |
+| GET | `/api/stations` | Full GTFS station list |
+| GET | `/api/stations/search` | Type-ahead search by name, line, or cross-street |
+| GET | `/api/routes` | Route index |
+| POST | `/api/commute/analyze` | Analyze routes between origin and destination |
+| GET | `/api/alerts` | All current MTA alerts |
+| GET | `/api/alerts/:lineId` | Alerts filtered by line |
+| GET | `/api/push/vapid-public-key` | VAPID public key for push registration |
+| POST | `/api/push/subscribe` | Register device for push notifications |
+| GET | `/api/trip/:tripId` | Live trip progress (stop-by-stop) |
+
+## Observability
+
+OpenTelemetry (OTLP gRPC), Prometheus `/api/metrics`, Pino structured JSON logging. See [docs/observability.md](docs/observability.md) for configuration details.
 
 ## Project Structure
 
 ```
 mta-my-way/
 ├── packages/
-│   ├── server/      # Hono backend (Node.js)
-│   ├── web/         # React frontend (Vite)
-│   └── shared/      # Shared types and utilities
+│   ├── shared/           # TypeScript types and constants (feed config, polling intervals)
+│   ├── server/
+│   │   ├── src/          # Hono app, pollers, GTFS parsers, push engine, context engine
+│   │   ├── data/         # Generated GTFS JSON + SQLite (subscriptions, trips, sessions)
+│   │   └── scripts/      # process-gtfs.mjs
+│   └── web/
+│       └── src/
+│           ├── screens/  # Home, Station, Map, Commute, Alerts, Journal, Stats, ...
+│           ├── components/
+│           ├── hooks/
+│           └── stores/   # Zustand (favorites, journal, settings, fare)
 ├── tests/
-│   └── e2e/         # Playwright E2E tests
+│   └── e2e/              # Playwright tests
 ├── docs/
-│   ├── plan/        # Project planning
-│   ├── research/    # Research notes
-│   ├── testing.md   # Testing guide
-│   ├── security.md  # Security documentation
-│   └── observability.md  # Observability guide
-└── .github/
-    └── workflows/   # CI/CD configurations
+│   ├── plan/plan.md      # Architecture and roadmap
+│   ├── testing.md
+│   ├── security.md
+│   └── observability.md
+└── Dockerfile            # Multi-stage: build-web → build-server → runtime
 ```
 
-## Deployment
+## Documentation
 
-The app runs as a single Docker container deployed via ArgoCD to the `ardenone-cluster` cluster.
-
-### Environment Variables
-
-See `.env.example` for required environment variables.
-
-### CI/CD
-
-GitHub Actions runs on push to main:
-- Runs linter and type checker
-- Executes unit/integration tests
-- Runs E2E tests
-- Builds Docker image (via separate workflow)
-
-## Development
-
-### Adding a New Feature
-
-1. Create feature branch from `main`
-2. Implement feature with tests
-3. Run `npm run lint` and `npm run typecheck`
-4. Run `npm test` to verify all tests pass
-5. Push and create PR
-
-### Code Style
-
-- Use **Biome** for formatting (run `npm run format`)
-- Follow **TypeScript** strict mode
-- Write tests for all new functionality
-- Update documentation for user-facing changes
-
-### Git Conventions
-
-- Prefix commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
-- Reference issues: `fixes #123`
-- Keep commits focused and atomic
+- [Testing Guide](docs/testing.md)
+- [Security](docs/security.md)
+- [Observability](docs/observability.md)
+- [Architecture Plan](docs/plan/plan.md)
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please open an issue or PR.
-
-## Support
-
-For issues or questions, please open a GitHub issue.
