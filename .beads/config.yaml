@@ -1,1 +1,5 @@
 prefix: mta-my-way
+secret_protection:
+  allowlist:
+    - "packages/.*"
+    - "tests/e2e/.*"

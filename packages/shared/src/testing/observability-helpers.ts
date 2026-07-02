@@ -47,20 +47,18 @@ export function createMockLogger() {
       entries.push({ level: "warn", message, context });
     }),
 
-    error: vi.fn((
-      message: string,
-      error?: Error,
-      context?: Record<string, unknown>
-    ) => {
+    error: vi.fn((message: string, error?: Error, context?: Record<string, unknown>) => {
       entries.push({
         level: "error",
         message,
         context,
-        error: error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-        } : undefined,
+        error: error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : undefined,
       });
     }),
 
@@ -465,10 +463,7 @@ export function createMockTracer() {
      * Run a function within a span.
      */
     withSpan: vi.fn(
-      async <T>(
-        name: string,
-        fn: (span: SpanSnapshot) => Promise<T> | T
-      ): Promise<T> => {
+      async <T>(name: string, fn: (span: SpanSnapshot) => Promise<T> | T): Promise<T> => {
         const span = this.startSpan(name);
         try {
           const result = await fn(span);
@@ -530,10 +525,7 @@ export function assertSpanHasAttributes(
 /**
  * Assert that a span completed within a time limit.
  */
-export function assertSpanCompletedWithin(
-  span: SpanSnapshot,
-  maxMs: number
-): void {
+export function assertSpanCompletedWithin(span: SpanSnapshot, maxMs: number): void {
   expect(span.duration).toBeLessThanOrEqual(maxMs);
 }
 
@@ -703,35 +695,37 @@ export function createMockHealthChecker() {
     /**
      * Register a health check.
      */
-    register: vi.fn((
-      name: string,
-      checkFn: () => Promise<boolean> | boolean,
-      details?: Record<string, unknown>
-    ) => {
-      return {
-        async run() {
-          const startTime = Date.now();
-          try {
-            const result = await checkFn();
-            checks.push({
-              name,
-              status: result ? "healthy" : "unhealthy",
-              timestamp: startTime,
-              details,
-            });
-            return result;
-          } catch {
-            checks.push({
-              name,
-              status: "unhealthy",
-              timestamp: startTime,
-              details,
-            });
-            return false;
-          }
-        },
-      };
-    }),
+    register: vi.fn(
+      (
+        name: string,
+        checkFn: () => Promise<boolean> | boolean,
+        details?: Record<string, unknown>
+      ) => {
+        return {
+          async run() {
+            const startTime = Date.now();
+            try {
+              const result = await checkFn();
+              checks.push({
+                name,
+                status: result ? "healthy" : "unhealthy",
+                timestamp: startTime,
+                details,
+              });
+              return result;
+            } catch {
+              checks.push({
+                name,
+                status: "unhealthy",
+                timestamp: startTime,
+                details,
+              });
+              return false;
+            }
+          },
+        };
+      }
+    ),
 
     /**
      * Get the current health status.

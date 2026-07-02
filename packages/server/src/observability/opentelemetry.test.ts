@@ -4,10 +4,10 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  initOpenTelemetry,
-  shutdownOpenTelemetry,
   flushOpenTelemetry,
+  initOpenTelemetry,
   isOpenTelemetryEnabled,
+  shutdownOpenTelemetry,
 } from "./opentelemetry.js";
 
 describe("OpenTelemetry integration", () => {

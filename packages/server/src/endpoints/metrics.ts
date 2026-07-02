@@ -61,7 +61,7 @@ export function createMetricsEndpoint(options: {
 
     await next();
   };
-};
+}
 
 /**
  * OpenMetrics format export (Prometheus exposition format 2.0).

@@ -12,17 +12,17 @@
  * - Security headers
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { Hono } from "hono";
 import {
   MALICIOUS_INPUTS,
-  sanitizeInput,
   containsMaliciousPatterns,
-  createMockApiKey,
-  createMockSecurityContext,
-  createMockCsrfToken,
   createCsrfHeaders,
+  createMockApiKey,
+  createMockCsrfToken,
+  createMockSecurityContext,
+  sanitizeInput,
 } from "@mta-my-way/shared/testing/security-helpers";
+import { Hono } from "hono";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 describe("Cross-Cutting Security Tests", () => {
   describe("Input Validation", () => {
@@ -53,14 +53,12 @@ describe("Cross-Cutting Security Tests", () => {
           return c.json({ stationId });
         });
 
-        const maliciousPatterns = [
-          "1' OR '1'='1",
-          "admin'--",
-          "1' UNION SELECT * FROM users--",
-        ];
+        const maliciousPatterns = ["1' OR '1'='1", "admin'--", "1' UNION SELECT * FROM users--"];
 
         for (const pattern of maliciousPatterns) {
-          const response = await app.request(`/api/stations?stationId=${encodeURIComponent(pattern)}`);
+          const response = await app.request(
+            `/api/stations?stationId=${encodeURIComponent(pattern)}`
+          );
           expect(response.status).toBe(400);
         }
       });
@@ -96,7 +94,9 @@ describe("Cross-Cutting Security Tests", () => {
         });
 
         const xssPayload = "<script>alert('XSS')</script>";
-        const response = await app.request(`/api/stations?search=${encodeURIComponent(xssPayload)}`);
+        const response = await app.request(
+          `/api/stations?search=${encodeURIComponent(xssPayload)}`
+        );
 
         const data = await response.json();
 
@@ -132,10 +132,7 @@ describe("Cross-Cutting Security Tests", () => {
           return c.json({ filePath });
         });
 
-        const pathTraversalAttempts = [
-          "../../../etc/passwd",
-          "..\\..\\..\\windows\\system32",
-        ];
+        const pathTraversalAttempts = ["../../../etc/passwd", "..\\..\\..\\windows\\system32"];
 
         for (const attempt of pathTraversalAttempts) {
           const response = await app.request(`/api/data?file=${encodeURIComponent(attempt)}`);
@@ -451,7 +448,9 @@ describe("Cross-Cutting Security Tests", () => {
 
         const result: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(obj)) {
-          if (SENSITIVE_KEYS.some((sensitive) => key.toLowerCase().includes(sensitive.toLowerCase()))) {
+          if (
+            SENSITIVE_KEYS.some((sensitive) => key.toLowerCase().includes(sensitive.toLowerCase()))
+          ) {
             result[key] = "[REDACTED]";
           } else {
             result[key] = value;

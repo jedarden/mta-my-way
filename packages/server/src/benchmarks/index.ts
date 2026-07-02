@@ -92,8 +92,7 @@ export function benchmark(
     opsPerSecond: (times.length / totalTime) * 1000,
     percentile95: sortedTimes[Math.floor(sortedTimes.length * 0.95)]!,
     percentile99: sortedTimes[Math.floor(sortedTimes.length * 0.99)]!,
-    memoryDelta:
-      initialMemory && finalMemory ? finalMemory - initialMemory : undefined,
+    memoryDelta: initialMemory && finalMemory ? finalMemory - initialMemory : undefined,
   };
 }
 
@@ -162,8 +161,7 @@ export async function benchmarkAsync(
     opsPerSecond: (times.length / totalTime) * 1000,
     percentile95: sortedTimes[Math.floor(sortedTimes.length * 0.95)]!,
     percentile99: sortedTimes[Math.floor(sortedTimes.length * 0.99)]!,
-    memoryDelta:
-      initialMemory && finalMemory ? finalMemory - initialMemory : undefined,
+    memoryDelta: initialMemory && finalMemory ? finalMemory - initialMemory : undefined,
   };
 }
 
@@ -199,19 +197,15 @@ export function formatBenchmarkComparison(results: BenchmarkResult[]): string {
   }
 
   const baseline = results[0]!;
-  const lines = [
-    "Benchmark Comparison",
-    "===================",
-    "",
-  ];
+  const lines = ["Benchmark Comparison", "===================", ""];
 
   for (const result of results) {
-    const relativeAvg = baseline.avgTime > 0
-      ? ((result.avgTime - baseline.avgTime) / baseline.avgTime) * 100
-      : 0;
-    const relativeOps = baseline.opsPerSecond > 0
-      ? ((result.opsPerSecond - baseline.opsPerSecond) / baseline.opsPerSecond) * 100
-      : 0;
+    const relativeAvg =
+      baseline.avgTime > 0 ? ((result.avgTime - baseline.avgTime) / baseline.avgTime) * 100 : 0;
+    const relativeOps =
+      baseline.opsPerSecond > 0
+        ? ((result.opsPerSecond - baseline.opsPerSecond) / baseline.opsPerSecond) * 100
+        : 0;
 
     lines.push(
       `${result.name}:`,

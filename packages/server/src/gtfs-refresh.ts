@@ -62,7 +62,7 @@ async function runGtfsRefresh(): Promise<void> {
         logger.error(
           "GTFS static data refresh failed",
           new Error(`process-gtfs.mjs exited with code ${code}`),
-          { durationMs, stderr: stderrLines.slice(-20) },
+          { durationMs, stderr: stderrLines.slice(-20) }
         );
       }
       resolve();

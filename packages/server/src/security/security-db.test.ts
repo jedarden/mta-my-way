@@ -8,6 +8,9 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  type StoredApiKey,
+  type StoredPasswordHistoryEntry,
+  type StoredPasswordResetToken,
   appendPasswordHistory,
   clearPasswordHistoryForKey,
   deleteAccountLockout,
@@ -46,9 +49,6 @@ import {
   saveTrustedIp,
   setSecurityDb,
   updateApiKeyLastUsed,
-  type StoredApiKey,
-  type StoredPasswordHistoryEntry,
-  type StoredPasswordResetToken,
 } from "./security-db.js";
 
 // ── Schema setup (mirrors migration 018) ─────────────────────────────────────
@@ -189,7 +189,9 @@ function makeApiKey(overrides: Partial<StoredApiKey> = {}): StoredApiKey {
   };
 }
 
-function makeResetToken(overrides: Partial<StoredPasswordResetToken> = {}): StoredPasswordResetToken {
+function makeResetToken(
+  overrides: Partial<StoredPasswordResetToken> = {}
+): StoredPasswordResetToken {
   return {
     tokenId: "tok-001",
     keyId: "key-001",
@@ -428,7 +430,9 @@ describe("security-db", () => {
     });
 
     it("deleteExpiredPasswordResetTokens removes expired and used tokens", () => {
-      savePasswordResetToken(makeResetToken({ tokenId: "valid", expiresAt: Date.now() + 3600_000 }));
+      savePasswordResetToken(
+        makeResetToken({ tokenId: "valid", expiresAt: Date.now() + 3600_000 })
+      );
       savePasswordResetToken(makeResetToken({ tokenId: "expired", expiresAt: Date.now() - 1000 }));
 
       deleteExpiredPasswordResetTokens();
@@ -512,7 +516,11 @@ describe("security-db", () => {
       savePasswordResetAttempt("user@example.com", { count: 3, resetAt: future });
 
       const attempts = loadPasswordResetAttempts();
-      expect(attempts.get("user@example.com")).toEqual({ count: 3, resetAt: future, lockedUntil: undefined });
+      expect(attempts.get("user@example.com")).toEqual({
+        count: 3,
+        resetAt: future,
+        lockedUntil: undefined,
+      });
     });
 
     it("saves attempt with lockedUntil", () => {
@@ -748,9 +756,7 @@ describe("security-db", () => {
 
   describe("notification history", () => {
     it("saves and loads notification history", () => {
-      saveNotificationHistoryEntry("evt-001", "key-001", [
-        { channel: "email", success: true },
-      ]);
+      saveNotificationHistoryEntry("evt-001", "key-001", [{ channel: "email", success: true }]);
 
       const history = loadNotificationHistory();
       const results = history.get("evt-001");

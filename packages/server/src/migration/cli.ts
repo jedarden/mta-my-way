@@ -10,21 +10,21 @@
  * - Backup and restore
  */
 
-import { Command } from "commander";
-import Database from "better-sqlite3";
-import { resolve } from "node:path";
-import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import Database from "better-sqlite3";
+import { Command } from "commander";
 import {
-  runMigrations,
-  rollbackMigration,
-  rollbackToVersion,
-  getMigrationStatus,
-  createMigration,
+  cleanupOldBackups,
   createBackup,
+  createMigration,
+  getMigrationStatus,
   listBackups,
   restoreBackup,
-  cleanupOldBackups,
+  rollbackMigration,
+  rollbackToVersion,
+  runMigrations,
   validateDatabase,
 } from "./migration.js";
 
@@ -74,10 +74,7 @@ function formatDuration(ms: number): string {
 // Commands
 // ============================================================================
 
-program
-  .name("mta-migrate")
-  .description("MTA My Way database migration CLI")
-  .version("1.0.0");
+program.name("mta-migrate").description("MTA My Way database migration CLI").version("1.0.0");
 
 /**
  * Apply pending migrations.
@@ -104,11 +101,15 @@ program
       }
 
       const targetVersion = options.to ? parseInt(options.to, 10) : undefined;
-      const results = await runMigrations(db, {
-        dryRun: options.dryRun ?? false,
-        backup: false, // Already handled above
-        force: options.force ?? false,
-      }, targetVersion);
+      const results = await runMigrations(
+        db,
+        {
+          dryRun: options.dryRun ?? false,
+          backup: false, // Already handled above
+          force: options.force ?? false,
+        },
+        targetVersion
+      );
 
       if (options.dryRun) {
         console.log("\nDry-run results:");
@@ -270,11 +271,7 @@ program
   .option("--validation", "Include validation template")
   .action(async (name, options) => {
     const description = options.description ?? name;
-    const filepath = await createMigration(
-      name,
-      description,
-      options.validation ?? false
-    );
+    const filepath = await createMigration(name, description, options.validation ?? false);
 
     console.log(`✓ Migration created: ${filepath}`);
     console.log("\nNext steps:");

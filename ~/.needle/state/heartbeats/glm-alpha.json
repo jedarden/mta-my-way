@@ -1,0 +1,15 @@
+{
+  "worker_id": "alpha",
+  "qualified_id": "glm-alpha",
+  "pid": 2327467,
+  "state": "EXECUTING",
+  "current_bead": "mta-my-way-s23",
+  "workspace": "/home/coding/mta-my-way",
+  "last_heartbeat": "2026-07-02T19:09:03.718971800Z",
+  "started_at": "2026-07-02T17:16:27.581102687Z",
+  "beads_processed": 12,
+  "session": "alpha",
+  "is_idle": false,
+  "current_task": "mta-my-way-s23",
+  "model": "glm"
+}

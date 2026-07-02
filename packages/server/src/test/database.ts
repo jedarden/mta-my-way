@@ -2,10 +2,10 @@
  * Test utilities for database operations.
  */
 
-import Database from "better-sqlite3";
-import { mkdirSync, rmSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import Database from "better-sqlite3";
 
 /**
  * Create an in-memory database for testing.
@@ -74,9 +74,7 @@ export function seedTestData(
     const placeholders = columns.map(() => "?").join(", ");
     const columnNames = columns.join(", ");
 
-    const insert = db.prepare(
-      `INSERT INTO ${tableName} (${columnNames}) VALUES (${placeholders})`
-    );
+    const insert = db.prepare(`INSERT INTO ${tableName} (${columnNames}) VALUES (${placeholders})`);
 
     const insertMany = db.transaction((rows) => {
       for (const row of rows) {
@@ -140,9 +138,7 @@ export function assertRowCount(
     count: number;
   };
   if (result.count !== expectedCount) {
-    throw new Error(
-      `Expected ${expectedCount} rows in '${tableName}', but found ${result.count}`
-    );
+    throw new Error(`Expected ${expectedCount} rows in '${tableName}', but found ${result.count}`);
   }
 }
 
@@ -165,9 +161,7 @@ export function assertValueExists(
   column: string,
   value: unknown
 ): void {
-  const result = db
-    .prepare(`SELECT 1 FROM ${tableName} WHERE ${column} = ? LIMIT 1`)
-    .get(value);
+  const result = db.prepare(`SELECT 1 FROM ${tableName} WHERE ${column} = ? LIMIT 1`).get(value);
   if (!result) {
     throw new Error(
       `Value ${JSON.stringify(value)} not found in column '${column}' of table '${tableName}'`
@@ -182,9 +176,7 @@ export function getAllRows(
   db: Database.Database,
   tableName: string
 ): Array<Record<string, unknown>> {
-  return db.prepare(`SELECT * FROM ${tableName}`).all() as Array<
-    Record<string, unknown>
-  >;
+  return db.prepare(`SELECT * FROM ${tableName}`).all() as Array<Record<string, unknown>>;
 }
 
 /**

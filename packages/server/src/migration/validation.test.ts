@@ -331,7 +331,9 @@ describe("migration validation helpers", () => {
       db.pragma("ignore_check_constraints = ON");
       // SQLite doesn't allow NULL in NOT NULL columns, so we use a different approach:
       // test with a table where nulls can be inserted
-      db.exec("CREATE TABLE loose_table (id INTEGER PRIMARY KEY, required TEXT NOT NULL DEFAULT '')");
+      db.exec(
+        "CREATE TABLE loose_table (id INTEGER PRIMARY KEY, required TEXT NOT NULL DEFAULT '')"
+      );
       db.exec("INSERT INTO loose_table (required) VALUES ('value')");
 
       const result = validateNotNullColumns(db, "loose_table");
@@ -432,9 +434,7 @@ describe("migration validation helpers", () => {
     });
 
     it("throws if table does not exist", () => {
-      expect(() => safeTransform(db, "nonexistent", () => {})).toThrow(
-        "does not exist"
-      );
+      expect(() => safeTransform(db, "nonexistent", () => {})).toThrow("does not exist");
     });
 
     it("throws if table has no primary key", () => {

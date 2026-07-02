@@ -77,12 +77,9 @@ describe("migration seeding helpers", () => {
     it("replaces existing rows with onConflict=replace", () => {
       db.exec("INSERT INTO categories (code, label) VALUES ('A', 'Category A')");
 
-      const result = seedData(
-        db,
-        "categories",
-        [{ code: "A", label: "Category A Updated" }],
-        { onConflict: "replace" }
-      );
+      const result = seedData(db, "categories", [{ code: "A", label: "Category A Updated" }], {
+        onConflict: "replace",
+      });
 
       expect(result.inserted).toBe(1);
 
@@ -231,15 +228,15 @@ describe("migration seeding helpers", () => {
     });
 
     it("throws for invalid column names", () => {
-      expect(() =>
-        upsertRow(db, "categories", { "bad-col": "value" }, ["bad-col"])
-      ).toThrow("Invalid column names");
+      expect(() => upsertRow(db, "categories", { "bad-col": "value" }, ["bad-col"])).toThrow(
+        "Invalid column names"
+      );
     });
 
     it("throws for invalid unique column names", () => {
-      expect(() =>
-        upsertRow(db, "categories", { code: "A" }, ["bad-unique-col"])
-      ).toThrow("Invalid unique column names");
+      expect(() => upsertRow(db, "categories", { code: "A" }, ["bad-unique-col"])).toThrow(
+        "Invalid unique column names"
+      );
     });
 
     it("throws for invalid table name", () => {

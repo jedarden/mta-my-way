@@ -52,9 +52,7 @@ export class MockLogger {
    * Assert that a log entry exists.
    */
   assertLogged(level: string, message: string) {
-    const found = this.logs.some(
-      (l) => l.level === level && l.message.includes(message)
-    );
+    const found = this.logs.some((l) => l.level === level && l.message.includes(message));
     if (!found) {
       throw new Error(
         `Expected to find ${level} log containing "${message}", but it was not logged. Logs: ${JSON.stringify(this.logs, null, 2)}`
@@ -149,10 +147,7 @@ export class MockTracer {
     this.spans = [];
   }
 
-  async withSpan<T>(
-    name: string,
-    fn: (span: Span) => Promise<T> | T
-  ): Promise<T> {
+  async withSpan<T>(name: string, fn: (span: Span) => Promise<T> | T): Promise<T> {
     const span = this.startSpan(name);
     try {
       const result = await fn(span);
@@ -256,9 +251,7 @@ export function assertMetricIncremented(
 ) {
   const value = registry.getCounter(name);
   if (expectedValue !== undefined && value !== expectedValue) {
-    throw new Error(
-      `Expected counter "${name}" to be ${expectedValue}, but got ${value}`
-    );
+    throw new Error(`Expected counter "${name}" to be ${expectedValue}, but got ${value}`);
   }
   if (value === 0) {
     throw new Error(`Expected counter "${name}" to be incremented, but it is 0`);
@@ -296,11 +289,7 @@ export function assertSpanCreated(
 /**
  * Assert that a log entry was created.
  */
-export function assertLogged(
-  logger: MockLogger,
-  level: string,
-  message: string
-) {
+export function assertLogged(logger: MockLogger, level: string, message: string) {
   logger.assertLogged(level, message);
 }
 

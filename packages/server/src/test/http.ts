@@ -2,8 +2,8 @@
  * Test utilities for HTTP operations.
  */
 
-import { vi } from "vitest";
 import type { Context } from "hono";
+import { vi } from "vitest";
 
 /**
  * Create a mock HTTP request.
@@ -30,9 +30,7 @@ export function createMockRequest(options: {
     url,
     path,
     header: vi.fn((name: string) => {
-      const headerName = Object.keys(headers).find(
-        (h) => h.toLowerCase() === name.toLowerCase()
-      );
+      const headerName = Object.keys(headers).find((h) => h.toLowerCase() === name.toLowerCase());
       return headerName ? headers[headerName]! : null;
     }),
     query: vi.fn(() => query),
@@ -156,11 +154,7 @@ export function assertResponseStatus(context: Context, expectedStatus: number): 
 /**
  * Assert response header value.
  */
-export function assertResponseHeader(
-  context: Context,
-  name: string,
-  expectedValue?: string
-): void {
+export function assertResponseHeader(context: Context, name: string, expectedValue?: string): void {
   const headers = context.res.headers || new Headers();
   const value = headers.get(name);
 
@@ -225,9 +219,7 @@ export function assertRedirect(response: Response, expectedLocation?: string): v
   }
 
   if (expectedLocation && location !== expectedLocation) {
-    throw new Error(
-      `Expected redirect to '${expectedLocation}', but got '${location}'`
-    );
+    throw new Error(`Expected redirect to '${expectedLocation}', but got '${location}'`);
   }
 }
 
@@ -242,20 +234,20 @@ export function assertContentType(response: Response, expectedType: string): voi
   }
 
   if (!contentType.includes(expectedType)) {
-    throw new Error(
-      `Expected Content-Type to include '${expectedType}', but got '${contentType}'`
-    );
+    throw new Error(`Expected Content-Type to include '${expectedType}', but got '${contentType}'`);
   }
 }
 
 /**
  * Create a fetch mock for testing.
  */
-export function createFetchMock(responses: Array<{
-  url: string | RegExp;
-  response: Response | Error;
-  method?: string;
-}>): typeof fetch {
+export function createFetchMock(
+  responses: Array<{
+    url: string | RegExp;
+    response: Response | Error;
+    method?: string;
+  }>
+): typeof fetch {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const method = init?.method || "GET";
