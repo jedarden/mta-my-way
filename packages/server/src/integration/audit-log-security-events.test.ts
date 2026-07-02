@@ -32,10 +32,10 @@ import {
 import { hostHeaderProtection } from "../middleware/host-header-protection.js";
 import {
   type AuthVars,
-  disableRateLimiting,
-  enableRateLimiting,
   IP_A,
   IP_B,
+  disableRateLimiting,
+  enableRateLimiting,
   mockCsrfProtection,
   mockOptionalAuth,
   rateLimiter,
@@ -171,9 +171,9 @@ function createAuthAuditApp(): Hono<AuthVars> {
 function createCsrfAuditApp(): Hono<AuthVars> {
   const app = new Hono<AuthVars>();
 
+  app.use("/api/*", auditLogBridgeMiddleware());
   app.use("/api/*", mockOptionalAuth());
   app.use("/api/*", mockCsrfProtection());
-  app.use("/api/*", auditLogBridgeMiddleware());
 
   app.post("/api/action", (c) => c.json({ action: "done" }));
 
@@ -187,8 +187,8 @@ function createCsrfAuditApp(): Hono<AuthVars> {
 function createRateLimitAuditApp(): Hono<AuthVars> {
   const app = new Hono<AuthVars>();
 
-  app.use("/api/*", rateLimiter());
   app.use("/api/*", auditLogBridgeMiddleware());
+  app.use("/api/*", rateLimiter());
 
   app.get("/api/test", (c) => c.json({ message: "ok" }));
 
@@ -202,11 +202,8 @@ function createRateLimitAuditApp(): Hono<AuthVars> {
 function createHostHeaderAuditApp(): Hono {
   const app = new Hono();
 
-  app.use(
-    "/api/*",
-    hostHeaderProtection({ allowedHosts: ["allowed.test", "mta-my-way.test"] })
-  );
   app.use("/api/*", auditLogBridgeMiddleware());
+  app.use("/api/*", hostHeaderProtection({ allowedHosts: ["allowed.test", "mta-my-way.test"] }));
 
   app.get("/api/test", (c) => c.json({ message: "ok" }));
 
@@ -219,10 +216,10 @@ function createHostHeaderAuditApp(): Hono {
 function createFullChainAuditApp(): Hono<AuthVars> {
   const app = new Hono<AuthVars>();
 
+  app.use("/api/*", auditLogBridgeMiddleware());
   app.use("/api/*", mockOptionalAuth());
   app.use("/api/*", mockCsrfProtection());
   app.use("/api/*", rateLimiter());
-  app.use("/api/*", auditLogBridgeMiddleware());
 
   app.get("/api/test", (c) => c.json({ message: "ok" }));
   app.post("/api/action", (c) => {
@@ -698,10 +695,10 @@ describe("Audit log captures security events from middleware", () => {
         }
       }
 
-      // Timestamps should be non-decreasing (newest first in AUDIT_LOG)
-      // Since AUDIT_LOG stores newest first, timestamps will decrease
+      // Since AUDIT_LOG stores newest first, events[0] is always the
+      // latest entry, so each sampled timestamp should be >= the previous.
       for (let i = 1; i < timestamps.length; i++) {
-        expect(timestamps[i]!).toBeLessThanOrEqual(timestamps[i - 1]!);
+        expect(timestamps[i]!).toBeGreaterThanOrEqual(timestamps[i - 1]!);
       }
     });
 
