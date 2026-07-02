@@ -43,3 +43,23 @@ export {
   assertResponseHeader,
   assertResponseBody,
 } from "./http.js";
+
+export {
+  type AuthVars,
+  IP_A,
+  IP_B,
+  mockOptionalAuth,
+  mockCsrfProtection,
+  createStatusRecorder,
+  createStandardChainApp,
+  createReversedOrderApp,
+  createAuthBeforeRateLimitApp,
+  createAuthCsrfChainApp,
+  enableRateLimiting,
+  disableRateLimiting,
+  withRateLimiting,
+  getRateLimiterTestMode,
+  rateLimiter,
+  resetRateLimiter,
+  setRateLimiterTestMode,
+} from "./rate-limiter-harness.js";
