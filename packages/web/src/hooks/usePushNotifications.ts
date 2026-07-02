@@ -148,11 +148,7 @@ function computeBriefingHour(
 ): number | undefined {
   const hourCounts: Record<number, number> = {};
   for (const tap of tapHistory) {
-    if (
-      isWeekday(tap.dayOfWeek) &&
-      tap.hour >= MORNING_HOUR_START &&
-      tap.hour < MORNING_HOUR_END
-    ) {
+    if (isWeekday(tap.dayOfWeek) && tap.hour >= MORNING_HOUR_START && tap.hour < MORNING_HOUR_END) {
       hourCounts[tap.hour] = (hourCounts[tap.hour] ?? 0) + 1;
     }
   }

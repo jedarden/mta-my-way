@@ -11,9 +11,9 @@
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -52,14 +52,14 @@ function checkDependencies() {
 
     // Check for known vulnerable packages
     const vulnerablePackages = {
-      "axios": "< 1.7.0",
-      "lodash": "< 4.17.21",
-      "express": "< 4.19.0",
-      "minimist": "< 1.2.6",
-      "ws": "< 8.0.0",
-      "debug": "< 4.3.1",
-      "pathval": "< 1.1.1",
-      "yaml": "< 2.0.0",
+      axios: "< 1.7.0",
+      lodash: "< 4.17.21",
+      express: "< 4.19.0",
+      minimist: "< 1.2.6",
+      ws: "< 8.0.0",
+      debug: "< 4.3.1",
+      pathval: "< 1.1.1",
+      yaml: "< 2.0.0",
     };
 
     for (const [pkg, minVersion] of Object.entries(vulnerablePackages)) {
@@ -255,15 +255,10 @@ function checkEnvironmentVariables() {
   const issues = [];
 
   // Required environment variables
-  const requiredVars = [
-    "NODE_ENV",
-  ];
+  const requiredVars = ["NODE_ENV"];
 
   // Recommended environment variables
-  const recommendedVars = [
-    "DATABASE_PATH",
-    "SESSION_SECRET",
-  ];
+  const recommendedVars = ["DATABASE_PATH", "SESSION_SECRET"];
 
   for (const varName of requiredVars) {
     if (!process.env[varName]) {
@@ -393,7 +388,12 @@ async function runAudit() {
   if (totalIssues === 0) {
     console.log(colorize("green", "\n✅ All security checks passed!"));
   } else {
-    console.log(colorize("yellow", `\n⚠ Found ${totalIssues} total issues (${highSeverityIssues} high severity)`));
+    console.log(
+      colorize(
+        "yellow",
+        `\n⚠ Found ${totalIssues} total issues (${highSeverityIssues} high severity)`
+      )
+    );
 
     const breakdown = {
       dependencies: allIssues.dependencies.length,

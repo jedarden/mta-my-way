@@ -29,16 +29,16 @@
  *   OTEL_TRACES_SAMPLER_ARG: Sampler argument (default: 1.0)
  */
 
-import { Resource } from "@opentelemetry/resources";
-import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { OTLPTraceExporter as OTLPTraceExporterHTTP } from "@opentelemetry/exporter-trace-otlp-proto";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { PinoInstrumentation } from "@opentelemetry/instrumentation-pino";
+import { Resource } from "@opentelemetry/resources";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import { logger } from "./logger.js";
 
 let tracerProvider: NodeTracerProvider | null = null;
@@ -165,7 +165,10 @@ export async function shutdownOpenTelemetry(): Promise<void> {
       tracerProvider = null;
       logger.info("OpenTelemetry shutdown complete");
     } catch (error) {
-      logger.error("Error during OpenTelemetry shutdown", error instanceof Error ? error : undefined);
+      logger.error(
+        "Error during OpenTelemetry shutdown",
+        error instanceof Error ? error : undefined
+      );
     }
   }
 }
@@ -219,7 +222,10 @@ export async function flushOpenTelemetry(): Promise<void> {
     try {
       await tracerProvider.forceFlush();
     } catch (error) {
-      logger.error("Error flushing OpenTelemetry spans", error instanceof Error ? error : undefined);
+      logger.error(
+        "Error flushing OpenTelemetry spans",
+        error instanceof Error ? error : undefined
+      );
     }
   }
 }

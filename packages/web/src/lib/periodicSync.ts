@@ -25,10 +25,7 @@ const SYNC_CONFIG_STORE = "sync-config";
  * Check if the Periodic Background Sync API is available.
  */
 export function isPeriodicSyncSupported(): boolean {
-  return (
-    "serviceWorker" in navigator &&
-    "periodicSync" in ServiceWorkerRegistration.prototype
-  );
+  return "serviceWorker" in navigator && "periodicSync" in ServiceWorkerRegistration.prototype;
 }
 
 function openSyncConfigDB(): Promise<IDBDatabase> {

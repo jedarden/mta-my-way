@@ -337,9 +337,7 @@ export async function assertRateLimit(
   for (let i = 0; i < maxRequests; i++) {
     const result = rateLimiter.check(identifier);
     if (!result.allowed) {
-      throw new Error(
-        `Rate limit triggered prematurely at request ${i + 1}/${maxRequests}`
-      );
+      throw new Error(`Rate limit triggered prematurely at request ${i + 1}/${maxRequests}`);
     }
   }
 
@@ -353,13 +351,15 @@ export async function assertRateLimit(
 /**
  * Create a mock authentication context for testing.
  */
-export function createMockAuthContext(overrides: {
-  isAuthenticated?: boolean;
-  apiKey?: string;
-  userId?: string;
-  roles?: string[];
-  permissions?: string[];
-} = {}): Context {
+export function createMockAuthContext(
+  overrides: {
+    isAuthenticated?: boolean;
+    apiKey?: string;
+    userId?: string;
+    roles?: string[];
+    permissions?: string[];
+  } = {}
+): Context {
   const context = createMockContext({
     get: vi.fn((key: string) => {
       const authData = {

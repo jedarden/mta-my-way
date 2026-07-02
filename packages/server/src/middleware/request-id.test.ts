@@ -27,7 +27,9 @@ describe("requestId middleware", () => {
       const header = res.headers.get("X-Request-ID");
       expect(header).toBeTruthy();
       // UUID v4 format
-      expect(header).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      expect(header).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      );
     });
 
     it("generates a new UUID for each request", async () => {

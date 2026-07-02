@@ -43,7 +43,13 @@ describe("Observability Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
-    app = createApp(TEST_STATIONS, TEST_ROUTES, TEST_COMPLEXES, TEST_TRANSFERS, "/nonexistent/dist");
+    app = createApp(
+      TEST_STATIONS,
+      TEST_ROUTES,
+      TEST_COMPLEXES,
+      TEST_TRANSFERS,
+      "/nonexistent/dist"
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -59,9 +65,7 @@ describe("Observability Integration Tests", () => {
     it("is a valid UUID when no incoming ID is provided", async () => {
       const res = await app.request("/api/health");
       const id = res.headers.get("X-Request-ID");
-      expect(id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-      );
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     });
 
     it("echoes back a valid incoming X-Request-ID", async () => {

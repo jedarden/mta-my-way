@@ -165,27 +165,13 @@ export const MALICIOUS_INPUTS = {
   ],
 
   // Command injection patterns
-  commandInjection: [
-    "; ls -la",
-    "| cat /etc/passwd",
-    "& whoami",
-    "`id`",
-    "$(whoami)",
-  ],
+  commandInjection: ["; ls -la", "| cat /etc/passwd", "& whoami", "`id`", "$(whoami)"],
 
   // LDAP injection patterns
-  ldapInjection: [
-    "*)(uid=*",
-    "*)(&",
-    "*(|(mail=*",
-  ],
+  ldapInjection: ["*)(uid=*", "*)(&", "*(|(mail=*"],
 
   // NoSQL injection patterns
-  nosqlInjection: [
-    '{"$ne": null}',
-    '{"$gt": ""}',
-    '{"$regex": ".*"}',
-  ],
+  nosqlInjection: ['{"$ne": null}', '{"$gt": ""}', '{"$regex": ".*"}'],
 
   // Header injection patterns
   headerInjection: [
@@ -555,9 +541,7 @@ export async function assertRateLimitEnforced(
 /**
  * Assert that CSRF protection is working.
  */
-export function assertCsrfProtected(
-  makeRequest: (headers: Headers) => Promise<void>
-): void {
+export function assertCsrfProtected(makeRequest: (headers: Headers) => Promise<void>): void {
   // Test without CSRF token - should fail
   expect(async () => {
     await makeRequest(new Headers());

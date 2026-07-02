@@ -260,11 +260,7 @@ export function assertApiResponse(
 /**
  * Assert that an array is sorted by a key.
  */
-export function assertIsSorted<T>(
-  array: T[],
-  key: keyof T,
-  order: "asc" | "desc" = "asc"
-): void {
+export function assertIsSorted<T>(array: T[], key: keyof T, order: "asc" | "desc" = "asc"): void {
   for (let i = 0; i < array.length - 1; i++) {
     const current = array[i][key];
     const next = array[i + 1][key];
@@ -335,7 +331,9 @@ export function createMockResponse(data: unknown, status = 200) {
 /**
  * Create a mock fetch function.
  */
-export function createMockFetch(responses: Array<{ url: string; response: ReturnType<typeof createMockResponse> }>) {
+export function createMockFetch(
+  responses: Array<{ url: string; response: ReturnType<typeof createMockResponse> }>
+) {
   return vi.fn(async (url: string) => {
     const matched = responses.find((r) => r.url === url || url.includes(r.url));
     return matched?.response ?? createMockResponse({ error: "Not found" }, 404);
@@ -364,7 +362,10 @@ export function setupTestEnvironment() {
 
   // Mock requestIdleCallback if not available
   if (!("requestIdleCallback" in globalThis)) {
-    vi.stubGlobal("requestIdleCallback", vi.fn((cb) => setTimeout(cb, 0)));
+    vi.stubGlobal(
+      "requestIdleCallback",
+      vi.fn((cb) => setTimeout(cb, 0))
+    );
     vi.stubGlobal("cancelIdleCallback", vi.fn(clearTimeout));
   }
 }
@@ -463,12 +464,14 @@ export function createMockHeaders(overrides: Record<string, string> = {}) {
 /**
  * Create a mock HTTP request.
  */
-export function createMockRequest(overrides: {
-  method?: string;
-  url?: string;
-  headers?: Headers;
-  body?: unknown;
-} = {}) {
+export function createMockRequest(
+  overrides: {
+    method?: string;
+    url?: string;
+    headers?: Headers;
+    body?: unknown;
+  } = {}
+) {
   return {
     method: overrides.method ?? "GET",
     url: overrides.url ?? "http://localhost:3001/api/test",

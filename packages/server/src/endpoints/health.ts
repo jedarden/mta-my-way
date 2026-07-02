@@ -5,8 +5,8 @@
  * feed freshness, memory usage, and system metrics.
  */
 
-import type { MiddlewareHandler } from "hono";
 import type Database from "better-sqlite3";
+import type { MiddlewareHandler } from "hono";
 import { logger } from "../observability/logger.js";
 
 /**
@@ -63,7 +63,9 @@ export interface HealthCheckConfig {
 /**
  * Default health check configuration.
  */
-const DEFAULT_CONFIG: Required<Omit<HealthCheckConfig, "db" | "checkFeedFreshness" | "customChecks">> = {
+const DEFAULT_CONFIG: Required<
+  Omit<HealthCheckConfig, "db" | "checkFeedFreshness" | "customChecks">
+> = {
   maxMemoryRatio: 0.9,
   maxFeedAge: 120,
   version: "0.0.1",
@@ -85,9 +87,9 @@ function checkDatabase(db: Database.Database): HealthCheckResult {
       .get() as { count: number };
 
     // Check migration status
-    const migrations = db
-      .prepare("SELECT COUNT(*) as count FROM _migrations")
-      .get() as { count: number };
+    const migrations = db.prepare("SELECT COUNT(*) as count FROM _migrations").get() as {
+      count: number;
+    };
 
     const latency = Date.now() - start;
 
@@ -346,9 +348,7 @@ export interface StartupProbeState {
   startedAt: number;
 }
 
-export function createStartupProbe(
-  getState: () => StartupProbeState
-): MiddlewareHandler {
+export function createStartupProbe(getState: () => StartupProbeState): MiddlewareHandler {
   return async (c) => {
     const state = getState();
 

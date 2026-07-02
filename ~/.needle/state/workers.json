@@ -1,0 +1,25 @@
+{
+  "workers": [
+    {
+      "id": "glm-alpha",
+      "pid": 2327467,
+      "workspace": "/home/coding/mta-my-way",
+      "agent": "glm",
+      "model": null,
+      "provider": "zai",
+      "started_at": "2026-07-02T17:16:27.631267208Z",
+      "beads_processed": 12
+    },
+    {
+      "id": "glm-bravo",
+      "pid": 2327518,
+      "workspace": "/home/coding/domain-check",
+      "agent": "glm",
+      "model": null,
+      "provider": "zai",
+      "started_at": "2026-07-02T17:16:27.635324186Z",
+      "beads_processed": 18
+    }
+  ],
+  "updated_at": "2026-07-02T19:03:56.011137416Z"
+}
