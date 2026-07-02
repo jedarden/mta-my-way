@@ -1,0 +1,14 @@
+The split is complete and verified. The chain is:
+
+```
+mta-my-way-s23 (umbrella)
+  └── bf-46u6: Deploy to apexalgo-iad and verify production health
+        └── bf-3ab9: Migrate CI from GitHub Actions to Argo Workflows
+              └── bf-513a: Remove committed VAPID private key and rotate keys
+```
+
+```
+SPLIT_COMPLETE: Created 3 children, parent converted to umbrella
+
+Children: bf-513a, bf-3ab9, bf-46u6
+```

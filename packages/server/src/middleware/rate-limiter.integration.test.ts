@@ -9,10 +9,11 @@
  */
 
 import { Hono } from "hono";
-import type { AuthVars } from "../test/rate-limiter-harness.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { securityLogging } from "./security-logging.js";
+import type { AuthVars } from "../test/rate-limiter-harness.js";
 import {
+  IP_A,
+  IP_B,
   createAuthBeforeRateLimitApp,
   createAuthCsrfChainApp,
   createReversedOrderApp,
@@ -20,13 +21,12 @@ import {
   disableRateLimiting,
   enableRateLimiting,
   getRateLimiterTestMode,
-  IP_A,
-  IP_B,
   mockOptionalAuth,
   rateLimiter,
   resetRateLimiter,
   setRateLimiterTestMode,
 } from "../test/rate-limiter-harness.js";
+import { securityLogging } from "./security-logging.js";
 
 // ---------------------------------------------------------------------------
 // Tests

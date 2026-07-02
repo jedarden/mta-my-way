@@ -109,7 +109,7 @@ export function createStatusRecorder(): {
   return {
     middleware,
     getStatuses: () => [...statuses],
-    clear: () => statuses.length = 0,
+    clear: () => (statuses.length = 0),
   };
 }
 
@@ -190,12 +190,8 @@ export function createAuthCsrfChainApp(): Hono<AuthVars> {
   app.use("/api/*", mockCsrfProtection());
   app.use("/api/*", rateLimiter());
 
-  app.get("/api/test", (c) =>
-    c.json({ message: "ok", userId: c.get("userId") ?? null })
-  );
-  app.post("/api/action", (c) =>
-    c.json({ action: "done", userId: c.get("userId") ?? null })
-  );
+  app.get("/api/test", (c) => c.json({ message: "ok", userId: c.get("userId") ?? null }));
+  app.post("/api/action", (c) => c.json({ action: "done", userId: c.get("userId") ?? null }));
   app.get("/api/profile", (c) => {
     const userId = c.get("userId");
     if (!userId) return c.json({ error: "unauthorized" }, 401);
