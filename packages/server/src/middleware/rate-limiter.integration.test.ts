@@ -8,141 +8,25 @@
  * - Both global (per-IP) and per-user rate limiting work in combination with auth, CSRF, and other middleware
  */
 
-import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
+import type { AuthVars } from "../test/rate-limiter-harness.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { securityLogging } from "./security-logging.js";
 import {
+  createAuthBeforeRateLimitApp,
+  createAuthCsrfChainApp,
+  createReversedOrderApp,
+  createStandardChainApp,
+  disableRateLimiting,
+  enableRateLimiting,
   getRateLimiterTestMode,
+  IP_A,
+  IP_B,
+  mockOptionalAuth,
   rateLimiter,
   resetRateLimiter,
   setRateLimiterTestMode,
-} from "./rate-limiter.js";
-import { requestId } from "./request-id.js";
-import { securityHeaders } from "./security-headers.js";
-import { securityLogging } from "./security-logging.js";
-
-// ---------------------------------------------------------------------------
-// Lightweight mock auth middleware (sets user identity on context)
-// ---------------------------------------------------------------------------
-
-type AuthVars = {
-  Variables: {
-    userId?: string;
-    userRole?: string;
-    apiKeyId?: string;
-  };
-};
-
-/** Middleware that simulates optional auth parsing. */
-function mockOptionalAuth(): MiddlewareHandler<AuthVars> {
-  return async (c, next) => {
-    const auth = c.req.header("Authorization");
-    if (auth?.startsWith("Bearer ")) {
-      const parts = auth.slice(7).split(":");
-      if (parts.length === 2) {
-        c.set("apiKeyId", parts[0]);
-        c.set("userId", parts[1]);
-        c.set("userRole", "user");
-      }
-    }
-    await next();
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Lightweight mock CSRF middleware
-// ---------------------------------------------------------------------------
-
-/** Middleware that blocks POST/PUT/DELETE without X-CSRF-Token header. */
-function mockCsrfProtection(): MiddlewareHandler {
-  return async (c, next) => {
-    const method = c.req.method;
-    if (["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
-      const token = c.req.header("X-CSRF-Token");
-      if (!token) {
-        return c.json({ error: "CSRF token missing" }, 403);
-      }
-    }
-    await next();
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Build a Hono app wired up with the full middleware chain for integration tests. */
-function createMiddlewareChainApp() {
-  const app = new Hono<AuthVars>();
-
-  // Outer middleware: requestId → rate limiter → security headers → security logging
-  app.use("/api/*", requestId);
-  app.use("/api/*", rateLimiter());
-  app.use("/api/*", securityHeaders());
-  app.use("/api/*", securityLogging());
-
-  app.get("/api/test", (c) => c.json({ message: "ok" }));
-  app.post("/api/action", (c) => c.json({ action: "done" }));
-
-  return app;
-}
-
-/** Build a Hono app with rate limiter BEFORE request ID (reversed order). */
-function createReversedOrderApp() {
-  const app = new Hono<AuthVars>();
-
-  app.use("/api/*", rateLimiter());
-  app.use("/api/*", requestId);
-  app.use("/api/*", securityHeaders());
-
-  app.get("/api/test", (c) => c.json({ message: "ok" }));
-
-  return app;
-}
-
-/**
- * Build a Hono app with auth + CSRF + rate limiter (production order).
- *
- * Production order: optionalAuth → csrfProtection → hppProtection →
- * httpMetrics → rateLimiter → responseSizeLimits → compressionMiddleware
- */
-function createAuthChainApp() {
-  const app = new Hono<AuthVars>();
-
-  app.use("/api/*", requestId);
-  app.use("/api/*", securityHeaders());
-  app.use("/api/*", mockOptionalAuth());
-  app.use("/api/*", mockCsrfProtection());
-  app.use("/api/*", rateLimiter());
-
-  app.get("/api/test", (c) => c.json({ message: "ok", userId: c.get("userId") ?? null }));
-  app.post("/api/action", (c) => c.json({ action: "done", userId: c.get("userId") ?? null }));
-  app.get("/api/profile", (c) => {
-    const userId = c.get("userId");
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    return c.json({ userId, role: c.get("userRole") });
-  });
-
-  return app;
-}
-
-/** Build a Hono app with auth BEFORE rate limiter (production-like order). */
-function createAuthBeforeRateLimitApp() {
-  const app = new Hono<AuthVars>();
-
-  app.use("/api/*", requestId);
-  app.use("/api/*", securityHeaders());
-  app.use("/api/*", mockOptionalAuth());
-  app.use("/api/*", rateLimiter());
-
-  app.get("/api/test", (c) => c.json({ message: "ok" }));
-  app.post("/api/action", (c) => c.json({ action: "done" }));
-
-  return app;
-}
-
-const IP_A = "10.0.0.1";
-const IP_B = "10.0.0.2";
+} from "../test/rate-limiter-harness.js";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -152,16 +36,12 @@ describe("rate limiter integration across middleware chain", () => {
   let app: Hono;
 
   beforeEach(() => {
-    // Ensure rate limiting is active
-    setRateLimiterTestMode(false);
-    resetRateLimiter();
-
-    app = createMiddlewareChainApp();
+    enableRateLimiting();
+    app = createStandardChainApp();
   });
 
   afterEach(() => {
-    setRateLimiterTestMode(true);
-    resetRateLimiter();
+    disableRateLimiting();
   });
 
   // -----------------------------------------------------------------------
@@ -512,17 +392,15 @@ describe("rate limiter integration across middleware chain", () => {
 // ===========================================================================
 
 describe("rate limiter with authenticated requests", () => {
-  let app: Hono<AuthVars>;
+  let app: Hono;
 
   beforeEach(() => {
-    setRateLimiterTestMode(false);
-    resetRateLimiter();
+    enableRateLimiting();
     app = createAuthBeforeRateLimitApp();
   });
 
   afterEach(() => {
-    setRateLimiterTestMode(true);
-    resetRateLimiter();
+    disableRateLimiting();
   });
 
   it("increments counters for authenticated requests the same as unauthenticated", async () => {
@@ -651,17 +529,15 @@ describe("rate limiter with authenticated requests", () => {
 // ===========================================================================
 
 describe("rate limiter with auth and CSRF middleware", () => {
-  let app: Hono<AuthVars>;
+  let app: Hono;
 
   beforeEach(() => {
-    setRateLimiterTestMode(false);
-    resetRateLimiter();
-    app = createAuthChainApp();
+    enableRateLimiting();
+    app = createAuthCsrfChainApp();
   });
 
   afterEach(() => {
-    setRateLimiterTestMode(true);
-    resetRateLimiter();
+    disableRateLimiting();
   });
 
   it("CSRF-blocked POST requests do NOT consume rate limit tokens (CSRF runs before rate limiter)", async () => {
@@ -775,16 +651,12 @@ describe("rate limiter with auth and CSRF middleware", () => {
 // ===========================================================================
 
 describe("global rate limiter combined with per-user rate limiting", () => {
-  let app: Hono;
-
   beforeEach(() => {
-    setRateLimiterTestMode(false);
-    resetRateLimiter();
+    enableRateLimiting();
   });
 
   afterEach(() => {
-    setRateLimiterTestMode(true);
-    resetRateLimiter();
+    disableRateLimiting();
   });
 
   it("global rate limiter enforces per-IP regardless of per-user limits", async () => {
@@ -880,8 +752,7 @@ describe("rate limiter reset isolation between test suites", () => {
   });
 
   afterEach(() => {
-    setRateLimiterTestMode(true);
-    resetRateLimiter();
+    disableRateLimiting();
   });
 
   it("buckets from a previous describe block do not leak into the next", async () => {
