@@ -63,6 +63,18 @@ vi.mock("./migration/index.js", () => ({
   runMigrations: vi.fn(() => Promise.resolve([])),
 }));
 
+vi.mock("./context-service.js", () => ({
+  initContextService: vi.fn(),
+}));
+
+vi.mock("./gtfs-refresh.js", () => ({
+  startGtfsRefreshScheduler: vi.fn(),
+}));
+
+vi.mock("./middleware/concurrent-session-management.js", () => ({
+  startSessionCleanup: vi.fn(),
+}));
+
 vi.mock("./observability/logger.js", () => ({
   LogLevel: {
     DEBUG: "debug",
@@ -82,6 +94,18 @@ vi.mock("./observability/logger.js", () => ({
     error: vi.fn(),
     debug: vi.fn(),
   },
+}));
+
+// Mock the observability barrel (index.ts imports from here now)
+vi.mock("./observability/index.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+  initObservability: vi.fn(() => Promise.resolve()),
+  shutdownObservability: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("./poller.js", () => ({

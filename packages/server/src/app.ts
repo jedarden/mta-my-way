@@ -131,9 +131,7 @@ import {
 //   handleOAuthCallback,
 //   initializeDefaultProviders,
 // } from "./oauth/index.js";
-import { logger } from "./observability/logger.js";
-import { metrics } from "./observability/metrics.js";
-import { tracingMiddleware } from "./observability/tracing.js";
+import { logger, metrics, tracingMiddleware } from "./observability/index.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
 import {
   getSubscriptionCount,
