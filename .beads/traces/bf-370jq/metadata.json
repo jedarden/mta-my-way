@@ -1,12 +1,31 @@
 {
-  "bead": "bf-370jq",
-  "description": "Lint step logs captured from CI pod mta-my-way-build-debug-hqpdh-lint-117384179",
-  "workflow": "mta-my-way-build-debug-hqpdh",
-  "pod": "mta-my-way-build-debug-hqpdh-lint-117384179",
-  "captured_at": "2026-07-03T21:17:42Z",
-  "result": {
+  "bead_id": "bf-370jq",
+  "agent": "glm",
+  "provider": "zai",
+  "model": "glm-5-turbo",
+  "exit_code": 1,
+  "outcome": "captured",
+  "duration_ms": 600001,
+  "input_tokens": null,
+  "output_tokens": null,
+  "cost_usd": null,
+  "captured_at": "2026-07-03T21:28:57.555929644Z",
+  "trace_format": "raw_text",
+  "pruned": false,
+  "template_version": null,
+  "lint_step": {
+    "workflow": "mta-my-way-build-debug-lint-cjnxs",
+    "pod": "mta-my-way-build-debug-lint-cjnxs-lint-3444317078",
     "phase": "Failed",
     "exit_code": 1,
-    "main_container_reason": "Error"
+    "main_container_logs": "stdout.txt",
+    "wait_container_logs": "stderr.txt",
+    "lint_result": "FAILED - 4 biome errors (format + organizeImports)",
+    "errors": [
+      "./package.json format",
+      "./packages/server/src/integration/audit-log-security-events.test.ts format",
+      "./packages/server/src/migration/cli.ts organizeImports",
+      "./packages/server/src/migration/seed-data.ts format"
+    ]
   }
 }
