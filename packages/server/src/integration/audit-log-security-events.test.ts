@@ -723,7 +723,27 @@ describe("Audit log captures security events from middleware", () => {
   });
 
   // =========================================================================
-  // 7. Full chain: multiple middleware interactions produce correct audit
+  // 7. Smoke tests: end-to-end audit log queryability
+  // =========================================================================
+
+  describe("Smoke tests", () => {
+    it("queryAuditLog({ action: 'host_header_blocked' }) returns >= 1 after blocked request", async () => {
+      const app = createHostHeaderAuditApp();
+
+      const res = await app.request("/api/test", {
+        headers: { Host: "evil.com" },
+      });
+
+      // End-to-end: request blocked → bridge middleware fires → audit event written → queryable
+      expect(res.status).toBe(400);
+
+      const events = queryAuditLog({ action: "host_header_blocked" });
+      expect(events.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // =========================================================================
+  // 8. Full chain: multiple middleware interactions produce correct audit
   // =========================================================================
 
   describe("Full middleware chain audit trail", () => {
