@@ -39,3 +39,10 @@ packages/server/data/vapid-keys.json
 .npm/
 .gtfs-cache/
 ~
+__pycache__/
+
+# Test runner output
+test-results/
+
+# Needle worker state (runtime artifacts)
+.needle/
