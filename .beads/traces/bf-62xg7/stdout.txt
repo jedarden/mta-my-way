@@ -1,0 +1,6 @@
+Done. Both files were already untracked in a prior commit:
+
+- **`packages/server/data/vapid-keys.json`** — not in `git ls-files`, covered by `.gitignore:35` (direct path)
+- **`packages/server/.test-db.sqlite`** — not in `git ls-files`, covered by `.gitignore:16` (`*.sqlite` glob). File doesn't exist on disk (already deleted previously), but the VAPID keys file is still present.
+
+No code changes were needed. Bead `bf-62xg7` closed.

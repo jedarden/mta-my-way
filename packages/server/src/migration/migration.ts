@@ -23,8 +23,16 @@
  */
 
 import { copyFile, mkdir, readdir, unlink } from "node:fs/promises";
-import { constants } from "node:os";
 import type { constants as Constants } from "node:os";
+
+// Import constants dynamically for better-sqlite3 compatibility
+let constants: typeof Constants;
+try {
+  constants = require("node:os").constants;
+} catch {
+  // Fallback for environments where require is not available
+  constants = {} as typeof Constants;
+}
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
@@ -137,7 +145,7 @@ export async function createBackup(dbPath: string): Promise<string> {
   const basename = dbPath.split("/").pop() ?? "database.db";
   const backupPath = join(BACKUP_DIR, `${basename}-${timestamp}.bak`);
 
-  await copyFile(dbPath, backupPath, (constants as typeof Constants).COPYFILE_EXCL);
+  await copyFile(dbPath, backupPath, constants.COPYFILE_EXCL || 0);
 
   logger.info("Backup created", { backupPath });
 
@@ -207,8 +215,9 @@ export async function cleanupOldBackups(keepCount: number = 10): Promise<number>
       await unlink(backup.path);
       deletedCount++;
     } catch (err) {
-      logger.warn("Failed to delete backup", err instanceof Error ? err : undefined, {
+      logger.warn("Failed to delete backup", {
         backupPath: backup.path,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }

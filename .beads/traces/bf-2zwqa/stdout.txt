@@ -1,0 +1,1 @@
+Done. Both `biome check` and `eslint` pass cleanly with zero errors — no fixes were needed. Bead `bf-2zwqa` has been closed.

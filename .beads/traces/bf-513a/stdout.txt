@@ -1,1 +1,13 @@
-done
+All done. Here's a summary:
+
+**Bead `bf-513a` — Remove committed VAPID private key and rotate keys**
+
+All acceptance criteria were already met by commit `c099f77`:
+
+| Criterion | Status |
+|---|---|
+| Files untracked from git | ✅ `git ls-files` returns empty for both |
+| `.gitignore` covers both paths | ✅ `packages/server/data/vapid-keys.json` explicit + `*.sqlite` glob |
+| Local dev works (file fallback) | ✅ `vapid-keys.json` exists locally, `vapid.ts` env-first with file fallback |
+| `docs/security.md` rotation note | ✅ Documents the 2026-07-03 rotation and re-subscription requirement |
+| Tests pass | ✅ 5231 passed (206 files) |

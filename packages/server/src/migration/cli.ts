@@ -26,6 +26,8 @@ import {
   runMigrations,
   validateDatabase,
 } from "./migration.js";
+import { seedReferenceData } from "./seeding.js";
+import { getSeedDataForEnvironment } from "./seed-data.js";
 
 const program = new Command();
 
@@ -472,6 +474,83 @@ program
       } catch (error) {
         console.error("Initialization failed:", error);
         process.exit(1);
+      }
+    })
+  );
+
+/**
+ * Seed database with initial data.
+ */
+program
+  .command("seed")
+  .description("Seed database with initial data")
+  .option("-d, --db <path>", "Database path", DEFAULT_DB_PATH)
+  .option("-e, --env <environment>", "Environment (dev, test)", "dev")
+  .option("--dry-run", "Preview seeding without executing")
+  .action(
+    asyncAction(async (options) => {
+      const dbPath = getDbPath(options.db);
+      const db = openDatabase(dbPath);
+
+      try {
+        const environment = (options.env ?? "dev") as "dev" | "test";
+        console.log(`Seeding database for environment: ${environment}`);
+
+        if (options.dryRun) {
+          console.log("(dry-run mode - no changes will be made)");
+        }
+
+        const seedData = getSeedDataForEnvironment(environment);
+
+        if (seedData.length === 0) {
+          console.log("No seed data available for this environment");
+          return;
+        }
+
+        if (options.dryRun) {
+          console.log("\nSeed data preview:");
+          for (const seed of seedData) {
+            console.log(`  Table: ${seed.table}`);
+            console.log(`    Rows: ${seed.data.length}`);
+          }
+          return;
+        }
+
+        const results = seedReferenceData(db, seedData);
+
+        let totalInserted = 0;
+        let totalSkipped = 0;
+        let totalErrors = 0;
+
+        console.log("\nSeeding results:");
+        for (const result of results) {
+          console.log(`  Table: ${result.table}`);
+          console.log(`    Inserted: ${result.inserted}`);
+          console.log(`    Skipped: ${result.skipped}`);
+          if (result.errors.length > 0) {
+            console.log(`    Errors: ${result.errors.length}`);
+            totalErrors += result.errors.length;
+            for (const error of result.errors) {
+              console.log(`      - ${error}`);
+            }
+          }
+          totalInserted += result.inserted;
+          totalSkipped += result.skipped;
+        }
+
+        console.log(`\nTotal: ${totalInserted} inserted, ${totalSkipped} skipped`);
+
+        if (totalErrors > 0) {
+          console.error(`Seeding completed with ${totalErrors} error(s)`);
+          process.exit(1);
+        } else {
+          console.log("✓ Seeding completed successfully");
+        }
+      } catch (error) {
+        console.error("Seeding failed:", error);
+        process.exit(1);
+      } finally {
+        db.close();
       }
     })
   );

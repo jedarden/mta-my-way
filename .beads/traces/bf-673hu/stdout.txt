@@ -1,0 +1,14 @@
+Done. Here's the summary:
+
+**Bead bf-673hu completed successfully.**
+
+- **Original pods:** All GC'd across previous runs (podGC: OnPodCompletion cleaned them up)
+- **Debug workflow submitted:** `mta-my-way-lint-debug-7qvsf` with `podGC: OnWorkflowCompletion` override
+- **Lint step:** Completed with exit code 1 — 10 biome formatting errors found across:
+  - `~/.needle/state/` files (3 trailing newline issues)
+  - `packages/server/tsconfig.json` (array formatting)
+  - `test-results/.last-run.json` and `tests/e2e/test-results/.last-run.json` (trailing newline)
+  - `tests/e2e/security.e2e.ts`, `tests/e2e/api-validation.e2e.ts`, `tests/e2e/playwright.config.ts` (line length / formatting)
+  - `packages/server/src/routes/password-reset.routes.ts` (import formatting)
+- **Logs saved:** `docs/research/lint-logs-2026-07-03.txt`
+- **Bead closed** in beads DB and flushed to JSONL

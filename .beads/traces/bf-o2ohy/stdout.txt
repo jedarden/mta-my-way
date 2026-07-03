@@ -1,0 +1,11 @@
+Bead `bf-o2ohy` is now closed. 
+
+**Summary:** The lint step logs were already captured and committed in `638ac09`. Three files exist in `docs/research/`:
+
+| File | Content |
+|------|---------|
+| `lint-stdout-2026-07-03.txt` | Full `npm run lint` output — 10 biome formatting errors across 8 files |
+| `lint-stderr-2026-07-03.txt` | Argo executor logs + `Error: exit status 1` |
+| `lint-logs-2026-07-03.txt` | Combined stdout+stderr (unsplit) |
+
+The pods were already deleted by `podGC: OnPodCompletion`, but the logs were captured in time from the most recent lint-debug workflow (`mta-my-way-lint-debug-7qvsf`).

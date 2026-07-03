@@ -1,0 +1,16 @@
+{
+  "bead_id": "bf-3xs37",
+  "agent": "glm",
+  "provider": "zai",
+  "model": "glm-5-turbo",
+  "exit_code": 0,
+  "outcome": "success",
+  "duration_ms": 491649,
+  "input_tokens": null,
+  "output_tokens": null,
+  "cost_usd": null,
+  "captured_at": "2026-07-03T13:06:57.526597645Z",
+  "trace_format": "raw_text",
+  "pruned": false,
+  "template_version": null
+}

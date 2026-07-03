@@ -1,0 +1,16 @@
+Everything is wired up correctly.
+
+```
+SPLIT_COMPLETE: Created 3 children, parent converted to umbrella
+```
+
+```
+Children: bf-3xs37, bf-2zwqa, bf-30gh4
+```
+
+**Chain:**
+1. **bf-3xs37** — Run lint locally and capture results (leaf, no dependencies)
+2. **bf-2zwqa** — Fix all lint errors found in local lint run (depends on bf-3xs37)
+3. **bf-30gh4** — Submit mta-my-way-build workflow and verify lint step passes (depends on bf-2zwqa)
+
+**Parent bf-47ibh** now depends on bf-30gh4 (last child) and has the `umbrella` label.

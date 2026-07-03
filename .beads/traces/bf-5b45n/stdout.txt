@@ -1,0 +1,3 @@
+Bead `bf-5b45n` is closed. 
+
+**Summary:** The VAPID key rotation documentation was already present in `docs/security.md` (lines 142–156). It includes the `### 2026-07-03 Rotation` subsection with the rotation date, impact on existing clients (re-subscription required), and rotation procedure. No code or doc changes were needed — the task was already complete.

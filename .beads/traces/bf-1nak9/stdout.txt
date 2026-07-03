@@ -1,0 +1,8 @@
+Bead `bf-1nak9` is now closed and flushed.
+
+**Summary of findings:**
+
+- **Most recent run:** `mta-my-way-build-manual-4nk4p` — still `Running`, stuck in `Init:Error` on `resolve-version`; lint step not yet reached.
+- **Most recent completed run with lint:** `mta-my-way-build-manual-2vrbr` — lint step **failed** with exit code 1 in ~88 seconds (consistent with ESLint OOM crash pattern).
+- **Pod GC:** The `mta-my-way-build` WorkflowTemplate uses `podGC: OnPodCompletion`, so lint step pods are **deleted immediately** when each pod finishes. Confirmed: no lint pods survive from any completed/failed runs — only `resolve-version` pods from the two still-Running workflows exist (stuck in `Init:Error`).
+- **Note:** Both running workflows (`4nk4p` and `24b5c`) are stuck at `resolve-version` with `Init:Error`, likely a GitHub token or clone issue.

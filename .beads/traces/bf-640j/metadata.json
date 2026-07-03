@@ -1,16 +1,16 @@
 {
   "bead_id": "bf-640j",
-  "agent": "echo-test",
-  "provider": null,
-  "model": null,
+  "agent": "claude-code-glm47",
+  "provider": "anthropic",
+  "model": "glm-4.7",
   "exit_code": 0,
   "outcome": "success",
-  "duration_ms": 0,
+  "duration_ms": 241920,
   "input_tokens": null,
   "output_tokens": null,
   "cost_usd": null,
-  "captured_at": "2026-07-03T06:26:22.666579524Z",
-  "trace_format": "raw_text",
+  "captured_at": "2026-07-03T19:50:53.849714886Z",
+  "trace_format": "claude_json",
   "pruned": false,
   "template_version": null
 }

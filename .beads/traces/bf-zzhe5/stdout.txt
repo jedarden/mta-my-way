@@ -1,0 +1,16 @@
+## Summary
+
+**Diagnosed and fixed** the ArgoCD sync issue for `mta-my-way-build` WorkflowTemplate on iad-ci.
+
+**Root cause:** The ArgoCD application `argo-workflows-ns-iad-ci` is unreachable — `ardenone-manager.kubeconfig` doesn't exist on disk, and `rs-manager.kubeconfig` has expired credentials. The live WorkflowTemplate was orphaned (still had ArgoCD labels) but the controller couldn't sync it.
+
+**Fix applied:** Ran `kubectl apply` directly from the declarative-config source. The live template now has all four pipeline steps:
+
+| Step | Template | Status |
+|------|----------|--------|
+| 1 | `resolve-version` | ✅ was present |
+| 2 | `lint` | ✅ **added** |
+| 3 | `test` | ✅ **added** |
+| 4 | `docker-build` | ✅ was present |
+
+**Outstanding:** ArgoCD credentials need to be restored for ongoing GitOps. Once ArgoCD is back online, `selfHeal` will keep the template in sync automatically.

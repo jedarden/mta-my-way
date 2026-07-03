@@ -9,8 +9,6 @@
 import type Database from "better-sqlite3";
 import {
   buildColumnList,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  buildPlaceholderList,
   validateColumnName,
   validateSqlIdentifiers,
   validateTableName,
@@ -67,7 +65,11 @@ export function seedData<T extends Record<string, unknown>>(
   const validatedTable = validateTableName(table);
 
   // Build column names from first data object
-  const columns = Object.keys(data[0]);
+  const firstRow = data[0];
+  if (!firstRow) {
+    return { table, inserted: 0, skipped: 0, errors: [] };
+  }
+  const columns = Object.keys(firstRow);
 
   // Validate all column names to prevent SQL injection
   const columnValidation = validateSqlIdentifiers(columns);

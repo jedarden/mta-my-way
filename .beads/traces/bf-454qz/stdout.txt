@@ -1,0 +1,14 @@
+All dependencies are wired correctly. The parent (`bf-454qz`) depends on child 4 (`bf-5vxw5`), and the full chain flows down through all four children.
+
+```
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+
+Children: bf-1nak9, bf-1wb12, bf-370jq, bf-5vxw5
+
+Chain:
+  bf-1nak9  → Check mta-my-way-build lint pod status
+  bf-1wb12  → Submit debug workflow with podGC override (depends on bf-1nak9)
+  bf-370jq  → Capture lint step logs from available pods (depends on bf-1wb12)
+  bf-5vxw5  → Save lint logs to local file and verify content (depends on bf-370jq)
+  bf-454qz  → Parent umbrella (depends on bf-5vxw5)
+```

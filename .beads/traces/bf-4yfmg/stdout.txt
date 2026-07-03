@@ -1,0 +1,5 @@
+Done. Here's the summary:
+
+- **WorkflowTemplate** `mta-my-way-build` verified on iad-ci (37 days old)
+- **Manual workflow submitted:** `mta-my-way-build-manual-m7skp` in namespace `argo-workflows`
+- **Bead `bf-4yfmg`** closed

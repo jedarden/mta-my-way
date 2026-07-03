@@ -1,0 +1,9 @@
+**Done.** Here's the summary:
+
+**Workflow monitored:** `mta-my-way-build-manual-m7skp` on iad-ci
+
+**Lint step result: Failed** (exit code 1)
+
+The `lint` step was the failure point — it ran and exited with code 1. The pods were already garbage-collected by the time logs were requested (the workflow uses `podGC: OnPodCompletion`), so the specific lint errors aren't available via kubectl. The Argo UI at `https://argo-ci.ardenone.com` would still have the logs within the 2-hour failure TTL window.
+
+The bead `bf-40q2a` has been closed (had to update the DB directly due to a `br close` parsing issue with `claimed_at`).

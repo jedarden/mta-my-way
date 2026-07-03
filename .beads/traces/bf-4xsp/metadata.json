@@ -1,16 +1,16 @@
 {
   "bead_id": "bf-4xsp",
-  "agent": "echo-test",
-  "provider": null,
-  "model": null,
+  "agent": "claude-code-glm47",
+  "provider": "anthropic",
+  "model": "glm-4.7",
   "exit_code": 0,
   "outcome": "success",
-  "duration_ms": 0,
+  "duration_ms": 415392,
   "input_tokens": null,
   "output_tokens": null,
   "cost_usd": null,
-  "captured_at": "2026-07-03T06:26:22.489694239Z",
-  "trace_format": "raw_text",
+  "captured_at": "2026-07-03T19:26:49.314443325Z",
+  "trace_format": "claude_json",
   "pruned": false,
   "template_version": null
 }

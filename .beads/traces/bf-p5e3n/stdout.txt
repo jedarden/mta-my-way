@@ -1,0 +1,10 @@
+Bead closed. Here's the summary:
+
+**Verification complete — no code changes needed.**
+
+`packages/server/src/push/vapid.ts` already correctly implements env-first behavior:
+
+1. **Env vars first** (lines 52-53): Checks `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` from `process.env` — if both are present, returns them immediately
+2. **File fallback** (lines 64-93): When env vars are absent and `dataDir` is provided, tries to load from `vapid-keys.json`, falling back to generating new keys and saving them
+3. **Ephemeral fallback** (lines 96-102): If no env vars and no `dataDir`, generates ephemeral keys (with a warning log)
+4. **Exports unchanged**: `VapidKeys`, `generateVapidKeys`, `loadOrGenerateVapidKeys`, `configureWebPush`, `getVapidPublicKey`, `isWebPushConfigured`

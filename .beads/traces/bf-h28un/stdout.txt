@@ -1,0 +1,13 @@
+The dependency chain is correct:
+- `bf-h28un` (parent) → blocked by `bf-1d4gy` (child 3) → blocked by `bf-408jk` (child 2) → blocked by `bf-47ibh` (child 1)
+
+All verifications pass:
+- ✅ Parent `bf-h28un` has `umbrella` label and depends on last child `bf-1d4gy`
+- ✅ Child 1 (`bf-47ibh`): "Submit mta-my-way-build workflow and validate lint step"
+- ✅ Child 2 (`bf-408jk`): "Monitor test step in Argo workflow and validate all tests pass" — depends on child 1
+- ✅ Child 3 (`bf-1d4gy`): "Monitor Docker build step and verify workflow completes successfully" — depends on child 2
+- ✅ All children have `split-child` label
+- ✅ Sequential chain: child 1 → child 2 → child 3 → parent
+
+SPLIT_COMPLETE: Created 3 children, parent converted to umbrella
+Children: bf-47ibh, bf-408jk, bf-1d4gy

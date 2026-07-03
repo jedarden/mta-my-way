@@ -1,0 +1,9 @@
+Done. Here's the summary:
+
+**Bead bf-3xs37 — Run lint locally and capture results**
+
+- **npm ci**: ✅ Completed (947 packages installed, Node 20 vs required 22 — warnings only)
+- **biome check**: ✅ 557 files checked, **0 errors**
+- **eslint**: ✅ **0 errors** (only a deprecation warning about `.eslintignore` → should use `ignores` in `eslint.config.js`)
+
+**Conclusion: Lint is clean.** No fixes needed before submitting a CI workflow. The one actionable item is migrating the `.eslintignore` file to the `ignores` property in `eslint.config.js` to silence the deprecation warning.

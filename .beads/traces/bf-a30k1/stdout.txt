@@ -1,0 +1,9 @@
+Done. Here's the summary of findings:
+
+**Most recent mta-my-way-build lint workflow:** `mta-my-way-lint-debug-t5js5` (Failed, exit code 1, created ~14 min ago)
+
+**Lint step pod name:** `mta-my-way-lint-debug-t5js5` (the workflow runs the `lint` entrypoint directly, so the pod name matches the workflow name)
+
+**Pod existence:** **Does not exist** — confirmed with `kubectl get pods` returning "No resources found". The workflow uses `podGC.strategy: OnWorkflowCompletion`, which deletes all pods as soon as the workflow finishes. The lint step logs are not recoverable from the cluster.
+
+**To capture lint logs in the future:** Stream them while the pod is running, or submit a debug workflow with `podGC: OnPodCompletion` override so pods survive until the workflow-level TTL cleans them up.
