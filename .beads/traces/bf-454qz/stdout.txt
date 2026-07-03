@@ -1,0 +1,20 @@
+The tree is a bit tangled because there are leftover children from previous failed split attempts. The current active chain is correct: `bf-31t83 → bf-1hb9n → bf-3a99d → bf-2ljmf → bf-454qz`. The parent already has the `umbrella` label. Everything is wired properly.
+
+```
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+```
+
+```
+Children: bf-31t83, bf-1hb9n, bf-3a99d, bf-2ljmf
+```
+
+**Chain summary:**
+
+| # | Bead | Title | Depends on |
+|---|------|-------|------------|
+| 1 | `bf-31t83` | Check lint step pod status and attempt log retrieval | — |
+| 2 | `bf-1hb9n` | Submit debug workflow with podGC override if lint pods were GC'd | bf-31t83 |
+| 3 | `bf-3a99d` | Capture and save lint step logs to local file | bf-1hb9n |
+| 4 | `bf-2ljmf` | Analyze lint logs and summarize pass/fail outcome | bf-3a99d |
+
+Parent `bf-454qz` depends on `bf-2ljmf` (last child) and has label `umbrella`.
