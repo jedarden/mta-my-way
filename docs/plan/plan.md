@@ -1235,6 +1235,8 @@ The API research documents a critical accuracy difference:
 
 Follows the established pattern for apexalgo-iad services: application source in the repo root, container build in `containers/`, Kubernetes manifests in `cluster-configuration/`.
 
+**Note:** The project structure below is the original planned layout. The actual shipped structure is flatter — core server logic is at `packages/server/src/` (poller.ts, parser.ts, transformer.ts, cache.ts, alerts-poller.ts, delay-detector.ts, etc.), with `endpoints/` (health.ts, metrics.ts) and `routes/` (password-reset.routes.ts, metrics.ts) as separate directories. No separate `feeds/` subdirectory exists in the shipped version.
+
 ```
 mta-my-way/                              # Application source (this repo)
 |-- docs/
@@ -1244,233 +1246,108 @@ mta-my-way/                              # Application source (this repo)
 |   |   |-- mta-api-research.md
 |   |   |-- mta-app-competitive-analysis.md
 |   |-- notes/
+|   |-- observability.md                # OpenTelemetry + Prometheus + Pino logging
+|   |-- authorization-audit.md          # Auth framework documentation
 |
 |-- packages/
 |   |-- shared/                         # Shared TypeScript types and utilities
-|   |   |-- src/
-|   |   |   |-- types/
-|   |   |   |   |-- arrivals.ts         # StationArrivals, ArrivalTime, etc.
-|   |   |   |   |-- favorites.ts        # Favorite, Commute, Settings, FavoriteTapEvent
-|   |   |   |   |-- stations.ts         # Station, Route, TransferConnection
-|   |   |   |   |-- alerts.ts           # StationAlert (including synthetic predicted alerts)
-|   |   |   |   |-- trips.ts            # TripRecord, CommuteStats (Phase 5)
-|   |   |   |   |-- equipment.ts       # Phase 6: EquipmentStatus
-|   |   |   |   |-- fare.ts            # Phase 6: FareTracking, RideLogEntry
-|   |   |   |   |-- positions.ts       # Phase 6: TrainPosition for live diagram
-|   |   |   |   |-- index.ts
-|   |   |   |-- constants/
-|   |   |   |   |-- feeds.ts            # Feed URLs, polling intervals
-|   |   |   |   |-- lines.ts            # Line metadata (color, division, etc.)
-|   |   |   |-- utils/
-|   |   |       |-- time.ts             # Time formatting, minutes-away calc
-|   |   |       |-- confidence.ts       # Confidence scoring logic
-|   |   |       |-- walking.ts          # Phase 6: Haversine distance, walking time calc
-|   |   |       |-- carbon.ts           # Phase 6: CO2 savings computation
-|   |   |-- package.json
-|   |   |-- tsconfig.json
-|   |
 |   |-- server/                         # Backend API (Hono)
 |   |   |-- src/
-|   |   |   |-- app.ts                  # Hono app setup, routes, middleware, static asset serving
+|   |   |   |-- app.ts                  # Hono app setup, routes, middleware
 |   |   |   |-- index.ts               # Entry point
-|   |   |   |-- feeds/
-|   |   |   |   |-- poller.ts           # Timed parallel fetch of MTA feeds
-|   |   |   |   |-- parser.ts           # Protobuf -> structured objects
-|   |   |   |   |-- transformer.ts      # Raw parsed data -> StationArrivals
-|   |   |   |   |-- alerts-parser.ts    # Alert parsing and simplification
-|   |   |   |   |-- cache.ts            # In-memory cache with TTL
-|   |   |   |   |-- delay-detector.ts   # Phase 5: predictive delay detection from position diffs
-|   |   |   |   |-- equipment-poller.ts # Phase 6: MTA Equipment API polling
-|   |   |   |   |-- shuttle-matcher.ts  # Phase 7: match NO_SERVICE alerts to shuttle lookup
-|   |   |   |-- routes/
-|   |   |   |   |-- arrivals.ts         # GET /api/arrivals/:stationId
-|   |   |   |   |-- stations.ts         # GET /api/stations, GET /api/stations/:id
-|   |   |   |   |-- alerts.ts           # GET /api/alerts, GET /api/alerts/:lineId
-|   |   |   |   |-- commute.ts          # POST /api/commute/analyze
-|   |   |   |   |-- push.ts             # POST /api/push/subscribe, DELETE /api/push/unsubscribe
-|   |   |   |   |-- trip.ts             # Phase 5: GET /api/trip/:tripId (live trip tracking)
-|   |   |   |   |-- equipment.ts        # Phase 6: GET /api/equipment/:stationId
-|   |   |   |   |-- positions.ts        # Phase 6: GET /api/positions/:lineId
-|   |   |   |   |-- health.ts           # GET /api/health
-|   |   |   |-- transfer/
-|   |   |   |   |-- engine.ts           # Transfer route computation
-|   |   |   |   |-- graph.ts            # Station graph from transfers.txt
-|   |   |   |   |-- travel-times.ts     # Scheduled inter-station travel times
-|   |   |   |-- push/
-|   |   |   |   |-- sender.ts           # Web Push message sending
-|   |   |   |   |-- subscriptions.ts    # SQLite subscription storage
-|   |   |   |   |-- matcher.ts          # Match alerts to subscriptions
-|   |   |   |-- static/
-|   |   |   |   |-- loader.ts           # Load pre-processed GTFS static JSON
-|   |   |   |-- proto/
-|   |   |       |-- gtfs-realtime.proto
-|   |   |       |-- nyct-subway.proto
-|   |   |       |-- compiled.js         # protobufjs compiled output
-|   |   |-- scripts/
-|   |   |   |-- process-gtfs.ts         # Download and process GTFS static data (incl. complexes)
-|   |   |   |-- compile-proto.ts        # Compile .proto files to JS
-|   |   |-- test/
-|   |   |   |-- fixtures/
-|   |   |   |   |-- feeds/              # Recorded binary GTFS-RT feed snapshots
-|   |   |   |   |-- alerts/             # Sample alert text for simplification tests
-|   |   |   |-- parser.test.ts
-|   |   |   |-- transformer.test.ts
-|   |   |   |-- alert-simplifier.test.ts
-|   |   |   |-- transfer-engine.test.ts
-|   |   |   |-- delay-detector.test.ts
-|   |   |   |-- api-routes.test.ts      # Integration tests against in-memory Hono
-|   |   |-- data/
-|   |   |   |-- stations.json           # Pre-processed station index
-|   |   |   |-- complexes.json          # Station complex groupings (Phase 1)
-|   |   |   |-- complex-overrides.json  # Manual fixes for ~5 edge-case complexes
-|   |   |   |-- routes.json             # Pre-processed route index
-|   |   |   |-- transfers.json          # Pre-processed transfer graph
-|   |   |   |-- travel-times.json       # Inter-station travel times
-|   |   |   |-- alert-patterns.json     # Phase 3: regex patterns for alert simplification
-|   |   |   |-- shuttle-stops.json      # Phase 7: curated shuttle bus stop lookup
+|   |   |   |-- poller.ts               # MTA feed polling (parallel, 30s interval)
+|   |   |   |-- parser.ts               # Protobuf parsing
+|   |   |   |-- transformer.ts          # GTFS-RT → StationArrivals transform
+|   |   |   |-- alerts-parser.ts        # Alert parsing and simplification
+|   |   |   |-- alerts-poller.ts        # Alert feed polling
+|   |   |   |-- cache.ts                # In-memory cache with TTL
+|   |   |   |-- delay-detector.ts       # Predictive delay detection
+|   |   |   |-- delay-predictor.ts      # Delay prediction engine
+|   |   |   |-- equipment-poller.ts      # MTA Equipment API polling
+|   |   |   |-- shuttle-matcher.ts      # NO_SERVICE alerts → shuttle lookup
+|   |   |   |-- trip-tracking.ts        # Trip lookup and tracking
+|   |   |   |-- trip-lookup.ts          # Trip query service
+|   |   |   |-- context-service.ts      # Context detection and switching
+|   |   |   |-- transfer/                # Transfer analysis
+|   |   |   |   |-- engine.ts           # Route computation
+|   |   |   |   |-- graph.ts            # Station graph
+|   |   |   |   |-- travel-times.ts     # Inter-station times
+|   |   |   |-- security/               # Authorization framework (shipped)
+|   |   |   |   |-- security-db.ts      # API keys, sessions, OAuth, TOTP MFA
+|   |   |   |   |-- cross-cutting.test.ts
+|   |   |   |-- observability/          # Logging, metrics, tracing
+|   |   |   |   |-- logger.ts           # Pino structured logging
+|   |   |   |   |-- metrics.ts          # Prometheus metrics
+|   |   |   |   |-- tracing.ts          # OTLP tracing
+|   |   |   |   -- middleware.ts        # Observability middleware
+|   |   |   |-- middleware/             # Hono middleware
+|   |   |   |   |-- auth-middleware.ts  # Auth/context middleware
+|   |   |   |   -- csrf-middleware.ts   # CSRF protection
+|   |   |   |-- services/               # Business logic services
+|   |   |   |   |-- push-service.ts    # Web Push notifications
+|   |   |   |-- endpoints/              # Endpoint handlers
+|   |   |   |   |-- health.ts           # GET /health, /api/health
+|   |   |   |   |-- metrics.ts          # GET /metrics (Prometheus)
+|   |   |   |-- routes/                 # Route handlers
+|   |   |   |   |-- password-reset.routes.ts  # Credential reset flow (enabled)
+|   |   |   |   |-- metrics.ts         # /api/metrics endpoint
+|   |   |   |-- migration/              # Database migrations
+|   |   |   |-- proto/                  # Protobuf definitions
+|   |   |   |-- scripts/               # Build and processing scripts
+|   |   |   |-- test/                   # Fixtures and test utilities
+|   |   |   |-- data/                   # Static JSON data
+|   |   |   |   |-- stations.json
+|   |   |   |   |-- complexes.json
+|   |   |   |   |-- routes.json
+|   |   |   |   |-- transfers.json
+|   |   |   |   |-- travel-times.json
+|   |   |   |   |-- alert-patterns.json
+|   |   |   |   |-- shuttle-stops.json
 |   |   |-- package.json
 |   |   |-- tsconfig.json
 |   |
 |   |-- web/                            # Frontend PWA
-|       |-- public/
-|       |   |-- manifest.json           # PWA manifest
-|       |   |-- icons/                  # App icons (192, 512, maskable)
-|       |   |-- favicon.svg
 |       |-- src/
-|       |   |-- main.tsx                # React entry point
-|       |   |-- App.tsx                 # Root component, router setup
-|       |   |-- sw.ts                   # Service Worker (for vite-plugin-pwa)
-|       |   |-- components/
-|       |   |   |-- layout/
-|       |   |   |   |-- BottomNav.tsx
-|       |   |   |   |-- Header.tsx
-|       |   |   |   |-- Screen.tsx      # Screen wrapper with transitions
-|       |   |   |-- arrivals/
-|       |   |   |   |-- ArrivalRow.tsx
-|       |   |   |   |-- ArrivalList.tsx
-|       |   |   |   |-- ConfidenceBar.tsx
-|       |   |   |   |-- LineBullet.tsx
-|       |   |   |-- favorites/
-|       |   |   |   |-- FavoriteCard.tsx
-|       |   |   |   |-- FavoritesList.tsx
-|       |   |   |   |-- FavoriteEditor.tsx
-|       |   |   |-- commute/
-|       |   |   |   |-- CommuteCard.tsx
-|       |   |   |   |-- CommuteEditor.tsx
-|       |   |   |   |-- TransferDetail.tsx
-|       |   |   |   |-- RouteComparison.tsx
-|       |   |   |-- trip/                     # Phase 5
-|       |   |   |   |-- TripTracker.tsx       # Live stop-by-stop progress view
-|       |   |   |   |-- TripSharePage.tsx     # Lightweight read-only shared ETA page
-|       |   |   |   |-- StopProgress.tsx      # Individual stop row in trip timeline
-|       |   |   |-- journal/                  # Phase 5
-|       |   |   |   |-- CommuteJournal.tsx    # Trip history list and stats
-|       |   |   |   |-- TripChart.tsx         # Duration-over-time sparkline
-|       |   |   |   |-- AnomalyBanner.tsx     # "This trip is running longer than usual"
-|       |   |   |-- equipment/                # Phase 6
-|       |   |   |   |-- EquipmentBadge.tsx    # Elevator/escalator status indicator
-|       |   |   |   |-- EquipmentBanner.tsx   # Outage banner on station detail
-|       |   |   |-- positions/                # Phase 6
-|       |   |   |   |-- TrainDiagram.tsx      # SVG line diagram with train dots
-|       |   |   |   |-- TrainDot.tsx          # Individual train position marker
-|       |   |   |-- health/                   # Phase 6
-|       |   |   |   |-- SystemHealth.tsx      # All-line status grid
-|       |   |   |   |-- LineStatus.tsx        # Per-line status row
-|       |   |   |-- stats/                    # Phase 6
-|       |   |   |   |-- SubwayYear.tsx        # Annual summary card
-|       |   |   |   |-- ShareCard.tsx         # Canvas-rendered shareable image
-|       |   |   |   |-- FareTracker.tsx       # OMNY cap progress display
-|       |   |   |-- walking/                  # Phase 6
-|       |   |   |   |-- WalkComparison.tsx    # Walk vs transit side-by-side
-|       |   |   |-- shuttle/                  # Phase 7
-|       |   |   |   |-- ShuttleInfo.tsx       # Shuttle bus stops and frequency
-|       |   |   |-- freshness/                # Phase 7
-|       |   |   |   |-- FreshnessFooter.tsx   # Per-feed data age indicator
-|       |   |   |   |-- FreshnessDetail.tsx   # Expanded feed status panel
-|       |   |   |-- alerts/
-|       |   |   |   |-- AlertBanner.tsx
-|       |   |   |   |-- AlertCard.tsx
-|       |   |   |   |-- AlertList.tsx
-|       |   |   |-- search/
-|       |   |   |   |-- StationSearch.tsx
-|       |   |   |   |-- SearchResults.tsx
-|       |   |   |-- common/
-|       |   |       |-- PullToRefresh.tsx
-|       |   |       |-- DataState.tsx         # Universal state wrapper (loading/empty/error/stale/offline)
-|       |   |       |-- SkeletonCard.tsx      # Animated skeleton placeholder
-|       |   |       |-- OfflineBanner.tsx
-|       |   |       |-- ErrorBoundary.tsx
-|       |   |   |-- onboarding/              # Phase 1
-|       |   |       |-- OnboardingFlow.tsx    # GPS-powered 60-second setup
-|       |   |       |-- NearbyStations.tsx    # Location-detected station suggestions
-|       |   |       |-- CommuteSetup.tsx      # "Where do you commute to?" step
+|       |   |-- main.tsx
+|       |   |-- App.tsx
 |       |   |-- screens/
 |       |   |   |-- HomeScreen.tsx
 |       |   |   |-- StationScreen.tsx
 |       |   |   |-- CommuteScreen.tsx
 |       |   |   |-- AlertsScreen.tsx
 |       |   |   |-- SettingsScreen.tsx
-|       |   |   |-- TripScreen.tsx      # Phase 5: live trip tracking view
-|       |   |   |-- JournalScreen.tsx   # Phase 5: commute history and stats
-|       |   |   |-- HealthScreen.tsx    # Phase 6: system-wide health dashboard
-|       |   |   |-- StatsScreen.tsx     # Phase 6: annual summary + fare tracking
-|       |   |-- hooks/
-|       |   |   |-- useArrivals.ts      # Fetch and auto-refresh arrivals
-|       |   |   |-- useFavorites.ts     # Read/write favorites from store
-|       |   |   |-- useAlerts.ts        # Fetch and filter alerts
-|       |   |   |-- useCommute.ts       # Commute analysis fetch
-|       |   |   |-- useOnlineStatus.ts  # Navigator.onLine monitoring
-|       |   |   |-- usePushNotifications.ts
-|       |   |   |-- useTripTracker.ts   # Phase 5: lock onto tripId, poll progress
-|       |   |   |-- useGeofence.ts      # Phase 5: station proximity detection
-|       |   |   |-- useContextSort.ts   # Phase 5: time-aware favorite re-sorting
-|       |   |   |-- useEquipment.ts     # Phase 6: fetch equipment status
-|       |   |   |-- usePositions.ts     # Phase 6: fetch train positions for diagram
-|       |   |   |-- useWalkComparison.ts # Phase 6: walk vs transit math
-|       |   |-- stores/
-|       |   |   |-- favoritesStore.ts   # Zustand store for favorites (+ tapHistory)
-|       |   |   |-- settingsStore.ts    # Zustand store for settings
-|       |   |   |-- arrivalsStore.ts    # Zustand store for cached arrivals
-|       |   |   |-- journalStore.ts     # Phase 5: trip records + commute stats
-|       |   |   |-- fareStore.ts        # Phase 6: OMNY ride tracking + fare cap
-|       |   |   |-- migrations/         # Versioned migration functions per store
-|       |   |   |   |-- favorites.ts
-|       |   |   |   |-- journal.ts
-|       |   |   |   |-- fare.ts
-|       |   |-- lib/
-|       |   |   |-- api.ts              # API client (fetch wrapper)
-|       |   |   |-- push.ts            # Push subscription management
-|       |   |   |-- offline.ts          # Offline data management
-|       |   |   |-- prefetch.ts        # Phase 5: aggressive cache on station approach
-|       |   |   |-- context.ts         # Phase 5: time-aware scoring for favorites
-|       |   |   |-- share.ts           # Phase 6: html2canvas card export + Web Share API
-|       |   |-- styles/
-|       |       |-- globals.css         # Tailwind imports, base styles
-|       |-- index.html
+|       |   |   |-- TripScreen.tsx
+|       |   |   |-- JournalScreen.tsx
+|       |   |   |-- HealthScreen.tsx
+|       |   |   |-- StatsScreen.tsx
+|       |   |   |-- MapScreen.tsx              # SHIPPED: Interactive SVG map
+|       |   |   |-- LineDiagramScreen.tsx      # SHIPPED: Schematic line diagram
+|       |   |   |-- PasswordResetRequestScreen.tsx   # SHIPPED
+|       |   |   |-- PasswordResetConfirmScreen.tsx   # SHIPPED
+|       |   |-- components/             # UI components (arrivals, favorites, commute, etc.)
+|       |   |-- hooks/                  # React hooks
+|       |   |-- stores/                 # Zustand stores
+|       |   |-- lib/                    # Utilities (API client, tracing, etc.)
+|       |   |-- styles/                 # Tailwind + global styles
 |       |-- vite.config.ts
 |       |-- tailwind.config.ts
 |       |-- package.json
 |       |-- tsconfig.json
 |
 |-- Dockerfile                           # Multi-stage: build web + server, single runtime image
-|-- .github/
-|   |-- workflows/
-|       |-- ci.yml                      # Lint, type-check, test, build
-|       |-- build-push.yml             # Build container image, push to registry
-|
 |-- package.json                        # Workspace root (npm workspaces)
 |-- tsconfig.base.json                  # Shared TypeScript config
-|-- .gitignore
 |-- README.md
 
-# In the ardenone-cluster repo (GitOps manifests):
-cluster-configuration/apexalgo-iad/mta-my-way/
+# In the jedarden/declarative-config repo (GitOps via ArgoCD):
+k8s/apexalgo-iad/mta-my-way/
 |-- namespace.yaml                      # Namespace definition
 |-- deployment.yaml                     # Single-container Deployment
 |-- service.yaml                        # ClusterIP Service (port 3000)
-|-- ingress.yaml                        # Cloudflare Tunnel route config
-|-- pvc.yaml                            # PersistentVolumeClaim for SQLite push subscription DB
-|-- kustomization.yaml                  # Kustomize overlay
+|-- ingressroute.yaml                   # Traefik IngressRoute (Cloudflare Tunnel backend)
+|-- pvc.yaml                            # PersistentVolumeClaim for SQLite DB (if needed)
+|-- sealedsecret-template.yaml          # Template for SealedSecret (VAPID keys, etc.)
+|-- application.yaml                    # ArgoCD Application manifest
 ```
 
 **Dockerfile strategy (multi-stage):**
@@ -1500,19 +1377,41 @@ Stage 3 (runtime):      Copy web dist + server dist into slim Node.js 22 image
 
 ### 9.2 CI/CD
 
-**GitHub Actions pipeline:**
+**Argo Workflows + ArgoCD (GitOps):**
 
-```
-On push to main:
-  1. Lint (ESLint + Biome)
-  2. Type check (tsc --noEmit)
+CI/CD is handled entirely through Argo Workflows on the `iad-ci` cluster and ArgoCD deployment. GitHub Actions are **disabled by policy** across all repos in this workspace.
+
+**Container Build (Argo WorkflowTemplate):**
+- WorkflowTemplate: `mta-my-way-build` in `jedarden/declarative-config` (k8s/iad-ci/argo-workflows/)
+- Location: `jedarden/declarative-config` repo (not `mta-my-way` repo)
+- Triggers: On push to main branch (automatic via Git push hook)
+- Steps:
+  1. Lint (Biome + ESLint)
+  2. Type check (TypeScript)
   3. Unit tests (Vitest)
   4. Build container image (multi-stage Dockerfile)
-  5. Push image to container registry (GHCR)
-  6. ArgoCD detects new image tag and syncs the Deployment
-```
+  5. Push image to container registry (`ronaldraygun/mta-my-way`)
 
-ArgoCD handles the actual deployment -- no kubectl apply from CI. The GitHub Actions pipeline only builds and pushes the image. ArgoCD watches the image tag (or the manifests repo) and rolls out the update automatically.
+**Deployment (ArgoCD):**
+- ArgoCD Application: `mta-my-way-apexalgo-iad` defined in `jedarden/declarative-config` (k8s/apexalgo-iad/mta-my-way/application.yaml)
+- ArgoCD watches the manifests repo (`jedarden/declarative-config`) and syncs changes to the `apexalgo-iad` cluster
+- All cluster changes go through `jedarden/declarative-config` — no direct `kubectl apply` or live mutation
+- The Deployment references the built container image tag; ArgoCD rolls out updates automatically
+
+**Manifest Location:**
+- Repository: `jedarden/declarative-config`
+- Path: `k8s/apexalgo-iad/mta-my-way/`
+- Files: namespace.yaml, deployment.yaml, service.yaml, ingressroute.yaml, pvc.yaml, sealedsecret-template.yaml, application.yaml
+
+**Status and Logs:**
+```bash
+# List recent workflow runs
+kubectl --kubeconfig=/home/coding/.kube/iad-ci.kubeconfig \
+  get workflows -n argo-workflows --sort-by=.metadata.creationTimestamp | tail -20
+
+# Check ArgoCD application status
+curl -sk https://argocd-ro-ardenone-manager-ts.ardenone.com:8444/api/v1/applications/mta-my-way-apexalgo-iad
+```
 
 ### 9.3 Caching
 
@@ -1527,10 +1426,14 @@ ArgoCD handles the actual deployment -- no kubectl apply from CI. The GitHub Act
 
 ### 9.5 Monitoring
 
-- **Health checks:** Kubernetes liveness and readiness probes on `GET /api/health`. The health endpoint reports per-feed status (last successful fetch, age, error count).
-- **Error tracking:** Sentry (free tier, 5,000 events/month). Integrated into both frontend and backend.
-- **Feed health:** A simple status page at `/status` (Phase 4) shows MTA feed health publicly.
+- **Health checks:** Kubernetes liveness and readiness probes on `GET /health` (or `GET /api/health`). The health endpoint reports per-feed status (last successful fetch, age, error count), uptime, memory usage, and active connections.
+- **Structured logging:** Pino-based JSON logging with contextual metadata (see `docs/observability.md`). Log levels: debug, info, warn, error. Logs written to stdout for Kubernetes log aggregation.
+- **Metrics:** Prometheus metrics exposed at `GET /metrics` (HTTP requests, cache hits/misses, feed poll duration, push notifications, trips, commute analysis, station search, delay predictions, context detections, alerts, equipment outages).
+- **Distributed tracing:** OpenTelemetry (OTLP gRPC) for request tracing and performance debugging (see `packages/server/src/observability/tracing.ts`).
+- **Feed health:** A status page at `/status` renders health endpoint data as a human-readable HTML dashboard showing all feed statuses, error counts, and staleness indicators.
 - **Cluster-level:** Existing apexalgo-iad monitoring infrastructure (if any) covers pod restarts, resource usage, etc.
+
+**Note:** No Sentry integration exists. Error tracking is handled through structured logging and Prometheus metrics.
 
 ---
 
@@ -1588,7 +1491,7 @@ Fixture location: `packages/server/test/fixtures/feeds/`
 
 ### 11.3 CI Integration
 
-All three layers run in the GitHub Actions CI pipeline. E2E tests run against a preview build (not production). Tests must pass before image build proceeds.
+All three layers run in the Argo Workflows CI pipeline (`mta-my-way-build` WorkflowTemplate in `jedarden/declarative-config`). E2E tests run against a preview build (not production). Tests must pass before container image build proceeds. GitHub Actions are disabled by policy.
 
 ---
 
@@ -1676,7 +1579,7 @@ Each migration is a pure function: `(oldState) → newState`. Migrations are col
 
 Before running any migration, the persist middleware snapshots the current store to a backup key: `localStorage.setItem('_mta_backup_favorites_v2', ...)`. If the migration throws:
 1. Restore from backup — user keeps their old data with old behavior.
-2. Log the failure to Sentry.
+2. Log the failure to the error logger (Pino structured logging).
 3. Set a `migrationFailed` flag that surfaces a non-blocking banner: "Some settings may need to be reconfigured."
 
 The user never sees a blank slate from a failed migration.
@@ -1731,10 +1634,14 @@ Failed polls log the error:
 
 ### 15.3 Alerting
 
-- **Kubernetes readiness probe** calls `GET /api/health`. Returns 503 when 3+ feeds have been failing for >5 minutes, triggering pod restart.
+- **Kubernetes readiness probe** calls `GET /health`. Returns 503 when 3+ feeds have been failing for >5 minutes, triggering pod restart.
 - **Liveness probe** is a simple TCP check on port 3000.
-- The `/status` page (Phase 4) renders the health endpoint as a human-readable dashboard.
-- Sentry captures both backend errors (parsing failures, unhandled exceptions) and frontend errors (rendering crashes, API call failures).
+- The `/status` page renders the health endpoint as a human-readable dashboard.
+- **Structured logging** captures backend errors (parsing failures, unhandled exceptions) and frontend errors (rendering crashes, API call failures) via Pino JSON logs, aggregated by Kubernetes log infrastructure.
+- **Prometheus metrics** expose error rates, latency distributions, and feed health for alerting rules (e.g., high error rate, high latency, feed staleness, low push notification success rate, high memory usage).
+- **OpenTelemetry tracing** provides distributed request traces for performance debugging and error root cause analysis.
+
+**Note:** No Sentry integration exists. All error tracking and alerting is handled through the observability stack documented in `docs/observability.md`.
 
 ---
 
@@ -1742,11 +1649,38 @@ Failed polls log the error:
 
 *Note: Station complex mapping (resolved in Phase 1, feature #8) and alert simplification (resolved in Phase 3, feature #1) have been moved from open questions into their respective phases.*
 
+### Original Open Questions
+
 1. **Transfer walking times:** The `transfers.txt` file provides `min_transfer_time` for some transfers, but not all. For missing values, a default of 3 minutes (180 seconds) is reasonable. A future enhancement could use crowdsourced or manually measured times.
 
 2. **Push notification opt-in UX:** Browsers require explicit user permission for push notifications. The app should not request permission on first visit -- instead, show the notification option in settings and prompt only when the user actively enables it. This avoids the "notification permission fatigue" that causes users to deny permission reflexively.
 
-5. **Historical travel times vs scheduled:** The transfer engine needs inter-station travel times. The scheduled times from `stop_times.txt` are a starting point, but actual travel times vary by time of day and direction. Phase 2 can use scheduled times; a future enhancement could track actual observed travel times and use historical averages.
+3. **Historical travel times vs scheduled:** The transfer engine needs inter-station travel times. The scheduled times from `stop_times.txt` are a starting point, but actual travel times vary by time of day and direction. Phase 2 can use scheduled times; a future enhancement could track actual observed travel times and use historical averages.
+
+### Shipped Architecture Deviations
+
+The following shipped features represent deliberate deviations from the original plan:
+
+4. **Auth framework shipped despite "no accounts" promise:** The original plan (Section 1, Section 12.3) explicitly stated "no ads, no accounts, no subscriptions" and promised no server-side PII. However, the codebase ships a comprehensive authentication and authorization framework including:
+   - API key authentication (PBKDF2 hashing, 600k iterations, scope-based)
+   - Session management (IP binding, device tracking, CSRF tokens, sliding expiration)
+   - OAuth 2.0 with PKCE flow (Google/GitHub providers)
+   - TOTP MFA with backup codes
+   - Credential-reset flow with email delivery (enabled via `/api/password-reset/*` routes and `PasswordReset*Screen` components)
+   - Full authorization middleware suite (requireResourceAccess, requireAdmin, requireWrite, requireMfa, validateDataAccess, auditLogAccess)
+
+   **Status:** Most auth routes are disabled in `app.ts` (commented out or behind feature flags). Only the credential-reset flow is fully enabled. The framework exists for future use but is not active in the current configuration. See `docs/authorization-audit.md` for a comprehensive security analysis.
+
+   **Rationale:** The auth framework was implemented for extensibility and potential future features (user accounts, saved commutes sync across devices, etc.), but the core app remains usable without authentication per the original vision.
+
+5. **Map screens shipped despite "not a map explorer" claim:** The original plan (Section 1) explicitly stated "It is not a trip planner for tourists. It is not a map explorer." However, the shipped app includes:
+   - `MapScreen.tsx`: Interactive SVG transit map with pan/zoom, real-time pulsing train positions, line filtering, and tap-to-detail modal
+   - `LineDiagramScreen.tsx`: Schematic line diagram showing train positions as dots on a linear station-to-station representation
+   - README explicitly advertises "Interactive transit map" as a feature
+
+   **Status:** These screens are fully implemented and accessible. They provide value beyond the original "commuter tool" scope by offering system-wide visualization and line-level health at a glance.
+
+   **Rationale:** While the core use case remains the favorites-first home screen, the map features enhance situational awareness (e.g., "Why is my F train delayed? Show me the whole line") and provide entry points for new users who want to explore the system before committing to favorites.
 
 ---
 
