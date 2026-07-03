@@ -3,13 +3,13 @@
   "qualified_id": "glm-bravo",
   "pid": 2327518,
   "state": "EXECUTING",
-  "current_bead": "bf-3kwj",
+  "current_bead": "bf-17bz",
   "workspace": "/home/coding/domain-check",
-  "last_heartbeat": "2026-07-03T03:37:36.981274708Z",
+  "last_heartbeat": "2026-07-03T06:49:47.876550448Z",
   "started_at": "2026-07-02T17:16:27.585182478Z",
-  "beads_processed": 86,
+  "beads_processed": 115,
   "session": "bravo",
   "is_idle": false,
-  "current_task": "bf-3kwj",
+  "current_task": "bf-17bz",
   "model": "glm"
 }

@@ -57,7 +57,7 @@ const mockStations = {
     southStopId: "101S",
     transfers: [],
     ada: true,
-    borough: "manhattan",
+    borough: "manhattan" as const,
   },
   "725": {
     id: "725",
@@ -69,7 +69,7 @@ const mockStations = {
     southStopId: "725S",
     transfers: [],
     ada: true,
-    borough: "manhattan",
+    borough: "manhattan" as const,
   },
   "726": {
     id: "726",
@@ -81,7 +81,7 @@ const mockStations = {
     southStopId: "726S",
     transfers: [],
     ada: true,
-    borough: "manhattan",
+    borough: "manhattan" as const,
   },
 };
 

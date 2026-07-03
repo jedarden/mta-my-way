@@ -6,7 +6,22 @@
  */
 
 import type { Context, Next } from "hono";
-import { metrics } from "../observability/metrics.js";
+import {
+  metrics,
+  activeConnections,
+  cacheHits,
+  cacheMisses,
+  feedEntitiesProcessed,
+  feedErrors,
+  feedPollDuration,
+  httpRequestsTotal,
+  httpRequestDuration,
+  httpRequestSize,
+  httpResponseSize,
+  pushNotificationsFailed,
+  pushNotificationsSent,
+  pushSubscriptionsActive,
+} from "../observability/metrics.js";
 
 /**
  * Metrics route handler.
@@ -39,12 +54,12 @@ export async function metricsMiddleware(c: Context, next: Next) {
   const path = c.req.path;
 
   // Increment active connections
-  metrics.activeConnections.inc();
+  activeConnections.inc();
 
   // Record request size if body is present
   const contentLength = c.req.header("content-length");
   if (contentLength) {
-    metrics.httpRequestSize.observe(parseInt(contentLength, 10), {
+    httpRequestSize.observe(parseInt(contentLength, 10), {
       method,
       route: path,
     });
@@ -57,13 +72,13 @@ export async function metricsMiddleware(c: Context, next: Next) {
     const duration = (Date.now() - start) / 1000; // Convert to seconds
     const status = c.res.status;
 
-    metrics.httpRequestsTotal.inc({
+    httpRequestsTotal.inc({
       method,
       route: path,
       status: status.toString(),
     });
 
-    metrics.httpRequestDuration.observe(duration, {
+    httpRequestDuration.observe(duration, {
       method,
       route: path,
       status: status.toString(),
@@ -72,7 +87,7 @@ export async function metricsMiddleware(c: Context, next: Next) {
     // Record response size if content-length is present
     const responseLength = c.res.headers.get("content-length");
     if (responseLength) {
-      metrics.httpResponseSize.observe(parseInt(responseLength, 10), {
+      httpResponseSize.observe(parseInt(responseLength, 10), {
         method,
         route: path,
       });
@@ -81,13 +96,13 @@ export async function metricsMiddleware(c: Context, next: Next) {
     // Record failed request
     const duration = (Date.now() - start) / 1000;
 
-    metrics.httpRequestsTotal.inc({
+    httpRequestsTotal.inc({
       method,
       route: path,
       status: "500",
     });
 
-    metrics.httpRequestDuration.observe(duration, {
+    httpRequestDuration.observe(duration, {
       method,
       route: path,
       status: "500",
@@ -96,7 +111,7 @@ export async function metricsMiddleware(c: Context, next: Next) {
     throw error;
   } finally {
     // Decrement active connections
-    metrics.activeConnections.dec();
+    activeConnections.dec();
   }
 }
 
@@ -149,11 +164,11 @@ export async function cacheMetricsHandler(c: Context): Promise<Response> {
     "",
     "# HELP cache_hits_total Total cache hits",
     "# TYPE cache_hits_total counter",
-    `cache_hits_total ${getTotalCounterValue(metrics.cacheHits)}`,
+    `cache_hits_total ${getTotalCounterValue(cacheHits)}`,
     "",
     "# HELP cache_misses_total Total cache misses",
     "# TYPE cache_misses_total counter",
-    `cache_misses_total ${getTotalCounterValue(metrics.cacheMisses)}`,
+    `cache_misses_total ${getTotalCounterValue(cacheMisses)}`,
     "",
   ].join("\n");
 
@@ -169,15 +184,15 @@ export async function feedMetricsHandler(c: Context): Promise<Response> {
   const metricsText = [
     "# HELP feed_poll_duration_seconds Feed poll latency in seconds",
     "# TYPE feed_poll_duration_seconds histogram",
-    getHistogramMetrics(metrics.feedPollDuration, "feed_poll_duration_seconds"),
+    getHistogramMetrics(feedPollDuration, "feed_poll_duration_seconds"),
     "",
     "# HELP feed_errors_total Total feed poll errors",
     "# TYPE feed_errors_total counter",
-    `feed_errors_total ${getTotalCounterValue(metrics.feedErrors)}`,
+    `feed_errors_total ${getTotalCounterValue(feedErrors)}`,
     "",
     "# HELP feed_entities_processed Number of entities processed from feed",
     "# TYPE feed_entities_processed gauge",
-    `feed_entities_processed ${getGaugeValue(metrics.feedEntitiesProcessed)}`,
+    `feed_entities_processed ${getGaugeValue(feedEntitiesProcessed)}`,
     "",
   ].join("\n");
 
@@ -193,15 +208,15 @@ export async function pushMetricsHandler(c: Context): Promise<Response> {
   const metricsText = [
     "# HELP push_notifications_sent_total Total push notifications sent",
     "# TYPE push_notifications_sent_total counter",
-    `push_notifications_sent_total ${getTotalCounterValue(metrics.pushNotificationsSent)}`,
+    `push_notifications_sent_total ${getTotalCounterValue(pushNotificationsSent)}`,
     "",
     "# HELP push_notifications_failed_total Total push notifications failed",
     "# TYPE push_notifications_failed_total counter",
-    `push_notifications_failed_total ${getTotalCounterValue(metrics.pushNotificationsFailed)}`,
+    `push_notifications_failed_total ${getTotalCounterValue(pushNotificationsFailed)}`,
     "",
     "# HELP push_subscriptions_active Number of active push subscriptions",
     "# TYPE push_subscriptions_active gauge",
-    `push_subscriptions_active ${getGaugeValue(metrics.pushSubscriptionsActive)}`,
+    `push_subscriptions_active ${getGaugeValue(pushSubscriptionsActive)}`,
     "",
     "# HELP push_success_rate Push notification success rate (0-1)",
     "# TYPE push_success_rate gauge",
@@ -222,8 +237,8 @@ export async function pushMetricsHandler(c: Context): Promise<Response> {
  * Calculate cache hit rate from metrics.
  */
 function calculateCacheHitRate(): number {
-  const hits = getTotalCounterValue(metrics.cacheHits);
-  const misses = getTotalCounterValue(metrics.cacheMisses);
+  const hits = getTotalCounterValue(cacheHits);
+  const misses = getTotalCounterValue(cacheMisses);
   const total = hits + misses;
 
   if (total === 0) return 0;
@@ -234,8 +249,8 @@ function calculateCacheHitRate(): number {
  * Calculate push notification success rate.
  */
 function calculatePushSuccessRate(): number {
-  const sent = getTotalCounterValue(metrics.pushNotificationsSent);
-  const failed = getTotalCounterValue(metrics.pushNotificationsFailed);
+  const sent = getTotalCounterValue(pushNotificationsSent);
+  const failed = getTotalCounterValue(pushNotificationsFailed);
   const total = sent + failed;
 
   if (total === 0) return 1; // No failures = 100% success rate
@@ -245,7 +260,8 @@ function calculatePushSuccessRate(): number {
 /**
  * Get total value of a counter metric (sum of all label combinations).
  */
-function getTotalCounterValue(counter: ReturnType<ReturnType<typeof metrics.counter>>): number {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getTotalCounterValue(_counter: { inc: (amount?: number, labels?: Record<string, string>) => void }): number {
   // This is a simplified version - in production you'd track actual counter values
   return 0;
 }
@@ -253,7 +269,8 @@ function getTotalCounterValue(counter: ReturnType<ReturnType<typeof metrics.coun
 /**
  * Get current value of a gauge metric.
  */
-function getGaugeValue(gauge: ReturnType<ReturnType<typeof metrics.gauge>>): number {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getGaugeValue(_gauge: { set: (value: number, labels?: Record<string, string>) => void }): number {
   // This is a simplified version - in production you'd track actual gauge values
   return 0;
 }
@@ -261,8 +278,9 @@ function getGaugeValue(gauge: ReturnType<ReturnType<typeof metrics.gauge>>): num
 /**
  * Get histogram metrics in Prometheus format.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getHistogramMetrics(
-  histogram: ReturnType<ReturnType<typeof metrics.histogram>>,
+  _histogram: { observe: (value: number, labels?: Record<string, string>) => void },
   name: string
 ): string {
   // This is a simplified version - in production you'd track actual histogram values

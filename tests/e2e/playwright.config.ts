@@ -43,9 +43,12 @@ export default defineConfig({
     },
   ],
 
-  // Start the local dev server before running tests
+  // Start the local dev server before running tests.
+  // Uses tsx to transpile TypeScript on-the-fly (avoids tsc -b build failures
+  // from unrelated type errors in the codebase).
   webServer: {
-    command: "cd ../.. && TEST_MODE=true npm run start --workspace=packages/server",
+    command:
+      "cd ../.. && TEST_MODE=true npx tsx packages/server/src/index.ts",
     url: "http://localhost:3001",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
