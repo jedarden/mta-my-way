@@ -8,7 +8,7 @@
       "model": null,
       "provider": "zai",
       "started_at": "2026-07-02T17:16:27.631267208Z",
-      "beads_processed": 105
+      "beads_processed": 106
     },
     {
       "id": "glm-bravo",
@@ -18,8 +18,8 @@
       "model": null,
       "provider": "zai",
       "started_at": "2026-07-02T17:16:27.635324186Z",
-      "beads_processed": 116
+      "beads_processed": 120
     }
   ],
-  "updated_at": "2026-07-03T06:58:52.050508482Z"
+  "updated_at": "2026-07-03T07:17:15.241665582Z"
 }
