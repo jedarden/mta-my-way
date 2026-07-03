@@ -1,0 +1,81 @@
+time=2026-07-03T14:43:55.429Z level=INFO msg="waiting for signals" argo=true signalPath=/var/run/argo/ctr/main/signal
++ apt-get update
+Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8790 kB]
+Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [314 kB]
+Fetched 9365 kB in 2s (5308 kB/s)
+Reading package lists...
++ apt-get install -y git
++ git clone --depth 1 --branch main https://x-access-token:***REDACTED***@github.com/jedarden/mta-my-way.git /src
+Cloning into '/src'...
+=== npm ci ===
++ cd /src
++ echo === npm ci ===
++ npm ci --prefer-offline
+npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated @types/argon2@0.15.4: This is a stub types definition. argon2 provides its own type definitions, so you do not need this installed.
+npm warn deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+npm warn deprecated glob@11.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 952 packages, and audited 957 packages in 36s
+
+207 packages are looking for funding
+  run `npm fund` for details
+
+41 vulnerabilities (1 low, 21 moderate, 17 high, 2 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+npm notice
+npm notice New major version of npm available! 10.9.8 -> 11.18.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.18.0
+npm notice To update run: npm install -g npm@11.18.0
+npm notice
+=== npm run lint ===
++ echo === npm run lint ===
++ npm run lint
+
+> mta-my-way@0.0.1 lint
+> biome check . && eslint .
+
+Checked 554 files in 1806ms. No fixes applied.
+(node:3310) ESLintIgnoreWarning: The ".eslintignore" file is no longer supported. Switch to using the "ignores" property in "eslint.config.js": https://eslint.org/docs/latest/use/configure/migration-guide#ignoring-files
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+<--- Last few GCs --->
+
+[3310:0x3f1fc000]    58257 ms: Scavenge 1012.8 (1039.0) -> 1010.6 (1040.0) MB, pooled: 0 MB, 4.16 / 0.00 ms  (average mu = 0.545, current mu = 0.369) allocation failure; 
+[3310:0x3f1fc000]    58284 ms: Scavenge 1014.0 (1040.0) -> 1010.9 (1048.3) MB, pooled: 0 MB, 4.30 / 0.00 ms  (average mu = 0.545, current mu = 0.369) allocation failure; 
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0xe46bbe node::OOMErrorHandler(char const*, v8::OOMDetails const&) [node]
+ 2: 0x1243740 v8::Utils::ReportOOMFailure(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [node]
+ 3: 0x1243a17 v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [node]
+ 4: 0x1472925  [node]
+ 5: 0x148c1b9 v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags) [node]
+ 6: 0x14608b8 v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [node]
+ 7: 0x14617e5 v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [node]
+ 8: 0x143a3ee v8::internal::Factory::NewFillerObject(int, v8::internal::AllocationAlignment, v8::internal::AllocationType, v8::internal::AllocationOrigin) [node]
+ 9: 0x189ccfc v8::internal::Runtime_AllocateInYoungGeneration(int, unsigned long*, v8::internal::Isolate*) [node]
+10: 0x1dfcaf6  [node]
+Aborted (core dumped)
+time=2026-07-03T14:45:48.547Z level=INFO msg="sub-process exited" argo=true error="exit status 134"
+time=2026-07-03T14:45:48.547Z level=INFO msg="file signal handler exiting due to context cancellation" argo=true
+Error: exit status 134
