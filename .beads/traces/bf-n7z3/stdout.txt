@@ -1,0 +1,23 @@
+Done. Here's what was implemented:
+
+**New file: `packages/server/src/test/rate-limiter-harness.ts`**
+
+Reusable test infrastructure for rate limiter integration tests:
+
+| Export | Purpose |
+|--------|---------|
+| `AuthVars` type | Shared Hono variables type for auth context |
+| `IP_A`, `IP_B` | Test IP constants (`10.0.0.1`, `10.0.0.2`) |
+| `mockOptionalAuth()` | Mock auth middleware — parses `Bearer <apiKeyId>:<userId>` |
+| `mockCsrfProtection()` | Mock CSRF — blocks mutating methods without `X-CSRF-Token` |
+| `createStatusRecorder()` | Middleware that captures response status codes |
+| `createStandardChainApp()` | requestId → rateLimiter → securityHeaders → securityLogging |
+| `createReversedOrderApp()` | rateLimiter → requestId → securityHeaders |
+| `createAuthBeforeRateLimitApp()` | requestId → securityHeaders → optionalAuth → rateLimiter |
+| `createAuthCsrfChainApp()` | requestId → securityHeaders → optionalAuth → csrfProtection → rateLimiter |
+| `enableRateLimiting()` | Enable + reset for `beforeEach` |
+| `disableRateLimiting()` | Disable + reset for `afterEach` |
+| `withRateLimiting(fn)` | Async wrapper for standalone helpers |
+| Re-exports | `rateLimiter`, `resetRateLimiter`, `setRateLimiterTestMode`, `getRateLimiterTestMode` |
+
+**Refactored: `rate-limiter.integration.test.ts`** — now imports all infrastructure from the harness instead of defining it inline. All 32 integration tests pass. Committed and pushed as `3392b88`.

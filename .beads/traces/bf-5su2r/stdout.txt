@@ -1,0 +1,9 @@
+Done. Added 5 focused integration tests in `packages/server/src/integration/audit-log-security-events.test.ts:540-617` covering the full `createHostHeaderAuditApp` middleware chain:
+
+1. **evil.com returns 400** — verifies blocked response status
+2. **host_header_blocked entry present** — confirms audit log captures the action
+3. **Correct metadata** — validates path, method, clientIp, and success: false
+4. **No entry for allowed host** — ensures clean requests don't produce false positives
+5. **CF-Connecting-IP preserved** — verifies client IP extraction from proxy headers
+
+All 32 tests pass, lint clean, committed and pushed to `main`.

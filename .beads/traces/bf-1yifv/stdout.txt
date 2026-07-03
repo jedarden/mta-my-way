@@ -1,0 +1,9 @@
+The task is complete. Here's the summary:
+
+**No code changes were needed** — the middleware ordering in `createHostHeaderAuditApp` (`audit-log-security-events.test.ts:202-211`) was already correct:
+
+1. `auditLogBridgeMiddleware()` is registered **first** (line 205) — it becomes the outer wrapper
+2. `hostHeaderProtection()` is registered **second** (line 206) — it runs inside the bridge
+3. The bridge calls `await next()` (line 73) before inspecting `c.res.status`, so it correctly observes the 400 response set by the downstream host header protection
+
+All 27 integration tests pass ✅

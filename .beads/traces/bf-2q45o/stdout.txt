@@ -1,0 +1,3 @@
+Bead `bf-2q45o` is now closed.
+
+**Summary:** Verified that `createHostHeaderAuditApp` in `packages/server/src/integration/audit-log-security-events.test.ts:202-211` correctly registers `auditLogBridgeMiddleware()` on `/api/*` **before** `hostHeaderProtection()` on `/api/*`, with no middleware between them. The bridge wraps the protection middleware via `await next()`, allowing it to observe the 400 response. All related tests pass.

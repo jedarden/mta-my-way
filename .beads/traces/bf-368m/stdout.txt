@@ -1,0 +1,10 @@
+Done. Here's a summary of what was fixed:
+
+**Root cause:** The `auditLogBridgeMiddleware()` was registered **after** the blocking middleware (auth, CSRF, rate limiter, host-header protection) in the app factories. Since it uses `await next()` then inspects the response status, it must be registered **first** to wrap all downstream handlers and observe their status codes.
+
+**Changes committed (`46c2007`):**
+1. **Middleware ordering** — moved `auditLogBridgeMiddleware()` before all blocking middleware in `createCsrfAuditApp`, `createRateLimitAuditApp`, `createHostHeaderAuditApp`, and `createFullChainAuditApp`
+2. **Timestamp assertion fix** — corrected `toBeLessThanOrEqual` → `toBeGreaterThanOrEqual` to match AUDIT_LOG's newest-first storage
+3. **Import sorting** — auto-fixed by biome (cosmetic)
+
+**Result:** All 27 tests pass, lint clean.

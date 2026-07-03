@@ -1,0 +1,1 @@
+The bead has been closed. The verification confirmed all acceptance criteria are met — the `status === 400` branch at line 104 of `audit-log-security-events.test.ts` correctly calls `addAuditEvent` with all required fields, and all 27 tests pass.

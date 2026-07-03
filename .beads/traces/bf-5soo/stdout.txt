@@ -1,0 +1,16 @@
+**CLOSED (not split) — bf-5soo.**
+
+This bead did not need splitting. All 6 acceptance criteria are met and verified passing:
+
+| Criterion | File | Tests |
+|---|---|---|
+| Counter decrements | `rate-limiter-counter-headers.integration.test.ts` | 5 ✅ |
+| X-RateLimit headers | same | 8 ✅ |
+| Earlier middleware on 429 | same | 4 ✅ |
+| Downstream short-circuit on 429 | same | 5 ✅ |
+| Token refill over time | same | 5 ✅ |
+| Reset clears state | same | 6 ✅ |
+
+Plus 32 additional middleware chain integration tests in `rate-limiter.integration.test.ts` (auth, CSRF, ordering, reset isolation, header consistency, security logging).
+
+The 12 failures were from the NEEDLE worker agent repeatedly claiming and timing out on this bead — not from test failures. The code was already complete and correct. Splitting would have created unnecessary child beads for finished work.

@@ -1,0 +1,3 @@
+Bead closed and flushed. 
+
+**Summary:** Verified that `auditLogBridgeMiddleware` correctly captures the 400 status from `hostHeaderProtection`. All acceptance criteria confirmed — `c.res.status` reflects the 400 after `await next()`, the `status === 400` branch fires, and `addAuditEvent` is called with `category: "security"`, `severity: "warning"`, `action: "host_header_blocked"`, `success: false`. All 27 tests pass.

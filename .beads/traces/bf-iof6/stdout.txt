@@ -1,0 +1,8 @@
+**Summary:** The client IP preservation in host-header audit entries already works correctly. No code changes were needed.
+
+The flow works end-to-end:
+1. `getClientIp()` in `audit-log.ts:205-212` extracts the IP from the `CF-Connecting-IP` header
+2. The `auditLogBridgeMiddleware` calls `getClientIp(c)` after `await next()` — request headers remain accessible even when the downstream `hostHeaderProtection` middleware short-circuits with a 400 response
+3. The bridge then writes the audit event with the correct `clientIp` value
+
+All 119 related tests pass (including the specific test `'host-header blocked request preserves client IP'` which sends `Host: evil.com` with `CF-Connecting-IP: 10.20.30.40` and verifies `clientIp` is `'10.20.30.40'`).

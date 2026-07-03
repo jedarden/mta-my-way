@@ -871,6 +871,93 @@ export function createApp(
   // -------------------------------------------------------------------------
   // Health endpoint
   // -------------------------------------------------------------------------
+  /**
+   * GET /api/health — Per-feed health status (JSON)
+   *
+   * Query validation: Uses `emptyQuerySchema` (`z.object({}).strict()`).
+   * Any query parameters at all cause a 400 with `{ error: "validation failed", details: [...] }`.
+   * No query parameters are accepted.
+   *
+   * Response top-level fields:
+   *   status              ("ok" | "degraded")
+   *     — "ok" when all feeds have circuitOpenAt===null AND lastSuccessAt!==null AND !isStale,
+   *       AND alerts has circuitOpen===false AND lastSuccessAt!==null.
+   *     — "degraded" otherwise.
+   *
+   *   timestamp           string (ISO 8601) — new Date().toISOString() at request time.
+   *
+   *   uptime_seconds      number — seconds since SERVER_START_MS (set at module load).
+   *
+   *   feeds               Array<FeedState> — one entry per GTFS-realtime feed.
+   *     Each element:
+   *       id                    string   — feed identifier (e.g. "1", "26", "31", "36").
+   *       name                  string   — human-readable feed name.
+   *       status                ("circuit_open" | "never_polled" | "stale" | "ok")
+   *         — "circuit_open" when circuitOpenAt !== null.
+   *         — "never_polled" when lastSuccessAt === null.
+   *         — "stale" when isStale === true.
+   *         — "ok" otherwise.
+   *       lastSuccessAt         string | null — ISO 8601 of last successful poll, or null.
+   *       lastPollAt            string | null — ISO 8601 of last poll attempt, or null.
+   *       consecutiveFailures  number — count of consecutive failed polls.
+   *       entityCount           number — number of entities in the feed.
+   *       lastError             string | null — truncated (max 100 chars) last error message,
+   *                                  newlines stripped; null if no error.
+   *       tripReplacementPeriod string | null — the feed's trip replacement period.
+   *       avgLatencyMs          number — average of latencyHistory entries.
+   *       errorCount24h         number — count of error timestamps within the last 24 hours.
+   *       parseErrors           (feed-specific type) — parse error details for the feed.
+   *
+   *   alerts              object — alerts polling subsystem status.
+   *     count                  number  — number of alerts tracked.
+   *     lastSuccessAt          number | null — epoch-ms of last successful alert fetch, or null.
+   *     matchRate              number  — fraction of alerts that matched trips (0–1).
+   *     consecutiveFailures    number  — consecutive alert fetch failures.
+   *     circuitOpen            boolean — whether the alerts circuit breaker is open.
+   *     unmatchedCount         number  — alerts that did not match any known trip.
+   *
+   *   delayDetector       object — delay detector subsystem status.
+   *     trackedTrips           number — count of trips currently being tracked.
+   *     activeAlerts           number — count of active predicted delay alerts.
+   *     thresholdMultiplier    number — delay threshold configuration multiplier.
+   *     minTrainsForLineAlert  number — minimum trains needed to trigger a line-level alert.
+   *
+   *   delayPredictor     object — delay predictor subsystem status.
+   *     totalRecords           number — count of delay records stored.
+   *     aggregatedPatterns     number — count of aggregated statistical patterns.
+   *     minObservations        number — minimum observations required for a prediction.
+   *     currentWeather         WeatherCondition — current weather string (e.g. "clear").
+   *
+   *   equipment           object (EquipmentCacheStatus) — elevator/escalator outage status.
+   *     lastFetchAt            string | null — ISO 8601 of last fetch attempt.
+   *     lastSuccessAt          string | null — ISO 8601 of last successful fetch.
+   *     outageCount            number — number of stations with tracked outages.
+   *     consecutiveFailures    number — consecutive equipment fetch failures.
+   *     circuitOpen            boolean — whether the equipment circuit breaker is open.
+   *
+   *   pushSubscriptions   number — count of active push notification subscriptions.
+   *
+   *   cacheHitRate        number — fraction 0–1, computed as cache_hits_total /
+   *                            (cache_hits_total + cache_misses_total) summed across all
+   *                            label combinations. Rounded to 2 decimal places.
+   *                            Returns 0 when there have been no cache requests.
+   *
+   *   memory             object — Node.js process memory snapshot via process.memoryUsage().
+   *     rssBytes               number — resident set size in bytes.
+   *     heapUsedBytes          number — active heap usage in bytes.
+   *     heapTotalBytes         number — total heap allocated in bytes.
+   *     externalBytes          number — external (C++/Buffer) memory in bytes.
+   *
+   *   failingFeedsCount  number — count of feeds where consecutiveFailures > 0 AND
+   *                            lastSuccessAt !== null AND time since last success > 5 minutes.
+   *
+   * HTTP status code:
+   *   200 — when fewer than UNHEALTHY_FEED_THRESHOLD (3) feeds are failing
+   *         (consecutiveFailures > 0, had prior success, last success > 5 min ago).
+   *   503 — when 3 or more feeds meet the failing criteria above.
+   *   Note: "degraded" status can coexist with a 200 response (e.g. one stale feed
+   *         but fewer than 3 failing). 503 implies "degraded" but not vice versa.
+   */
   app.get("/api/health", (c) => {
     // Validate that no unexpected query parameters are passed
     const query = validateQuery(c, emptyQuerySchema);

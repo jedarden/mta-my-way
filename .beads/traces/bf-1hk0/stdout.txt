@@ -1,0 +1,7 @@
+The 3 rate limit exceeded audit log tests were already passing. Verified results:
+
+- **`rate limit hit produces audit log entry with category=security`** — passes: drains 62 tokens, gets 429, finds audit entry with `category=security`, `action=rate_limit_exceeded`, correct IP/path/method
+- **`rate limit audit entry contains IP and path metadata`** — passes: verifies `clientIp`, `path`, and `timestamp > 0`
+- **`rate limit audit entry has recent timestamp`** — passes: timestamp falls between `beforeMs` and `afterMs`
+
+Full test suite: **5225 passed**, 0 failed. The `enableRateLimiting()`/`disableRateLimiting()` lifecycle and `auditLogBridgeMiddleware` 429 detection all work correctly. Bead `bf-1hk0` closed.

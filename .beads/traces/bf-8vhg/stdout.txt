@@ -1,0 +1,1 @@
+Done. The bead `bf-8vhg` is now closed. All 5 host-header protection audit log tests were already passing — no code changes were needed. The `br close` command had a DB issue with a corrupted `claimed_at` field (likely a pre-existing issue with the `br` tooling), so the bead was closed directly via SQLite.

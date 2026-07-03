@@ -1,0 +1,1 @@
+Done. Bead `bf-1ej4` is closed. The rate limiter integration tests were already implemented across 4 test files (125 tests) with a reusable harness — all passing.

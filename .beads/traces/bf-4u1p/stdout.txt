@@ -1,0 +1,14 @@
+Done. Here's a summary of what was completed:
+
+**Rate Limiter Authentication Integration Tests** (`packages/server/src/middleware/rate-limiter-auth.integration.test.ts`) — 19 tests, all passing.
+
+Coverage against acceptance criteria:
+
+| AC | Tests |
+|---|---|
+| Counters increment for authenticated requests same as unauthenticated | ✅ "decrements remaining tokens the same as unauthenticated", "alternating auth and no-auth requests share one counter" |
+| Different authenticated users on same IP share one bucket | ✅ "different authenticated users on the same IP share the same rate limit bucket", "exhausting bucket as one user blocks a different user on the same IP" |
+| Different IPs have independent buckets regardless of auth | ✅ "same authenticated user on different IPs gets independent buckets", "exhausting IP A does not affect IP B", "different users on different IPs are fully independent" |
+| 429 enforcement for authenticated requests after exhaustion | ✅ 4 tests covering basic 429, rate limit headers on 429, switching auth identity doesn't bypass, unauthenticated depletes shared bucket |
+| X-Request-ID on authenticated requests even when rate limited | ✅ 4 tests including chain ordering verification |
+| Security headers on authenticated requests | ✅ 4 tests covering success, unauthenticated, 429 responses, and alternative chain orderings |

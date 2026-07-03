@@ -1,0 +1,5 @@
+Bead **bf-4one** is now closed. The task was already fully implemented:
+
+- **Middleware ordering** is correct: `auditLogBridgeMiddleware()` at line 205 wraps `hostHeaderProtection()` at line 206 in `createHostHeaderAuditApp`
+- **All 33 integration tests pass** — including the "Host-header audit capture integration" suite (5 tests) and the smoke test
+- No code changes were needed; this was fixed in prior commits (`46c2007`, `583cca1`, `4dc3600`)

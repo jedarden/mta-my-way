@@ -1,0 +1,7 @@
+Bead closed. All host-header protection audit log integration tests passed (27/27) — no code changes were needed. The tests confirmed:
+
+- **Disallowed host** → `queryAuditLog({ action: "host_header_blocked" })` returns ≥1 entry with correct metadata
+- **Client IP preserved** → `CF-Connecting-IP` captured in audit entry
+- **Allowed host** → no `host_header_blocked` entries produced
+- **IP in Host header** → blocked and audited when not in allow-list
+- **Timestamps** → recent and valid across all entries

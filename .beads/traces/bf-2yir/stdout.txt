@@ -1,0 +1,3 @@
+Bead `bf-2yir` is closed. 
+
+**Summary:** Both host-header audit scenarios were already working correctly after the prior middleware ordering fix (commit `46c2007`). The bridge middleware runs before the host-header protection middleware, observes the 400 response status, and correctly writes audit entries for blocked hosts while allowing allowed hosts through without creating entries. All 33 audit-log-security-events tests pass.

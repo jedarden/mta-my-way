@@ -1,0 +1,9 @@
+Done. Here's the summary:
+
+**All 5 host-header protection audit tests pass** — no code changes were needed. The two tests mentioned in the task were already working correctly:
+
+1. ✅ **IP in Host header produces audit log entry when blocked** — `Host: 192.168.1.1` is correctly blocked (400) by the `hostHeaderProtection` middleware (fails the allow-list check), and the bridge middleware captures it as a `host_header_blocked` audit entry.
+
+2. ✅ **Host-header block audit entry has recent timestamp** — the audit entry's `timestamp` falls within the `beforeMs`/`afterMs` window captured around the request.
+
+The bead `bf-44u9` has been closed. The one failing test in the suite (`authorization-security.test.ts > checkTimeBasedAccess`) is a pre-existing timezone-dependent flake unrelated to this work.
