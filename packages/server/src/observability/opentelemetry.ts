@@ -29,7 +29,8 @@
  *   OTEL_TRACES_SAMPLER_ARG: Sampler argument (default: 1.0)
  */
 
-import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
+import type { DiagLogLevel } from "@opentelemetry/api";
+import { DiagConsoleLogger, diag } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { OTLPTraceExporter as OTLPTraceExporterHTTP } from "@opentelemetry/exporter-trace-otlp-proto";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
@@ -178,9 +179,7 @@ export async function shutdownOpenTelemetry(): Promise<void> {
  */
 function getVersion(): string {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const packageJson = require("../../../package.json");
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return packageJson.version || "0.0.0";
   } catch {
     return "0.0.0";

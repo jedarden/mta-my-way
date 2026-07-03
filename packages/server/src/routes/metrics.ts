@@ -7,17 +7,17 @@
 
 import type { Context, Next } from "hono";
 import {
-  metrics,
   activeConnections,
   cacheHits,
   cacheMisses,
   feedEntitiesProcessed,
   feedErrors,
   feedPollDuration,
-  httpRequestsTotal,
   httpRequestDuration,
   httpRequestSize,
+  httpRequestsTotal,
   httpResponseSize,
+  metrics,
   pushNotificationsFailed,
   pushNotificationsSent,
   pushSubscriptionsActive,
@@ -260,8 +260,10 @@ function calculatePushSuccessRate(): number {
 /**
  * Get total value of a counter metric (sum of all label combinations).
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getTotalCounterValue(_counter: { inc: (amount?: number, labels?: Record<string, string>) => void }): number {
+
+function getTotalCounterValue(_counter: {
+  inc: (amount?: number, labels?: Record<string, string>) => void;
+}): number {
   // This is a simplified version - in production you'd track actual counter values
   return 0;
 }
@@ -269,8 +271,10 @@ function getTotalCounterValue(_counter: { inc: (amount?: number, labels?: Record
 /**
  * Get current value of a gauge metric.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getGaugeValue(_gauge: { set: (value: number, labels?: Record<string, string>) => void }): number {
+
+function getGaugeValue(_gauge: {
+  set: (value: number, labels?: Record<string, string>) => void;
+}): number {
   // This is a simplified version - in production you'd track actual gauge values
   return 0;
 }
@@ -278,7 +282,7 @@ function getGaugeValue(_gauge: { set: (value: number, labels?: Record<string, st
 /**
  * Get histogram metrics in Prometheus format.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 function getHistogramMetrics(
   _histogram: { observe: (value: number, labels?: Record<string, string>) => void },
   name: string
