@@ -549,9 +549,11 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       // All should succeed
       expect(responses.every((r) => r.status === 200)).toBe(true);
 
-      // Results should be consistent with filters
+      // Results should be consistent with filters (read body before accessing)
       const line1Trips = await responses[0].json();
       expect(line1Trips.trips.every((t: { line: string }) => t.line === "1")).toBe(true);
+      const lineATrips = await responses[1].json();
+      expect(lineATrips.trips.every((t: { line: string }) => t.line === "A")).toBe(true);
     });
   });
 

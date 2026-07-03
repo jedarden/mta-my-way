@@ -9,7 +9,7 @@ Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Package
 Fetched 9367 kB in 2s (6005 kB/s)
 Reading package lists...
 + apt-get install -y git
-+ git clone --depth 1 --branch main https://x-access-token:ghp_REDACTED@github.com/jedarden/mta-my-way.git /src
++ git clone --depth 1 --branch main https://x-access-token:***@github.com/jedarden/mta-my-way.git /src
 Cloning into '/src'...
 + cd /src
 + npm ci --prefer-offline

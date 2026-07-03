@@ -58,6 +58,12 @@ export default tseslint.config(
       "**/test-helpers.ts",
       "**/test/**/*.ts",
     ],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
