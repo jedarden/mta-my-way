@@ -148,9 +148,7 @@ export const testSeedData: SeedData[] = [
  * @param environment - Environment name (dev, test, prod)
  * @returns Array of seed data entries
  */
-export function getSeedDataForEnvironment(
-  environment: "dev" | "test" | "prod"
-): SeedData[] {
+export function getSeedDataForEnvironment(environment: "dev" | "test" | "prod"): SeedData[] {
   switch (environment) {
     case "dev":
       return devSeedData;

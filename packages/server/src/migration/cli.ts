@@ -26,8 +26,8 @@ import {
   runMigrations,
   validateDatabase,
 } from "./migration.js";
-import { seedReferenceData } from "./seeding.js";
 import { getSeedDataForEnvironment } from "./seed-data.js";
+import { seedReferenceData } from "./seeding.js";
 
 const program = new Command();
 

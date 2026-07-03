@@ -207,7 +207,9 @@ function createRateLimitAuditApp(): Hono<AuthVars> {
  * This is a test-only wrapper that duplicates the validation logic from
  * host-header-protection.ts (without changing production middleware code).
  */
-function hostHeaderProtectionWithAudit(options: Parameters<typeof hostHeaderProtection>[0]): MiddlewareHandler {
+function hostHeaderProtectionWithAudit(
+  options: Parameters<typeof hostHeaderProtection>[0]
+): MiddlewareHandler {
   return async (c, next) => {
     const host = c.req.header("Host");
 
@@ -272,7 +274,10 @@ function createHostHeaderAuditApp(): Hono {
   const app = new Hono();
 
   app.use("/api/*", auditLogBridgeMiddleware());
-  app.use("/api/*", hostHeaderProtectionWithAudit({ allowedHosts: ["allowed.test", "mta-my-way.test"] }));
+  app.use(
+    "/api/*",
+    hostHeaderProtectionWithAudit({ allowedHosts: ["allowed.test", "mta-my-way.test"] })
+  );
 
   app.get("/api/test", (c) => c.json({ message: "ok" }));
 
