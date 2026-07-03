@@ -3,13 +3,13 @@
   "qualified_id": "glm-alpha",
   "pid": 2327467,
   "state": "EXECUTING",
-  "current_bead": "bf-2k6t7",
+  "current_bead": "bf-29gra",
   "workspace": "/home/coding/mta-my-way",
-  "last_heartbeat": "2026-07-03T07:24:13.213181347Z",
+  "last_heartbeat": "2026-07-03T08:04:15.634469527Z",
   "started_at": "2026-07-02T17:16:27.581102687Z",
-  "beads_processed": 107,
+  "beads_processed": 112,
   "session": "alpha",
   "is_idle": false,
-  "current_task": "bf-2k6t7",
+  "current_task": "bf-29gra",
   "model": "glm"
 }
