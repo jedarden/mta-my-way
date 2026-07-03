@@ -1,0 +1,11 @@
+# Lint step stderr captured from workflow: mta-my-way-lint-debug-7qvsf
+# Pod: mta-my-way-lint-debug-7qvsf (deleted by podGC)
+# Date: 2026-07-03T14:27:51Z — 2026-07-03T14:28:52Z
+# Outcome: FAILED (exit code 1)
+# Source: Argo Workflows pod logs, split from combined output
+# Note: Argo executor logs go to stderr; command trace output (set -ex) goes to stdout
+
+time=2026-07-03T14:27:56.555Z level=INFO msg="waiting for signals" argo=true signalPath=/var/run/argo/ctr/main/signal
+time=2026-07-03T14:28:52.613Z level=INFO msg="file signal handler exiting due to context cancellation" argo=true
+time=2026-07-03T14:28:52.613Z level=INFO msg="sub-process exited" argo=true error="exit status 1"
+Error: exit status 1

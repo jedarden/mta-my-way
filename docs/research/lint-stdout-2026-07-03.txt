@@ -1,0 +1,262 @@
+# Lint step stdout captured from workflow: mta-my-way-lint-debug-7qvsf
+# Pod: mta-my-way-lint-debug-7qvsf (deleted by podGC)
+# Date: 2026-07-03T14:27:51Z — 2026-07-03T14:28:52Z
+# Outcome: FAILED (exit code 1) — 10 biome formatting errors
+# Source: Argo Workflows pod logs, split from combined output
+
++ apt-get update
+Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8790 kB]
+Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [314 kB]
+Fetched 9365 kB in 2s (5586 kB/s)
+Reading package lists...
++ apt-get install -y git
++ git clone --depth 1 --branch main https://x-access-token:ghp_***@github.com/jedarden/mta-my-way.git /src
+Cloning into '/src'...
++ cd /src
++ npm ci --prefer-offline
+npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated @types/argon2@0.15.4: This is a stub types definition. argon2 provides its own type definitions, so you do not need this installed.
+npm warn deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+npm warn deprecated glob@11.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 952 packages, and audited 957 packages in 38s
+
+207 packages are looking for funding
+  run `npm fund` for details
+
+41 vulnerabilities (1 low, 21 moderate, 17 high, 2 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+npm notice
+npm notice New major version of npm available! 10.9.8 -> 11.18.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.18.0
+npm notice To update run: npm install -g npm@11.18.0
+npm notice
++ npm run lint
+
+> mta-my-way@0.0.1 lint
+> biome check . && eslint .
+
+./~/.needle/state/workers.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    23 23 │     ],
+    24 24 │     "updated_at": "2026-07-03T07:59:21.746446399Z"
+    25    │ - }
+       25 │ + }
+       26 │ +
+
+
+./~/.needle/state/heartbeats/glm-bravo.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    13 13 │     "current_task": "bf-5jk6",
+    14 14 │     "model": "glm"
+    15    │ - }
+       15 │ + }
+       16 │ +
+
+
+./~/.needle/state/heartbeats/glm-alpha.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    13 13 │     "current_task": "bf-29gra",
+    14 14 │     "model": "glm"
+    15    │ - }
+       15 │ + }
+       16 │ +
+
+
+./packages/server/tsconfig.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    10 10 │     },
+    11 11 │     "include": ["src/**/*"],
+    12    │ - ··"exclude":·["node_modules",·"dist",·"src/**/*.test.ts",·"src/**/*.spec.ts",·"src/integration",·"src/test"],
+       12 │ + ··"exclude":·[
+       13 │ + ····"node_modules",
+       14 │ + ····"dist",
+       15 │ + ····"src/**/*.test.ts",
+       16 │ + ····"src/**/*.spec.ts",
+       17 │ + ····"src/integration",
+       18 │ + ····"src/test"
+       19 │ + ··],
+    13 20 │     "references": [{ "path": "../shared" }]
+    14 21 │   }
+
+
+./tests/e2e/test-results/.last-run.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    2 2 │     "status": "failed",
+    3 3 │     "failedTests": []
+    4   │ - }
+      4 │ + }
+      5 │ +
+
+
+./tests/e2e/security.e2e.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    130 130 │     test("rejects HTML tags in search query parameters", async ({ request }) => {
+    131 131 │       // The stationSearchQuerySchema rejects HTML tags via refine
+    132     │ - ····const·response·=·await·request.get(
+    133     │ - ······"/api/stations/search?q=<script>alert('xss')</script>"
+    134     │ - ····);
+        132 │ + ····const·response·=·await·request.get("/api/stations/search?q=<script>alert('xss')</script>");
+    135 133 │
+    136 134 │       expect(response.status()).toBe(400);
+    ······· │
+    139 137 │     test("handles SQL injection attempts safely", async ({ request }) => {
+    140 138 │       // SQL injection string doesn't match any station names — empty result
+    141     │ - ····const·response·=·await·request.get(
+    142     │ - ······"/api/stations/search?q=';·DROP·TABLE·stations;·--"
+    143     │ - ····);
+        139 │ + ····const·response·=·await·request.get("/api/stations/search?q=';·DROP·TABLE·stations;·--");
+    144 140 │
+    145 141 │       // Should be handled safely — either 200 with empty results or 400
+
+
+./tests/e2e/playwright.config.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    48 48 │     // from unrelated type errors in the codebase).
+    49 49 │     webServer: {
+    50    │ - ····command:
+    51    │ - ······"cd·../..·&&·TEST_MODE=true·npx·tsx·packages/server/src/index.ts",
+       50 │ + ····command:·"cd·../..·&&·TEST_MODE=true·npx·tsx·packages/server/src/index.ts",
+    52 51 │       url: "http://localhost:3001",
+    53 52 │       reuseExistingServer: !process.env.CI,
+
+
+./tests/e2e/api-validation.e2e.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+     10  10 │
+     11  11 │   test.describe("Query parameter validation (Zod schemas)", () => {
+     12     │ - ··test("health·endpoint·rejects·unexpected·query·parameters",·async·({
+     13     │ - ····request,
+     14     │ - ··})·=>·{
+         12 │ + ··test("health·endpoint·rejects·unexpected·query·parameters",·async·({·request·})·=>·{
+     15  13 │       const response = await request.get("/api/health?extra=param");
+     16 14 │       expect(response.status()).toBe(400);
+    ······· │
+     23  21 │     });
+     24  22 │
+     25     │ - ··test("metrics·endpoint·rejects·unexpected·query·parameters",·async·({
+     26     │ - ····request,
+     27     │ - ··})·=>·{
+         23 │ + ··test("metrics·endpoint·rejects·unexpected·query·parameters",·async·({·request·})·=>·{
+     28  24 │       const response = await request.get("/api/metrics?debug=true");
+     29 25 │       expect(response.status()).toBe(400);
+    ······· │
+     34  30 │     });
+     35  31 │
+     36     │ - ··test("stations·list·endpoint·rejects·unexpected·query·parameters",·async·({
+     37     │ - ····request,
+     38     │ - ··})·=>·{
+         32 │ + ··test("stations·list·endpoint·rejects·unexpected·query·parameters",·async·({·request·})·=>·{
+     39  33 │       const response = await request.get("/api/stations?format=csv");
+     40 34 │       expect(response.status()).toBe(400);
+    ······· │
+     70  64 │
+     71  65 │     test("returns 400 for search query with HTML tags", async ({ request }) => {
+     72     │ - ····const·response·=·await·request.get(
+     73     │ - ······"/api/stations/search?q=<script>alert('xss')</script>"
+     74     │ - ····);
+         66 │ + ····const·response·=·await·request.get("/api/stations/search?q=<script>alert('xss')</script>");
+     75  67 │
+     76  68 │       expect(response.status()).toBe(400);
+    ······· │
+     81  73 │
+     82  74 │     test("returns 400 for search query with event handlers", async ({ request }) => {
+     83     │ - ····const·response·=·await·request.get(
+     84     │ - ······"/api/stations/search?q=testonload=alert(1)"
+     85     │ - ····);
+         75 │ + ····const·response·=·await·request.get("/api/stations/search?q=testonload=alert(1)");
+     86  76 │
+     87  77 │       expect(response.status()).toBe(400);
+    ······· │
+     92  82 │
+     93  83 │     test("returns empty array for no matches", async ({ request }) => {
+     94     │ - ····const·response·=·await·request.get(
+     95     │ - ······"/api/stations/search?q=NonexistentStation"
+     96     │ - ····);
+         84 │ + ····const·response·=·await·request.get("/api/stations/search?q=NonexistentStation");
+     97  85 │
+     98  86 │       expect(response.status()).toBe(200);
+    ······· │
+    147 135 │     });
+    148 136 │
+    149     │ - ··test("returns·400·for·station·ID·with·path·traversal·characters",·async·({
+    150     │ - ····request,
+    151     │ - ··})·=>·{
+        137 │ + ··test("returns·400·for·station·ID·with·path·traversal·characters",·async·({·request·})·=>·{
+    152 138 │       const response = await request.get("/api/stations/../../etc/passwd");
+    153 139 │
+    ······· │
+    198 184 │             },
+    199 185 │           },
+    200     │ - ········favorites:·[
+    201     │ - ··········{·id:·"fav-1",·stationId:·"101",·lines:·["1"],·direction:·"both"·},
+    202     │ - ········],
+        186 │ + ········favorites:·[{·id:·"fav-1",·stationId:·"101",·lines:·["1"],·direction:·"both"·}],
+    203 187 │         }),
+    204 188 │         headers: { "Content-Type": "application/json" },
+
+
+./test-results/.last-run.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+    2 2 │     "status": "failed",
+    3 3 │     "failedTests": []
+    4   │ - }
+      4 │ + }
+      5 │ +
+
+
+./packages/server/src/routes/password-reset.routes.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+
+     24  24 │     verifyPasswordHash,
+     25  25 │   } from "../middleware/authentication.js";
+     26     │ - import·{
+     27     │ - ··auditLogAccess,
+     28     │ - ··getRbacAuthContext,
+     29     │ - ··requireResourceAccess,
+     30     │ - }·from·"../middleware/index.js";
+Checked 559 files in 1712ms. No fixes applied.
+Found 10 errors.
+         26 │ + import·{·auditLogAccess,·getRbacAuthContext,·requireResourceAccess·}·from·"../middleware/index.js";
+     31  27 │   import { authRateLimit, requireCaptcha } from "../middleware/index.js";
+     32  28 │   import {
+
+
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+
