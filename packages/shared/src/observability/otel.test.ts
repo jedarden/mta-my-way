@@ -2,7 +2,7 @@
  * Unit tests for OpenTelemetry configuration.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_BATCH_SPAN_PROCESSOR,
   RESOURCE_ATTRIBUTES,

@@ -452,6 +452,138 @@ async function cmdCleanup(keepCount) {
 }
 
 /**
+ * Command: Seed database with initial data.
+ */
+async function cmdSeed(db, options) {
+  const { getSeedDataForEnvironment } = await loadMigrationModule();
+  const { seedReferenceData } = await loadMigrationModule();
+
+  const environment = options.env ?? "dev";
+  console.log(
+    JSON.stringify({
+      event: "seed_start",
+      environment,
+      dryRun: options.dryRun,
+    })
+  );
+
+  const seedData = getSeedDataForEnvironment(environment);
+
+  if (seedData.length === 0) {
+    console.log(
+      JSON.stringify({
+        event: "seed_complete",
+        message: "No seed data available for this environment",
+      })
+    );
+    return;
+  }
+
+  if (options.dryRun) {
+    console.log(
+      JSON.stringify({
+        event: "seed_dry_run",
+        seedData: seedData.map((s) => ({
+          table: s.table,
+          rowCount: s.data.length,
+        })),
+      })
+    );
+    return;
+  }
+
+  const results = seedReferenceData(db, seedData);
+
+  let totalInserted = 0;
+  let totalSkipped = 0;
+  let totalErrors = 0;
+
+  for (const result of results) {
+    totalInserted += result.inserted;
+    totalSkipped += result.skipped;
+    totalErrors += result.errors.length;
+  }
+
+  console.log(
+    JSON.stringify({
+      event: "seed_complete",
+      totalInserted,
+      totalSkipped,
+      totalErrors,
+      results,
+    })
+  );
+
+  if (totalErrors > 0) {
+    process.exit(1);
+  }
+}
+
+/**
+ * Command: Initialize a new database.
+ */
+async function cmdInit(dbPath) {
+  const { existsSync } = await import("node:fs");
+  const { mkdir } = await import("node:fs/promises");
+  const Database = await import("better-sqlite3");
+  const { runMigrations, getMigrationStatus } = await loadMigrationModule();
+
+  console.log(
+    JSON.stringify({
+      event: "init_start",
+      dbPath,
+    })
+  );
+
+  if (existsSync(dbPath)) {
+    console.log(
+      JSON.stringify({
+        event: "init_error",
+        error: "Database already exists",
+        dbPath,
+      })
+    );
+    process.exit(1);
+  }
+
+  try {
+    // Create directory if it doesn't exist
+    const { dirname: getDirname } = await import("node:path");
+    const dir = getDirname(dbPath);
+    if (!existsSync(dir)) {
+      await mkdir(dir, { recursive: true });
+    }
+
+    const db = new Database.default(dbPath);
+    db.pragma("journal_mode = WAL");
+
+    // Run migrations
+    await runMigrations(db);
+
+    const status = await getMigrationStatus(db);
+
+    console.log(
+      JSON.stringify({
+        event: "init_complete",
+        dbPath,
+        currentVersion: status.currentVersion,
+      })
+    );
+
+    db.close();
+  } catch (err) {
+    console.log(
+      JSON.stringify({
+        event: "init_error",
+        error: err.message,
+        stack: err.stack,
+      })
+    );
+    process.exit(1);
+  }
+}
+
+/**
  * Main entry point.
  */
 async function main() {
@@ -486,6 +618,11 @@ async function main() {
 
     if (command === "cleanup") {
       await cmdCleanup(commandArgs[0]);
+      return;
+    }
+
+    if (command === "init") {
+      await cmdInit(values.db);
       return;
     }
 
