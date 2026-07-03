@@ -1,0 +1,12 @@
+{
+  "bead": "bf-370jq",
+  "description": "Lint step logs captured from CI pod mta-my-way-build-debug-hqpdh-lint-117384179",
+  "workflow": "mta-my-way-build-debug-hqpdh",
+  "pod": "mta-my-way-build-debug-hqpdh-lint-117384179",
+  "captured_at": "2026-07-03T21:17:42Z",
+  "result": {
+    "phase": "Failed",
+    "exit_code": 1,
+    "main_container_reason": "Error"
+  }
+}

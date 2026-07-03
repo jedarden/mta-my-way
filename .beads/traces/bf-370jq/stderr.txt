@@ -1,0 +1,28 @@
+=== Wait container logs (pod: mta-my-way-build-debug-hqpdh-lint-117384179) ===
+
+time=2026-07-03T21:16:52.283Z level=INFO msg="Starting Workflow Executor" buildDate=2026-03-19T08:45:16Z gitCommit=8cae17b6fb49f077eeb269fcf21ce021b37a97f1 gitTag=v4.0.3 argo=true gitTreeState=clean goVersion=go1.25.7 version=v4.0.3
+time=2026-07-03T21:16:52.287Z level=INFO msg="Using executor retry strategy" argo=true Jitter=0.5 Steps=5 Duration=1s Factor=1.6
+time=2026-07-03T21:16:52.288Z level=INFO msg="Executor initialized" goVersion=go1.25.7 argo=true buildDate=2026-03-19T08:45:16Z templateName=lint namespace=argo-workflows gitTreeState=clean podName=mta-my-way-build-debug-hqpdh-lint-117384179 deadline=0001-01-01T00:00:00.000Z version=v4.0.3 includeScriptOutput=false gitCommit=8cae17b6fb49f077eeb269fcf21ce021b37a97f1 gitTag=v4.0.3
+time=2026-07-03T21:16:52.323Z level=INFO msg="Starting deadline monitor" containers=[main] argo=true
+
+=== Container termination details ===
+
+Container: main
+  exitCode: 1
+  reason: Error
+  finishedAt: 2026-07-03T21:17:41Z
+
+Container: wait
+  exitCode: 0
+  reason: Completed
+  finishedAt: 2026-07-03T21:17:42Z
+
+=== Summary ===
+
+Lint step FAILED with exit code 1.
+Biome found 4 formatting/organize-import errors in CI (6 locally due to additional files in local checkout).
+Errors:
+  1. ./package.json - format (workspaces array should be single-line)
+  2. ./packages/server/src/integration/audit-log-security-events.test.ts - format (line length on function signature and app.use call)
+  3. ./packages/server/src/migration/cli.ts - organizeImports (import ordering)
+  4. ./packages/server/src/migration/seed-data.ts - format (function signature line length)
