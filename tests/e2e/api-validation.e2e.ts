@@ -9,9 +9,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Query parameter validation (Zod schemas)", () => {
-  test("health endpoint rejects unexpected query parameters", async ({
-    request,
-  }) => {
+  test("health endpoint rejects unexpected query parameters", async ({ request }) => {
     const response = await request.get("/api/health?extra=param");
     expect(response.status()).toBe(400);
 
@@ -22,9 +20,7 @@ test.describe("Query parameter validation (Zod schemas)", () => {
     expect(Array.isArray(body.details)).toBe(true);
   });
 
-  test("metrics endpoint rejects unexpected query parameters", async ({
-    request,
-  }) => {
+  test("metrics endpoint rejects unexpected query parameters", async ({ request }) => {
     const response = await request.get("/api/metrics?debug=true");
     expect(response.status()).toBe(400);
 
@@ -33,9 +29,7 @@ test.describe("Query parameter validation (Zod schemas)", () => {
     expect(body.error).toBe("validation failed");
   });
 
-  test("stations list endpoint rejects unexpected query parameters", async ({
-    request,
-  }) => {
+  test("stations list endpoint rejects unexpected query parameters", async ({ request }) => {
     const response = await request.get("/api/stations?format=csv");
     expect(response.status()).toBe(400);
 
@@ -69,9 +63,7 @@ test.describe("Station search validation", () => {
   });
 
   test("returns 400 for search query with HTML tags", async ({ request }) => {
-    const response = await request.get(
-      "/api/stations/search?q=<script>alert('xss')</script>"
-    );
+    const response = await request.get("/api/stations/search?q=<script>alert('xss')</script>");
 
     expect(response.status()).toBe(400);
     const body = await response.json();
@@ -80,9 +72,7 @@ test.describe("Station search validation", () => {
   });
 
   test("returns 400 for search query with event handlers", async ({ request }) => {
-    const response = await request.get(
-      "/api/stations/search?q=testonload=alert(1)"
-    );
+    const response = await request.get("/api/stations/search?q=testonload=alert(1)");
 
     expect(response.status()).toBe(400);
     const body = await response.json();
@@ -91,9 +81,7 @@ test.describe("Station search validation", () => {
   });
 
   test("returns empty array for no matches", async ({ request }) => {
-    const response = await request.get(
-      "/api/stations/search?q=NonexistentStation"
-    );
+    const response = await request.get("/api/stations/search?q=NonexistentStation");
 
     expect(response.status()).toBe(200);
     const body = await response.json();
@@ -146,9 +134,7 @@ test.describe("Station detail validation", () => {
     expect(body).toHaveProperty("lines");
   });
 
-  test("returns 400 for station ID with path traversal characters", async ({
-    request,
-  }) => {
+  test("returns 400 for station ID with path traversal characters", async ({ request }) => {
     const response = await request.get("/api/stations/../../etc/passwd");
 
     // Should be rejected by validation (sanitized path params)
@@ -197,9 +183,7 @@ test.describe("Authentication enforcement", () => {
             auth: "test-auth",
           },
         },
-        favorites: [
-          { id: "fav-1", stationId: "101", lines: ["1"], direction: "both" },
-        ],
+        favorites: [{ id: "fav-1", stationId: "101", lines: ["1"], direction: "both" }],
       }),
       headers: { "Content-Type": "application/json" },
     });

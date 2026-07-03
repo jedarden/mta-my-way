@@ -13,6 +13,8 @@ dist/
 # Database
 *.db
 *.db-journal
+*.sqlite
+*.sqlite-journal
 
 # IDE
 .vscode/
@@ -29,7 +31,11 @@ npm-debug.log*
 # Test
 coverage/
 
+# VAPID keys (generated locally, set via env vars in production)
+packages/server/data/vapid-keys.json
+
 # Cache
 .cache/
 .npm/
 .gtfs-cache/
+~
