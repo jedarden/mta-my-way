@@ -23,11 +23,7 @@ import {
   invalidateAllSessionsForKey,
   verifyPasswordHash,
 } from "../middleware/authentication.js";
-import {
-  auditLogAccess,
-  getRbacAuthContext,
-  requireResourceAccess,
-} from "../middleware/index.js";
+import { auditLogAccess, getRbacAuthContext, requireResourceAccess } from "../middleware/index.js";
 import { authRateLimit, requireCaptcha } from "../middleware/index.js";
 import {
   cleanupExpiredTokens,

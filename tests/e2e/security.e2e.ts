@@ -129,18 +129,14 @@ test.describe("OWASP A01: Broken Access Control", () => {
 test.describe("OWASP A03: Injection", () => {
   test("rejects HTML tags in search query parameters", async ({ request }) => {
     // The stationSearchQuerySchema rejects HTML tags via refine
-    const response = await request.get(
-      "/api/stations/search?q=<script>alert('xss')</script>"
-    );
+    const response = await request.get("/api/stations/search?q=<script>alert('xss')</script>");
 
     expect(response.status()).toBe(400);
   });
 
   test("handles SQL injection attempts safely", async ({ request }) => {
     // SQL injection string doesn't match any station names — empty result
-    const response = await request.get(
-      "/api/stations/search?q='; DROP TABLE stations; --"
-    );
+    const response = await request.get("/api/stations/search?q='; DROP TABLE stations; --");
 
     // Should be handled safely — either 200 with empty results or 400
     expect([200, 400]).toContain(response.status());
