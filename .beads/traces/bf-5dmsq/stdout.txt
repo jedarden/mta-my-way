@@ -1,0 +1,13 @@
+Bead closed. Here's a summary of the verification:
+
+**Test 1 ("returns system health status") — all 6 assertions verified against `app.ts:874-1060`:**
+
+| Assertion | app.ts Source | Status |
+|---|---|---|
+| `[200, 503]` contains status code | Line 981: `unhealthy ? 503 : 200` | ✅ Match |
+| `body.status` matches `/^(ok\|degraded)$/` | Line 980: `allFeedsOk && alertsOk ? "ok" : "degraded"` | ✅ Match |
+| `body` has `timestamp` property | Line 1012: `timestamp: new Date().toISOString()` | ✅ Match |
+| `body` has `uptime_seconds` property | Line 1013: `uptime_seconds: Math.floor(...)` | ✅ Match |
+| `body.uptime_seconds > 0` | Same — always positive after startup | ✅ Match |
+
+**No mismatches found.** The test expectations are consistent with the actual response shape, values, and status code logic.

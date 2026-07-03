@@ -5,7 +5,7 @@
   "state": "EXECUTING",
   "current_bead": "bf-2sdo",
   "workspace": "/home/coding/domain-check",
-  "last_heartbeat": "2026-07-03T06:57:48.314763273Z",
+  "last_heartbeat": "2026-07-03T07:00:18.474422708Z",
   "started_at": "2026-07-02T17:16:27.585182478Z",
   "beads_processed": 116,
   "session": "bravo",
