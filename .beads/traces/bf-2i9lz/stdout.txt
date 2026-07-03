@@ -1,0 +1,28 @@
+It worked after the repair (which removed the malformed `claimed_at` column I had added — the repair restored the proper schema from JSONL).
+
+**Bead `bf-2i9lz` is now closed.**
+
+Here's a summary of what was traced:
+
+## Results
+
+| Item | File | Line |
+|------|------|------|
+| `validateQuery` | `packages/server/src/middleware/validation.ts` | 167-189 |
+| `emptyQuerySchema` | `packages/shared/src/schemas/params.ts` | 171 |
+| `formatZodError` | `packages/server/src/middleware/validation.ts` | 28-78 |
+| `ValidationErrorResponse` type | `packages/server/src/middleware/validation.ts` | 23-26 |
+
+### 400 Response on validation failure
+
+```json
+{
+  "error": "validation failed",
+  "details": [
+    { "field": "<dot-joined path>", "message": "<Zod error message>" }
+  ]
+}
+```
+
+- **`emptyQuerySchema`** = `z.object({}).strict()` — any query param triggers `unrecognized_keys`
+- **`formatZodError`** maps `ZodError.issues` → `ValidationErrorDetail[]` with special handling for `invalid_enum_value`, `too_small` (string/array/number), and `too_big`; all other codes (including `unrecognized_keys`) use Zod's default message

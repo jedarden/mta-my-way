@@ -1,0 +1,15 @@
+All wired up. The parent depends on the last child (bf-1qrdl), and the children are chained sequentially.
+
+```
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+```
+
+```
+Children: bf-2i9lz, bf-29gra, bf-2w07g, bf-1qrdl
+```
+
+Chain:
+1. **bf-2i9lz** — Trace validateQuery middleware and emptyQuerySchema implementation
+2. **bf-29gra** → depends on 1 — Verify health.e2e.ts query rejection test matches validateQuery output
+3. **bf-2w07g** → depends on 2 — Verify api-validation.e2e.ts query rejection tests match validateQuery output
+4. **bf-1qrdl** → depends on 3 — Document verification findings and flag mismatches
