@@ -1,0 +1,18 @@
+Everything is wired up correctly.
+
+```
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+```
+
+**Children:** bf-3per0, bf-5zmoc, bf-4gh2l, bf-1q8cj
+
+**Dependency chain:**
+```
+bf-4p61r (umbrella)
+  └── bf-1q8cj — Verify all 3 API-level E2E suites pass together
+        └── bf-4gh2l — Fix api-validation.e2e.ts test suite (~25 tests)
+              └── bf-5zmoc — Fix security.e2e.ts test suite (~23 tests)
+                    └── bf-3per0 — Fix health.e2e.ts test suite (~6 tests)
+```
+
+Each child is scoped to one test file (health → security → api-validation), with a final combined verification step. The parent `bf-4p61r` now has the `umbrella` label and depends on the last child.

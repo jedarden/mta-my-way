@@ -16,10 +16,6 @@ import {
   passwordResetRequestSchema,
 } from "@mta-my-way/shared";
 import type { MiddlewareHandler } from "hono";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { HTTPException } from "hono/http-exception";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { z } from "zod";
 import {
   generatePasswordResetToken,
   getPasswordPolicyDescription,
@@ -28,12 +24,8 @@ import {
   verifyPasswordHash,
 } from "../middleware/authentication.js";
 import {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type Permission,
   auditLogAccess,
   getRbacAuthContext,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  requirePermission,
   requireResourceAccess,
 } from "../middleware/index.js";
 import { authRateLimit, requireCaptcha } from "../middleware/index.js";

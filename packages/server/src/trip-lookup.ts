@@ -206,7 +206,7 @@ export function lookupTrip(tripId: string, stations: StationIndex): TripData | n
       const currentStopIndex = findCurrentStopIndex(stops, nowSeconds);
 
       // Feed age
-      const feedTimestamp = parsed.message.header.timestamp.toNumber();
+      const feedTimestamp = Number(parsed.message.header.timestamp);
       const feedAge = nowSeconds - feedTimestamp;
 
       // Calculate progress: percentage of stops passed (excluding current)

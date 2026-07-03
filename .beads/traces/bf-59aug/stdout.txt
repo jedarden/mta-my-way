@@ -1,0 +1,16 @@
+The tree shows bf-59aug depends on bf-1q4e7 at the root — that's the correct direction. The parent is blocked by the last child, meaning it can't close until all children complete.
+
+```
+SPLIT_COMPLETE: Created 5 children, parent converted to umbrella
+```
+
+**Children:** bf-kjs50, bf-5dmsq, bf-2k6t7, bf-5jvu2, bf-1q4e7
+
+**Chain:**
+1. `bf-kjs50` — Document actual /api/health response shape from app.ts
+2. `bf-5dmsq` — Verify health status test expectations against app.ts response
+3. `bf-2k6t7` — Verify query parameter rejection test expectations against app.ts
+4. `bf-5jvu2` — Verify per-feed, alerts, memory, and delay detector test expectations
+5. `bf-1q4e7` — Fix any mismatches found in health.e2e.ts test expectations
+
+Parent `bf-59aug` has `umbrella` label and is blocked by `bf-1q4e7` (last child). Note: the original bead description only covered 2 of the 6 tests — child bead 4 (`bf-5jvu2`) covers the remaining 4 tests to ensure full coverage.

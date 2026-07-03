@@ -1,0 +1,8 @@
+Done. The bead is closed. Here's a summary of what was implemented:
+
+**Added a comprehensive JSDoc block** to the `GET /api/health` endpoint in `packages/server/src/app.ts` documenting:
+
+- **11 top-level response fields** with types and computation logic: `status`, `timestamp`, `uptime_seconds`, `feeds`, `alerts`, `delayDetector`, `delayPredictor`, `equipment`, `pushSubscriptions`, `cacheHitRate`, `memory`, `failingFeedsCount`
+- **12 nested fields per feed** in the `feeds` array: `id`, `name`, `status`, `lastSuccessAt`, `lastPollAt`, `consecutiveFailures`, `entityCount`, `lastError`, `tripReplacementPeriod`, `avgLatencyMs`, `errorCount24h`, `parseErrors`
+- **Status code logic**: `200` when <3 feeds are failing (consecutiveFailures > 0 + had prior success + last success > 5 min ago); `503` when ≥3 feeds meet that criteria. Notes that "degraded" can coexist with 200.
+- **Query validation**: `emptyQuerySchema` (`z.object({}).strict()`) rejects all query parameters with a 400 response.

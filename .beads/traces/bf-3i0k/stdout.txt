@@ -1,0 +1,14 @@
+The bead is now closed. Summary of what was done:
+
+**All acceptance criteria are already met.** The integration test file at `packages/server/src/integration/audit-log-security-events.test.ts` contains 33 tests, all passing:
+
+| Criterion | Tests | Status |
+|---|---|---|
+| Failed auth attempts produce audit entries | 6 tests | ✅ |
+| CSRF failures produce audit entries | 3 tests | ✅ |
+| Rate limit hits produce audit entries | 3 tests | ✅ |
+| Host-header protection blocks produce audit entries | 10 tests | ✅ |
+| Audit entries contain correct metadata (IP, path, timestamp) | 8 tests | ✅ |
+| Smoke tests + full chain integration | 3 tests | ✅ |
+
+No new code was needed — the tests were already committed in prior work (commits `4dc3600`, `583cca1`, `46c2007`, `d27f204`, `5f14c46`).

@@ -74,13 +74,10 @@ export class TransferEngine {
   private graph: TransferGraph;
   private getArrivalsFn: (stationId: string) => StationArrivals | null;
   private travelTimes: TravelTimeIndex | null;
-  private complexes: ComplexIndex;
-
   constructor(config: EngineConfig) {
     this.stations = config.stations;
     this.routes = config.routes;
     this.getArrivalsFn = config.getArrivals;
-    this.complexes = config.complexes;
     this.graph = buildTransferGraph(config.stations, config.transfers, config.complexes);
     this.travelTimes = getTravelTimes();
   }

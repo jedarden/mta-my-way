@@ -1,0 +1,16 @@
+{
+  "bead_id": "bf-kjs50",
+  "agent": "glm",
+  "provider": "zai",
+  "model": "glm-5-turbo",
+  "exit_code": 0,
+  "outcome": "success",
+  "duration_ms": 220578,
+  "input_tokens": null,
+  "output_tokens": null,
+  "cost_usd": null,
+  "captured_at": "2026-07-03T06:34:55.698179682Z",
+  "trace_format": "raw_text",
+  "pruned": false,
+  "template_version": null
+}

@@ -1,0 +1,14 @@
+The split is complete and verified. The dependency tree shows the full chain:
+
+```
+bf-65wcf (validate 3 runs)
+ └─ bf-6bqh2 (memory + delay detector)
+    └─ bf-4kq01 (feeds + alerts)
+       └─ bf-1x57z (basic health + query param)
+
+bf-3per0 (parent/umbrella) ── depends on bf-65wcf
+```
+
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+
+Children: bf-1x57z, bf-4kq01, bf-6bqh2, bf-65wcf

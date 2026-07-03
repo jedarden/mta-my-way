@@ -1,0 +1,21 @@
+The full chain is verified:
+
+```
+bf-4p61r → bf-hxc67 → bf-2b2pr → bf-36o4d → bf-ucvl7 → bf-dw6k
+(API tests) → (onboarding/settings/a11y) → (commute/fare/journal) → (map/diagram/trip/stats) → (user-journeys/PWA) → (parent umbrella)
+```
+
+```
+SPLIT_COMPLETE: Created 5 children, parent converted to umbrella
+```
+
+**Children:**
+| # | ID | Title | Files |
+|---|-----|-------|-------|
+| 1 | bf-4p61r | Fix API-level E2E test suites | health, security, api-validation |
+| 2 | bf-hxc67 | Fix onboarding and core screen E2E tests | onboarding, settings, accessibility |
+| 3 | bf-2b2pr | Fix commute workflow and fare E2E tests | commute-workflow, fare-tracking, journal |
+| 4 | bf-36o4d | Fix map, diagram, trip, and stats E2E tests | map, line-diagram, trip-tracking, subway-year |
+| 5 | bf-ucvl7 | Fix user journeys and PWA E2E tests | user-journeys, pwa-features |
+
+Each child is sequentially blocked by the previous one, and the parent (`bf-dw6k`) is blocked by the last child. The parent has the `umbrella` label. All children have the `split-child` label.

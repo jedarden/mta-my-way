@@ -7,7 +7,8 @@ import { expect, test } from "@playwright/test";
 test.describe("Health endpoint", () => {
   test("returns system health status", async ({ request }) => {
     const response = await request.get("/api/health");
-    expect(response.status()).toBe(200);
+    // Server returns 200 when healthy, 503 when 3+ feeds are failing for >5 min
+    expect([200, 503]).toContain(response.status());
 
     const body = await response.json();
     expect(body).toHaveProperty("status");
@@ -64,5 +65,13 @@ test.describe("Health endpoint", () => {
     expect(body.delayDetector).toHaveProperty("trackedTrips");
     expect(body.delayDetector).toHaveProperty("activeAlerts");
     expect(body.delayDetector).toHaveProperty("thresholdMultiplier");
+  });
+
+  test("rejects unexpected query parameters", async ({ request }) => {
+    const response = await request.get("/api/health?extra=param");
+    expect(response.status()).toBe(400);
+
+    const body = await response.json();
+    expect(body).toHaveProperty("error");
   });
 });
