@@ -76,6 +76,15 @@ export {
   type PasswordHistoryEntry,
 } from "./password-management.js";
 
+// Re-export sanitization functions for backward compatibility
+export {
+  validateApiKeyFormat,
+  validateSessionTokenFormat,
+  validateSignatureFormat,
+  sanitizeStringSimple,
+  sanitizeObject,
+} from "./sanitization.js";
+
 // ============================================================================
 // API Key Generation and Cryptographic Hashing
 // ============================================================================

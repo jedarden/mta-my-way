@@ -309,7 +309,7 @@ function getHistogramMetrics(
 /**
  * Setup metrics routes.
  */
-export function setupMetricsRoutes(app: any): void {
+export function setupMetricsRoutes(app: Hono): void {
   // Main metrics endpoint (Prometheus compatible)
   app.get("/metrics", metricsHandler);
 

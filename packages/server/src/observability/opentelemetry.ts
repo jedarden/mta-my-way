@@ -179,6 +179,7 @@ export async function shutdownOpenTelemetry(): Promise<void> {
  */
 function getVersion(): string {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const packageJson = require("../../../package.json");
     return packageJson.version || "0.0.0";
   } catch {

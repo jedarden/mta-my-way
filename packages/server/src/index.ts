@@ -200,7 +200,7 @@ async function main(): Promise<void> {
   startGtfsRefreshScheduler();
 
   // HTTP server
-  const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
+  serve({ fetch: app.fetch, port: PORT }, (info) => {
     logger.info("Server started", {
       port: info.port,
       pid: process.pid,
@@ -223,8 +223,8 @@ async function main(): Promise<void> {
   };
 
   // Register shutdown handlers
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
-  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 main().catch((err) => {

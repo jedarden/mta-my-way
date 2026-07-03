@@ -28,6 +28,7 @@ import type { constants as Constants } from "node:os";
 // Import constants dynamically for better-sqlite3 compatibility
 let constants: typeof Constants;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   constants = require("node:os").constants;
 } catch {
   // Fallback for environments where require is not available

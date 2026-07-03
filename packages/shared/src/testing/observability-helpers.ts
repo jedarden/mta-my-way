@@ -62,7 +62,7 @@ export function createMockLogger() {
       });
     }),
 
-    child: vi.fn((additionalContext: Record<string, unknown>) => {
+    child: vi.fn((_additionalContext: Record<string, unknown>) => {
       return createMockLogger();
     }),
 
@@ -149,7 +149,7 @@ export function createMockMetricsRegistry() {
     /**
      * Create or get a counter metric.
      */
-    counter: vi.fn((name: string, help: string) => {
+    counter: vi.fn((name: string, _help: string) => {
       if (!metrics.has(name)) {
         metrics.set(name, []);
       }
@@ -181,7 +181,7 @@ export function createMockMetricsRegistry() {
     /**
      * Create or get a gauge metric.
      */
-    gauge: vi.fn((name: string, help: string) => {
+    gauge: vi.fn((name: string, _help: string) => {
       if (!metrics.has(name)) {
         metrics.set(name, []);
       }
@@ -219,7 +219,7 @@ export function createMockMetricsRegistry() {
     /**
      * Create or get a histogram metric.
      */
-    histogram: vi.fn((name: string, help: string, buckets: number[] = []) => {
+    histogram: vi.fn((name: string, _help: string, _buckets: number[] = []) => {
       if (!metrics.has(name)) {
         metrics.set(name, []);
       }

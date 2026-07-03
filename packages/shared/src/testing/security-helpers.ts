@@ -472,7 +472,7 @@ export function createMockSecurityMiddleware() {
       context.security.isAuthenticated = true;
       context.user = { id: userId };
     }),
-    authorize: vi.fn((permission: string) => {
+    authorize: vi.fn((_permission: string) => {
       if (!context.security.isAuthenticated) {
         throw new Error("Unauthorized");
       }
@@ -528,7 +528,7 @@ export async function assertRateLimitEnforced(
   for (let i = 0; i < maxRequests + 1; i++) {
     try {
       await fn();
-    } catch (error) {
+    } catch {
       if (i >= maxRequests) {
         exceeded = true;
       }
