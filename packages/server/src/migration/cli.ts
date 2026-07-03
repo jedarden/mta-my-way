@@ -11,7 +11,6 @@
  */
 
 import { existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import Database from "better-sqlite3";
 import { Command } from "commander";
@@ -30,12 +29,19 @@ import {
 
 const program = new Command();
 
+/** Wraps an async Commander action handler to satisfy no-misused-promises. */
+const asyncAction =
+  <T extends unknown[]>(fn: (...args: T) => Promise<void>) =>
+  (...args: T): void => {
+    void fn(...args);
+  };
+
 // ============================================================================
 // Configuration
 // ============================================================================
 
 const DEFAULT_DB_PATH = "./packages/server/data/database.db";
-const MIGRATIONS_DIR = "./packages/server/src/migration/migrations";
+const _MIGRATIONS_DIR = "./packages/server/src/migration/migrations";
 
 // ============================================================================
 // Utility Functions
@@ -87,66 +93,68 @@ program
   .option("--backup", "Create backup before migration")
   .option("--force", "Skip validation errors")
   .option("--to <version>", "Migrate to specific version")
-  .action(async (options) => {
-    const dbPath = getDbPath(options.db);
-    const db = openDatabase(dbPath);
+  .action(
+    asyncAction(async (options) => {
+      const dbPath = getDbPath(options.db);
+      const db = openDatabase(dbPath);
 
-    try {
-      console.log(`Connecting to database: ${dbPath}`);
+      try {
+        console.log(`Connecting to database: ${dbPath}`);
 
-      if (options.backup) {
-        console.log("Creating backup...");
-        const backupPath = await createBackup(dbPath);
-        console.log(`✓ Backup created: ${backupPath}`);
-      }
-
-      const targetVersion = options.to ? parseInt(options.to, 10) : undefined;
-      const results = await runMigrations(
-        db,
-        {
-          dryRun: options.dryRun ?? false,
-          backup: false, // Already handled above
-          force: options.force ?? false,
-        },
-        targetVersion
-      );
-
-      if (options.dryRun) {
-        console.log("\nDry-run results:");
-      } else {
-        console.log("\nMigration results:");
-      }
-
-      let appliedCount = 0;
-      let skippedCount = 0;
-
-      for (const result of results) {
-        if (result.applied) {
-          console.log(
-            `  ✓ Applied v${result.version}: ${result.name} (${formatDuration(result.executionTimeMs)})`
-          );
-          appliedCount++;
-        } else if (result.skipped) {
-          console.log(`  - Skipped v${result.version}: ${result.name}`);
-          skippedCount++;
-        } else if (result.error) {
-          console.log(`  ✗ Failed v${result.version}: ${result.name}`);
-          console.log(`    Error: ${result.error}`);
+        if (options.backup) {
+          console.log("Creating backup...");
+          const backupPath = await createBackup(dbPath);
+          console.log(`✓ Backup created: ${backupPath}`);
         }
-      }
 
-      console.log(`\nTotal: ${appliedCount} applied, ${skippedCount} skipped`);
+        const targetVersion = options.to ? parseInt(options.to, 10) : undefined;
+        const results = await runMigrations(
+          db,
+          {
+            dryRun: options.dryRun ?? false,
+            backup: false, // Already handled above
+            force: options.force ?? false,
+          },
+          targetVersion
+        );
 
-      if (options.dryRun) {
-        console.log("(dry-run mode - no changes were made)");
+        if (options.dryRun) {
+          console.log("\nDry-run results:");
+        } else {
+          console.log("\nMigration results:");
+        }
+
+        let appliedCount = 0;
+        let skippedCount = 0;
+
+        for (const result of results) {
+          if (result.applied) {
+            console.log(
+              `  ✓ Applied v${result.version}: ${result.name} (${formatDuration(result.executionTimeMs)})`
+            );
+            appliedCount++;
+          } else if (result.skipped) {
+            console.log(`  - Skipped v${result.version}: ${result.name}`);
+            skippedCount++;
+          } else if (result.error) {
+            console.log(`  ✗ Failed v${result.version}: ${result.name}`);
+            console.log(`    Error: ${result.error}`);
+          }
+        }
+
+        console.log(`\nTotal: ${appliedCount} applied, ${skippedCount} skipped`);
+
+        if (options.dryRun) {
+          console.log("(dry-run mode - no changes were made)");
+        }
+      } catch (error) {
+        console.error("Migration failed:", error);
+        process.exit(1);
+      } finally {
+        db.close();
       }
-    } catch (error) {
-      console.error("Migration failed:", error);
-      process.exit(1);
-    } finally {
-      db.close();
-    }
-  });
+    })
+  );
 
 /**
  * Rollback migrations.
@@ -158,61 +166,63 @@ program
   .option("--to <version>", "Rollback to specific version")
   .option("--version <version>", "Rollback specific migration version")
   .option("--dry-run", "Preview rollback without executing")
-  .action(async (options) => {
-    const dbPath = getDbPath(options.db);
-    const db = openDatabase(dbPath);
+  .action(
+    asyncAction(async (options) => {
+      const dbPath = getDbPath(options.db);
+      const db = openDatabase(dbPath);
 
-    try {
-      console.log(`Connecting to database: ${dbPath}`);
+      try {
+        console.log(`Connecting to database: ${dbPath}`);
 
-      if (options.to) {
-        const targetVersion = parseInt(options.to, 10);
-        console.log(`Rolling back to version ${targetVersion}...`);
+        if (options.to) {
+          const targetVersion = parseInt(options.to, 10);
+          console.log(`Rolling back to version ${targetVersion}...`);
 
-        const rolledBack = await rollbackToVersion(db, targetVersion, {
-          dryRun: options.dryRun ?? false,
-        });
+          const rolledBack = await rollbackToVersion(db, targetVersion, {
+            dryRun: options.dryRun ?? false,
+          });
 
-        if (rolledBack.length === 0) {
-          console.log("No migrations to rollback");
-        } else {
-          console.log(`Rolled back ${rolledBack.length} migration(s):`);
-          for (const version of rolledBack) {
-            console.log(`  ✓ Rolled back v${version}`);
+          if (rolledBack.length === 0) {
+            console.log("No migrations to rollback");
+          } else {
+            console.log(`Rolled back ${rolledBack.length} migration(s):`);
+            for (const version of rolledBack) {
+              console.log(`  ✓ Rolled back v${version}`);
+            }
           }
-        }
 
-        if (options.dryRun) {
-          console.log("(dry-run mode - no changes were made)");
-        }
-      } else if (options.version) {
-        const version = parseInt(options.version, 10);
-        console.log(`Rolling back migration v${version}...`);
+          if (options.dryRun) {
+            console.log("(dry-run mode - no changes were made)");
+          }
+        } else if (options.version) {
+          const version = parseInt(options.version, 10);
+          console.log(`Rolling back migration v${version}...`);
 
-        const success = await rollbackMigration(db, version, {
-          dryRun: options.dryRun ?? false,
-        });
+          const success = await rollbackMigration(db, version, {
+            dryRun: options.dryRun ?? false,
+          });
 
-        if (success) {
-          console.log(`✓ Rolled back v${version}`);
+          if (success) {
+            console.log(`✓ Rolled back v${version}`);
+          } else {
+            console.log(`Migration v${version} not found or already rolled back`);
+          }
+
+          if (options.dryRun) {
+            console.log("(dry-run mode - no changes were made)");
+          }
         } else {
-          console.log(`Migration v${version} not found or already rolled back`);
+          console.error("Either --to or --version must be specified");
+          process.exit(1);
         }
-
-        if (options.dryRun) {
-          console.log("(dry-run mode - no changes were made)");
-        }
-      } else {
-        console.error("Either --to or --version must be specified");
+      } catch (error) {
+        console.error("Rollback failed:", error);
         process.exit(1);
+      } finally {
+        db.close();
       }
-    } catch (error) {
-      console.error("Rollback failed:", error);
-      process.exit(1);
-    } finally {
-      db.close();
-    }
-  });
+    })
+  );
 
 /**
  * Show migration status.
@@ -221,45 +231,47 @@ program
   .command("status")
   .description("Show migration status")
   .option("-d, --db <path>", "Database path", DEFAULT_DB_PATH)
-  .action(async (options) => {
-    const dbPath = getDbPath(options.db);
-    const db = openDatabase(dbPath);
+  .action(
+    asyncAction(async (options) => {
+      const dbPath = getDbPath(options.db);
+      const db = openDatabase(dbPath);
 
-    try {
-      const status = await getMigrationStatus(db);
+      try {
+        const status = await getMigrationStatus(db);
 
-      console.log("Migration Status:");
-      console.log(`  Current Version: ${status.currentVersion}`);
-      console.log(`  Latest Version: ${status.latestVersion}`);
-      console.log(`  Applied: ${status.applied.length}`);
-      console.log(`  Pending: ${status.pending.length}`);
+        console.log("Migration Status:");
+        console.log(`  Current Version: ${status.currentVersion}`);
+        console.log(`  Latest Version: ${status.latestVersion}`);
+        console.log(`  Applied: ${status.applied.length}`);
+        console.log(`  Pending: ${status.pending.length}`);
 
-      if (status.applied.length > 0) {
-        console.log("\nApplied Migrations:");
-        for (const record of status.applied) {
-          console.log(
-            `  ✓ v${record.version}: ${record.name} (${formatDuration(record.executionTimeMs)})`
-          );
+        if (status.applied.length > 0) {
+          console.log("\nApplied Migrations:");
+          for (const record of status.applied) {
+            console.log(
+              `  ✓ v${record.version}: ${record.name} (${formatDuration(record.executionTimeMs)})`
+            );
+          }
         }
-      }
 
-      if (status.pending.length > 0) {
-        console.log("\nPending Migrations:");
-        for (const migration of status.pending) {
-          console.log(`  - v${migration.version}: ${migration.description}`);
+        if (status.pending.length > 0) {
+          console.log("\nPending Migrations:");
+          for (const migration of status.pending) {
+            console.log(`  - v${migration.version}: ${migration.description}`);
+          }
         }
-      }
 
-      if (status.pending.length === 0 && status.currentVersion > 0) {
-        console.log("\n✓ Database is up to date");
+        if (status.pending.length === 0 && status.currentVersion > 0) {
+          console.log("\n✓ Database is up to date");
+        }
+      } catch (error) {
+        console.error("Failed to get status:", error);
+        process.exit(1);
+      } finally {
+        db.close();
       }
-    } catch (error) {
-      console.error("Failed to get status:", error);
-      process.exit(1);
-    } finally {
-      db.close();
-    }
-  });
+    })
+  );
 
 /**
  * Create a new migration.
@@ -269,16 +281,18 @@ program
   .description("Create a new migration file")
   .option("--description <text>", "Migration description")
   .option("--validation", "Include validation template")
-  .action(async (name, options) => {
-    const description = options.description ?? name;
-    const filepath = await createMigration(name, description, options.validation ?? false);
+  .action(
+    asyncAction(async (name, options) => {
+      const description = options.description ?? name;
+      const filepath = await createMigration(name, description, options.validation ?? false);
 
-    console.log(`✓ Migration created: ${filepath}`);
-    console.log("\nNext steps:");
-    console.log("  1. Edit the migration file to implement up() and down()");
-    console.log("  2. Run tests: npm test -- migration.test.ts");
-    console.log("  3. Apply migration: npm run migrate:up");
-  });
+      console.log(`✓ Migration created: ${filepath}`);
+      console.log("\nNext steps:");
+      console.log("  1. Edit the migration file to implement up() and down()");
+      console.log("  2. Run tests: npm test -- migration.test.ts");
+      console.log("  3. Apply migration: npm run migrate:up");
+    })
+  );
 
 /**
  * Validate database.
@@ -287,42 +301,44 @@ program
   .command("validate")
   .description("Validate database integrity")
   .option("-d, --db <path>", "Database path", DEFAULT_DB_PATH)
-  .action(async (options) => {
-    const dbPath = getDbPath(options.db);
-    const db = openDatabase(dbPath);
+  .action(
+    asyncAction(async (options) => {
+      const dbPath = getDbPath(options.db);
+      const db = openDatabase(dbPath);
 
-    try {
-      console.log(`Validating database: ${dbPath}`);
+      try {
+        console.log(`Validating database: ${dbPath}`);
 
-      const validation = validateDatabase(db);
+        const validation = validateDatabase(db);
 
-      if (validation.valid) {
-        console.log("✓ Database is valid");
-      } else {
-        console.error("✗ Database validation failed:");
+        if (validation.valid) {
+          console.log("✓ Database is valid");
+        } else {
+          console.error("✗ Database validation failed:");
 
-        for (const error of validation.errors) {
-          console.error(`  - ${error}`);
+          for (const error of validation.errors) {
+            console.error(`  - ${error}`);
+          }
         }
-      }
 
-      if (validation.warnings.length > 0) {
-        console.log("\nWarnings:");
-        for (const warning of validation.warnings) {
-          console.log(`  - ${warning}`);
+        if (validation.warnings.length > 0) {
+          console.log("\nWarnings:");
+          for (const warning of validation.warnings) {
+            console.log(`  - ${warning}`);
+          }
         }
-      }
 
-      if (!validation.valid) {
+        if (!validation.valid) {
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error("Validation failed:", error);
         process.exit(1);
+      } finally {
+        db.close();
       }
-    } catch (error) {
-      console.error("Validation failed:", error);
-      process.exit(1);
-    } finally {
-      db.close();
-    }
-  });
+    })
+  );
 
 /**
  * Backup management.
@@ -331,83 +347,91 @@ program
   .command("backup")
   .description("Create a database backup")
   .option("-d, --db <path>", "Database path", DEFAULT_DB_PATH)
-  .action(async (options) => {
-    const dbPath = getDbPath(options.db);
+  .action(
+    asyncAction(async (options) => {
+      const dbPath = getDbPath(options.db);
 
-    try {
-      console.log(`Creating backup of: ${dbPath}`);
-      const backupPath = await createBackup(dbPath);
-      console.log(`✓ Backup created: ${backupPath}`);
-    } catch (error) {
-      console.error("Backup failed:", error);
-      process.exit(1);
-    }
-  });
+      try {
+        console.log(`Creating backup of: ${dbPath}`);
+        const backupPath = await createBackup(dbPath);
+        console.log(`✓ Backup created: ${backupPath}`);
+      } catch (error) {
+        console.error("Backup failed:", error);
+        process.exit(1);
+      }
+    })
+  );
 
 program
   .command("restore <backup>")
   .description("Restore from backup")
   .option("-d, --db <path>", "Database path", DEFAULT_DB_PATH)
-  .action(async (backupPath, options) => {
-    const dbPath = getDbPath(options.db);
+  .action(
+    asyncAction(async (backupPath, options) => {
+      const dbPath = getDbPath(options.db);
 
-    try {
-      console.log(`Restoring backup to: ${dbPath}`);
-      await restoreBackup(backupPath, dbPath);
-      console.log("✓ Backup restored successfully");
-    } catch (error) {
-      console.error("Restore failed:", error);
-      process.exit(1);
-    }
-  });
+      try {
+        console.log(`Restoring backup to: ${dbPath}`);
+        await restoreBackup(backupPath, dbPath);
+        console.log("✓ Backup restored successfully");
+      } catch (error) {
+        console.error("Restore failed:", error);
+        process.exit(1);
+      }
+    })
+  );
 
 program
   .command("list-backups")
   .description("List available backups")
-  .action(async () => {
-    try {
-      const backups = await listBackups();
+  .action(
+    asyncAction(async () => {
+      try {
+        const backups = await listBackups();
 
-      if (backups.length === 0) {
-        console.log("No backups found");
-        return;
+        if (backups.length === 0) {
+          console.log("No backups found");
+          return;
+        }
+
+        console.log(`Found ${backups.length} backup(s):\n`);
+
+        for (const backup of backups) {
+          const sizeMB = (backup.size / 1024 / 1024).toFixed(2);
+          const date = new Date(backup.created).toLocaleString();
+          console.log(`  ${backup.path}`);
+          console.log(`    Size: ${sizeMB} MB | Created: ${date}`);
+        }
+      } catch (error) {
+        console.error("Failed to list backups:", error);
+        process.exit(1);
       }
-
-      console.log(`Found ${backups.length} backup(s):\n`);
-
-      for (const backup of backups) {
-        const sizeMB = (backup.size / 1024 / 1024).toFixed(2);
-        const date = new Date(backup.created).toLocaleString();
-        console.log(`  ${backup.path}`);
-        console.log(`    Size: ${sizeMB} MB | Created: ${date}`);
-      }
-    } catch (error) {
-      console.error("Failed to list backups:", error);
-      process.exit(1);
-    }
-  });
+    })
+  );
 
 program
   .command("cleanup-backups")
   .description("Remove old backups")
   .option("--keep <count>", "Number of backups to keep", "10")
-  .action(async (options) => {
-    try {
-      const keepCount = parseInt(options.keep, 10);
-      console.log(`Cleaning up backups (keeping ${keepCount} most recent)...`);
+  .action(
+    asyncAction(async (options) => {
+      try {
+        const keepCount = parseInt(options.keep, 10);
+        console.log(`Cleaning up backups (keeping ${keepCount} most recent)...`);
 
-      const deleted = await cleanupOldBackups(keepCount);
+        const deleted = await cleanupOldBackups(keepCount);
 
-      if (deleted === 0) {
-        console.log("No backups to delete");
-      } else {
-        console.log(`✓ Deleted ${deleted} old backup(s)`);
+        if (deleted === 0) {
+          console.log("No backups to delete");
+        } else {
+          console.log(`✓ Deleted ${deleted} old backup(s)`);
+        }
+      } catch (error) {
+        console.error("Cleanup failed:", error);
+        process.exit(1);
       }
-    } catch (error) {
-      console.error("Cleanup failed:", error);
-      process.exit(1);
-    }
-  });
+    })
+  );
 
 /**
  * Initialize a new database.
@@ -416,39 +440,41 @@ program
   .command("init")
   .description("Initialize a new database")
   .option("-d, --db <path>", "Database path", DEFAULT_DB_PATH)
-  .action(async (options) => {
-    const dbPath = getDbPath(options.db);
+  .action(
+    asyncAction(async (options) => {
+      const dbPath = getDbPath(options.db);
 
-    if (existsSync(dbPath)) {
-      console.error(`Database already exists: ${dbPath}`);
-      console.error("Use --force to overwrite");
-      process.exit(1);
-    }
-
-    try {
-      console.log(`Creating database: ${dbPath}`);
-
-      // Create directory if it doesn't exist
-      const dir = resolve(dbPath, "..");
-      if (!existsSync(dir)) {
-        await mkdir(dir, { recursive: true });
+      if (existsSync(dbPath)) {
+        console.error(`Database already exists: ${dbPath}`);
+        console.error("Use --force to overwrite");
+        process.exit(1);
       }
 
-      const db = new Database(dbPath);
+      try {
+        console.log(`Creating database: ${dbPath}`);
 
-      // Run migrations
-      await runMigrations(db);
+        // Create directory if it doesn't exist
+        const dir = resolve(dbPath, "..");
+        if (!existsSync(dir)) {
+          await mkdir(dir, { recursive: true });
+        }
 
-      console.log("✓ Database initialized successfully");
-      console.log(`  Location: ${dbPath}`);
-      console.log(`  Version: ${(await getMigrationStatus(db)).currentVersion}`);
+        const db = new Database(dbPath);
 
-      db.close();
-    } catch (error) {
-      console.error("Initialization failed:", error);
-      process.exit(1);
-    }
-  });
+        // Run migrations
+        await runMigrations(db);
+
+        console.log("✓ Database initialized successfully");
+        console.log(`  Location: ${dbPath}`);
+        console.log(`  Version: ${(await getMigrationStatus(db)).currentVersion}`);
+
+        db.close();
+      } catch (error) {
+        console.error("Initialization failed:", error);
+        process.exit(1);
+      }
+    })
+  );
 
 // ============================================================================
 // Parse and Execute
