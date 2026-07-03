@@ -330,3 +330,17 @@ export {
   type RetryOptions,
   type RetryResult,
 } from "./utils/retry.js";
+
+// =============================================================================
+// Observability
+// =============================================================================
+
+// Structured JSON logger
+export {
+  createLogger,
+  log,
+  type LogLevel,
+  type LogEntry,
+  type Logger,
+  type LoggerConfig,
+} from "./observability/logger.js";
