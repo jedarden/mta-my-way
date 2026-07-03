@@ -344,3 +344,45 @@ export {
   type Logger,
   type LoggerConfig,
 } from "./observability/logger.js";
+
+// Distributed tracing (W3C tracecontext)
+export {
+  tracer,
+  Tracer,
+  withChildSpan,
+  recordEvent,
+  setSpanAttribute,
+  getCurrentTraceId,
+  getCurrentSpanId,
+  generateTraceId,
+  generateSpanId,
+  type Span,
+  type SpanContext,
+  type ExportedSpan,
+} from "./observability/tracing.js";
+
+// OpenTelemetry configuration
+export {
+  context,
+  diag,
+  propagation,
+  trace,
+  Span as OTelSpan,
+  SpanContext as OTelSpanContext,
+  SpanStatusCode,
+  Tracer as OTelTracer,
+  TracerProvider,
+  resolveOtelConfig,
+  parseHeaders,
+  detectOtlpProtocol,
+  isOtelDisabled,
+  DEFAULT_BATCH_SPAN_PROCESSOR,
+  RESOURCE_ATTRIBUTES,
+  type OtelConfig,
+  type ResolvedOtelConfig,
+  type DiagLogLevel,
+  type Context,
+  type SpanAttributes,
+  type SpanOptions,
+  type SpanStatus,
+} from "./observability/otel.js";
