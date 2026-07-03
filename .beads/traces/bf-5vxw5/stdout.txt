@@ -1,0 +1,6 @@
+Bead `bf-5vxw5` is now closed. Summary:
+
+- **File**: `docs/notes/lint-logs.txt` (604 lines)
+- **Outcome**: Clearly documented — `FAIL (153 ESLint errors; biome passed)`
+- **Error details**: All 153 errors listed with file, line, rule, and description
+- **Committed**: `dca54c5` and pushed
