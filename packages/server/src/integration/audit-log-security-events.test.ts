@@ -538,7 +538,82 @@ describe("Audit log captures security events from middleware", () => {
   });
 
   // =========================================================================
-  // 5. Cross-cutting: metadata correctness across all event types
+  // 5. Host-header audit capture: full chain integration
+  // =========================================================================
+
+  describe("Host-header audit capture integration", () => {
+    it("request with Host: evil.com returns 400 through createHostHeaderAuditApp", async () => {
+      const app = createHostHeaderAuditApp();
+
+      const res = await app.request("/api/test", {
+        headers: { Host: "evil.com" },
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("audit log contains host_header_blocked entry after a blocked request", async () => {
+      const app = createHostHeaderAuditApp();
+
+      await app.request("/api/test", {
+        headers: { Host: "evil.com" },
+      });
+
+      const events = queryAuditLog({ action: "host_header_blocked" });
+      expect(events.length).toBeGreaterThanOrEqual(1);
+
+      const event = events[0]!;
+      expect(event.action).toBe("host_header_blocked");
+    });
+
+    it("blocked entry has correct metadata (path, method, clientIp, success: false)", async () => {
+      const app = createHostHeaderAuditApp();
+
+      await app.request("/api/test", {
+        headers: { Host: "evil.com", "CF-Connecting-IP": IP_A },
+      });
+
+      const events = queryAuditLog({ action: "host_header_blocked" });
+      expect(events.length).toBeGreaterThanOrEqual(1);
+
+      const event = events[0]!;
+      expect(event.success).toBe(false);
+      expect(event.path).toBe("/api/test");
+      expect(event.method).toBe("GET");
+      expect(event.clientIp).toBe(IP_A);
+    });
+
+    it("request with allowed host does NOT produce host_header_blocked entry", async () => {
+      const app = createHostHeaderAuditApp();
+
+      const res = await app.request("/api/test", {
+        headers: { Host: "allowed.test" },
+      });
+
+      expect(res.status).toBe(200);
+
+      const events = queryAuditLog({ action: "host_header_blocked" });
+      expect(events.length).toBe(0);
+    });
+
+    it("blocked request preserves client IP from CF-Connecting-IP header", async () => {
+      const app = createHostHeaderAuditApp();
+
+      await app.request("/api/test", {
+        headers: {
+          Host: "evil.com",
+          "CF-Connecting-IP": IP_B,
+        },
+      });
+
+      const events = queryAuditLog({ action: "host_header_blocked" });
+      expect(events.length).toBeGreaterThanOrEqual(1);
+      expect(events[0]!.clientIp).toBe(IP_B);
+    });
+  });
+
+  // =========================================================================
+  // 6. Cross-cutting: metadata correctness across all event types
   // =========================================================================
 
   describe("Audit entry metadata correctness", () => {
@@ -648,7 +723,7 @@ describe("Audit log captures security events from middleware", () => {
   });
 
   // =========================================================================
-  // 6. Full chain: multiple middleware interactions produce correct audit
+  // 7. Full chain: multiple middleware interactions produce correct audit
   // =========================================================================
 
   describe("Full middleware chain audit trail", () => {
