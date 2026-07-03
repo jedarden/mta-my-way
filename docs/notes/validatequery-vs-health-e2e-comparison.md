@@ -53,6 +53,8 @@ The test does not verify the `details` array exists at all. For the `?extra=para
 
 Note: The `field` is an empty string because `unrecognized_keys` issues in Zod have an empty path — the rejected key is not part of the schema's expected path. The `message` is Zod's default for unrecognized keys, which includes the key name.
 
+> **Doc inconsistency:** The companion doc [validate-query-rejection-response.md](./validate-query-rejection-response.md) shows the message as `"Unrecognized key: \"extra\""`, while this doc originally showed `"Unrecognized key(s) in object: 'extra'"`. The actual message is Zod v4's runtime default (passed through `formatZodError`'s fallback at `validation.ts:76`), which is version-dependent. No unit test in `validation.test.ts` covers the `unrecognized_keys` case, so neither form has been verified against the running code. The exact message is not asserted by the E2E test, so this inconsistency has no test impact.
+
 **Impact:** Negligible for E2E. The `details` array is for developer debugging and UI display, not for the health endpoint's contract. Checking it in E2E would couple the test to Zod's error message format.
 
 ## 4. Response Body: Content-Type Header
