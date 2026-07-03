@@ -34,8 +34,7 @@ import { initPasswordManagementFromDb } from "./middleware/password-management.j
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
 import { runMigrations } from "./migration/index.js";
-import { logger } from "./observability/logger.js";
-import { initOpenTelemetry, shutdownOpenTelemetry } from "./observability/opentelemetry.js";
+import { logger, initObservability, shutdownObservability } from "./observability/index.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
@@ -67,8 +66,8 @@ async function loadJsonFile<T>(filename: string): Promise<T> {
 }
 
 async function main(): Promise<void> {
-  // Initialize OpenTelemetry for distributed tracing (optional, graceful if disabled)
-  await initOpenTelemetry();
+  // Initialize all observability subsystems (OTel, tracing, metrics — logger is import-time)
+  await initObservability();
 
   // Validate security configuration first (fail-fast on critical issues)
   validateSecurityOrThrow();
@@ -213,10 +212,9 @@ async function main(): Promise<void> {
     logger.info("Received shutdown signal", { signal });
 
     try {
-      // Flush OpenTelemetry spans before shutdown
-      await shutdownOpenTelemetry();
+      await shutdownObservability();
     } catch (err) {
-      logger.error("Error during OpenTelemetry shutdown", err as Error);
+      logger.error("Error during observability shutdown", err as Error);
     }
 
     process.exit(0);
