@@ -139,6 +139,26 @@ function hashEndpoint(endpoint: string): string {
 - Settings (theme, refresh interval, etc.)
 - Geolocation coordinates
 
+## VAPID Key Rotation (2026-07-03)
+
+**Background**: On 2026-07-03, a VAPID private key was discovered in `packages/server/data/vapid-keys.json` that had been accidentally committed to git. The file was removed from git tracking and added to `.gitignore`. The committed key was treated as compromised and rotated.
+
+**Actions taken**:
+1. Removed `packages/server/data/vapid-keys.json` and `packages/server/.test-db.sqlite` from git tracking
+2. Added both paths to `.gitignore` (`.test-db.sqlite` covered by `*.sqlite` pattern)
+3. Generated a fresh VAPID key pair for development use
+4. Production deployments use environment variables (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) instead of file-based configuration
+
+**Impact on clients**:
+- Clients that subscribed to push notifications using the old VAPID public key must re-subscribe
+- The subscription will be updated automatically on the next app launch/open
+- Push notifications will not be delivered to stale subscriptions using the old key
+
+**Current behavior** (see `packages/server/src/push/vapid.ts`):
+- Environment variables (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) take precedence
+- File fallback (`packages/server/data/vapid-keys.json`) is only used for local development when env vars are absent
+- Production deployments MUST use sealed secrets (see `bf-4012`)
+
 ## Security Checklist
 
 - [x] Cloudflare WAF: rate-limit rule for /api/* at 100 req/min per IP
