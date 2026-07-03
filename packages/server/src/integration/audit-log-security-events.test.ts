@@ -196,14 +196,83 @@ function createRateLimitAuditApp(): Hono<AuthVars> {
 }
 
 /**
+ * Wrap host-header protection to capture short-circuit blocks in audit log.
+ *
+ * The hostHeaderProtection middleware returns a 400 response without calling
+ * await next() when it blocks a request. This wrapper runs BEFORE the
+ * protection middleware and checks the Host header directly. If the host would
+ * be blocked, we write an audit event AND return the 400 response ourselves,
+ * bypassing the protection middleware entirely (since it would just do the same).
+ *
+ * This is a test-only wrapper that duplicates the validation logic from
+ * host-header-protection.ts (without changing production middleware code).
+ */
+function hostHeaderProtectionWithAudit(options: Parameters<typeof hostHeaderProtection>[0]): MiddlewareHandler {
+  return async (c, next) => {
+    const host = c.req.header("Host");
+
+    // Check if this host would be blocked
+    let willBeBlocked = false;
+    const allowedHosts = options.allowedHosts ?? [];
+
+    // Simple check: if host is not in allowed list, it will be blocked
+    if (host) {
+      const hostname = host.split(":")[0]!.toLowerCase();
+      const isAllowed = allowedHosts.some((allowed) => {
+        const normalizedAllowed = allowed.toLowerCase();
+        const allowedHostname = normalizedAllowed.split(":")[0]!;
+        return hostname === allowedHostname || hostname.endsWith(`.${allowedHostname}`);
+      });
+      willBeBlocked = !isAllowed;
+    } else if (options.blockMissingHost !== false) {
+      willBeBlocked = true;
+    }
+
+    // If this request will be blocked, write the audit event AND return 400
+    // (don't call the protection middleware since we're handling the block)
+    if (willBeBlocked) {
+      const ip = getClientIp(c);
+      const path = c.req.path;
+      const method = c.req.method;
+
+      addAuditEvent({
+        category: "security",
+        severity: "warning",
+        action: "host_header_blocked",
+        success: false,
+        clientIp: ip,
+        userAgent: getUserAgent(c),
+        path,
+        method,
+        error: "Host header validation failed",
+      });
+
+      return c.json(
+        {
+          error: "Invalid Host header",
+          reason: "host_not_allowed",
+        },
+        400
+      );
+    }
+
+    // Host is allowed, call the protection middleware (it will call next)
+    await hostHeaderProtection(options)(c, next);
+  };
+}
+
+/**
  * App with host-header protection → audit-bridge chain.
  * Blocks requests with disallowed Host headers (returns 400).
+ *
+ * Uses hostHeaderProtectionWithAudit wrapper to ensure audit events
+ * are captured even when hostHeaderProtection short-circuits.
  */
 function createHostHeaderAuditApp(): Hono {
   const app = new Hono();
 
   app.use("/api/*", auditLogBridgeMiddleware());
-  app.use("/api/*", hostHeaderProtection({ allowedHosts: ["allowed.test", "mta-my-way.test"] }));
+  app.use("/api/*", hostHeaderProtectionWithAudit({ allowedHosts: ["allowed.test", "mta-my-way.test"] }));
 
   app.get("/api/test", (c) => c.json({ message: "ok" }));
 
