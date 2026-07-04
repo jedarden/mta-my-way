@@ -36,8 +36,6 @@ import { setRbacAuthContext } from "./rbac.js";
 
 describe("API Key Management", () => {
   beforeEach(async () => {
-    vi.clearAllMocks();
-
     // Register test API keys in BOTH storage systems
     // First register in authentication system
     await registerApiKey({

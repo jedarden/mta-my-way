@@ -99,7 +99,6 @@ describe("Alerts and Equipment Integration Tests", () => {
 
   afterEach(() => {
     closeDatabase(db);
-    vi.restoreAllMocks();
   });
 
   describe("GET /api/alerts", () => {

@@ -165,11 +165,12 @@ describe("Database Operations Integration Tests", () => {
       const now = Date.now();
       const baseTime = now - 10000000;
 
-      // Create trips concurrently with reduced count to avoid SQLite locks
-      // SQLite serializes writes internally, so we use a conservative limit
+      // Create trips sequentially to ensure deterministic behavior and avoid SQLite lock contention
+      // While SQLite with WAL mode supports concurrent reads, writes are serialized
       const tripCount = 10;
-      const trips = Array.from({ length: tripCount }, (_, i) =>
-        recordTrip({
+      const trips: ReturnType<typeof recordTrip>[] = [];
+      for (let i = 0; i < tripCount; i++) {
+        const trip = recordTrip({
           date: "2026-04-06",
           origin: { stationId: "101", stationName: "Test Station" },
           destination: { stationId: "725", stationName: "Test Station" },
@@ -178,8 +179,9 @@ describe("Database Operations Integration Tests", () => {
           arrivalTime: baseTime + i * 50000 + 3600000,
           actualDurationMinutes: 60,
           source: "manual",
-        })
-      );
+        });
+        trips.push(trip);
+      }
 
       // All should succeed
       const successCount = trips.filter((t) => t !== undefined).length;

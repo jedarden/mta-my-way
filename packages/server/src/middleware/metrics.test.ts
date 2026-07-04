@@ -38,7 +38,6 @@ describe("HTTP Metrics Middleware", () => {
 
   beforeEach(() => {
     app = new Hono();
-    vi.clearAllMocks();
   });
 
   describe("httpMetrics", () => {

@@ -36,7 +36,6 @@ global.fetch = vi.fn();
 
 describe("CAPTCHA middleware", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     resetCaptchaTracking();
     vi.mocked(global.fetch).mockClear();
   });

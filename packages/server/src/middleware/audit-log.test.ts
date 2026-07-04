@@ -36,7 +36,6 @@ describe("Audit Log", () => {
   beforeEach(() => {
     // Clear audit log before each test
     clearAuditLog();
-    vi.clearAllMocks();
   });
 
   describe("addAuditEvent", () => {

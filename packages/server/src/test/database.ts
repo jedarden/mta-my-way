@@ -21,8 +21,11 @@ export function createInMemoryDatabase(): Database.Database {
 /**
  * Create a file-based test database in a temporary directory.
  *
+ * The returned cleanup function is crash-safe: it registers process exit
+ * handlers to ensure temp files are deleted even if tests crash or timeout.
+ *
  * @param name - Database name
- * @returns Database instance with file path
+ * @returns Database instance with file path and crash-safe cleanup function
  */
 export function createTestDatabase(name: string = "test.db"): {
   db: Database.Database;
@@ -40,19 +43,66 @@ export function createTestDatabase(name: string = "test.db"): {
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
 
+  let cleaned = false;
   const cleanup = () => {
-    db.close();
-    if (existsSync(dbPath)) {
-      rmSync(dbPath);
+    if (cleaned) return;
+    cleaned = true;
+
+    try {
+      db.close();
+    } catch {
+      // Already closed or invalid state
     }
-    if (existsSync(testDir)) {
-      try {
-        rmSync(testDir, { recursive: true });
-      } catch {
-        // Directory not empty, skip cleanup
+
+    try {
+      if (existsSync(dbPath)) {
+        rmSync(dbPath);
       }
+    } catch {
+      // File already deleted or permission error
+    }
+
+    try {
+      if (existsSync(testDir)) {
+        rmSync(testDir, { recursive: true, force: true });
+      }
+    } catch {
+      // Directory not empty or other error, leave for OS to clean
     }
   };
+
+  // Register crash-safe cleanup handlers
+  // These ensure temp files are deleted even if tests crash or timeout
+  const registerExitHandler = (event: string, handler: () => void) => {
+    try {
+      process.on(event, handler);
+    } catch {
+      // Some events may not be supported in all environments
+    }
+  };
+
+  const exitHandler = () => {
+    cleanup();
+  };
+
+  // Register for normal exit, signals, and uncaught exceptions
+  registerExitHandler("exit", exitHandler);
+  registerExitHandler("SIGINT", () => {
+    exitHandler();
+    process.exit(0);
+  });
+  registerExitHandler("SIGTERM", () => {
+    exitHandler();
+    process.exit(0);
+  });
+  registerExitHandler("uncaughtException", () => {
+    exitHandler();
+    process.exit(1);
+  });
+  registerExitHandler("unhandledRejection", () => {
+    exitHandler();
+    process.exit(1);
+  });
 
   return { db, path: dbPath, cleanup };
 }

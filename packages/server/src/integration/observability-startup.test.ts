@@ -118,10 +118,6 @@ describe("Observability barrel exports", () => {
 });
 
 describe("initObservability", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("completes without error", async () => {
     await expect(initObservability()).resolves.toBeUndefined();
   });
