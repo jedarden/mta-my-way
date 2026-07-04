@@ -1,0 +1,16 @@
+Done. Here's the summary:
+
+**Findings:**
+- Checked all 5 most recent `mta-my-way-build` workflow runs on iad-ci
+- **All pods have been garbage collected** (cluster default `podGC: OnPodCompletion` — pods deleted immediately on completion)
+- The lint step in the most recent run (`864r7`) failed with **exit code 1**, but only the exit code is stored in the workflow node status — no stdout/stderr
+- No artifacts/archived logs in node outputs
+- Argo server is ClusterIP-only (not directly accessible); `argo` CLI not installed
+- The Argo UI at `argo-ci.ardenone.com` may still have logs (2h TTL for failures), but couldn't be accessed programmatically
+
+**Remaining paths to actual lint logs:**
+1. Argo UI browser access (within 2h of failure)
+2. `npm run lint` locally to reproduce
+3. Install `argo` CLI for direct archived log retrieval
+
+**Full investigation saved to:** `/tmp/mta-my-way-build-lint-log-investigation.txt`
