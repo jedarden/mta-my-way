@@ -1,0 +1,8 @@
+Bead closed. Here's the summary:
+
+**Result:** Found 2 running `mta-my-way-build` workflows on iad-ci:
+
+- **`mta-my-way-build-b7rlx`** (most recent, ~7m old) — Running at 2/3 steps: ✅ lint passed, 🔄 tests running, ⏳ docker-build pending
+- **`mta-my-way-build-5nfbf`** (~6m old) — Also running (parallel trigger from same push)
+
+No new submission was needed. Downstream beads should track **`mta-my-way-build-b7rlx`** as the primary build.

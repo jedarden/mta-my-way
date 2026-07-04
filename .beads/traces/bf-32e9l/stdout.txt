@@ -1,0 +1,1 @@
+Done. The lint fix was straightforward — a single import sorting issue in `packages/server/src/migration/migration.test.ts:9` where `beforeAll` needed to come before `beforeEach` alphabetically. The fix was already on the remote, lint passes clean locally (567 files, 0 errors).

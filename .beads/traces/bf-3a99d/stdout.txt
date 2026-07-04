@@ -1,0 +1,12 @@
+Done. Here's a summary of what was completed:
+
+**Task:** Capture and save lint step logs to local file
+
+**What was done:**
+- Found that all CI pods were already garbage-collected (podGC: OnPodCompletion)
+- Located two sets of lint logs already captured by prior beads:
+  - **bf-370jq** trace: lint step stdout/stderr from `mta-my-way-build-debug-lint-cjnxs` (FAILED — 4 biome errors)
+  - `docs/research/lint-logs-raw.txt`: lint step stdout from the passing run (563 files, 0 errors)
+- Consolidated both runs into `.beads/traces/bf-3a99d/lint-logs.txt` with a metadata header including workflow names, run IDs, pod names, timestamps, and cluster info
+- Committed and pushed to main
+- Closed bead bf-3a99d

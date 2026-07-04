@@ -6,7 +6,13 @@ Version 0.0.1
 
 ## Preview
 
-Screenshots are available in `docs/`.
+![Home Dashboard](docs/screenshots/home-dashboard.png)
+
+![Station Detail](docs/screenshots/station-detail.png)
+
+![Commute Planner](docs/screenshots/commute-planner.png)
+
+![Interactive Map](docs/screenshots/interactive-map.png)
 
 ## Features
 

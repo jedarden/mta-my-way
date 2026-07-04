@@ -1,0 +1,6 @@
+Bead **bf-4n1qd** is closed. The fix was already applied in commit `297f129`:
+
+- **Root cause:** `validateApiKeyFormat()` regex was `{3,50}`, rejecting the 64-char hex keys from `generateApiKey()` (32 bytes → 64 hex chars)
+- **Fix:** Expanded regex to `{3,128}` to accommodate hex-encoded keys
+- **Test improvements:** SQL injection test now expects `400` (handler rejection) instead of `[200, 400, 401, 403]`, ensuring auth actually reaches hash-verification
+- **Verification:** 5345 tests pass, lint clean

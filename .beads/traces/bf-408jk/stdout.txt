@@ -1,0 +1,15 @@
+Everything checks out. The split is complete.
+
+```
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+```
+
+**Children:**
+| # | ID | Title | Blocked by |
+|---|-----|-------|------------|
+| 1 | bf-55mlx | Identify or submit mta-my-way-build workflow on iad-ci | — (chain start) |
+| 2 | bf-4hkwf | Monitor and validate lint step completion | bf-55mlx |
+| 3 | bf-5t7ts | Monitor test step execution and capture output | bf-4hkwf |
+| 4 | bf-1akwp | Validate test results and capture failure logs | bf-5t7ts |
+
+**Parent bf-408jk** now has `umbrella` label and depends on bf-1akwp (last child), so it stays `blocked` until the full chain completes. Each child has a focused, independently achievable scope — no single bead tries to find a workflow *and* wait for lint *and* monitor tests *and* parse results all at once.

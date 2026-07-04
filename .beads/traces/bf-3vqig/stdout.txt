@@ -1,0 +1,8 @@
+Done. Here's the summary:
+
+- **Lint status: ✅ PASSED** — zero errors
+- **Biome:** 563 files checked, no issues
+- **ESLint:** completed clean (one non-blocking `.eslintignore` deprecation warning)
+- Findings saved to `docs/research/lint-findings.md`
+- Bead `bf-1hb9n` commented with results
+- Bead `bf-3vqig` closed

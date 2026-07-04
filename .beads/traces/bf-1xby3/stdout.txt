@@ -1,0 +1,12 @@
+Done. Here's a summary of what was fixed:
+
+**Problem:** Two rate limiting tests had tautological assertions that always passed regardless of actual middleware behavior:
+- `expect(hitRateLimit || true).toBe(true)` — the `|| true` made it impossible to fail
+- `expect(Boolean(hasHeaders || !hasHeaders)).toBe(true)` — always true since headers are either present or absent
+
+**Fixes applied to `packages/server/src/security/cross-cutting.test.ts`:**
+1. **Imported `resetRateLimiter`** from `rate-limiter.ts` and called it in `beforeEach` to ensure clean rate limiter state (no leftover tokens from prior tests)
+2. **Rate limit enforcement test** — replaced tautology with `expect(hitRateLimit).toBe(true)`, asserting that 429 is returned after 60 tokens are exhausted
+3. **Rate limit headers test** — replaced tautology with concrete assertions: `X-RateLimit-Limit` equals `"60"`, `X-RateLimit-Remaining` is 0–59, and `X-RateLimit-Reset` is present
+
+All 35 tests pass, lint clean.

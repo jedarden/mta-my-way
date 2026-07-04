@@ -1,0 +1,16 @@
+{
+  "bead_id": "bf-4dutr",
+  "agent": "glm",
+  "provider": "zai",
+  "model": "glm-5-turbo",
+  "exit_code": 124,
+  "outcome": "timeout",
+  "duration_ms": 600002,
+  "input_tokens": null,
+  "output_tokens": null,
+  "cost_usd": null,
+  "captured_at": "2026-07-04T09:48:56.344253282Z",
+  "trace_format": "raw_text",
+  "pruned": false,
+  "template_version": null
+}

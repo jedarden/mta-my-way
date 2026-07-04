@@ -1,0 +1,22 @@
+Everything is wired up correctly. The dependency chain flows: bf-4dutr → bf-3v25s → bf-3nrhv → bf-2llae → bf-3had3.
+
+```
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+```
+
+```
+Children: bf-4dutr, bf-3v25s, bf-3nrhv, bf-2llae
+```
+
+| # | Bead | Title | Depends On |
+|---|------|-------|------------|
+| 1 | bf-4dutr | Audit all module-level mutable state for test isolation gaps | — |
+| 2 | bf-3v25s | Fix cleanupAllState gaps and silent failure handling | bf-4dutr |
+| 3 | bf-3nrhv | Standardize test file isolation patterns across all 37 integration tests | bf-3v25s |
+| 4 | bf-2llae | Validate test isolation with consecutive runs and fix remaining flakiness | bf-3nrhv |
+
+**Rationale for this decomposition:**
+- **bf-4dutr** (Audit) — read-only investigation; no risk of breaking anything, produces the gap list
+- **bf-3v25s** (Fix cleanup) — targeted code changes based on the audit findings; small blast radius
+- **bf-3nrhv** (Standardize patterns) — sweeping across 37 files but mechanical (remove redundant calls, fix ordering)
+- **bf-2llae** (Validate) — the proof pass: 3+ consecutive runs to confirm isolation actually works, with targeted fixes for anything still flaky

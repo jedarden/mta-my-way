@@ -1,0 +1,16 @@
+{
+  "bead_id": "bf-55mlx",
+  "agent": "glm",
+  "provider": "zai",
+  "model": "glm-5-turbo",
+  "exit_code": 0,
+  "outcome": "success",
+  "duration_ms": 145985,
+  "input_tokens": null,
+  "output_tokens": null,
+  "cost_usd": null,
+  "captured_at": "2026-07-04T08:06:52.060411854Z",
+  "trace_format": "raw_text",
+  "pruned": false,
+  "template_version": null
+}
