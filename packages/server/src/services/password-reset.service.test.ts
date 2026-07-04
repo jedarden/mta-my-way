@@ -42,8 +42,6 @@ vi.mock("nodemailer", () => ({
 
 describe("Password Reset Email Service", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-
     // Reset to default configuration
     configureEmailProvider({
       provider: "console",

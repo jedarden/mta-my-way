@@ -101,10 +101,6 @@ function createMockContext(auth?: any): any {
 }
 
 describe("enhanced-authorization middleware", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe("Resource Type Registry", () => {
     it("registers and retrieves custom resource types", () => {
       registerResourceType({

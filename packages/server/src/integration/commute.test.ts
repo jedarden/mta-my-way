@@ -226,7 +226,6 @@ describe("Commute Analysis Integration Tests", () => {
 
   afterEach(() => {
     closeDatabase(db);
-    vi.restoreAllMocks();
   });
 
   describe("POST /api/commute/analyze", () => {

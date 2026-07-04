@@ -20,7 +20,6 @@ import webpush from "web-push";
 describe("sendPushNotification", () => {
   beforeEach(() => {
     initPushDatabase(":memory:");
-    vi.clearAllMocks();
     // Configure web-push
     configureWebPush({
       publicKey: "test-public-key",

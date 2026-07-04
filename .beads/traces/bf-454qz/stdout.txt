@@ -1,13 +1,13 @@
-Lint step logs captured successfully from mta-my-way-build CI workflow.
+Done. Here's the summary:
 
-Workflow: mta-my-way-build-debug-lint-6dnvd
-Lint pod: mta-my-way-build-debug-lint-6dnvd-lint-3872771364
-Lint step: SUCCEEDED
+**Lint step logs captured from `mta-my-way-build-fg9tl`** (pod was live when checked):
 
-Key output:
-  - biome check . && eslint .
-  - Checked 563 files in 1754ms
-  - No fixes applied (clean pass)
-  - ESLintIgnoreWarning about .eslintignore deprecation (non-blocking)
+- **Biome:** Checked 563 files in 1905ms — **0 errors, no fixes applied** ✅
+- **ESLint:** Clean — only the non-blocking `.eslintignore` deprecation warning
+- **Outcome: PASS**
 
-Full logs saved to: docs/ci-lint-logs.txt
+**Files saved:**
+- `docs/research/lint-logs-2026-07-04.txt` — raw captured logs (token sanitized)
+- `docs/research/lint-findings.md` — updated with re-verification note
+
+**Note:** GitHub push protection blocked the first push because the raw CI logs contained the PAT token from the `git clone` URL. Sanitized it before pushing.

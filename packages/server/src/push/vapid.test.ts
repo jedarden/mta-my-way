@@ -55,10 +55,6 @@ describe("generateVapidKeys", () => {
 describe("loadOrGenerateVapidKeys", () => {
   const originalEnv = process.env;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterEach(() => {
     process.env = originalEnv;
   });

@@ -37,10 +37,6 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 describe("Subresource Integrity utilities", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe("generateSriHashForBuffer", () => {
     it("generates SHA-384 hash by default", () => {
       const buffer = Buffer.from("hello world");

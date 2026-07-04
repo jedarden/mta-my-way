@@ -1,15 +1,11 @@
-```
-SPLIT_COMPLETE: Created 3 children, parent converted to umbrella
-```
+Done. Here's a summary:
 
-**Children:** bf-428gc, bf-4yzon, bf-3vqig
+**Bead `bf-uytr9` closed.** 
 
-| # | ID | Title | Depends On |
-|---|----|-------|------------|
-| 1 | bf-428gc | Identify lint step pod names from debug workflow | — |
-| 2 | bf-4yzon | Retrieve lint logs from identified pods | bf-428gc |
-| 3 | bf-3vqig | Analyze lint output and document results | bf-4yzon |
+The lint capture workflow (`mta-my-way-lint-capture-p5qwp`) pods were GC'd, but saved raw logs from the CI run were already available in `docs/research/lint-logs-2026-07-04.txt`. Key findings:
 
-Parent bf-uytr9 now has:
-- `umbrella` label (split-child removed)
-- Depends on bf-3vqig (last child)
+- **CI lint run had 3 biome format errors** (all cosmetic — JSON trailing newline + function param line breaks)
+- All 3 were **already fixed** in commit `5547a77`
+- **Lint now passes clean** — 567 files, 0 errors (verified locally)
+- Updated `docs/research/lint-findings.md` to accurately reflect the error history (previous version incorrectly said "zero errors" from CI)
+- Added comment to `bf-1hb9n` with summary — no downstream lint fix bead needed

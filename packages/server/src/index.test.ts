@@ -295,13 +295,11 @@ describe("Server Entry Point", () => {
   });
 
   afterEach(() => {
-    // Restore process.exit
-    vi.restoreAllMocks();
-
     // Reset process environment
     process.env.PORT = "3001";
     delete process.env.TEST_MODE;
     delete process.env.PUSH_DB_PATH;
+    // Don't restore process.exit mock - let global afterEach handle it
   });
 
   describe("startup sequence", () => {

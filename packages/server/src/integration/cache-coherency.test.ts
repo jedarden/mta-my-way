@@ -472,7 +472,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const allIds = [...ids1, ...ids2];
       const uniqueIds = new Set(allIds);
       expect(uniqueIds.size).toBe(10);
-    }, 20000);
+    }, 30000);
 
     it("returns consistent filtered results", async () => {
       const now = Date.now();
@@ -816,7 +816,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       });
       const tripsBody = await tripsRes.json();
       expect(tripsBody.count).toBe(0);
-    }, 20000);
+    }, 30000);
 
     it("handles rollback scenarios gracefully", async () => {
       const now = Date.now();

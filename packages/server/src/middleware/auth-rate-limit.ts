@@ -162,14 +162,16 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 const apiKeyRateLimitStore = new Map<string, RateLimitEntry>();
 
 /**
+ * Default trusted IP addresses that bypass rate limiting.
+ * These are re-initialized after reset to ensure localhost always works.
+ */
+const DEFAULT_TRUSTED_IPS = ["127.0.0.1", "::1"] as const;
+
+/**
  * Trusted IP addresses that bypass rate limiting.
  * In production, load from configuration or database.
  */
-const trustedIps = new Set<string>([
-  "127.0.0.1",
-  "::1",
-  // Add internal/VPN IPs here
-]);
+const trustedIps = new Set<string>(DEFAULT_TRUSTED_IPS);
 
 /**
  * Previously banned IPs that have been manually unbanned.
@@ -598,7 +600,12 @@ export function cleanupRateLimits(): number {
 export function _clearAllRateLimits(): void {
   rateLimitStore.clear();
   apiKeyRateLimitStore.clear();
+  // Re-initialize trusted IPs with defaults instead of clearing
+  // This ensures localhost bypass works consistently in tests
   trustedIps.clear();
+  for (const ip of DEFAULT_TRUSTED_IPS) {
+    trustedIps.add(ip);
+  }
   unbannedIps.clear();
 }
 

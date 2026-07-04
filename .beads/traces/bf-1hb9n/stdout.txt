@@ -1,1 +1,11 @@
-Error: Reached max turns (30)
+The bead is closed. All tasks are complete.
+
+**Summary:** This bead's task — submitting a debug workflow with podGC override to capture lint logs — was already completed by prior beads in the chain:
+
+- **bf-31t83** confirmed lint pods were GC'd
+- **bf-4j341** submitted the debug workflow with `podGC: OnWorkflowCompletion`
+- **bf-18y3m** monitored it (pods cleaned up on workflow failure, as expected)
+- **bf-3vqig** confirmed lint **passes clean** — 563 files, 0 errors
+- Logs saved to `docs/research/lint-findings.md` and `docs/research/lint-logs-raw.txt`
+
+No further action needed. Bead bf-1hb9n closed.

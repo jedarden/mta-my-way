@@ -35,7 +35,6 @@ vi.mock("./subscriptions.js", () => ({
 
 describe("push/briefing", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2024-01-15T07:00:00Z"));
   });

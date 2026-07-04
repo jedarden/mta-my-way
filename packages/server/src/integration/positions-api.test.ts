@@ -108,12 +108,10 @@ describe("Positions API Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
     closeDatabase(db);
-    vi.restoreAllMocks();
   });
 
   describe("GET /api/positions/:lineId", () => {

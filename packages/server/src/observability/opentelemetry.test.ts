@@ -16,9 +16,6 @@ describe("OpenTelemetry integration", () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = { ...process.env };
-
-    // Clear any existing OpenTelemetry state
-    vi.clearAllMocks();
   });
 
   afterEach(async () => {

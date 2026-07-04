@@ -1,4 +1,1 @@
-One non-blocking warning from CI lint step:
-  ESLintIgnoreWarning: The ".eslintignore" file is no longer supported.
-  Switch to using the "ignores" property in "eslint.config.js"
-  https://eslint.org/docs/latest/use/configure/migration-guide#ignoring-files
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors

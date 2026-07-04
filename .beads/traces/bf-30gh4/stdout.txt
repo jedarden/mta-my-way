@@ -1,19 +1,9 @@
-Everything is wired up correctly:
+Done. Summary:
 
-```
-SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
-```
-
-```
-Children:
-  bf-4yfmg  — Submit mta-my-way-build workflow to iad-ci
-  bf-40q2a  — Monitor mta-my-way-build workflow until lint step completes  (blocks on bf-4yfmg)
-  bf-454qz  — Capture and analyze mta-my-way-build lint step logs           (blocks on bf-40q2a)
-  bf-32e9l  — Fix lint errors in mta-my-way if lint step fails               (blocks on bf-454qz)
-```
-
-**Chain:** bf-4yfmg → bf-40q2a → bf-454qz → bf-32e9l → bf-30gh4 (umbrella)
-
-- Parent `bf-30gh4` has `umbrella` label and depends on last child `bf-32e9l`
-- Each child has `split-child` label and is independently completable
-- Dependency chain is strictly sequential
+| Item | Result |
+|------|--------|
+| **Workflow** | `mta-my-way-build-dt59x` submitted on iad-ci |
+| **Lint step** | **Passed** — node status `Succeeded` |
+| **Biome** | 563 files checked, no fixes applied |
+| **ESLint** | Exited with code 0, no errors |
+| **Only warning** | `.eslintignore` deprecation (informational, not an error) |
