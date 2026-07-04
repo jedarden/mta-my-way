@@ -20,6 +20,8 @@ Errors captured via debug workflow (podGC override to `OnWorkflowCompletion`) an
 
 All 3 were fixed in commit `5547a77`.
 
+**Note:** A 4th transient error in `tests/e2e/test-results/.last-run.json` (missing trailing newline, auto-generated file) keeps recurring after test runs. Fixed each time with a trailing newline but will reappear after any playwright run. Should be added to biome ignore or gitignore.
+
 ### Earlier Runs (2026-07-03)
 
 Two separate local runs and one CI run showed more errors:
