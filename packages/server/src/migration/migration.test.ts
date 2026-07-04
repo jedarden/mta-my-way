@@ -6,7 +6,7 @@ import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   createMigration,
   getMigrationStatus,
@@ -17,19 +17,61 @@ import {
 describe("migration system", () => {
   let db: Database.Database;
   let tempDir: string;
+  const tempDirsToCleanup: string[] = [];
+
+  beforeAll(() => {
+    // Register crash-safe cleanup handler
+    const cleanup = () => {
+      for (const dir of tempDirsToCleanup) {
+        try {
+          rm(dir, { recursive: true, force: true }).catch(() => {});
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    };
+
+    // Clean up on process exit (crash-safe)
+    process.on("exit", cleanup);
+    process.on("SIGINT", () => {
+      cleanup();
+      process.exit(0);
+    });
+    process.on("SIGTERM", () => {
+      cleanup();
+      process.exit(0);
+    });
+  });
 
   beforeEach(() => {
     // Create in-memory database for testing
     db = new Database(":memory:");
     tempDir = join(tmpdir(), `migration-test-${Date.now()}`);
+    tempDirsToCleanup.push(tempDir);
   });
 
   afterEach(async () => {
     db.close();
-    try {
-      await rm(tempDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
+    // Clean up temp dirs created during this test
+    for (let i = tempDirsToCleanup.length - 1; i >= 0; i--) {
+      const dir = tempDirsToCleanup[i];
+      try {
+        await rm(dir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+      tempDirsToCleanup.splice(i, 1);
+    }
+  });
+
+  afterAll(() => {
+    // Final cleanup in case any dirs remain
+    for (const dir of tempDirsToCleanup) {
+      try {
+        rm(dir, { recursive: true, force: true }).catch(() => {});
+      } catch {
+        // Ignore cleanup errors
+      }
     }
   });
 
