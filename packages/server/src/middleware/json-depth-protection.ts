@@ -271,10 +271,11 @@ export function jsonDepthProtection(options: JsonDepthProtectionOptions = {}): M
         throw error;
       }
 
-      // Log and return generic error for parse failures
-      securityLogger.logBlockedAttack(
+      // Log parse failures as input validation (not blocked attacks) —
+      // malformed JSON is typically a client bug, not an attack attempt.
+      securityLogger.logInputValidationFailure(
         c,
-        "json_parse_error",
+        "body",
         `JSON parse error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
       return c.json({ error: "Invalid JSON" }, 400);
