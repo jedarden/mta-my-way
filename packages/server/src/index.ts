@@ -5,8 +5,8 @@
  *   1. Load GTFS static data (stations, routes, complexes, transfers, travel times)
  *   2. Create Hono app (also builds TransferEngine internally)
  *   3. Initialise push notification subsystem (SQLite DB, VAPID keys, pipeline)
- *   4. Initialise and start the feed poller (first poll fires immediately)
- *   5. Start the HTTP server
+ *   4. Start the HTTP server (health endpoint becomes available immediately)
+ *   5. Start feed pollers in background (first poll fires immediately but async)
  */
 
 import { readFile } from "node:fs/promises";
@@ -34,7 +34,7 @@ import { initPasswordManagementFromDb } from "./middleware/password-management.j
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
 import { runMigrations } from "./migration/index.js";
-import { logger, initObservability, shutdownObservability } from "./observability/index.js";
+import { initObservability, logger, shutdownObservability } from "./observability/index.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
@@ -186,19 +186,11 @@ async function main(): Promise<void> {
 
   initContextService(pushDb, stations);
 
-  // Feed poller (also triggers immediate first poll)
-  initPoller(stations, routes);
-  startPoller();
-  startAlertsPoller();
-
-  // Equipment poller (elevator/escalator outages)
-  initEquipmentPoller(stations);
-  startEquipmentPoller();
-
   // Weekly GTFS static data refresh (first run fires 7 days after startup)
   startGtfsRefreshScheduler();
 
-  // HTTP server
+  // HTTP server — start BEFORE pollers so health endpoint responds immediately
+  // Pollers will fire their first poll in the background after server is listening
   serve({ fetch: app.fetch, port: PORT }, (info) => {
     logger.info("Server started", {
       port: info.port,
@@ -206,6 +198,15 @@ async function main(): Promise<void> {
       uptime: 0,
     });
   });
+
+  // Feed poller (fires immediately but server is already listening)
+  initPoller(stations, routes);
+  startPoller();
+  startAlertsPoller();
+
+  // Equipment poller (elevator/escalator outages)
+  initEquipmentPoller(stations);
+  startEquipmentPoller();
 
   // Graceful shutdown handler
   const shutdown = async (signal: string) => {

@@ -14,30 +14,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import {
   type MetricsRegistry,
+  flushOpenTelemetry,
   initObservability,
-  shutdownObservability,
+  initOpenTelemetry,
+  isOpenTelemetryEnabled,
   logger,
   metrics,
-  tracingMiddleware,
-  tracer,
-  isOpenTelemetryEnabled,
-  flushOpenTelemetry,
-  initOpenTelemetry,
+  shutdownObservability,
   shutdownOpenTelemetry,
+  tracer,
+  tracingMiddleware,
 } from "../observability/index.js";
 import {
-  createLogger,
   LogLevel,
-  httpRequestsTotal,
-  httpRequestDuration,
   cacheHits,
+  createLogger,
   feedPollDuration,
-  tracingMiddleware as tracingMiddlewareDirect,
-  tracer as tracerDirect,
   getCurrentTraceId,
-  withChildSpan,
+  httpRequestDuration,
+  httpRequestsTotal,
   recordEvent,
   setSpanAttribute,
+  tracer as tracerDirect,
+  tracingMiddleware as tracingMiddlewareDirect,
+  withChildSpan,
 } from "../observability/index.js";
 import { TEST_STATIONS } from "./test-helpers.js";
 
@@ -166,7 +166,9 @@ describe("shutdownObservability", () => {
   it("does not throw even when OTel flush fails", async () => {
     vi.spyOn(logger, "error");
     // Re-importing won't help; directly mock the module-level function
-    const flushSpy = vi.spyOn(await import("../observability/opentelemetry.js"), "flushOpenTelemetry").mockRejectedValue(new Error("flush failed"));
+    const flushSpy = vi
+      .spyOn(await import("../observability/opentelemetry.js"), "flushOpenTelemetry")
+      .mockRejectedValue(new Error("flush failed"));
     await expect(shutdownObservability()).resolves.toBeUndefined();
     flushSpy.mockRestore();
   });
