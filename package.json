@@ -13,7 +13,16 @@
     "typecheck": "tsc --build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf packages/*/dist packages/*/.tsbuildinfo"
+    "clean": "rm -rf packages/*/dist packages/*/.tsbuildinfo",
+    "migrate": "npx tsx packages/server/src/migration/cli.ts",
+    "migrate:up": "npx tsx packages/server/src/migration/cli.ts up",
+    "migrate:down": "npx tsx packages/server/src/migration/cli.ts down",
+    "migrate:status": "npx tsx packages/server/src/migration/cli.ts status",
+    "migrate:seed": "npx tsx packages/server/src/migration/cli.ts seed",
+    "migrate:create": "npx tsx packages/server/src/migration/cli.ts create",
+    "migrate:validate": "npx tsx packages/server/src/migration/cli.ts validate",
+    "migrate:backup": "npx tsx packages/server/src/migration/cli.ts backup",
+    "migrate:init": "npx tsx packages/server/src/migration/cli.ts init"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
