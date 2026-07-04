@@ -530,10 +530,12 @@ export function sanitizeParams(
 /**
  * Validate and sanitize an API key ID format.
  *
- * API key IDs should be alphanumeric with underscores, 3-50 chars.
+ * API key IDs should be alphanumeric with underscores, 3-128 chars.
+ * The upper bound accommodates hex-encoded keys (e.g. 32-byte keys → 64 hex chars)
+ * while allowing human-readable key IDs like "test_key" or "my_api_key_123".
  */
 export function validateApiKeyFormat(keyId: string): boolean {
-  return /^[A-Za-z0-9_]{3,50}$/.test(keyId);
+  return /^[A-Za-z0-9_]{3,128}$/.test(keyId);
 }
 
 /**

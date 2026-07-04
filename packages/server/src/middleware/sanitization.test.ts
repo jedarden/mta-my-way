@@ -361,9 +361,19 @@ describe("Shared sanitization utilities", () => {
       expect(validateApiKeyFormat("A1b2C3d4E5f6G7h8i9J0k1L2m3N4o5P6")).toBe(true);
     });
 
+    it("accepts 64-char hex keys (generateApiKey output)", () => {
+      const hexKey64 = "a".repeat(64); // 64-char lowercase hex (like generateApiKey output)
+      expect(validateApiKeyFormat(hexKey64)).toBe(true);
+      expect(validateApiKeyFormat("b".repeat(64))).toBe(true);
+    });
+
+    it("accepts keys at the maximum length boundary", () => {
+      expect(validateApiKeyFormat("a".repeat(128))).toBe(true);
+    });
+
     it("rejects invalid formats", () => {
       expect(validateApiKeyFormat("ab")).toBe(false); // Too short
-      expect(validateApiKeyFormat("a".repeat(51))).toBe(false); // Too long
+      expect(validateApiKeyFormat("a".repeat(129))).toBe(false); // Too long
       expect(validateApiKeyFormat("key-with-dashes!")).toBe(false); // Invalid chars
       expect(validateApiKeyFormat("key with spaces")).toBe(false); // Spaces
       expect(validateApiKeyFormat("")).toBe(false); // Empty
