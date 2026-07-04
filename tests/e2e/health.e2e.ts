@@ -15,7 +15,8 @@ test.describe("Health endpoint", () => {
     expect(body.status).toMatch(/^(ok|degraded)$/);
     expect(body).toHaveProperty("timestamp");
     expect(body).toHaveProperty("uptime_seconds");
-    expect(body.uptime_seconds).toBeGreaterThan(0);
+    // Allow uptime_seconds to be 0 on fresh server startup (<1s old)
+    expect(body.uptime_seconds).toBeGreaterThanOrEqual(0);
   });
 
   test("includes per-feed status for all 8 subway feeds", async ({ request }) => {
