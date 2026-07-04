@@ -93,11 +93,16 @@ describe("Alerts and Equipment Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
     db = createIntegrationTestDatabase();
     app = createApp(TEST_STATIONS, TEST_ROUTES, {}, {}, "/nonexistent/dist");
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
     closeDatabase(db);
   });
 
