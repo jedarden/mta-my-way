@@ -1,0 +1,14 @@
+Bead **bf-4dutr** is closed. Here's a summary of the audit:
+
+**Scope:** All module-level mutable state in `packages/server/src/` (~70 containers across 35+ files) compared against `cleanupAllState()` in `test-helpers.ts:445-501`.
+
+**Findings:**
+
+| Category | Count | Details |
+|----------|-------|---------|
+| ✅ Fully covered | 14 modules | `cache.ts`, `alerts-poller.ts`, `authentication.ts`, `api-key-management.ts`, `rate-limiter.ts`, `auth-rate-limit.ts`, `authorization-security.ts`, `audit-log.ts`, `token-encryption.ts`, `trip-tracking.ts`, `shuttle-matcher.ts`, `delay-detector.ts`, `transformer.ts`, `context-service.ts` |
+| ⚠️ Reset exists but not called | 9 modules | `delay-predictor.ts`, `captcha.ts`, `concurrent-session-management.ts`, `csrf-protection.ts`, `dynamic-rbac-cache.ts` (incomplete reset), `jwt-validation.ts` (incomplete reset), `structured-audit-log.ts`, `suspicious-activity-notifications.ts`, `password-reset.routes.ts` |
+| 🔴 No reset function at all | 8 modules | `equipment-poller.ts`, `enhanced-jwt-security.ts`, `password-management.ts`, `session-security.ts`, `enhanced-authorization.ts`, `push/briefing.ts`, `transfer/travel-times.ts`, `trip-lookup.ts` |
+| ℹ️ Read-only constants | 4 modules | `http-request-smuggling.ts`, `rbac.ts`, `sql-validator.ts`, `logger.ts` |
+
+Full annotated inventory with module paths, variable names, and gap details is in bead comment #13.

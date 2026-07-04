@@ -1,3 +1,0 @@
-The bead bf-67i7 is already **closed** — the JSONL file (the authoritative source) correctly reflects that it was closed in a prior session. The SQLite database had corruption, but `br doctor --repair` restored it, revealing the bead's true closed status.
-
-**Summary:** The SQLite persistence for all four security middleware modules was implemented in commits 800772e and 833f3b3. `security-db.ts` provides 667 lines of write-through persistence, migration 018 creates 11 tables, and all four init functions are wired in `index.ts`. The bead was already closed — this session just confirmed the implementation is correct and recovered the DB index state.
