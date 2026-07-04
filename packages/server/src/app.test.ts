@@ -502,7 +502,9 @@ describe("API /api/health", () => {
       expect(["ok", "degraded"]).toContain(parsed.data.status);
       expect(parsed.data.feeds).toHaveLength(1);
       // Individual feed status can be one of: ok, never_polled, stale, circuit_open
-      expect(["ok", "never_polled", "stale", "circuit_open"]).toContain(parsed.data.feeds[0].status);
+      expect(["ok", "never_polled", "stale", "circuit_open"]).toContain(
+        parsed.data.feeds[0].status
+      );
     }
   });
 

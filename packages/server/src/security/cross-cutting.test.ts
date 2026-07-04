@@ -24,17 +24,17 @@ import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   apiKeyAuth,
+  createSession,
   generateApiKey,
+  getSession,
+  regenerateSession,
   registerApiKey,
   resetAuthFailureTracking,
   resetSuspiciousActivityTracking,
   verifyApiKeyHash,
-  createSession,
-  getSession,
-  regenerateSession,
 } from "../middleware/authentication.js";
-import { csrfProtection, securityHeaders, cors, rateLimiter } from "../middleware/index.js";
-import { validatePassword, hashPassword } from "../middleware/password-management.js";
+import { cors, csrfProtection, rateLimiter, securityHeaders } from "../middleware/index.js";
+import { hashPassword, validatePassword } from "../middleware/password-management.js";
 import { validateApiKeyFormat } from "../middleware/sanitization.js";
 
 describe("Cross-Cutting Security Tests", () => {
@@ -161,9 +161,7 @@ describe("Cross-Cutting Security Tests", () => {
         ];
 
         for (const payload of xssPayloads) {
-          const response = await app.request(
-            `/api/data?search=${encodeURIComponent(payload)}`
-          );
+          const response = await app.request(`/api/data?search=${encodeURIComponent(payload)}`);
 
           // Should succeed, reject input, or fail auth
           expect([200, 400, 401]).toContain(response.status);
@@ -239,10 +237,7 @@ describe("Cross-Cutting Security Tests", () => {
           return c.json({ path: normalized });
         });
 
-        const maliciousPaths = [
-          { path: "../../../etc/passwd" },
-          { path: "safe/normal/path" },
-        ];
+        const maliciousPaths = [{ path: "../../../etc/passwd" }, { path: "safe/normal/path" }];
 
         for (const payload of maliciousPaths) {
           const response = await app.request("/api/files", {
@@ -676,7 +671,9 @@ describe("Cross-Cutting Security Tests", () => {
       for (const password of strongPasswords) {
         const result = await validatePassword(password);
         if (!result.valid) {
-          console.log(`DEBUG: password="${password}" errors=${JSON.stringify(result.errors)} strengthCategory=${result.strengthCategory}`);
+          console.log(
+            `DEBUG: password="${password}" errors=${JSON.stringify(result.errors)} strengthCategory=${result.strengthCategory}`
+          );
         }
         expect(result.valid).toBe(true);
       }
