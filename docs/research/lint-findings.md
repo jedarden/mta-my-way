@@ -23,6 +23,10 @@ Biome reported **3 format errors** (all formatting, not logic):
 
 All 3 errors were fixed in commit `5547a77` ("fix: resolve 3 biome formatting errors"). Verified clean pass after fix (567 files, 0 errors).
 
+### Re-verification — 2026-07-04 (pod `fg9tl`)
+
+Lint confirmed passing: **Biome checked 563 files in 1905ms — no fixes applied.** ESLint ran clean (only the `.eslintignore` deprecation warning). Logs captured in `docs/research/lint-logs-2026-07-04.txt`.
+
 ### ESLint Note
 
 One non-blocking deprecation warning:
