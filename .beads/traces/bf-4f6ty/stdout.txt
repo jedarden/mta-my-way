@@ -1,0 +1,13 @@
+The fix was already implemented in commit `35092c6`. Here's what was done:
+
+**5 middleware modules — missing state resets added:**
+
+| Module | Missing resets added |
+|---|---|
+| `alerts-poller` | `pollTimer` — clearInterval + null |
+| `rate-limiter` | `testMode = false`, `lastPrune = Date.now()` |
+| `audit-log` | `eventIdCounter = 0` |
+| `delay-detector` | `config`, `travelTimes`, `routes`, `stations` — all reset to defaults/null |
+| `context-service` | `db = null`, `stations = null` |
+
+**Verification:** All 5337 tests pass (3 pre-existing failures unrelated to this change — in auth-rate-limit, authentication, and cross-cutting tests). Lint clean. Bead `bf-4f6ty` closed.

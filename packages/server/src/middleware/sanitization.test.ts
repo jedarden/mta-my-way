@@ -36,7 +36,7 @@ vi.mock("../observability/logger.js", () => ({
 
 describe("Shared sanitization utilities", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // No setup needed
   });
 
   describe("sanitizeString", () => {

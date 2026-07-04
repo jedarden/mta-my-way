@@ -36,8 +36,6 @@ describe("Admin Operations", () => {
   let testApiKeys: ApiKey[] = [];
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-
     // Register test API keys - registerApiKey returns void, so we use the values we passed in
     await registerApiKey({
       keyId: "admin_key",
