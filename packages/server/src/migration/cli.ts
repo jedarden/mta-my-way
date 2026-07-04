@@ -42,7 +42,7 @@ const asyncAction =
 // Configuration
 // ============================================================================
 
-const DEFAULT_DB_PATH = "./packages/server/data/database.db";
+const DEFAULT_DB_PATH = "./packages/server/data/subscriptions.db";
 const _MIGRATIONS_DIR = "./packages/server/src/migration/migrations";
 
 // ============================================================================
