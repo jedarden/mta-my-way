@@ -95,6 +95,10 @@ describe("Push Briefing Integration Tests", () => {
   });
 
   beforeEach(() => {
+    // Use frozen time for consistent test behavior
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
+
     testDbPath = join(tmpdir(), `test-push-briefing-${crypto.randomUUID()}.db`);
     tempFilesToCleanup.push(testDbPath);
     initPushDatabase(testDbPath);
@@ -104,6 +108,8 @@ describe("Push Briefing Integration Tests", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+
     // Clean up temp files created during this test
     for (let i = tempFilesToCleanup.length - 1; i >= 0; i--) {
       const file = tempFilesToCleanup[i];
@@ -285,23 +291,11 @@ describe("Push Briefing Integration Tests", () => {
       };
 
       // Test during quiet hours (11 PM)
-      const mockDate = new Date();
-      mockDate.setHours(23);
-      vi.spyOn(global, "Date").mockImplementation(() => mockDate as unknown as Date);
+      const currentHour = 23;
 
-      const currentHour = new Date().getHours();
-
-      // Quiet hours from 10 PM to 7 AM
-      if (quietHours.startHour <= quietHours.endHour) {
-        const inQuietHours =
-          currentHour >= quietHours.startHour && currentHour < quietHours.endHour;
-        expect(inQuietHours).toBe(currentHour >= 22 || currentHour < 7);
-      } else {
-        // Spans midnight
-        const inQuietHours =
-          currentHour >= quietHours.startHour || currentHour < quietHours.endHour;
-        expect(inQuietHours).toBe(true);
-      }
+      // Quiet hours from 10 PM to 7 AM (spans midnight: startHour > endHour)
+      const inQuietHours = currentHour >= quietHours.startHour || currentHour < quietHours.endHour;
+      expect(inQuietHours).toBe(true);
     });
 
     it("allows briefing when quiet hours disabled", () => {
@@ -322,17 +316,45 @@ describe("Push Briefing Integration Tests", () => {
       };
 
       // Test at 3 AM (should be in quiet hours)
-      const mockDate = new Date();
-      mockDate.setHours(3);
-      vi.spyOn(global, "Date").mockImplementation(() => mockDate as unknown as Date);
-
-      const currentHour = new Date().getHours();
+      const currentHour = 3;
 
       // Since startHour > endHour, this spans midnight
       const inQuietHours = currentHour >= quietHours.startHour || currentHour < quietHours.endHour;
 
       expect(inQuietHours).toBe(true);
       expect(currentHour).toBe(3);
+    });
+
+    it("correctly excludes non-quiet hours", () => {
+      const quietHours = {
+        enabled: true,
+        startHour: 22,
+        endHour: 7,
+      };
+
+      // Test at noon (outside quiet hours)
+      const currentHour = 12;
+      const inQuietHours = currentHour >= quietHours.startHour || currentHour < quietHours.endHour;
+      expect(inQuietHours).toBe(false);
+    });
+
+    it("handles non-midnight-spanning quiet hours", () => {
+      const quietHours = {
+        enabled: true,
+        startHour: 9,
+        endHour: 17,
+      };
+
+      // startHour <= endHour — simple range check
+      const currentHourDuring = 12;
+      const inQuietHoursDuring =
+        currentHourDuring >= quietHours.startHour && currentHourDuring < quietHours.endHour;
+      expect(inQuietHoursDuring).toBe(true);
+
+      const currentHourOutside = 20;
+      const inQuietHoursOutside =
+        currentHourOutside >= quietHours.startHour && currentHourOutside < quietHours.endHour;
+      expect(inQuietHoursOutside).toBe(false);
     });
   });
 
