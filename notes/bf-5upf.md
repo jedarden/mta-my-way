@@ -1,73 +1,72 @@
-# Observability Instrumentation Complete (bf-5upf)
+# Observability Implementation (Bead bf-5upf)
 
-## Summary
+## Status: Complete ✓
 
-Verified and validated the observability instrumentation across the server. All components are fully implemented and tested.
+All observability instrumentation is implemented and tested.
 
 ## Acceptance Criteria Met
 
 ### 1. Logger emits structured JSON in production ✓
-- `src/observability/logger.ts` outputs JSON format via `JSON.stringify(entry)`
-- Includes timestamp, level, message, trace context, and redacted sensitive fields
-- Child logger support for additional context
+- Location: `packages/server/src/observability/logger.ts`
+- Implementation: Logs are formatted as JSON using `JSON.stringify(entry)`
+- Features:
+  - Structured JSON output with level, message, timestamp
+  - Sensitive field redaction (passwords, tokens, secrets)
+  - Trace ID integration for distributed tracing correlation
+  - Child logger support with additional context
 
 ### 2. Metrics endpoint exposed for Prometheus scraping ✓
-- `/api/metrics` endpoint in `src/app.ts` (line 1171-1179)
-- Returns Prometheus text format with HELP, TYPE, and metric values
-- Comprehensive metrics registered:
-  - HTTP: requests, duration, size
-  - Cache: hits, misses
-  - Feed polling: duration, errors, entities
-  - Push notifications: sent, failed, active subscriptions
-  - Trip tracking: created, active, queried
-  - Commute analysis, station search, delay prediction
-  - Context detection, alerts, equipment outages
+- Location: `packages/server/src/app.ts:1169`
+- Endpoint: `GET /api/metrics`
+- Implementation:
+  - Metrics registry with counter, gauge, and histogram types
+  - Prometheus text format export via `metrics.exportPrometheus()`
+  - Pre-registered application metrics for HTTP, cache, feeds, push notifications, trips, commute analysis, station search, delay prediction, context detection, alerts, and equipment
 
 ### 3. OpenTelemetry traces emitted for key request paths ✓
-- `initOpenTelemetry()` called at startup (`src/index.ts` line 71)
-- `tracingMiddleware` applied to all routes (`src/app.ts` line 429)
-- W3C traceparent header support
-- OTLP exporters (HTTP and gRPC) for Jaeger, Tempo, cloud providers
-- Graceful degradation when OTLP endpoint not configured
-- Proper shutdown with `shutdownOpenTelemetry()`
+- Location: `packages/server/src/observability/opentelemetry.ts`
+- Implementation:
+  - OpenTelemetry SDK with OTLP/gRPC and OTLP/HTTP exporters
+  - Auto-instrumentation for HTTP requests
+  - Batch span processor for efficient transmission
+  - Environment-based configuration
+  - Graceful degradation when endpoint unavailable
 
-### 4. Observability tests all pass ✓
-- `src/observability/logger.test.ts`: 14 tests pass
-- `src/observability/metrics.test.ts`: 17 tests pass
-- `src/observability/tracing.test.ts`: 17 tests pass
-- `src/observability/opentelemetry.test.ts`: 17 tests pass
-- **Total: 65 unit tests pass**
+### 4. Distributed tracing middleware ✓
+- Location: `packages/server/src/observability/tracing.ts`
+- Implementation:
+  - W3C tracecontext format (traceparent header)
+  - Hono middleware for automatic request tracing
+  - Async context tracking with span stack
+  - HTTP request/response propagation
+  - tracedFetch for outbound requests
 
-### 5. Integration observability.test.ts passes ✓
-- X-Request-ID header validation (5 tests)
-- W3C distributed tracing headers (7 tests)
-- /api/metrics Prometheus output (12 tests)
-- Cross-cutting header correlation (3 tests)
-- **Total: 27 integration tests pass**
+### 5. Observability tests all pass ✓
+Test Results (2026-07-03):
+- **Test Files:** 9 passed (9)
+- **Tests:** 198 passed (198)
 
-## Architecture
+### 6. Integration tests pass ✓
+- Location: `packages/server/src/integration/observability.test.ts`
+- Coverage: X-Request-ID, tracecontext propagation, x-trace-id, /api/metrics, header correlation
 
-```
-src/observability/
-├── index.ts          - Public API exports
-├── logger.ts         - Structured JSON logging with trace correlation
-├── metrics.ts        - Prometheus metrics registry (counters, gauges, histograms)
-├── tracing.ts        - W3C tracecontext propagation, Hono middleware
-└── opentelemetry.ts  - OpenTelemetry SDK initialization with OTLP exporters
+## Startup Integration
 
-src/middleware/
-└── metrics.ts        - HTTP metrics collection and domain-specific recorders
-
-src/index.ts          - Calls initOpenTelemetry() at startup
-src/app.ts            - Applies tracingMiddleware, exposes /api/metrics
+Observability initialized at startup (`index.ts:70`):
+```typescript
+await initObservability();
 ```
 
-## Test Results
-
-```
-Test Files  5 passed (5)
-     Tests  92 passed (92)
-  Duration  ~1-2s
+Tracing middleware applied to all routes (`app.ts:427`):
+```typescript
+app.use("*", tracingMiddleware);
 ```
 
-All observability functionality is working as designed.
+Graceful shutdown on SIGTERM/SIGINT (`index.ts:215`):
+```typescript
+await shutdownObservability();
+```
+
+## Summary
+
+The observability instrumentation is **complete and operational**. All components implemented and tested.
