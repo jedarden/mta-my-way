@@ -11,7 +11,7 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   getAllSubscriptions,
   getSubscriptionCount,
@@ -27,16 +27,53 @@ import { createTestSubscription } from "./test-helpers.js";
 
 describe("Push Subscriptions Integration Tests", () => {
   let testDbPath: string;
+  const tempFilesToCleanup: string[] = [];
+
+  beforeAll(() => {
+    // Register crash-safe cleanup handler
+    const cleanup = () => {
+      for (const file of tempFilesToCleanup) {
+        try {
+          if (existsSync(file)) {
+            unlinkSync(file);
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    };
+
+    // Clean up on process exit (crash-safe)
+    process.on("exit", cleanup);
+    process.on("SIGINT", () => {
+      cleanup();
+      process.exit(0);
+    });
+    process.on("SIGTERM", () => {
+      cleanup();
+      process.exit(0);
+    });
+  });
 
   beforeEach(() => {
     // Use a temp file database so the module and test share the same database
     testDbPath = join(tmpdir(), `test-push-${crypto.randomUUID()}.db`);
+    tempFilesToCleanup.push(testDbPath);
     initPushDatabase(testDbPath);
   });
 
   afterEach(() => {
-    if (existsSync(testDbPath)) {
-      unlinkSync(testDbPath);
+    // Clean up temp files created during this test
+    for (let i = tempFilesToCleanup.length - 1; i >= 0; i--) {
+      const file = tempFilesToCleanup[i];
+      try {
+        if (existsSync(file)) {
+          unlinkSync(file);
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+      tempFilesToCleanup.splice(i, 1);
     }
   });
 
@@ -239,14 +276,11 @@ describe("Push Subscriptions Integration Tests", () => {
     it("returns empty array when no subscriptions", () => {
       // Create a fresh database with no subscriptions
       const freshDbPath = join(tmpdir(), `test-push-fresh-${crypto.randomUUID()}.db`);
+      tempFilesToCleanup.push(freshDbPath);
       initPushDatabase(freshDbPath);
 
       const all = getAllSubscriptions();
       expect(all).toEqual([]);
-
-      if (existsSync(freshDbPath)) {
-        unlinkSync(freshDbPath);
-      }
     });
   });
 
@@ -254,14 +288,11 @@ describe("Push Subscriptions Integration Tests", () => {
     it("returns zero when no subscriptions", () => {
       // Fresh database
       const freshDbPath = join(tmpdir(), `test-push-count-${crypto.randomUUID()}.db`);
+      tempFilesToCleanup.push(freshDbPath);
       initPushDatabase(freshDbPath);
 
       const count = getSubscriptionCount();
       expect(count).toBe(0);
-
-      if (existsSync(freshDbPath)) {
-        unlinkSync(freshDbPath);
-      }
     });
 
     it("counts all subscriptions", () => {

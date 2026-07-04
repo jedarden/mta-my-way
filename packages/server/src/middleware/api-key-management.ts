@@ -409,6 +409,22 @@ export function logApiKeyOperation(
 }
 
 // ============================================================================
+// Test Helpers (state reset)
+// ============================================================================
+
+/**
+ * Clear all in-memory API key state.
+ *
+ * Resets the API_KEY_REGISTRY, API_KEY_LAST_USED, and API_KEY_DESCRIPTIONS
+ * maps so tests don't leak key data between runs.
+ */
+export function clearAllApiKeys(): void {
+  API_KEY_REGISTRY.clear();
+  API_KEY_LAST_USED.clear();
+  API_KEY_DESCRIPTIONS.clear();
+}
+
+// ============================================================================
 // Re-exports for convenience
 // ============================================================================
 

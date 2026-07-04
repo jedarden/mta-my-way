@@ -598,6 +598,8 @@ export function cleanupRateLimits(): number {
 export function _clearAllRateLimits(): void {
   rateLimitStore.clear();
   apiKeyRateLimitStore.clear();
+  trustedIps.clear();
+  unbannedIps.clear();
 }
 
 // Start automatic cleanup interval (every 5 minutes)

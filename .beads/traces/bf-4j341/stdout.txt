@@ -1,0 +1,9 @@
+Done. Here's the summary:
+
+**Workflow submitted successfully:**
+- **Name:** `mta-my-way-build-debug-9f584`
+- **Namespace:** `argo-workflows` on iad-ci cluster
+- **podGC override:** `OnWorkflowCompletion` — confirmed in the spec
+- **Status:** Running
+
+Pods will now persist after the workflow completes (or fails), so logs can be captured. The bead `bf-4j341` has been closed.

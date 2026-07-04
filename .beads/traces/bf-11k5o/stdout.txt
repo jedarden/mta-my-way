@@ -1,0 +1,16 @@
+**Audit complete.** Here's the summary:
+
+**All 37 integration test suites fail** from a single blocking error: `afterEach` is not imported from `vitest` in `setup.ts:9`. Zero tests actually execute.
+
+Beyond that blocking issue, I documented **~20 module-level mutable state variables** across 7 middleware modules that lack reset functions, which will cause state leakage once the import is fixed:
+
+| Priority | Category | Effort |
+|----------|----------|--------|
+| **P0** | Missing `afterEach` import | 1 min |
+| **P1** | `authentication.ts` — 8 Maps with no reset | 30 min |
+| **P1** | `api-key-management.ts` — 3 Maps with no reset | 15 min |
+| **P1** | `audit-log.ts` — partial reset (counter leak) | 10 min |
+| **P2** | CSRF, captcha, authz Maps — no reset | 50 min |
+| **P3** | Token encryption, test helper cleanup | 25 min |
+
+Full details in `notes/bf-11k5o.md`.

@@ -1,0 +1,16 @@
+{
+  "bead_id": "bf-41tbz",
+  "agent": "glm",
+  "provider": "zai",
+  "model": "glm-5-turbo",
+  "exit_code": 0,
+  "outcome": "success",
+  "duration_ms": 293936,
+  "input_tokens": null,
+  "output_tokens": null,
+  "cost_usd": null,
+  "captured_at": "2026-07-04T04:45:36.353837810Z",
+  "trace_format": "raw_text",
+  "pruned": false,
+  "template_version": null
+}

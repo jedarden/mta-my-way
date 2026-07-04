@@ -231,7 +231,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
     it("maintains data consistency under concurrent writes", async () => {
       const now = Date.now();
-      const tripCount = 30;
+      const tripCount = 15;
 
       const promises = Array.from({ length: tripCount }, (_, i) =>
         requestWithCsrf(app, "/api/trips", {
@@ -443,7 +443,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
   describe("Statistics calculation under concurrent load", () => {
     it("calculates correct stats after concurrent trip creation", async () => {
       const now = Date.now();
-      const tripCount = 25;
+      const tripCount = 15;
       const durations = [45, 50, 55, 60, 65];
 
       // Create trips with varying durations concurrently

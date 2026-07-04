@@ -416,6 +416,91 @@ export function clearAllTrips(db: Database.Database): void {
 }
 
 // ---------------------------------------------------------------------------
+// Module state reset helpers (for test isolation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reset all module-level state between tests.
+ * This function resets cache, trip tracking, and alerts state
+ * to prevent test pollution from module-level singletons.
+ *
+ * @deprecated Use {@link cleanupAllState} instead — it covers every known
+ * module-level singleton.
+ */
+export async function resetAllModuleState(): Promise<void> {
+  await cleanupAllState();
+}
+
+/**
+ * Comprehensive cleanup of ALL shared mutable state across the server package.
+ *
+ * Call this in a `beforeEach` hook (or at the start of any test that needs
+ * isolation) so that no module-level Map / Set / array leaks from a
+ * previous test into the current one.
+ *
+ * Each step is guarded so that individual test files which `vi.mock()` a
+ * module (replacing its exports with stubs) will not cause the entire
+ * cleanup to blow up — the missing reset function is simply skipped.
+ */
+export async function cleanupAllState(): Promise<void> {
+  // Helper: call `fn` only if it exists on the imported module.
+  const tryReset = async (spec: string, ...fns: string[]): Promise<void> => {
+    try {
+      const mod = await import(spec);
+      for (const fn of fns) {
+        if (typeof mod[fn] === "function") {
+          await mod[fn]();
+        }
+      }
+    } catch {
+      // Module may be mocked or not reachable — skip silently.
+    }
+  };
+
+  // ---- cache.ts ----------------------------------------------------------
+  await tryReset("../cache.js", "resetAllCacheStateForTesting");
+
+  // ---- alerts-poller.ts ---------------------------------------------------
+  await tryReset("../alerts-poller.js", "resetAlertsCacheForTesting");
+
+  // ---- authentication.ts -------------------------------------------------
+  await tryReset("../middleware/authentication.js", "resetAuthenticationState");
+
+  // ---- api-key-management.ts ---------------------------------------------
+  await tryReset("../middleware/api-key-management.js", "clearAllApiKeys");
+
+  // ---- rate-limiter.ts ---------------------------------------------------
+  await tryReset("../middleware/rate-limiter.js", "resetRateLimiter");
+
+  // ---- auth-rate-limit.ts ------------------------------------------------
+  await tryReset("../middleware/auth-rate-limit.js", "_clearAllRateLimits");
+
+  // ---- authorization-security.ts ------------------------------------------
+  await tryReset("../middleware/authorization-security.js", "clearAccessPatterns");
+
+  // ---- audit-log.ts -------------------------------------------------------
+  await tryReset("../middleware/audit-log.js", "clearAuditLog");
+
+  // ---- token-encryption.ts ------------------------------------------------
+  await tryReset("../middleware/token-encryption.js", "resetEncryptionState");
+
+  // ---- trip-tracking.ts ---------------------------------------------------
+  await tryReset("../trip-tracking.js", "resetTripTrackingForTesting");
+
+  // ---- shuttle-matcher.ts -------------------------------------------------
+  await tryReset("../shuttle-matcher.js", "resetShuttleCache");
+
+  // ---- delay-detector.ts -------------------------------------------------
+  await tryReset("../delay-detector.js", "resetDelayDetector");
+
+  // ---- transformer.ts ------------------------------------------------------
+  await tryReset("../transformer.js", "resetTransformerState");
+
+  // ---- context-service.ts -------------------------------------------------
+  await tryReset("../context-service.js", "resetContextService");
+}
+
+// ---------------------------------------------------------------------------
 // CSRF helpers for API tests
 // ---------------------------------------------------------------------------
 

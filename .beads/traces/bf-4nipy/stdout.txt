@@ -1,0 +1,10 @@
+Diagnostic complete. Here's a summary of the findings:
+
+**Critical issue found:** The `webServer.url` in `playwright.config.ts:58` points to `http://localhost:3001` (root `/`) instead of `http://localhost:3001/api/health`. The root serves React PWA static files from `packages/web/dist/`, which likely don't exist in the E2E test environment — Playwright would wait the full 300s timeout before failing.
+
+**Key findings documented in `notes/bf-4nipy.md`:**
+1. **Timeout:** 300s (generous but wasted if health URL is wrong)
+2. **Health check:** `/api/health` exists and returns 200 at startup, but isn't wired into `webServer.url`; liveness/readiness/startup probes exist in `health.ts` but are never mounted as routes
+3. **TEST_MODE:** Correctly passed via `TEST_MODE=true npx tsx ...`; disables rate limiting, security validation, and enables delay predictor test mode — but does NOT skip pollers
+4. **Port:** 3001 (consistent across config, server, and Playwright baseURL)
+5. **Retries:** No explicit webServer retries; Playwright has built-in URL polling; test-level retries are 2 in CI, 0 locally

@@ -1,0 +1,1 @@
+Bead `bf-62jyr` is closed. The health-check endpoint was already implemented in commit `e93d9ef` — all acceptance criteria verified, tests pass on committed code.

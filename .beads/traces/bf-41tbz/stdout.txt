@@ -1,0 +1,13 @@
+Done. Here's the summary:
+
+**Bead bf-41tbz — already implemented.** The `playwright.config.ts` already had all required configurations from prior work (bf-62jyr):
+
+| Criterion | Status |
+|---|---|
+| `webServer.timeout` increased | ✅ `300 * 1000` (300s) |
+| `webServer.url` → health endpoint | ✅ `http://localhost:3001/health` |
+| Tests wait for health-check | ✅ Playwright polls every ~500ms |
+| Retry on failure | ✅ Built-in Playwright restart on crash |
+| Documented in comments | ✅ Extensive comments covering timeout, health-check, port conflict, reuseExistingServer |
+
+The only change needed was a minor lint formatting fix in `tests/e2e/helpers/check-port.ts`, committed and pushed.

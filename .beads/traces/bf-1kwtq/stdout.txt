@@ -1,0 +1,6 @@
+Done. Here's what was accomplished:
+
+- **Ran `npm run lint`** (biome check + eslint) and captured the full output
+- **Saved lint logs** to `docs/research/lint-logs-2026-07-04.txt` (55 lines, 3 formatting issues found)
+- **Committed and pushed** to `main`
+- **Closed bead bf-1kwtq**

@@ -668,6 +668,28 @@ export function resetAuthFailureTracking(ip?: string): void {
 }
 
 /**
+ * Reset all authentication module state.
+ *
+ * Clears every in-memory store (apiKeys, sessions, auditLog, refreshTokens,
+ * deviceFingerprints, oauthProviders, oauthStates, totpConfigs) so that
+ * each test starts with a clean slate.
+ *
+ * For testing purposes only.
+ */
+export function resetAuthenticationState(): void {
+  apiKeys.clear();
+  sessions.clear();
+  auditLog.length = 0;
+  refreshTokens.clear();
+  deviceFingerprints.clear();
+  oauthProviders.clear();
+  oauthStates.clear();
+  totpConfigs.clear();
+  authFailuresByIp.clear();
+  suspiciousIps.clear();
+}
+
+/**
  * Register an API key with proper hashing.
  * In production, this should load from a database or secure store.
  */

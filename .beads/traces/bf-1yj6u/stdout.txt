@@ -1,0 +1,7 @@
+Bead is closed. Here's the summary:
+
+**Confirmed: All lint step pods were GCd.** The trace from bf-31t83 checked all 5 recent `mta-my-way-build` workflow runs — every pod was deleted immediately on completion by the cluster's `podGC: OnPodCompletion` default. The most recent run (`mta-my-way-build-864r7`) failed the lint step with exit code 1, but no stdout/stderr was preserved.
+
+**Decision: A debug workflow submission IS needed** to recover the actual lint error output. Options:
+1. Re-run with `podGC: OnWorkflowCompletion` override to preserve pods for log retrieval
+2. Run `npm run lint` locally to reproduce (simpler but doesn't test the exact CI environment)

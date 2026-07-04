@@ -1,0 +1,17 @@
+The split is verified — dependencies are correctly chained and the parent has the umbrella label.
+
+```
+SPLIT_COMPLETE: Created 4 children, parent converted to umbrella
+```
+
+```
+Children: bf-4f6ty, bf-1rpjg, bf-3m1u7, bf-3niax
+```
+
+**Chain:**
+1. `bf-4f6ty` — Fix incomplete reset functions in 5 middleware modules
+2. `bf-1rpjg` — Add cleanupAllState to integration test beforeEach hooks (depends on 1)
+3. `bf-3m1u7` — Fix beforeAll state leakage in delay predictor tests (depends on 2)
+4. `bf-3niax` — Verify test isolation by running each integration test file individually (depends on 3)
+
+**Parent `bf-1feo7`** depends on `bf-3niax` (last child) and has label `umbrella`.

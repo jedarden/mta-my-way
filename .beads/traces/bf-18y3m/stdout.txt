@@ -1,0 +1,13 @@
+Bead `bf-18y3m` is now closed. Here's the summary:
+
+**Workflow:** `mta-my-way-build-debug-9f584` (iad-ci, argo-workflows namespace)
+
+| Check | Result |
+|-------|--------|
+| Lint step terminal state | **Failed** ✓ |
+| Pods present after lint step | **Not present** — already deleted |
+| Workflow name recorded | `mta-my-way-build-debug-9f584` |
+
+**Why pods were unavailable:** The workflow uses `podGC: OnWorkflowCompletion`. When the lint step failed, the entire workflow immediately entered `Failed` phase, which triggered pod cleanup. The workflow ran for only ~2.5 minutes, so there was no window between lint step failure and workflow completion. 
+
+If the goal is to preserve pods for post-mortem log retrieval after a step failure, the template would need `podGC: OnPodCompletion` instead — that keeps pods around until the whole workflow finishes successfully, giving time to inspect logs even after individual step failures.

@@ -1,0 +1,7 @@
+Bead `bf-2rkwb` closed. 
+
+**Summary:** The original `bf-uytr9-debug` workflow pods were already garbage-collected (workflow finished at `03:38:34Z`), so I submitted a fresh debug workflow `mta-my-way-lint-capture-p5qwp` with `podGC: OnWorkflowCompletion`. Successfully identified and streamed logs from the lint pod (`mta-my-way-lint-capture-p5qwp-lint-1987986433`):
+
+- **Biome:** 563 files checked, no fixes needed
+- **ESLint:** Passed cleanly (only a deprecation warning about `.eslintignore`)
+- **Exit code 0** — lint passes on `main`

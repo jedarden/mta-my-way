@@ -370,3 +370,24 @@ export function clearTestFeeds(): void {
     }
   }
 }
+
+/**
+ * Reset all cache state for test isolation.
+ * Clears arrivals cache, positions cache, and resets all feed states.
+ */
+export function resetAllCacheStateForTesting(): void {
+  // Clear arrivals cache
+  arrivalsCache.clear();
+
+  // Clear positions cache
+  positionsCache.clear();
+  positionsFetchedAt = 0;
+
+  // Reset all official feed states
+  for (const feed of SUBWAY_FEEDS) {
+    resetTestFeed(feed.id);
+  }
+
+  // Clear any test feeds that were added during tests
+  clearTestFeeds();
+}
