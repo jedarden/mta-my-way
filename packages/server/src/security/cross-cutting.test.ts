@@ -35,6 +35,7 @@ import {
 } from "../middleware/authentication.js";
 import { cors, csrfProtection, rateLimiter, securityHeaders } from "../middleware/index.js";
 import { hashPassword, validatePassword } from "../middleware/password-management.js";
+import { resetRateLimiter } from "../middleware/rate-limiter.js";
 import { validateApiKeyFormat } from "../middleware/sanitization.js";
 
 describe("Cross-Cutting Security Tests", () => {
@@ -44,6 +45,7 @@ describe("Cross-Cutting Security Tests", () => {
     // Reset tracking for test isolation
     resetAuthFailureTracking();
     resetSuspiciousActivityTracking();
+    resetRateLimiter();
 
     // Create fresh app for each test
     app = new Hono();
@@ -429,11 +431,11 @@ describe("Cross-Cutting Security Tests", () => {
 
       // First request should succeed
       const response1 = await app.request("/api/arrivals");
-      expect([200, 429]).toContain(response1.status);
+      expect(response1.status).toBe(200);
 
-      // Multiple rapid requests should trigger rate limit
+      // Exhaust the token bucket (60 tokens) then hit 429
       let hitRateLimit = false;
-      for (let i = 0; i < 70; i++) {
+      for (let i = 1; i <= 65; i++) {
         const response = await app.request("/api/arrivals");
         if (response.status === 429) {
           hitRateLimit = true;
@@ -441,9 +443,8 @@ describe("Cross-Cutting Security Tests", () => {
         }
       }
 
-      // Rate limiting should have kicked in
-      // (In test mode, rate limiter might be disabled)
-      expect(hitRateLimit || true).toBe(true); // Always pass in test mode
+      // Rate limiting must have kicked in after 60 tokens were consumed
+      expect(hitRateLimit).toBe(true);
     });
 
     it("should include rate limit headers", async () => {
@@ -452,18 +453,17 @@ describe("Cross-Cutting Security Tests", () => {
       app.get("/api/data", (c) => c.json({ data: "test" }));
 
       const response = await app.request("/api/data");
+      expect(response.status).toBe(200);
 
-      // Rate limit headers should be present (or absent in test mode where
-      // the limiter short-circuits — that is also correct behavior)
+      // Rate limit headers must be present on every response
       const limitHeader = response.headers.get("X-RateLimit-Limit");
       const remainingHeader = response.headers.get("X-RateLimit-Remaining");
       const resetHeader = response.headers.get("X-RateLimit-Reset");
 
-      // Either all rate limit headers are present (normal mode) or none are
-      // (test mode short-circuit) — both are valid
-      const hasRateLimitHeaders = limitHeader && remainingHeader && resetHeader;
-      const hasNoRateLimitHeaders = !limitHeader && !remainingHeader && !resetHeader;
-      expect(Boolean(hasRateLimitHeaders || hasNoRateLimitHeaders)).toBe(true);
+      expect(limitHeader).toBe("60");
+      expect(Number(remainingHeader)).toBeLessThanOrEqual(59);
+      expect(Number(remainingHeader)).toBeGreaterThanOrEqual(0);
+      expect(resetHeader).toBeTruthy();
     });
   });
 
