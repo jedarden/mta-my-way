@@ -3,12 +3,19 @@
  * Feed URLs and polling intervals
  */
 
-/** Base URL for MTA GTFS-RT feeds */
-export const MTA_FEED_BASE_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct";
+/**
+ * Base URL for MTA GTFS-RT feeds.
+ *
+ * IMPORTANT: The path segments must use %2F (encoded slash) rather than literal /.
+ * The MTA updated their endpoint in 2025 to require this encoding — literal `/`
+ * in path segments returns HTTP 403. No API key is needed (MTA removed the key
+ * requirement entirely as of 2025).
+ */
+export const MTA_FEED_BASE_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F";
 
-/** Base URL for MTA alerts feed */
+/** Base URL for MTA alerts feed (%2F required — see MTA_FEED_BASE_URL comment) */
 export const MTA_ALERTS_FEED_URL =
-  "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys/subway-alerts";
+  "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts";
 
 /** Base URL for MTA Elevator & Escalator (ENE) feed */
 export const MTA_ENE_FEED_URL =

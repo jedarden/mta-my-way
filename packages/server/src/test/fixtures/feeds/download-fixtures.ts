@@ -3,13 +3,13 @@
  * Script to download real MTA GTFS-RT feed responses as binary fixtures.
  *
  * Usage:
- *   MTA_API_KEY=<key> npx tsx packages/server/src/test/fixtures/feeds/download-fixtures.ts
+ *   npx tsx packages/server/src/test/fixtures/feeds/download-fixtures.ts
  *
  * Or run via pnpm:
- *   cd packages/server && MTA_API_KEY=<key> pnpm exec tsx src/test/fixtures/feeds/download-fixtures.ts
+ *   cd packages/server && pnpm exec tsx src/test/fixtures/feeds/download-fixtures.ts
  *
  * The script will download real MTA feeds as binary fixtures for offline testing.
- * - MTA_API_KEY env var is required
+ * - No API key is required (MTA removed the key requirement in 2025)
  * - Fixtures are saved to packages/server/src/test/fixtures/feeds/
  * - Binary files (protobuf) are stored in git.
  * - Re-run periodically to catch MTA feed format changes
@@ -41,10 +41,6 @@ async function downloadFeed(feedId: string, feedUrl: string): Promise<DownloadRe
   const headers: Record<string, string> = {
     Accept: "application/x-protobuf",
   };
-
-  if (process.env["MTA_API_KEY"]) {
-    headers["x-api-key"] = process.env["MTA_API_KEY"];
-  }
 
   const response = await fetch(feedUrl, { headers });
 
@@ -95,14 +91,7 @@ interface FixtureManifest {
 }
 
 async function downloadFixtures(): Promise<void> {
-  const apiKey = process.env["MTA_API_KEY"];
-
-  if (!apiKey) {
-    console.log("MTA_API_KEY not set - skipping fixture download");
-    console.log("To download fixtures, set MTA_API_KEY=<key> and rerun:");
-    console.log("  npx tsx packages/server/src/test/fixtures/feeds/download-fixtures.ts");
-    process.exit(0);
-  }
+  // No API key needed — MTA removed the key requirement in 2025
 
   // Ensure output directory exists
   if (!existsSync(OUTPUT_DIR)) {

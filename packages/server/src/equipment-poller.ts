@@ -294,9 +294,6 @@ async function fetchEquipment(): Promise<Map<string, EquipmentStatus[]> | null> 
   const start = Date.now();
   const headers: Record<string, string> = {};
 
-  const apiKey = process.env["MTA_API_KEY"];
-  if (apiKey) headers["x-api-key"] = apiKey;
-
   try {
     const response = await tracedFetch(ENE_FEED_URL, {
       method: "GET",
