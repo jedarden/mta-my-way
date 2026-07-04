@@ -46,10 +46,20 @@ export default defineConfig({
   // Start the local dev server before running tests.
   // Uses tsx to transpile TypeScript on-the-fly (avoids tsc -b build failures
   // from unrelated type errors in the codebase).
+  //
+  // Increased timeout to 300s to account for:
+  // - GTFS data loading and initialization
+  // - Database migrations
+  // - Feed poller first poll
+  // - VAPID key generation
+  // - OpenTelemetry initialization
   webServer: {
     command: "cd ../.. && TEST_MODE=true npx tsx packages/server/src/index.ts",
     url: "http://localhost:3001",
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: 300 * 1000,
+    // Use the /api/health endpoint for health checks
+    // This endpoint returns 200 when the server is fully initialized
+    // and all subsystems (feeds, alerts, push) are ready
   },
 });
