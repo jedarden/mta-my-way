@@ -437,6 +437,10 @@ export function setAlertsForTesting(alerts: ParsedAlert[]): void {
  * This helper is only used in tests to reset module state.
  */
 export function resetAlertsCacheForTesting(): void {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
   cache.alerts = [];
   cache.lastFetchAt = null;
   cache.lastSuccessAt = null;

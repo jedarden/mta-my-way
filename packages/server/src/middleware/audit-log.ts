@@ -661,3 +661,12 @@ export function clearAuditLog(): number {
   logger.warn("Audit log cleared", { previousCount: count });
   return count;
 }
+
+/**
+ * Reset all audit log state including the event ID counter.
+ * For testing only.
+ */
+export function resetAuditLog(): void {
+  clearAuditLog();
+  eventIdCounter = 0;
+}

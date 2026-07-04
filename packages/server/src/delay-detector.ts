@@ -690,6 +690,13 @@ export function resetDelayDetector(): void {
   trackedTrips.clear();
   activePredictedAlerts.clear();
   alertListeners.length = 0;
+  config = {
+    thresholdMultiplier: DEFAULT_THRESHOLD_MULTIPLIER,
+    minTrainsForLineAlert: DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
+  };
+  travelTimes = null;
+  routes = null;
+  stations = null;
 }
 
 /**

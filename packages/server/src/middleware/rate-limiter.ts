@@ -35,6 +35,8 @@ export function getRateLimiterTestMode(): boolean {
 /** Reset rate limiter state (useful for testing) */
 export function resetRateLimiter(): void {
   buckets.clear();
+  testMode = false;
+  lastPrune = Date.now();
 }
 
 // Prune stale buckets every 5 minutes
