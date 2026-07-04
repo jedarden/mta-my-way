@@ -109,9 +109,6 @@ async function fetchAlerts(): Promise<ParsedAlert[] | null> {
     Accept: "application/x-protobuf",
   };
 
-  const apiKey = process.env["MTA_API_KEY"];
-  if (apiKey) headers["x-api-key"] = apiKey;
-
   try {
     const response = await tracedFetch(MTA_ALERTS_FEED_URL, {
       method: "GET",

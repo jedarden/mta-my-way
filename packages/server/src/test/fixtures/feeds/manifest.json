@@ -64,5 +64,5 @@
       "description": "No NYCT header extension"
     }
   ],
-  "note": "These are synthetic fixtures generated from test generators. To record real MTA feeds, run download-fixtures.ts with MTA_API_KEY."
+  "note": "These are synthetic fixtures generated from test generators. To record real MTA feeds, run download-fixtures.ts (no API key needed)."
 }

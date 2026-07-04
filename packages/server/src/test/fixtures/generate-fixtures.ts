@@ -3,7 +3,7 @@
  * Script to generate synthetic binary fixtures from the fixture generators.
  *
  * This creates binary protobuf files that can be used for testing without
- * requiring an MTA API key. These fixtures represent realistic feed structures
+ * requiring network access. These fixtures represent realistic feed structures
  * but are generated programmatically.
  *
  * Usage:
@@ -11,8 +11,8 @@
  *
  * The script will generate fixtures to packages/server/src/test/fixtures/feeds/
  *
- * To record REAL MTA feeds instead (requires API key):
- *   MTA_API_KEY=<key> npx tsx packages/server/src/test/fixtures/feeds/download-fixtures.ts
+ * To record REAL MTA feeds instead (no API key required):
+ *   npx tsx packages/server/src/test/fixtures/feeds/download-fixtures.ts
  */
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -127,7 +127,7 @@ function generateFixtures(): void {
     generatedAt: new Date().toISOString(),
     syntheticFeeds: SYNTHETIC_FIXTURES.map((f) => ({ id: f.id, description: f.description })),
     edgeCases: EDGE_CASE_FIXTURES.map((f) => ({ id: f.id, description: f.description })),
-    note: "These are synthetic fixtures generated from test generators. To record real MTA feeds, run download-fixtures.ts with MTA_API_KEY.",
+    note: "These are synthetic fixtures generated from test generators. To record real MTA feeds, run download-fixtures.ts (no API key required).",
   };
   writeFileSync(join(OUTPUT_DIR, "manifest.json"), JSON.stringify(manifest, null, 2));
   console.log(`\n✓ Generated manifest.json`);

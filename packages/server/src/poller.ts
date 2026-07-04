@@ -7,7 +7,7 @@
  * - Circuit breaker: after 3 consecutive failures, pause 60s before retry
  * - First poll fires immediately on startup (no 30s cold-start delay)
  * - Structured JSON logging on every poll (timestamp, feed, status, latency)
- * - MTA_API_KEY env var forwarded in x-api-key header if set
+ * - No API key required (MTA removed key requirement in 2025)
  */
 
 import {
@@ -187,9 +187,6 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
         const headers: Record<string, string> = {
           Accept: "application/x-protobuf",
         };
-
-        const apiKey = process.env["MTA_API_KEY"];
-        if (apiKey) headers["x-api-key"] = apiKey;
 
         // Wrap onRetry to include feed ID
         const retryOptions: RetryOptions = {
