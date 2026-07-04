@@ -31,7 +31,7 @@ import { createTestSubscription } from "./test-helpers.js";
 // ---------------------------------------------------------------------------
 
 function createMockAlerts(overrides: Partial<ParsedAlert>[] = []): ParsedAlert[] {
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000); // Uses frozen time from vi.useFakeTimers()
   return [
     {
       id: "alert-1",
@@ -95,6 +95,7 @@ describe("Push Briefing Integration Tests", () => {
   });
 
   beforeEach(() => {
+    vi.clearAllMocks();
     // Use frozen time for consistent test behavior
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
@@ -109,6 +110,7 @@ describe("Push Briefing Integration Tests", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
 
     // Clean up temp files created during this test
     for (let i = tempFilesToCleanup.length - 1; i >= 0; i--) {
@@ -158,7 +160,7 @@ describe("Push Briefing Integration Tests", () => {
         lines: ["1", "A"],
         severity: "info" as const,
         changeType: "new" as const,
-        timestamp: Date.now(),
+        timestamp: Date.now(), // Uses frozen time from vi.useFakeTimers()
       };
 
       expect(payload.alertId).toBe("morning-briefing");
@@ -574,7 +576,7 @@ describe("Push Briefing Integration Tests", () => {
         lines: ["1", "A"],
         severity: "info" as const,
         changeType: "new" as const,
-        timestamp: Date.now(),
+        timestamp: Date.now(), // Uses frozen time from vi.useFakeTimers()
       };
 
       expect(payload.alertId).toBe("morning-briefing");

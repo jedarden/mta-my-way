@@ -139,8 +139,16 @@ describe("initObservability", () => {
 
 describe("shutdownObservability", () => {
   beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
     // Ensure observability is initialized before each shutdown test
     await initObservability();
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("completes without error", async () => {

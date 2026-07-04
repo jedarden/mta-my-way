@@ -133,6 +133,9 @@ describe("Trip Lookup API Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
     db = createIntegrationTestDatabase();
     app = createApp(
       TEST_STATIONS,
@@ -144,6 +147,8 @@ describe("Trip Lookup API Integration Tests", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
     closeDatabase(db);
   });
 

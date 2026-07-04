@@ -14,17 +14,16 @@
 
 import type { ArrivalTime, ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as equipmentPoller from "../equipment-poller.js";
 import { TransferEngine, detectExpressService } from "../transfer/engine.js";
 
 // Mock the equipment poller module
-const mockGetStationsWithBrokenElevators = vi.fn(() => new Set<string>());
-const mockGetTravelTimes = vi.fn(() => ({}));
-
 vi.mock("../equipment-poller.js", () => ({
-  getStationsWithBrokenElevators: () => mockGetStationsWithBrokenElevators(),
-  getTravelTimes: () => mockGetTravelTimes(),
+  getStationsWithBrokenElevators: vi.fn(() => new Set<string>()),
+  getTravelTimes: vi.fn(() => ({})),
 }));
+
+// Import the mocked functions
+import { getStationsWithBrokenElevators, getTravelTimes } from "../equipment-poller.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -221,11 +220,12 @@ describe("Transfer Engine Edge Cases", () => {
   let engine: TransferEngine;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
     // Mock equipment poller to return no broken elevators by default
-    vi.mock("../equipment-poller.js", () => ({
-      getStationsWithBrokenElevators: vi.fn(() => new Set<string>()),
-      getTravelTimes: vi.fn(() => ({})),
-    }));
+    vi.mocked(getStationsWithBrokenElevators).mockReturnValue(new Set<string>());
+    vi.mocked(getTravelTimes).mockReturnValue({});
 
     engine = new TransferEngine({
       stations: TEST_STATIONS,
@@ -245,6 +245,11 @@ describe("Transfer Engine Edge Cases", () => {
         return null;
       },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe("Invalid input handling", () => {
@@ -481,7 +486,7 @@ describe("Transfer Engine Edge Cases", () => {
   describe("Accessible mode", () => {
     it("respects accessible mode by avoiding non-ADA transfers", () => {
       // Mock 725 as having broken elevators
-      mockGetStationsWithBrokenElevators.mockReturnValue(new Set(["725"]));
+      vi.mocked(getStationsWithBrokenElevators).mockReturnValue(new Set(["725"]));
 
       const accessibleEngine = new TransferEngine({
         stations: TEST_STATIONS,
@@ -507,7 +512,7 @@ describe("Transfer Engine Edge Cases", () => {
 
     it("allows ADA-accessible transfer stations", () => {
       // No broken elevators
-      mockGetStationsWithBrokenElevators.mockReturnValue(new Set());
+      vi.mocked(getStationsWithBrokenElevators).mockReturnValue(new Set());
 
       const accessibleEngine = new TransferEngine({
         stations: TEST_STATIONS,

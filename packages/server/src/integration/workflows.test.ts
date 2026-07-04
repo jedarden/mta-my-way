@@ -174,6 +174,11 @@ describe("End-to-End Workflow Integration Tests", () => {
   let authHeaders: { Authorization: string };
 
   beforeEach(async () => {
+    vi.clearAllMocks();
+    // Use frozen time for consistent test behavior
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
+
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
 
@@ -190,12 +195,14 @@ describe("End-to-End Workflow Integration Tests", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
     closeDatabase(db);
   });
 
   describe("Complete trip tracking workflow", () => {
     it("tracks full journey from recording to statistics", () => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
 
       // Step 1: Record a trip
       const trip = recordTrip({
@@ -237,7 +244,7 @@ describe("End-to-End Workflow Integration Tests", () => {
     });
 
     it("tracks multiple trips and calculates accurate statistics", () => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
       const baseTime = now - 10000000;
 
       // Record multiple trips with varying performance
@@ -300,7 +307,7 @@ describe("End-to-End Workflow Integration Tests", () => {
 
   describe("Data consistency across operations", () => {
     it("maintains consistency across rapid successive operations", () => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
 
       // Create trip
       const trip = recordTrip({
@@ -338,7 +345,7 @@ describe("End-to-End Workflow Integration Tests", () => {
     });
 
     it("handles rollback on failed operation", () => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
 
       // Create a trip
       const trip = recordTrip({
@@ -367,7 +374,7 @@ describe("End-to-End Workflow Integration Tests", () => {
 
   describe("Statistics calculation workflows", () => {
     it("updates statistics incrementally", () => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
 
       // Get initial stats
       const initialStats = calculateCommuteStats("default");
@@ -409,7 +416,7 @@ describe("End-to-End Workflow Integration Tests", () => {
     });
 
     it("calculates stats for different commute IDs", () => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
 
       // Add trip for default commute
       recordTrip({
@@ -440,7 +447,7 @@ describe("End-to-End Workflow Integration Tests", () => {
 
   describe("Complex query workflows", () => {
     beforeEach(() => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
       const baseTime = now - 100000000;
 
       // Create diverse test data
@@ -494,7 +501,7 @@ describe("End-to-End Workflow Integration Tests", () => {
 
   describe("Database consistency workflows", () => {
     it("maintains consistency after deletion cascade", () => {
-      const now = Date.now();
+      const now = Date.now(); // Uses frozen time from vi.useFakeTimers()
 
       // Create multiple trips
       const tripIds: string[] = [];
