@@ -516,6 +516,22 @@ describe("API /api/health", () => {
     expect(body.memory.rssBytes).toBeGreaterThan(0);
     expect(body.memory.heapUsedBytes).toBeGreaterThan(0);
   });
+
+  it("rejects unexpected query parameters", async () => {
+    const res = await app.request("/api/health?extra=param");
+
+    expect(res.status).toBe(400);
+
+    const body = await res.json();
+    expect(body.error).toBe("validation failed");
+    expect(body.details).toBeDefined();
+    expect(Array.isArray(body.details)).toBe(true);
+    expect(body.details.length).toBeGreaterThan(0);
+    // Zod reports unrecognized keys at the root with an empty field path
+    // but includes the key name in the message
+    expect(body.details[0].message).toContain("Unrecognized key");
+    expect(body.details[0].message).toContain("extra");
+  });
 });
 
 describe("API /api/stations", () => {
