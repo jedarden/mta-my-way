@@ -405,6 +405,8 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
  * Reset context service (for testing).
  */
 export function resetContextService(): void {
+  db = null;
+  stations = null;
   currentContext = { ...DEFAULT_CONTEXT };
   currentSettings = {
     enabled: true,

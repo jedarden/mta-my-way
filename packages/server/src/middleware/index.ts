@@ -367,6 +367,7 @@ export {
   exportAuditLogAsCsv,
   applyAuditLogRetention,
   clearAuditLog,
+  resetAuditLog,
   type AuditEvent,
   type AuditEventCategory,
   type AuditEventSeverity,

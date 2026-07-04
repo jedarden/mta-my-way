@@ -479,7 +479,7 @@ export async function cleanupAllState(): Promise<void> {
   await tryReset("../middleware/authorization-security.js", "clearAccessPatterns");
 
   // ---- audit-log.ts -------------------------------------------------------
-  await tryReset("../middleware/audit-log.js", "clearAuditLog");
+  await tryReset("../middleware/audit-log.js", "resetAuditLog");
 
   // ---- token-encryption.ts ------------------------------------------------
   await tryReset("../middleware/token-encryption.js", "resetEncryptionState");
