@@ -47,19 +47,31 @@ export default defineConfig({
   // Uses tsx to transpile TypeScript on-the-fly (avoids tsc -b build failures
   // from unrelated type errors in the codebase).
   //
-  // Increased timeout to 300s to account for:
+  // Timeout (300s) accounts for slow startup on resource-constrained CI nodes:
   // - GTFS data loading and initialization
   // - Database migrations
   // - Feed poller first poll
   // - VAPID key generation
   // - OpenTelemetry initialization
+  //
+  // Health-check polling & retry:
+  // Playwright polls the `url` every ~500ms until it receives a 2xx response or
+  // the `timeout` is reached.  If the server crashes during startup, Playwright
+  // restarts the `command` and retries the health check — this is the built-in
+  // retry mechanism.  We use the lightweight /health endpoint (registered before
+  // all middleware in app.ts) so readiness checks respond in <1ms regardless of
+  // rate-limit or CSRF state.  It returns 200 once the HTTP server is listening
+  // and the database is reachable (SELECT 1), before feed pollers fire.
+  //
+  // reuseExistingServer: in CI every run is fresh so always start a new process;
+  //   locally, reuse a running dev server to avoid startup overhead.
   webServer: {
-    command: "cd ../.. && TEST_MODE=true npx tsx packages/server/src/index.ts",
+    command: "cd ../.. && npx tsx packages/server/src/index.ts",
+    env: {
+      TEST_MODE: "true",
+    },
     url: "http://localhost:3001/health",
     reuseExistingServer: !process.env.CI,
     timeout: 300 * 1000,
-    // Use the lightweight /health endpoint for readiness checks.
-    // Returns 200 as soon as the HTTP server is listening and the database
-    // is reachable (before feed pollers fire their first request).
   },
 });
