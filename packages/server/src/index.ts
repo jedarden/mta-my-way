@@ -191,7 +191,7 @@ async function main(): Promise<void> {
 
   // HTTP server — start BEFORE pollers so health endpoint responds immediately
   // Pollers will fire their first poll in the background after server is listening
-  serve({ fetch: app.fetch, port: PORT }, (info) => {
+  const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
     logger.info("Server started", {
       port: info.port,
       pid: process.pid,
@@ -212,12 +212,19 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info("Received shutdown signal", { signal });
 
+    // Stop accepting new connections so in-flight requests drain naturally
+    server.close();
+
+    // Give in-flight requests a short grace period, then force exit
+    const forceExit = setTimeout(() => process.exit(0), 5_000);
+
     try {
       await shutdownObservability();
     } catch (err) {
       logger.error("Error during observability shutdown", err as Error);
     }
 
+    clearTimeout(forceExit);
     process.exit(0);
   };
 

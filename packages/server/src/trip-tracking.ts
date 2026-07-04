@@ -67,7 +67,10 @@ export function recordTrip(
   trip: Omit<TripRecord, "id">,
   ownerId: string = DEFAULT_OWNER_ID
 ): TripRecord | null {
-  if (!db) return null;
+  if (!db?.open) {
+    logger.error("Cannot record trip: database connection is not open");
+    return null;
+  }
 
   const id = crypto.randomUUID();
   const now = Date.now();
@@ -140,7 +143,7 @@ export function recordInferredTrip(
   },
   ownerId: string = DEFAULT_OWNER_ID
 ): TripRecord | null {
-  if (!stations || !db) return null;
+  if (!stations || !db?.open) return null;
 
   const originStation = stations[params.originId];
   const destStation = stations[params.destinationId];
@@ -171,7 +174,7 @@ export function recordInferredTrip(
  * @param ownerId - Owner ID for access control (optional, skips check if not provided for backward compatibility)
  */
 export function updateTripNotes(tripId: string, notes: string, ownerId?: string): boolean {
-  if (!db) return false;
+  if (!db?.open) return false;
 
   try {
     let stmt: Database.Statement;
@@ -207,7 +210,7 @@ export function updateTripNotes(tripId: string, notes: string, ownerId?: string)
  * @param ownerId - Owner ID for access control (optional, skips check if not provided for backward compatibility)
  */
 export function deleteTrip(tripId: string, ownerId?: string): boolean {
-  if (!db) return false;
+  if (!db?.open) return false;
 
   try {
     let stmt: Database.Statement;
@@ -264,7 +267,7 @@ export function getTrips(params: {
 }): TripRecord[] {
   const startTime = Date.now();
 
-  if (!db) {
+  if (!db?.open) {
     recordTripQueryDuration(0);
     recordTripQueried(false);
     return [];
@@ -383,7 +386,7 @@ function rowToTripRecord(row: TripRecordRow): TripRecord & { ownerId?: string } 
 export function getTripById(tripId: string): (TripRecord & { ownerId?: string }) | null {
   const startTime = Date.now();
 
-  if (!db) {
+  if (!db?.open) {
     recordTripQueryDuration(0);
     recordTripQueried(false);
     return null;
@@ -435,7 +438,7 @@ export function getRecentTripsForStation(stationId: string, limit: number = 10):
  * @returns true if the trip belongs to the owner
  */
 export function checkTripOwnership(tripId: string, ownerId: string): boolean {
-  if (!db) return false;
+  if (!db?.open) return false;
 
   const row = db.prepare("SELECT owner_id FROM trips WHERE id = ?").get(tripId) as
     | { owner_id: string }
@@ -451,7 +454,7 @@ export function checkTripOwnership(tripId: string, ownerId: string): boolean {
  * @returns Owner ID or undefined if trip not found
  */
 export function getTripOwner(tripId: string): string | undefined {
-  if (!db) return undefined;
+  if (!db?.open) return undefined;
 
   const row = db.prepare("SELECT owner_id FROM trips WHERE id = ?").get(tripId) as
     | { owner_id: string }
@@ -474,7 +477,7 @@ export function calculateCommuteStats(
   commuteId: string = DEFAULT_COMMUTE_ID,
   ownerId?: string
 ): CommuteStats | null {
-  if (!db) return null;
+  if (!db?.open) return null;
 
   // Check cache first (skip cache if owner-specific query)
   const cached = !ownerId ? getCachedCommuteStats(commuteId) : null;
@@ -605,7 +608,7 @@ function getCachedCommuteStats(commuteId: string): {
   on_time_percentage: number;
   last_updated: number;
 } | null {
-  if (!db) return null;
+  if (!db?.open) return null;
 
   return db
     .prepare("SELECT * FROM commute_stats WHERE commute_id = ?")
@@ -616,7 +619,7 @@ function getCachedCommuteStats(commuteId: string): {
  * Cache commute statistics.
  */
 function cacheCommuteStats(stats: CommuteStats): void {
-  if (!db) return;
+  if (!db?.open) return;
 
   const now = Date.now();
 
@@ -649,7 +652,7 @@ function cacheCommuteStats(stats: CommuteStats): void {
  */
 
 function invalidateCommuteStats(_commuteId?: string): void {
-  if (!db) return;
+  if (!db?.open) return;
 
   // Clear all commute stats since trips are global
   db.prepare("DELETE FROM commute_stats").run();
@@ -659,7 +662,7 @@ function invalidateCommuteStats(_commuteId?: string): void {
  * Get trip count for a specific date.
  */
 export function getTripCountForDate(date: string): number {
-  if (!db) return 0;
+  if (!db?.open) return 0;
 
   const result = db.prepare("SELECT COUNT(*) as count FROM trips WHERE date = ?").get(date) as {
     count: number;
@@ -672,7 +675,7 @@ export function getTripCountForDate(date: string): number {
  * Get total trip count.
  */
 export function getTotalTripCount(): number {
-  if (!db) return 0;
+  if (!db?.open) return 0;
 
   const result = db.prepare("SELECT COUNT(*) as count FROM trips").get() as { count: number };
 
@@ -683,7 +686,7 @@ export function getTotalTripCount(): number {
  * Clean up old trip records (older than 90 days, keep last 500).
  */
 export function cleanupOldTrips(): number {
-  if (!db) return 0;
+  if (!db?.open) return 0;
 
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
