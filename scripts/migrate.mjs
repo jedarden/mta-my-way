@@ -68,6 +68,7 @@ function parseArguments(args) {
       "no-backup": { type: "boolean", default: false },
       help: { type: "boolean", default: false },
       validate: { type: "boolean", default: false },
+      env: { type: "string", default: "dev" },
     },
   });
   return { values, positionals };
@@ -95,6 +96,8 @@ Commands:
   restore <file>   Restore from backup
   backups          List available backups
   cleanup [n]      Delete old backups (keep n, default: 10)
+  init             Initialize a new database
+  seed [env]       Seed database with initial data (dev, test)
 
 Options:
   --dry-run        Preview changes without executing
@@ -103,6 +106,7 @@ Options:
   --no-backup      Skip automatic backup before migrations
   --help           Show this help message
   --validate       Include validation in new migration
+  --env <env>      Environment for seed command (default: dev)
 
 Examples:
   node scripts/migrate.mjs                    # Run pending migrations
@@ -110,6 +114,9 @@ Examples:
   node scripts/migrate.mjs up 5               # Run up to version 5
   node scripts/migrate.mjs rollback 10        # Rollback to version 10
   node scripts/migrate.mjs create add-users   # Create new migration
+  node scripts/migrate.mjs seed               # Seed with dev data
+  node scripts/migrate.mjs seed test          # Seed with test data
+  node scripts/migrate.mjs init               # Initialize new database
   node scripts/migrate.mjs backup             # Create backup
   node scripts/migrate.mjs --dry-run          # Preview migrations
 `);
@@ -672,6 +679,10 @@ async function main() {
 
         case "backup":
           await cmdBackup(db, values.db);
+          break;
+
+        case "seed":
+          await cmdSeed(db, values);
           break;
 
         default:
