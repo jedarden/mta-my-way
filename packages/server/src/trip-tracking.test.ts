@@ -25,8 +25,10 @@ import {
   initTripTracking,
   recordInferredTrip,
   recordTrip,
+  resetTripTrackingForTesting,
   updateTripNotes,
 } from "./trip-tracking.js";
+import { logger } from "./observability/logger.js";
 
 // Mock the metrics module
 vi.mock("./middleware/metrics.js", () => ({
@@ -204,6 +206,30 @@ describe("trip-tracking", () => {
 
       const result = recordTrip(trip);
       expect(result).toBeNull();
+      expect(logger.error).toHaveBeenCalledWith(
+        "Cannot record trip: database connection is not open"
+      );
+    });
+
+    it("returns null and logs error when db is null via resetTripTrackingForTesting", () => {
+      resetTripTrackingForTesting();
+
+      const trip = {
+        date: "2024-01-15",
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
+        line: "1",
+        departureTime: 1705310400000,
+        arrivalTime: 1705312800000,
+        actualDurationMinutes: 40,
+        source: "manual" as const,
+      };
+
+      const result = recordTrip(trip);
+      expect(result).toBeNull();
+      expect(logger.error).toHaveBeenCalledWith(
+        "Cannot record trip: database connection is not open"
+      );
     });
   });
 
