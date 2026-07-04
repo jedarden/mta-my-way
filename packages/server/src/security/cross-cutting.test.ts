@@ -99,13 +99,9 @@ describe("Cross-Cutting Security Tests", () => {
               },
             }
           );
-          // Input validation should reject or sanitize
-          // Auth may fail (401/403), or input validation may reject (400), or succeed (200)
-          expect([200, 400, 401, 403]).toContain(response.status);
-          if (response.status === 200) {
-            const data = await response.json();
-            expect(data.stationId).not.toContain("'");
-          }
+          // Auth should succeed (valid key with correct scope), then the handler
+          // should reject SQL injection patterns with 400
+          expect(response.status).toBe(400);
         }
       });
 
@@ -692,10 +688,15 @@ describe("Cross-Cutting Security Tests", () => {
       expect(validateApiKeyFormat("ab")).toBe(false);
       // Contains invalid characters (@ and !)
       expect(validateApiKeyFormat("invalid@key!")).toBe(false);
-      // Valid format (alphanumeric with underscores, 3-50 chars)
+      // Valid format (alphanumeric with underscores, 3-128 chars)
       expect(validateApiKeyFormat("sk_test_1234567890abcdefghijklmnopqr")).toBe(true);
       // At minimum length boundary
       expect(validateApiKeyFormat("abc")).toBe(true);
+    });
+
+    it("should produce keys that pass format validation", async () => {
+      const apiKey = await generateApiKey();
+      expect(validateApiKeyFormat(apiKey)).toBe(true);
     });
 
     it("should track failed authentication attempts", async () => {
