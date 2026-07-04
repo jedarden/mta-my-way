@@ -55,11 +55,11 @@ export default defineConfig({
   // - OpenTelemetry initialization
   webServer: {
     command: "cd ../.. && TEST_MODE=true npx tsx packages/server/src/index.ts",
-    url: "http://localhost:3001",
+    url: "http://localhost:3001/health",
     reuseExistingServer: !process.env.CI,
     timeout: 300 * 1000,
-    // Use the /api/health endpoint for health checks
-    // This endpoint returns 200 when the server is fully initialized
-    // and all subsystems (feeds, alerts, push) are ready
+    // Use the lightweight /health endpoint for readiness checks.
+    // Returns 200 as soon as the HTTP server is listening and the database
+    // is reachable (before feed pollers fire their first request).
   },
 });

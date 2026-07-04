@@ -2,6 +2,7 @@
  * Hono application: API routes + static asset serving.
  *
  * Routes:
+ *   GET /health                    — lightweight readiness check (DB ping, JSON)
  *   GET /status                   — public health dashboard (HTML)
  *   GET /api/health                — per-feed status, circuit-breaker state (JSON)
  *   GET /api/metrics               — Prometheus metrics export
@@ -134,6 +135,7 @@ import {
 import { logger, metrics, tracingMiddleware } from "./observability/index.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
 import {
+  getPushDatabase,
   getSubscriptionCount,
   getSubscriptionOwner,
   removeSubscription,
@@ -376,6 +378,39 @@ export function createApp(
   webDistPath: string
 ): Hono {
   const app = new Hono();
+
+  // -------------------------------------------------------------------------
+  // Lightweight readiness endpoint (before middleware for fast response)
+  // -------------------------------------------------------------------------
+  // GET /health — returns 200 with { status: "ok" } when the server is ready
+  // to handle requests.  Used by orchestrators (Playwright, Kubernetes, etc.)
+  // to detect when the HTTP server is listening and the database is reachable.
+  //
+  // Registered BEFORE all middleware so it responds within ~1ms regardless of
+  // rate-limit state, CSRF tokens, etc.  Only checks database connectivity
+  // (a single SELECT 1) — feed poller readiness is reported by /api/health.
+  app.get("/health", () => {
+    try {
+      const db = getPushDatabase();
+      db.prepare("SELECT 1").get();
+    } catch {
+      return new Response(JSON.stringify({ status: "error", message: "database unreachable" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        status: "ok",
+        uptime_seconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      }
+    );
+  });
 
   // Request ID for correlation across logs and audit events.
   // Must run before security logging and audit middleware.
