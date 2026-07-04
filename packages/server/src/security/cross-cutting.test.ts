@@ -26,12 +26,14 @@ import {
   apiKeyAuth,
   createSession,
   generateApiKey,
+  getApiKeyById,
   getSession,
+  hashApiKey,
   regenerateSession,
   registerApiKey,
   resetAuthFailureTracking,
+  resetAuthenticationState,
   resetSuspiciousActivityTracking,
-  verifyApiKeyHash,
 } from "../middleware/authentication.js";
 import { cors, csrfProtection, rateLimiter, securityHeaders } from "../middleware/index.js";
 import { hashPassword, validatePassword } from "../middleware/password-management.js";
@@ -42,9 +44,8 @@ describe("Cross-Cutting Security Tests", () => {
   let app: Hono;
 
   beforeEach(() => {
-    // Reset tracking for test isolation
-    resetAuthFailureTracking();
-    resetSuspiciousActivityTracking();
+    // Reset all authentication state for test isolation
+    resetAuthenticationState();
     resetRateLimiter();
 
     // Create fresh app for each test
@@ -75,9 +76,9 @@ describe("Cross-Cutting Security Tests", () => {
 
         // Register a test API key
         const apiKey = await generateApiKey();
-        const { hash, salt } = await verifyApiKeyHash(apiKey, "");
+        const { hash, salt } = await hashApiKey(apiKey);
         await registerApiKey({
-          keyId: "test-key",
+          keyId: "test_key",
           keyHash: hash,
           keySalt: salt,
           scope: "read",
@@ -94,7 +95,7 @@ describe("Cross-Cutting Security Tests", () => {
             `/api/stations?stationId=${encodeURIComponent(pattern)}`,
             {
               headers: {
-                Authorization: `Bearer test-key:${apiKey}`,
+                Authorization: `Bearer test_key:${apiKey}`,
               },
             }
           );
@@ -475,15 +476,15 @@ describe("Cross-Cutting Security Tests", () => {
         return c.json({ profile: { id: "user_123" } });
       });
 
-      // Request without authentication should fail
+      // Request without authentication should fail with 401
       const responseWithoutAuth = await app.request("/api/user/profile");
-      expect([401, 403]).toContain(responseWithoutAuth.status);
+      expect(responseWithoutAuth.status).toBe(401);
 
       // Register a test API key
       const apiKey = await generateApiKey();
-      const { hash, salt } = await verifyApiKeyHash(apiKey, "");
+      const { hash, salt } = await hashApiKey(apiKey);
       await registerApiKey({
-        keyId: "test-key",
+        keyId: "test_key",
         keyHash: hash,
         keySalt: salt,
         scope: "read",
@@ -496,12 +497,12 @@ describe("Cross-Cutting Security Tests", () => {
       // Request with authentication should succeed
       const responseWithAuth = await app.request("/api/user/profile", {
         headers: {
-          Authorization: `Bearer test-key:${apiKey}`,
+          Authorization: `Bearer test_key:${apiKey}`,
         },
       });
 
-      // Should succeed or fail with acceptable status
-      expect([200, 201, 401, 403]).toContain(responseWithAuth.status);
+      // Valid key with correct scope should succeed
+      expect(responseWithAuth.status).toBe(200);
     });
 
     it("should check permissions for authorized operations", async () => {
@@ -513,9 +514,9 @@ describe("Cross-Cutting Security Tests", () => {
 
       // Register a read-only key
       const readKey = await generateApiKey();
-      const { hash: readHash, salt: readSalt } = await verifyApiKeyHash(readKey, "");
+      const { hash: readHash, salt: readSalt } = await hashApiKey(readKey);
       await registerApiKey({
-        keyId: "read-key",
+        keyId: "read_key",
         keyHash: readHash,
         keySalt: readSalt,
         scope: "read",
@@ -525,23 +526,23 @@ describe("Cross-Cutting Security Tests", () => {
         expiresAt: 0,
       });
 
-      // Read-only key should be denied write access
+      // Read-only key should be denied write access (scope 1 < write 2)
       const responseReadOnly = await app.request("/api/favorites", {
         method: "POST",
         headers: {
-          Authorization: `Bearer read-key:${readKey}`,
+          Authorization: `Bearer read_key:${readKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ stationId: "101" }),
       });
 
-      expect([403, 401]).toContain(responseReadOnly.status);
+      expect(responseReadOnly.status).toBe(403);
 
       // Register a write key
       const writeKey = await generateApiKey();
-      const { hash: writeHash, salt: writeSalt } = await verifyApiKeyHash(writeKey, "");
+      const { hash: writeHash, salt: writeSalt } = await hashApiKey(writeKey);
       await registerApiKey({
-        keyId: "write-key",
+        keyId: "write_key",
         keyHash: writeHash,
         keySalt: writeSalt,
         scope: "write",
@@ -555,14 +556,14 @@ describe("Cross-Cutting Security Tests", () => {
       const responseWrite = await app.request("/api/favorites", {
         method: "POST",
         headers: {
-          Authorization: `Bearer write-key:${writeKey}`,
+          Authorization: `Bearer write_key:${writeKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ stationId: "101" }),
       });
 
-      // Should succeed, or fail with auth error
-      expect([200, 201, 401, 403]).toContain(responseWrite.status);
+      // Write key with correct scope should succeed
+      expect(responseWrite.status).toBe(200);
     });
 
     it("should handle expired API keys", async () => {
@@ -572,9 +573,9 @@ describe("Cross-Cutting Security Tests", () => {
 
       // Register an expired key
       const expiredKey = await generateApiKey();
-      const { hash, salt } = await verifyApiKeyHash(expiredKey, "");
+      const { hash, salt } = await hashApiKey(expiredKey);
       await registerApiKey({
-        keyId: "expired-key",
+        keyId: "expired_key",
         keyHash: hash,
         keySalt: salt,
         scope: "read",
@@ -586,12 +587,12 @@ describe("Cross-Cutting Security Tests", () => {
 
       const response = await app.request("/api/data", {
         headers: {
-          Authorization: `Bearer expired-key:${expiredKey}`,
+          Authorization: `Bearer expired_key:${expiredKey}`,
         },
       });
 
-      // Should reject expired key
-      expect([401, 403, 200]).toContain(response.status);
+      // Expired key should be rejected with 401
+      expect(response.status).toBe(401);
     });
   });
 
@@ -700,9 +701,9 @@ describe("Cross-Cutting Security Tests", () => {
     it("should track failed authentication attempts", async () => {
       // Register a key
       const validKey = await generateApiKey();
-      const { hash, salt } = await verifyApiKeyHash(validKey, "");
+      const { hash, salt } = await hashApiKey(validKey);
       await registerApiKey({
-        keyId: "test-key",
+        keyId: "test_key",
         keyHash: hash,
         keySalt: salt,
         scope: "read",
@@ -719,12 +720,17 @@ describe("Cross-Cutting Security Tests", () => {
       // Attempt with invalid secret
       const response = await app.request("/api/data", {
         headers: {
-          Authorization: `Bearer test-key:invalid_secret`,
+          Authorization: `Bearer test_key:invalid_secret`,
         },
       });
 
-      // Should fail
-      expect([401, 403]).toContain(response.status);
+      // Should fail with 401
+      expect(response.status).toBe(401);
+
+      // Verify the failed attempt was tracked on the key
+      const apiKey = getApiKeyById("test_key");
+      expect(apiKey).toBeDefined();
+      expect(apiKey!.failedAttempts).toBe(1);
     });
   });
 
