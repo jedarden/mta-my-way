@@ -1,0 +1,114 @@
+
+> mta-my-way@0.0.1 lint
+> biome check . && eslint .
+
+./tests/e2e/test-results/.last-run.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    2 2 │     "status": "passed",
+    3 3 │     "failedTests": []
+    4   │ - }
+      4 │ + }
+      5 │ + 
+  
+
+./packages/server/src/app.test.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     503  503 │         expect(parsed.data.feeds).toHaveLength(1);
+     504  504 │         // Individual feed status can be one of: ok, never_polled, stale, circuit_open
+     505      │ - ······expect(["ok",·"never_polled",·"stale",·"circuit_open"]).toContain(parsed.data.feeds[0].status);
+          505 │ + ······expect(["ok",·"never_polled",·"stale",·"circuit_open"]).toContain(
+          506 │ + ········parsed.data.feeds[0].status
+          507 │ + ······);
+     506  508 │       }
+     507  509 │     });
+  
+
+./packages/server/src/security/cross-cutting.test.ts organizeImports ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Import statements could be sorted:
+  
+     25  25 │   import {
+     26  26 │     apiKeyAuth,
+     27     │ - ··generateApiKey,
+     28     │ - ··registerApiKey,
+     29     │ - ··resetAuthFailureTracking,
+     30     │ - ··resetSuspiciousActivityTracking,
+     31     │ - ··verifyApiKeyHash,
+     32     │ - ··createSession,
+     33     │ - ··getSession,
+     34     │ - ··regenerateSession,
+         27 │ + ··createSession,
+         28 │ + ··generateApiKey,
+         29 │ + ··getSession,
+         30 │ + ··regenerateSession,
+         31 │ + ··registerApiKey,
+         32 │ + ··resetAuthFailureTracking,
+         33 │ + ··resetSuspiciousActivityTracking,
+         34 │ + ··verifyApiKeyHash,
+     35  35 │   } from "../middleware/authentication.js";
+     36     │ - import·{·csrfProtection,·securityHeaders,·cors,·rateLimiter·}·from·"../middleware/index.js";
+     37     │ - import·{·validatePassword,·hashPassword·}·from·"../middleware/password-management.js";
+         36 │ + import·{·cors,·csrfProtection,·rateLimiter,·securityHeaders·}·from·"../middleware/index.js";
+         37 │ + import·{·hashPassword,·validatePassword·}·from·"../middleware/password-management.js";
+     38  38 │   import { validateApiKeyFormat } from "../middleware/sanitization.js";
+     39  39 │   
+  
+
+./packages/server/src/security/cross-cutting.test.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    162 162 │   
+    163 163 │           for (const payload of xssPayloads) {
+    164     │ - ··········const·response·=·await·app.request(
+    165     │ - ············`/api/data?search=${encodeURIComponent(payload)}`
+    166     │ - ··········);
+        164 │ + ··········const·response·=·await·app.request(`/api/data?search=${encodeURIComponent(payload)}`);
+    167 165 │   
+    168 166 │             // Should succeed, reject input, or fail auth
+    ······· │ 
+    240 238 │           });
+    241 239 │   
+    242     │ - ········const·maliciousPaths·=·[
+    243     │ - ··········{·path:·"../../../etc/passwd"·},
+    244     │ - ··········{·path:·"safe/normal/path"·},
+    245     │ - ········];
+        240 │ + ········const·maliciousPaths·=·[{·path:·"../../../etc/passwd"·},·{·path:·"safe/normal/path"·}];
+    246 241 │   
+    247 242 │           for (const payload of maliciousPaths) {
+    ······· │ 
+    677 672 │           const result = await validatePassword(password);
+    678 673 │           if (!result.valid) {
+    679     │ - ··········console.log(`DEBUG:·password="${password}"·errors=${JSON.stringify(result.errors)}·strengthCategory=${result.strengthCategory}`);
+        674 │ + ··········console.log(
+        675 │ + ············`DEBUG:·password="${password}"·errors=${JSON.stringify(result.errors)}·strengthCategory=${result.strengthCategory}`
+        676 │ + ··········);
+    680 677 │           }
+    681 678 │           expect(result.valid).toBe(true);
+  
+
+./test-results/.last-run.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    2 2 │     "status": "failed",
+    3 3 │     "failedTests": []
+    4   │ - }
+      4 │ + }
+      5 │ + 
+  
+
+Skipped 1 suggested fixes.
+If you wish to apply the suggested (unsafe) fixes, use the command biome check --fix --unsafe
+
+Checked 566 files in 121ms. No fixes applied.
+Found 5 errors.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+
