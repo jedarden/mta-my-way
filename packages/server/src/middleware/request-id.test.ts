@@ -15,10 +15,6 @@ describe("requestId middleware", () => {
     app.get("/test", (c) => c.json({ requestId: c.get("requestId") }));
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   describe("UUID generation", () => {
     it("generates a UUID when no X-Request-ID header is provided", async () => {
       const res = await app.request("/test");

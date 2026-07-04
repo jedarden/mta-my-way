@@ -1913,14 +1913,20 @@ describe("Authentication Middleware", () => {
       expect(session?.sessionType).toBe("mfa");
     });
 
-    it("should handle invalidating all sessions for a key", () => {
+    it("should handle invalidating all sessions for a key", async () => {
       // Create multiple sessions
       const sessionIds: string[] = [];
+      const promises = [];
       for (let i = 0; i < 3; i++) {
-        createSession("test_key_123", `127.0.0.${(i + 1) % 256}`, `agent${i}`).then(
-          ({ sessionId }) => sessionIds.push(sessionId)
+        promises.push(
+          createSession("test_key_123", `127.0.0.${(i + 1) % 256}`, `agent${i}`).then(
+            ({ sessionId }) => sessionIds.push(sessionId)
+          )
         );
       }
+
+      // Wait for all sessions to be created
+      await Promise.all(promises);
 
       // Invalidate all sessions
       const count = invalidateAllSessionsForKey("test_key_123");

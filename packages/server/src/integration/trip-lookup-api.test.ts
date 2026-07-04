@@ -141,12 +141,10 @@ describe("Trip Lookup API Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
     closeDatabase(db);
-    vi.restoreAllMocks();
   });
 
   describe("GET /api/trip/:tripId", () => {

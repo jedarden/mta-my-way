@@ -302,8 +302,6 @@ describe("Push Briefing Integration Tests", () => {
           currentHour >= quietHours.startHour || currentHour < quietHours.endHour;
         expect(inQuietHours).toBe(true);
       }
-
-      vi.restoreAllMocks();
     });
 
     it("allows briefing when quiet hours disabled", () => {
@@ -335,8 +333,6 @@ describe("Push Briefing Integration Tests", () => {
 
       expect(inQuietHours).toBe(true);
       expect(currentHour).toBe(3);
-
-      vi.restoreAllMocks();
     });
   });
 

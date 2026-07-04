@@ -23,7 +23,6 @@ describe("Suspicious Activity Notifications", () => {
   beforeEach(() => {
     // Reset all in-memory storage before each test
     resetNotificationStorage();
-    vi.clearAllMocks();
   });
 
   describe("createSecurityEvent", () => {

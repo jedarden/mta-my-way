@@ -51,7 +51,6 @@ describe("Password Reset Routes", () => {
   let testUser: UserRecord;
 
   beforeEach(() => {
-    vi.clearAllMocks();
     clearAllUsers();
 
     // Create a test user

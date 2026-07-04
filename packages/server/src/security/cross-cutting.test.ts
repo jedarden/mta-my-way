@@ -49,10 +49,6 @@ describe("Cross-Cutting Security Tests", () => {
     app = new Hono();
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe("Input Validation", () => {
     describe("SQL Injection Prevention", () => {
       it("should detect SQL injection patterns", () => {
@@ -467,7 +463,7 @@ describe("Cross-Cutting Security Tests", () => {
       // (test mode short-circuit) — both are valid
       const hasRateLimitHeaders = limitHeader && remainingHeader && resetHeader;
       const hasNoRateLimitHeaders = !limitHeader && !remainingHeader && !resetHeader;
-      expect(hasRateLimitHeaders || hasNoRateLimitHeaders).toBe(true);
+      expect(Boolean(hasRateLimitHeaders || hasNoRateLimitHeaders)).toBe(true);
     });
   });
 

@@ -191,7 +191,6 @@ describe("End-to-End Workflow Integration Tests", () => {
 
   afterEach(() => {
     closeDatabase(db);
-    vi.restoreAllMocks();
   });
 
   describe("Complete trip tracking workflow", () => {
