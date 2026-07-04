@@ -91,10 +91,10 @@ export {
 
 import { logger } from "./logger.js";
 import {
-  initOpenTelemetry as initOtel,
-  shutdownOpenTelemetry as shutdownOtel,
   flushOpenTelemetry,
+  initOpenTelemetry as initOtel,
   isOpenTelemetryEnabled,
+  shutdownOpenTelemetry as shutdownOtel,
 } from "./opentelemetry.js";
 
 /**
