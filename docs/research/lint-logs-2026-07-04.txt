@@ -1,0 +1,55 @@
+
+> mta-my-way@0.0.1 lint
+> biome check . && eslint .
+
+./tests/e2e/test-results/.last-run.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    1 1 │   {
+    2 2 │     "status": "failed",
+    3   │ - ··"failedTests":·[
+    4   │ - ····"f27a3217e31f5a22ee84-e2f167c9f2990e69f280"
+    5   │ - ··]
+    6   │ - }
+      3 │ + ··"failedTests":·["f27a3217e31f5a22ee84-e2f167c9f2990e69f280"]
+      4 │ + }
+      5 │ + 
+  
+
+./packages/server/src/integration/test-helpers.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    445 445 │   export async function cleanupAllState(): Promise<void> {
+    446 446 │     // Helper: call `fn` only if it exists on the imported module.
+    447     │ - ··const·tryReset·=·async·(
+    448     │ - ····spec:·string,
+    449     │ - ····...fns:·string[]
+    450     │ - ··):·Promise<void>·=>·{
+        447 │ + ··const·tryReset·=·async·(spec:·string,·...fns:·string[]):·Promise<void>·=>·{
+    451 448 │       try {
+    452 449 │         const mod = await import(spec);
+  
+
+./packages/server/src/middleware/token-encryption.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    513 513 │    * For testing purposes — ensures no old key material leaks between tests.
+    514 514 │    */
+    515     │ - export·async·function·resetEncryptionState(
+    516     │ - ··config?:·EncryptionConfig
+    517     │ - ):·Promise<void>·{
+        515 │ + export·async·function·resetEncryptionState(config?:·EncryptionConfig):·Promise<void>·{
+    518 516 │     oldKeys.clear();
+    519 517 │     encryptionConfig = null;
+  
+
+Checked 567 files in 128ms. No fixes applied.
+Found 3 errors.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+
