@@ -29,21 +29,27 @@ export {
   diag,
   propagation,
   trace,
-  Span as OTelSpan,
-  SpanContext as OTelSpanContext,
   SpanStatusCode,
-  Tracer as OTelTracer,
   TracerProvider,
-  type Context,
-  type DiagLogLevel,
-  type Link,
-  type ReadableSpan,
-  type SpanAttributes,
-  type SpanOptions,
-  type SpanStatus,
-  type TimedEvent,
-  type TracerConfig,
 } from "@opentelemetry/api";
+
+// Type-only re-exports for use by consumers
+export type {
+  Context,
+  DiagLogLevel,
+  Link,
+  Span,
+  SpanAttributes,
+  SpanContext,
+  SpanOptions,
+  SpanStatus,
+  TimedEvent,
+  Tracer,
+  TracerConfig,
+} from "@opentelemetry/api";
+
+// Aliased type exports for backward compatibility
+export type { Span as OTelSpan, SpanContext as OTelSpanContext, Tracer as OTelTracer };
 
 // ============================================================================
 // Configuration types

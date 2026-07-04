@@ -367,10 +367,7 @@ export {
   diag,
   propagation,
   trace,
-  Span as OTelSpan,
-  SpanContext as OTelSpanContext,
   SpanStatusCode,
-  Tracer as OTelTracer,
   TracerProvider,
   resolveOtelConfig,
   parseHeaders,
@@ -385,4 +382,7 @@ export {
   type SpanAttributes,
   type SpanOptions,
   type SpanStatus,
+  type OTelSpan as Span,
+  type OTelSpanContext as SpanContext,
+  type OTelTracer as Tracer,
 } from "./observability/otel.js";

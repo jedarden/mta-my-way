@@ -4,41 +4,40 @@
  * This file runs before all tests and sets up:
  * - Rate limiter test mode (disabled rate limiting)
  * - Test utilities for resetting state between tests
+ * - Standardized mock cleanup strategy
+ *
+ * Mock cleanup strategy:
+ * - beforeEach: vi.clearAllMocks() - clears mock call counts/data but keeps implementations
+ * - afterEach: vi.restoreAllMocks() - restores all mocks to original implementations
+ * - This order ensures fresh mock state at test start and clean restoration after test completes
+ * - Individual test files should NOT add their own mock cleanup hooks
  */
 
-import { beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 
-import { _clearAllRateLimits } from "../middleware/auth-rate-limit.js";
-import {
-  resetAuthFailureTracking,
-  resetSuspiciousActivityTracking,
-} from "../middleware/authentication.js";
-// Import rate limiter and enable test mode
-import { resetRateLimiter, setRateLimiterTestMode } from "../middleware/rate-limiter.js";
-import { configureEncryption, generateMasterKey } from "../middleware/token-encryption.js";
+import { cleanupAllState } from "../integration/test-helpers.js";
 
 // Enable test mode for rate limiter (disables rate limiting in tests)
+const { setRateLimiterTestMode } = await import("../middleware/rate-limiter.js");
 setRateLimiterTestMode(true);
 
-// Configure encryption for tests
-const masterKey = generateMasterKey();
-configureEncryption({ masterKey, version: 1 });
-
-// Reset state before each test
-beforeEach(() => {
-  // Reset rate limiter state
-  resetRateLimiter();
-
-  // Clear auth rate limits
-  _clearAllRateLimits();
-
-  // Reset authentication tracking
-  resetAuthFailureTracking();
-  resetSuspiciousActivityTracking();
-
-  // Clear any timers/mocks
+// Reset ALL shared mutable state before each test.
+// This single call replaces the previous piecemeal resets and guarantees
+// that no module-level Map/Set/array leaks between test files.
+beforeEach(async () => {
+  // Clear all mocks to prevent state leakage
+  // This resets mock call counts and return values but keeps mock implementations
+  vi.clearAllMocks();
   vi.clearAllTimers();
+
+  await cleanupAllState();
+});
+
+// Restore mocks after each test
+// This restores all mocked functions to their original implementations
+afterEach(() => {
   vi.restoreAllMocks();
+  vi.clearAllTimers();
 });
 
 // Mock console methods to reduce noise in test output

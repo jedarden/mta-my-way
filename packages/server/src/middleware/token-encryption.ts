@@ -507,6 +507,24 @@ export function isEncryptionConfigured(): boolean {
 }
 
 /**
+ * Reset encryption state to a fresh configuration.
+ *
+ * Clears any rotated keys and reconfigures with the given (or default) key.
+ * For testing purposes — ensures no old key material leaks between tests.
+ */
+export async function resetEncryptionState(config?: EncryptionConfig): Promise<void> {
+  oldKeys.clear();
+  encryptionConfig = null;
+
+  if (config) {
+    await configureEncryption(config);
+  } else {
+    const masterKey = generateMasterKey();
+    await configureEncryption({ masterKey, version: 1 });
+  }
+}
+
+/**
  * Get the current encryption key version.
  */
 export function getCurrentKeyVersion(): number {

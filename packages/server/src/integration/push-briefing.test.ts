@@ -14,7 +14,7 @@ import { existsSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MorningScoreMap, ParsedAlert, PushFavoriteTuple } from "@mta-my-way/shared";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAllAlerts, setAlertsForTesting } from "../alerts-poller.js";
 import {
   getAllSubscriptions,
@@ -66,9 +66,37 @@ function createMorningScores(base: number = 0.5): MorningScoreMap {
 
 describe("Push Briefing Integration Tests", () => {
   let testDbPath: string;
+  const tempFilesToCleanup: string[] = [];
+
+  beforeAll(() => {
+    // Register crash-safe cleanup handler
+    const cleanup = () => {
+      for (const file of tempFilesToCleanup) {
+        try {
+          if (existsSync(file)) {
+            unlinkSync(file);
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    };
+
+    // Clean up on process exit (crash-safe)
+    process.on("exit", cleanup);
+    process.on("SIGINT", () => {
+      cleanup();
+      process.exit(0);
+    });
+    process.on("SIGTERM", () => {
+      cleanup();
+      process.exit(0);
+    });
+  });
 
   beforeEach(() => {
     testDbPath = join(tmpdir(), `test-push-briefing-${crypto.randomUUID()}.db`);
+    tempFilesToCleanup.push(testDbPath);
     initPushDatabase(testDbPath);
 
     // Set up default alerts
@@ -76,8 +104,30 @@ describe("Push Briefing Integration Tests", () => {
   });
 
   afterEach(() => {
-    if (existsSync(testDbPath)) {
-      unlinkSync(testDbPath);
+    // Clean up temp files created during this test
+    for (let i = tempFilesToCleanup.length - 1; i >= 0; i--) {
+      const file = tempFilesToCleanup[i];
+      try {
+        if (existsSync(file)) {
+          unlinkSync(file);
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+      tempFilesToCleanup.splice(i, 1);
+    }
+  });
+
+  afterAll(() => {
+    // Final cleanup in case any files remain
+    for (const file of tempFilesToCleanup) {
+      try {
+        if (existsSync(file)) {
+          unlinkSync(file);
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
     }
   });
 

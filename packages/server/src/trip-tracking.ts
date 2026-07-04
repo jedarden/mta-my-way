@@ -718,3 +718,14 @@ export function cleanupOldTrips(): number {
 
   return 0;
 }
+
+/**
+ * Reset trip tracking module state (for testing only).
+ *
+ * Clears the module-level database and stations references so that
+ * tests can initialize fresh state without pollution from previous tests.
+ */
+export function resetTripTrackingForTesting(): void {
+  db = null;
+  stations = null;
+}

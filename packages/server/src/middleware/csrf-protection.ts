@@ -118,6 +118,19 @@ function cleanupExpiredTokens(): void {
 setInterval(cleanupExpiredTokens, 3_600_000);
 
 // ============================================================================
+// Test Helpers (state reset)
+// ============================================================================
+
+/**
+ * Clear all CSRF tokens from the in-memory store.
+ *
+ * For testing purposes only — ensures no CSRF tokens leak between tests.
+ */
+export function clearCsrfTokenStore(): void {
+  tokenStore.clear();
+}
+
+// ============================================================================
 // Token Generation
 // ============================================================================
 

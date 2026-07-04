@@ -94,11 +94,20 @@ export function checkTimeBasedAccess(rules: TimeBasedAccessRule): boolean {
   const now = new Date();
   const timezone = rules.timezone || "UTC";
 
-  // Get current time in specified timezone
-  const currentTime = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+  // Get current day of week (0=Sunday) from local Date object.
+  // Note: this uses the server's local timezone for the day-of-week check.
+  // For timezone-aware day checking, an external library (e.g. luxon) would be needed.
+  const currentDay = now.getDay();
 
-  const currentDay = currentTime.getDay();
-  const currentHour = currentTime.getHours();
+  // Get current hour in the specified timezone using Intl APIs
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(now);
+  const currentHour = Number(parts.find((p) => p.type === "hour")?.value);
 
   // Check exceptions first
   if (rules.exceptions) {

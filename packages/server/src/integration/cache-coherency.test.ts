@@ -431,7 +431,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const ids1 = body1.trips.map((t: { id: string }) => t.id);
       const ids2 = body2.trips.map((t: { id: string }) => t.id);
       expect(ids1).toEqual(ids2);
-    }, 15000);
+    });
 
     it("maintains consistency with pagination", async () => {
       const now = Date.now();
@@ -472,7 +472,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const allIds = [...ids1, ...ids2];
       const uniqueIds = new Set(allIds);
       expect(uniqueIds.size).toBe(10);
-    }, 30000);
+    }, 10000);
 
     it("returns consistent filtered results", async () => {
       const now = Date.now();
@@ -510,7 +510,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       expect(lineABody.trips.every((t: { line: string }) => t.line === "A")).toBe(true);
       expect(line1Body.trips.length).toBe(5);
       expect(lineABody.trips.length).toBe(5);
-    }, 15000);
+    });
   });
 
   describe("Statistics cache consistency", () => {
@@ -814,7 +814,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       });
       const tripsBody = await tripsRes.json();
       expect(tripsBody.count).toBe(0);
-    }, 30000);
+    }, 10000);
 
     it("handles rollback scenarios gracefully", async () => {
       const now = Date.now();
