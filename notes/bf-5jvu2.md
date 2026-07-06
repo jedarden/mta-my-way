@@ -1,159 +1,93 @@
-# Verification of Health Endpoint Test Expectations
-
-Bead: bf-5jvu2
+# Health Endpoint Test Verification (bf-5jvu2)
 
 ## Summary
 
-Verified all 4 remaining test expectations in `tests/e2e/health.e2e.ts` against the actual `/api/health` endpoint response in `packages/server/src/app.ts`. All test assertions are **correctly mapped** to the implementation.
+Verified that all test expectations in `tests/e2e/health.e2e.ts` (tests 2-5) match the actual implementation in `packages/server/src/app.ts`. All 4 tests are **correctly mapped** to the health endpoint response structure.
+
+## Test-by-Test Analysis
+
+### Test 2: "includes per-feed status for all 8 subway feeds"
+
+**Test expectations:**
+```typescript
+expect(body.feeds).toBeInstanceOf(Array);
+expect(body.feeds.length).toBeGreaterThanOrEqual(8);
+const feedIds = body.feeds.map((f: { id: string }) => f.id);
+expect(feedIds).toContain("gtfs");
+expect(feedIds).toContain("gtfs-ace");
+// ... (all 8 feed IDs)
+```
+
+**Implementation mapping:**
+- `app.ts:1047-1069` constructs `feeds` array from `getFeedStates()`
+- `cache.ts:64-84` initializes `feedStates` Map from `SUBWAY_FEEDS`
+- `feeds.ts:45-94` defines 8 feeds with IDs: "gtfs", "gtfs-ace", "gtfs-bdfm", "gtfs-g", "gtfs-jz", "gtfs-l", "gtfs-nqrw", "gtfs-si"
+
+**Status: ✓ MATCHES**
 
 ---
 
-## Test 2: "includes per-feed status for all 8 subway feeds" (lines 22-38)
+### Test 3: "includes alerts status"
 
-### Test Assertions
-- `body.feeds` is an `Array`
-- `body.feeds.length >= 8`
-- Feed IDs include: `gtfs`, `gtfs-ace`, `gtfs-bdfm`, `gtfs-g`, `gtfs-jz`, `gtfs-l`, `gtfs-nqrw`, `gtfs-si`
-
-### Implementation (app.ts:1047-1069)
+**Test expectations:**
 ```typescript
-feeds: feedStates.map((f) => ({
-  id: f.id,
-  name: f.name,
-  // ... other fields
-}))
+expect(body).toHaveProperty("alerts");
+expect(body.alerts).toHaveProperty("count");
+expect(body.alerts).toHaveProperty("circuitOpen");
+expect(typeof body.alerts.circuitOpen).toBe("boolean");
 ```
 
-### Source (packages/shared/src/constants/feeds.ts:45-94)
-The `SUBWAY_FEEDS` constant defines exactly 8 feeds with the expected IDs:
-- `gtfs` — A Division (1,2,3,4,5,6,7,S,GS)
-- `gtfs-ace` — A/C/E Lines
-- `gtfs-bdfm` — B/D/F/M Lines
-- `gtfs-g` — G Line
-- `gtfs-jz` — J/Z Lines
-- `gtfs-l` — L Line
-- `gtfs-nqrw` — N/Q/R/W Lines
-- `gtfs-si` — Staten Island Railway
+**Implementation mapping:**
+- `app.ts:1070-1077` constructs alerts object with all expected fields
 
-### Verdict: ✅ PASS
-All assertions correctly map to the implementation.
+**Status: ✓ MATCHES**
 
 ---
 
-## Test 3: "includes alerts status" (lines 40-48)
+### Test 4: "includes memory usage metrics"
 
-### Test Assertions
-- `body.alerts` exists
-- `body.alerts.count` exists
-- `body.alerts.circuitOpen` exists
-- `typeof body.alerts.circuitOpen === "boolean"`
-
-### Implementation (app.ts:1070-1076)
+**Test expectations:**
 ```typescript
-alerts: {
-  count: alertsStatus.alertCount,
-  lastSuccessAt: alertsStatus.lastSuccessAt,
-  matchRate: alertsStatus.matchRate,
-  consecutiveFailures: alertsStatus.consecutiveFailures,
-  circuitOpen: alertsStatus.circuitOpen,  // boolean
-  unmatchedCount: alertsStatus.unmatchedCount,
-}
+expect(body).toHaveProperty("memory");
+expect(body.memory).toHaveProperty("rssBytes");
+expect(body.memory.rssBytes).toBeGreaterThan(0);
+expect(body.memory).toHaveProperty("heapUsedBytes");
+expect(body.memory.heapUsedBytes).toBeGreaterThan(0);
 ```
 
-### Source
-The `getAlertsStatus()` function returns an object with `circuitOpen` as a boolean field.
+**Implementation mapping:**
+- `app.ts:1083-1088` constructs memory object from `process.memoryUsage()`
 
-### Verdict: ✅ PASS
-All assertions correctly map to the implementation.
+**Status: ✓ MATCHES**
 
 ---
 
-## Test 4: "includes memory usage metrics" (lines 50-59)
+### Test 5: "includes delay detector status"
 
-### Test Assertions
-- `body.memory` exists
-- `body.memory.rssBytes > 0`
-- `body.memory.heapUsedBytes > 0`
-
-### Implementation (app.ts:1083-1087)
+**Test expectations:**
 ```typescript
-memory: {
-  rssBytes: memUsage.rss,
-  heapUsedBytes: memUsage.heapUsed,
-  heapTotalBytes: memUsage.heapTotal,
-  externalBytes: memUsage.external,
-}
+expect(body).toHaveProperty("delayDetector");
+expect(body.delayDetector).toHaveProperty("trackedTrips");
+expect(body.delayDetector).toHaveProperty("activeAlerts");
+expect(body.delayDetector).toHaveProperty("thresholdMultiplier");
 ```
 
-### Source (line 1016)
-```typescript
-const memUsage = process.memoryUsage();
-```
+**Implementation mapping:**
+- `app.ts:1078` calls `getDelayDetectorStatus()` which returns all expected fields
 
-### Verdict: ✅ PASS
-All assertions correctly map to the implementation. The `> 0` checks are appropriate since a running Node.js process will always have positive RSS and heap values.
-
----
-
-## Test 5: "includes delay detector status" (lines 61-69)
-
-### Test Assertions
-- `body.delayDetector` exists
-- `body.delayDetector.trackedTrips` exists
-- `body.delayDetector.activeAlerts` exists
-- `body.delayDetector.thresholdMultiplier` exists
-
-### Implementation (app.ts:1078)
-```typescript
-delayDetector: getDelayDetectorStatus(),
-```
-
-### Source (packages/server/src/delay-detector.ts:705-717)
-```typescript
-export function getDelayDetectorStatus(): {
-  trackedTrips: number;
-  activeAlerts: number;
-  thresholdMultiplier: number;
-  minTrainsForLineAlert: number;
-} {
-  return {
-    trackedTrips: trackedTrips.size,
-    activeAlerts: activePredictedAlerts.size,
-    thresholdMultiplier: config?.thresholdMultiplier ?? DEFAULT_THRESHOLD_MULTIPLIER,
-    minTrainsForLineAlert: config?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
-  };
-}
-```
-
-### Verdict: ✅ PASS
-All assertions correctly map to the implementation. The function returns an object with exactly the fields tested: `trackedTrips`, `activeAlerts`, and `thresholdMultiplier` (plus an additional `minTrainsForLineAlert` field not tested).
-
----
-
-## Documentation Verification
-
-The `/api/health` endpoint in app.ts (lines 907-1093) includes comprehensive JSDoc comments that document the response structure. The documented fields match the test expectations:
-
-**Feeds array (lines 924-943):**
-- Documented as `Array<FeedState>` with fields including `id` and `name`
-
-**Alerts object (lines 944-950):**
-- Documented with fields including `count` and `circuitOpen` (boolean)
-
-**Memory object (lines 978-982):**
-- Documented with fields including `rssBytes` and `heapUsedBytes`
-
-**Delay detector object (lines 952-956):**
-- Documented with fields including `trackedTrips`, `activeAlerts`, and `thresholdMultiplier`
+**Status: ✓ MATCHES**
 
 ---
 
 ## Conclusion
 
-**No mismatches found.** All 4 test expectations (2-5) are correctly mapped to the `/api/health` endpoint implementation in `app.ts`. The tests validate:
-1. Presence of exactly 8 subway feeds with correct IDs
-2. Alerts subsystem status including circuit breaker state
-3. Process memory usage metrics
-4. Delay detector tracking and alert status
+All 4 remaining tests in `health.e2e.ts` are **correctly implemented**. No mismatches found between test expectations and the actual `/api/health` endpoint response.
 
-The implementation is well-documented and the tests accurately reflect the documented response structure.
+### Additional fields not tested (but present):
+
+The health endpoint returns additional fields beyond what the E2E tests verify (e.g., delayPredictor, equipment, pushSubscriptions, cacheHitRate). These are present but not asserted by the current tests, which is acceptable as they focus on critical observability signals.
+
+---
+
+**Verification Date:** 2026-07-06
+**Bead ID:** bf-5jvu2
