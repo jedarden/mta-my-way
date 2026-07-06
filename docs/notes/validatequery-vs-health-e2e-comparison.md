@@ -107,6 +107,56 @@ Note: The `field` is an empty string because `unrecognized_keys` issues in Zod h
 
 `health.e2e.ts` serves its purpose as a minimal E2E smoke check: it confirms the endpoint rejects unexpected query parameters with a 400 status and a structured JSON error. The gaps (error value, details array) are covered by `api-validation.e2e.ts`, which explicitly tests Zod schema enforcement across multiple endpoints including health. Unit tests in `validation.test.ts` verify 400 status and `error` property but do not assert on `details` at runtime — the `details` shape is enforced only by TypeScript interfaces at compile time, and by the `api-validation.e2e.ts` E2E checks for presence/type. No test in the suite asserts on `details` entry content (field names or message text), which is appropriate since those are Zod-generated.
 
+## 6. Assessment: Test Specificity vs. validateQuery Response Shape
+
+### Question 1: Is omitting `details` assertions appropriate for a health endpoint smoke test?
+
+**Answer: Yes.**
+
+**Reasoning:**
+- The health.e2e.ts test is a smoke test, not a contract test. Its purpose is to verify that the endpoint rejects unexpected query parameters with a 400 status and a structured JSON error response.
+- The `details` array is an implementation detail of the validation layer (specifically the `formatZodError` function at `validation.ts:28-78`). The exact message text is Zod-generated and could change across Zod versions.
+- Checking the content of `details` entries would couple the test to Zod's error message format, which is not stable or part of the API contract.
+- Coverage exists elsewhere: `api-validation.e2e.ts:21-22` checks that `details` exists and is an array for the same `/api/health?extra=param` scenario. This provides E2E coverage of the `details` structure without coupling to specific message content.
+- The TypeScript interfaces at `validation.ts:23-26` guarantee the `details` shape at compile time.
+
+**Conclusion:** Omitting `details` assertions from health.e2e.ts is appropriate for a health endpoint smoke test. The test correctly focuses on the critical behavior (400 status + structured error) without coupling to implementation details.
+
+### Question 2: Should the `error` value be pinned to `"validation failed"`?
+
+**Answer: Optional, but not strictly necessary for health.e2e.ts.**
+
+**Reasoning:**
+- Current test only checks that `error` exists (`expect(body).toHaveProperty("error")`), which means it would pass even if the error value changed to something else (e.g., `{ error: true }` or `{ error: "something else" }`).
+- The value `"validation failed"` is an implementation detail of the validation layer, hard-coded at `validation.ts:178`. A change to this value would require a code change in `validation.ts`, making it unlikely to change unnoticed.
+- Coverage exists elsewhere: `api-validation.e2e.ts:20` explicitly asserts `expect(body.error).toBe("validation failed")` for the same scenario, providing E2E coverage of the exact value.
+- Adding `expect(body.error).toBe("validation failed")` to health.e2e.ts would be a one-line addition with low coupling and high confidence, but it would duplicate coverage already present in api-validation.e2e.ts.
+
+**Conclusion:** The `error` value should ideally be pinned for completeness, but health.e2e.ts can function without it given that api-validation.e2e.ts provides this coverage. If health.e2e.ts is intended to be self-contained for monitoring the health endpoint specifically, adding the assertion would improve test isolation.
+
+### Question 3: Are any assertions redundant?
+
+**Answer: No.**
+
+**Reasoning:**
+- **400 status assertion (`expect(response.status()).toBe(400)`):** Critical. Confirms the server rejects unexpected query parameters. This is the primary purpose of the test.
+- **`error` property assertion (`expect(body).toHaveProperty("error")`):** Critical. Confirms the response body is a structured error, not an HTML error page or empty body. Distinguishes between different 400 response types.
+- **No redundant assertions:** Each assertion checks a distinct aspect of the response. The 400 status checks HTTP behavior; the `error` property checks response structure.
+
+**No overlap with other tests:** The health.e2e.ts test and api-validation.e2e.ts test both exercise the same `/api/health?extra=param` scenario, but they serve different purposes:
+- health.e2e.ts: Verifies the health endpoint's query parameter rejection as part of health endpoint monitoring.
+- api-validation.e2e.ts: Verifies Zod schema enforcement across multiple endpoints including health, with more detailed assertions.
+
+**Conclusion:** No assertions are redundant. Each serves a distinct purpose in verifying the response's HTTP behavior and structure.
+
+### Overall Verdict
+
+The health.e2e.ts test is appropriately scoped as a minimal smoke check. It confirms:
+1. The endpoint rejects unexpected query parameters with HTTP 400
+2. The response is a structured JSON error (not HTML or empty)
+
+The gaps (error value, details array) are intentional and covered by other tests in the suite. The test achieves its purpose without coupling to implementation details.
+
 ## Summary
 
 | Check | health.e2e.ts | api-validation.e2e.ts | Overall |
