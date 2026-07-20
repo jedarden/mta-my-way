@@ -1691,4 +1691,45 @@ The following shipped features represent deliberate deviations from the original
 - `docs/plan/plan.md` - This document
 - `docs/notes/` - Implementation notes, decisions, and open question resolutions during development
 - `Dockerfile` - Multi-stage build producing the single container image
-- `cluster-configuration/apexalgo-iad/mta-my-way/` (in ardenone-cluster repo) - Kubernetes manifests for ArgoCD deployment
+- `k8s/apexalgo-iad/mta-my-way/` (in `jedarden/declarative-config`) - Kubernetes manifests for ArgoCD deployment (corrected 2026-07-20; see Section 9.2 which already had the right path — this list entry was stale)
+
+---
+
+## ADR-001: 2026-07-20 — Decouple the Core Read Path from Persistent-Volume-Backed State
+
+### Context
+
+While auditing the live deployed artifact on 2026-07-20, `mtamyway.com` was found to be unreachable (`DNS_PROBE_FINISHED_NXDOMAIN`, confirmed independently from a phone on cellular/WiFi, outside this server's Tailscale network). Read-only `kubectl` against `apexalgo-iad` (`kubectl --server=http://traefik-apexalgo-iad:8001 get pods -n mta-my-way`) showed the single `mta-my-way` pod stuck `0/1 ContainerCreating` for over 9 hours, with 292 repeated `FailedMount` events:
+
+```
+MountVolume.SetUp failed for volume "pvc-55bd460e-...": applyFSGroup failed for vol ...:
+readdirent /var/lib/kubelet/pods/.../volumes/kubernetes.io~csi/pvc-.../mount: input/output error
+```
+
+This is a Rackspace Spot Cinder CSI-layer I/O error on the `mta-my-way-data` PVC (`sata` storage class, correctly configured per workspace policy — the storage class itself is not the problem). No open bead tracked this; `deployments/prometheus/alerts.yml` has no rule for `FailedMount`/pod-not-ready conditions, only `up{job="mta-my-way"} == 0`, which a pod that never starts scraping won't reliably trigger. It went undetected for 9+ hours until this audit.
+
+The deeper issue this exposes is architectural, not just an infra hiccup: `k8s/apexalgo-iad/mta-my-way/deployment.yaml` runs `replicas: 1` with `strategy: Recreate`, one container, one required `volumeMount` at `/data` backing two SQLite databases (`DATABASE_PATH` for push subscriptions, `ALERT_HISTORY_PATH` for alert history — see `packages/server/src/push/subscriptions.ts`). Because the volumeMount is required in the pod spec, kubelet cannot start the container at all when the mount fails — which means the app cannot serve *any* traffic, including the fully in-memory, zero-persistence-required paths (`/api/arrivals/*`, `/api/stations`, `/api/routes`, `/api/alerts`, `/api/commute/analyze`, and all static PWA assets) that make up the entire stated value proposition (plan.md Section 1: "open and see your data in under three seconds"). The plan's own Risk table (Section 10) already treats push notifications as best-effort ("do not rely on push as the sole notification channel"), but the deployment topology doesn't reflect that: a storage fault in the least-critical subsystem (push/password-reset) currently takes the most-critical one (real-time arrivals) down with it. This is also the second known PVC-related incident for this app (see closed bead `bf-15tr`, a Cinder minimum-size issue) — the failure mode recurs.
+
+### Decision
+
+Split the container's responsibilities along the fault line the plan already implies:
+
+1. A stateless **core** path — GTFS-RT polling, the arrivals/stations/routes/alerts/commute-analysis endpoints, and static PWA asset serving — with zero filesystem dependency beyond the read-only, image-baked GTFS JSON in `packages/server/data/`. No PVC, no `volumeMounts`. It schedules and becomes `Ready` on any node regardless of Cinder/CSI health, and because there's no single-writer state, it can run `replicas: 2+` with a standard `RollingUpdate` strategy instead of the current `Recreate`.
+2. A **stateful** subsystem for anything requiring durable writes (push subscriptions, alert history, and the dormant auth/session/password-reset tables) that keeps the existing PVC + `Recreate` + `replicas: 1` shape, but is now allowed to be unavailable without taking the core down.
+
+Wire them as an optional dependency: the core process calls the stateful subsystem over its internal ClusterIP Service with a short timeout and circuit breaker. If it's unreachable, push/auth/password-reset endpoints degrade to `503` and `/api/health` reports that subsystem `degraded` — everything else keeps working exactly as it does today when feeds are healthy. As an incremental first step (deployable before the full manifest split), make the `better-sqlite3` opens in `packages/server/src/push/subscriptions.ts` (and the alert-history equivalent) lazy/best-effort rather than a startup-blocking call in `index.ts`, so an unwritable or corrupt `/data` doesn't crash process startup even in cases where the mount technically succeeds but the filesystem underneath is bad.
+
+### Alternatives Considered
+
+1. **Do nothing, wait for Rackspace Spot volume auto-recovery.** Rejected — this is the second known PVC incident for this app, and passive waiting leaves the entire commuter-facing product down for an unbounded window on every future storage blip.
+2. **Move to networked/replicated storage for the stateful data** (e.g., Litestream streaming SQLite to B2, as already used elsewhere in this fleet) so a single Cinder volume is never a hard dependency. Worth doing for the stateful subsystem regardless, but doesn't by itself remove the SPOF: today's single container still refuses to start serving arrivals if its own `/data` mount fails, so this only helps combined with the split below.
+3. **Increase replica count to 2+ without decoupling storage.** Rejected — SQLite is single-writer and the PVC is `ReadWriteOnce`; two replicas on different nodes can't share it.
+4. **Full microservice split into separate repos/images.** Rejected as overkill for this app's size; a two-Deployment split within the same repo/image (e.g. a `CORE_ONLY` env var selecting which routes/pollers to mount) gets most of the resilience benefit for a fraction of the operational overhead of alternative 4's full split.
+
+### Consequences
+
+- **Positive:** A future Cinder/CSI mount failure degrades push notifications and password reset only; the "check your train" core experience stays up.
+- **Positive:** Unlocks horizontal scaling and zero-downtime `RollingUpdate` deploys for the core path, which today takes a forced `Recreate` downtime window on every single push-to-main deploy, independent of PVC health.
+- **Negative:** One more moving part — an internal call from core to the stateful subsystem, plus its own Service/Deployment manifest set in `declarative-config` — instead of one container doing everything.
+- **Neutral:** Does not fix the underlying Rackspace Spot Cinder I/O error itself; that's an infra-layer fault tracked separately. This decision is about not letting that class of fault take the whole product down.
+- **Follow-up work** (filed as beads, see `.beads/` in this repo): pin the deployed image off `:latest`, add alerting for `FailedMount`/pod-not-ready conditions, make the SQLite opens lazy as the incremental first step, and — once the core path can no longer be dragged down by it — actually finish wiring the mostly-built-but-disabled OAuth/session framework (see `docs/authorization-audit.md`) to ship opt-in cross-device favorites sync, since it becomes safer to depend on once a fault in it can't take the whole app down anymore.
