@@ -30,8 +30,9 @@ export {
   propagation,
   trace,
   SpanStatusCode,
-  TracerProvider,
 } from "@opentelemetry/api";
+
+export type { TracerProvider } from "@opentelemetry/api";
 
 // Type-only re-exports for use by consumers
 export type {
@@ -43,13 +44,13 @@ export type {
   SpanContext,
   SpanOptions,
   SpanStatus,
-  TimedEvent,
   Tracer,
-  TracerConfig,
+  TracerOptions,
 } from "@opentelemetry/api";
 
 // Aliased type exports for backward compatibility
-export type { Span as OTelSpan, SpanContext as OTelSpanContext, Tracer as OTelTracer };
+import type { Span as _Span, SpanContext as _SpanContext, Tracer as _Tracer } from "@opentelemetry/api";
+export type { _Span as OTelSpan, _SpanContext as OTelSpanContext, _Tracer as OTelTracer };
 
 // ============================================================================
 // Configuration types

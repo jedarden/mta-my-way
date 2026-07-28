@@ -348,7 +348,6 @@ export {
 // Distributed tracing (W3C tracecontext)
 export {
   tracer,
-  Tracer,
   withChildSpan,
   recordEvent,
   setSpanAttribute,
@@ -356,8 +355,6 @@ export {
   getCurrentSpanId,
   generateTraceId,
   generateSpanId,
-  type Span,
-  type SpanContext,
   type ExportedSpan,
 } from "./observability/tracing.js";
 
@@ -368,7 +365,6 @@ export {
   propagation,
   trace,
   SpanStatusCode,
-  TracerProvider,
   resolveOtelConfig,
   parseHeaders,
   detectOtlpProtocol,
@@ -382,7 +378,8 @@ export {
   type SpanAttributes,
   type SpanOptions,
   type SpanStatus,
-  type OTelSpan as Span,
-  type OTelSpanContext as SpanContext,
-  type OTelTracer as Tracer,
+  type Span,
+  type SpanContext,
+  type Tracer,
+  type TracerProvider,
 } from "./observability/otel.js";
