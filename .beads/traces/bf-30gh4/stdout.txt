@@ -1,9 +1,0 @@
-Done. Summary:
-
-| Item | Result |
-|------|--------|
-| **Workflow** | `mta-my-way-build-dt59x` submitted on iad-ci |
-| **Lint step** | **Passed** — node status `Succeeded` |
-| **Biome** | 563 files checked, no fixes applied |
-| **ESLint** | Exited with code 0, no errors |
-| **Only warning** | `.eslintignore` deprecation (informational, not an error) |
