@@ -59,41 +59,6 @@ function estimateResponseSize(response: Response): number | undefined {
 }
 
 /**
- * Check if response should be streamed based on content type and size.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function shouldStream(
-  contentType: string | null,
-  estimatedSize: number | undefined,
-  options: Required<Omit<ResponseSizeLimitOptions, "excludePaths">>
-): boolean {
-  if (!estimatedSize) {
-    return false;
-  }
-
-  // Stream if size exceeds threshold
-  if (estimatedSize > options.streamThreshold) {
-    return true;
-  }
-
-  // Stream certain content types regardless of size
-  if (contentType) {
-    const streamTypes = [
-      "video/",
-      "audio/",
-      "application/octet-stream",
-      "application/pdf",
-      "application/zip",
-    ];
-    if (streamTypes.some((type) => contentType.startsWith(type))) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * Response size limit middleware.
  *
  * Validates response body size and applies appropriate limits

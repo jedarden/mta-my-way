@@ -251,6 +251,7 @@ export type Permission =
   | "predictions:create"
   | "predictions:read"
   | "predictions:read:own"
+  | "admin:users:create"
   | "admin:users:read"
   | "admin:users:update"
   | "admin:users:delete"

@@ -144,12 +144,6 @@ export interface TokenRevocation {
 const tokenUsageRecords = new Map<string, TokenUsageRecord[]>();
 
 /**
- * Device fingerprint storage.
- * Reserved for future device tracking features.
- */
-const _deviceFingerprints = new Map<string, DeviceFingerprint>();
-
-/**
  * Token revocation list.
  */
 const tokenRevocations = new Map<string, TokenRevocation>();

@@ -11,8 +11,6 @@
  * - Rate limiting outbound requests
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { logger } from "../observability/logger.js";
 import { securityLogger } from "./security-logging.js";
 
 // ============================================================================

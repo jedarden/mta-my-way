@@ -26,14 +26,11 @@ import {
   queryAuditLog,
 } from "./audit-log.js";
 import {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type ApiKey,
   getApiKeyById,
   getRegisteredApiKeys,
   revokeApiKey,
 } from "./authentication.js";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { type Permission, getRbacAuthContext, requirePermission, requireRole } from "./rbac.js";
+import { type Permission, getRbacAuthContext, requirePermission } from "./rbac.js";
 import { securityLogger } from "./security-logging.js";
 
 // ============================================================================

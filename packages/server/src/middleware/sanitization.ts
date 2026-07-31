@@ -23,13 +23,6 @@ const SCRIPT_STYLE_PATTERN = /<(script|style)[^>]*>.*?<\/\1[^>]*>/gi;
 const HTML_TAG_PATTERN = /<[^>]*>/gi;
 
 /**
- * Self-closing HTML tag pattern.
- * Matches self-closing tags like <br />, <img />, etc.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SELFCLOSING_TAG_PATTERN = /<[^>]*\/>/gi;
-
-/**
  * JavaScript event handler pattern.
  * Matches on* attributes that could execute JavaScript.
  */

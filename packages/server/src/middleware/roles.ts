@@ -85,6 +85,7 @@ const ADMIN_PERMISSIONS: Permission[] = [
   // Full predictions access
   "predictions:read",
   // Admin permissions
+  "admin:users:create",
   "admin:users:read",
   "admin:users:update",
   "admin:users:delete",

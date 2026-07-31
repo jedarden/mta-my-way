@@ -20,22 +20,6 @@ const SUPPORTED_CONTENT_TYPES = [
 ] as const;
 
 /**
- * Check if a content type is supported.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function isSupportedContentType(contentType: string | null): boolean {
-  if (!contentType) return false;
-
-  // Extract the base content type (before charset or other parameters)
-  const baseContentType = contentType.split(";")[0]!.trim().toLowerCase();
-
-  return SUPPORTED_CONTENT_TYPES.some((supported) => {
-    const supportedBase = supported.split(";")[0]!.trim().toLowerCase();
-    return baseContentType === supportedBase;
-  });
-}
-
-/**
  * Content-Type validation options.
  */
 interface ContentTypeOptions {

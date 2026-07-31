@@ -85,32 +85,6 @@ export interface ResourceOwner {
   isPublic: boolean;
 }
 
-/**
- * Extract owner identifier from a push subscription endpoint.
- * The endpoint itself serves as the owner identifier since it's unique per device.
- */
-function _extractSubscriptionOwner(endpoint: string): ResourceOwner {
-  return { ownerId: endpoint, isPublic: false };
-}
-
-/**
- * Extract owner identifier from a trip ID.
- * For manual trips, the trip ID contains a timestamp-based component.
- * For API-tracked trips, ownership should be validated via session.
- */
-function _extractTripOwner(tripId: string): ResourceOwner {
-  // Trip IDs are UUIDs - ownership is validated via database lookup
-  // In a real system, trips would have a userId field
-  return { ownerId: tripId, isPublic: false };
-}
-
-/**
- * Extract owner from a commute ID.
- */
-function _extractCommuteOwner(commuteId: string): ResourceOwner {
-  return { ownerId: commuteId, isPublic: false };
-}
-
 // ============================================================================
 // Authorization Middleware
 // ============================================================================
@@ -398,7 +372,7 @@ export function validateDataAccess(resourceType: ResourceType): MiddlewareHandle
  */
 export function checkAuthorization(
   c: Context,
-  resourceType: ResourceType,
+  _resourceType: ResourceType,
   action: PermissionAction
 ): AuthorizationResult {
   const auth = getAuthContext(c);

@@ -33,8 +33,6 @@ import {
   savePasswordResetAttempt,
 } from "../security/security-db.js";
 import { sanitizeStringSimple } from "./sanitization.js";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { securityLogger } from "./security-logging.js";
 
 // ============================================================================
 // Password Policy Configuration
@@ -1073,22 +1071,12 @@ const ARGON2_OPTIONS: argon2.Options = {
  * NOTE: PBKDF2 is kept for backward compatibility with existing hashes.
  * New passwords should use Argon2id.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const PBKDF2_ITERATIONS = 600_000;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const PBKDF2_HASH_LENGTH = 32;
 
 /**
  * Password reset token configuration.
  */
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const RESET_TOKEN_LENGTH = 32; // bytes
-
-/**
- * Password validation rate limiting.
- */
-const PASSWORD_VALIDATION_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_PASSWORD_VALIDATIONS_PER_MINUTE = 10;
 
 /**
  * Password reset attempt tracking configuration.
@@ -1110,7 +1098,6 @@ const TOKEN_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 const passwordResetTokens = new Map<string, PasswordResetToken>();
 const passwordHistory = new Map<string, PasswordHistoryEntry[]>();
-const passwordValidationAttempts = new Map<string, { count: number; resetAt: number }>();
 
 /**
  * Password reset attempt tracking.
@@ -2058,8 +2045,7 @@ export async function hashPassword(password: string): Promise<PasswordHash> {
 export async function verifyPasswordHash(
   password: string,
   hash: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  salt: string
+  _salt: string
 ): Promise<boolean> {
   // Validate inputs
   if (!password || password.length === 0) {
@@ -2129,30 +2115,6 @@ export function clearPasswordHistory(keyId: string): number {
 // ============================================================================
 // Password Reset Flow
 // ============================================================================
-
-/**
- * Rate limit password validation attempts to prevent enumeration attacks.
- * @private Reserved for future use
- */
-function _checkPasswordValidationRateLimit(clientIp: string): boolean {
-  const now = Date.now();
-  const record = passwordValidationAttempts.get(clientIp);
-
-  if (!record || now > record.resetAt) {
-    passwordValidationAttempts.set(clientIp, {
-      count: 1,
-      resetAt: now + PASSWORD_VALIDATION_WINDOW_MS,
-    });
-    return true;
-  }
-
-  if (record.count >= MAX_PASSWORD_VALIDATIONS_PER_MINUTE) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-}
 
 /**
  * Generate a device fingerprint from user agent for token verification.

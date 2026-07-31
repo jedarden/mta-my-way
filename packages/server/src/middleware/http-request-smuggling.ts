@@ -16,15 +16,8 @@
  * - Logs suspicious smuggling attempts
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Context, MiddlewareHandler } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { securityLogger } from "./security-logging.js";
-
-/**
- * Transfer-Encoding patterns that may indicate smuggling attempts.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SUSPICIOUS_TRANSFER_ENCODING = ["chunked", "gzip", "deflate", "compress", "identity", "br"];
 
 /**
  * Patterns that indicate potential request smuggling attempts.
@@ -52,25 +45,6 @@ const SMUGGLING_PATTERNS = [
  * Standard HTTP headers that should not be checked for smuggling patterns
  * (they are validated separately)
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const STANDARD_HEADERS = new Set([
-  "content-length",
-  "transfer-encoding",
-  "content-type",
-  "content-encoding",
-  "accept",
-  "accept-encoding",
-  "authorization",
-  "host",
-  "connection",
-  "cache-control",
-  "user-agent",
-  "referer",
-  "origin",
-  "sec-",
-  "x-",
-]);
-
 /**
  * Check if a header value contains suspicious patterns.
  */
