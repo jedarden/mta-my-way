@@ -44,8 +44,6 @@ const SUSPICIOUS_REFERER_PATTERN = /(javascript:|data:|<[^>]*>|on\w+\s*=)/i;
  * Patterns for detecting potential header-based attacks.
  */
 const HOST_INJECTION_PATTERN = /[^\w\-.:]/;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const AUTHORIZATION_PATTERN = /[^\w\-.~=+/]/;
 
 /**
  * Header validation options.

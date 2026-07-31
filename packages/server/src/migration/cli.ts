@@ -43,7 +43,6 @@ const asyncAction =
 // ============================================================================
 
 const DEFAULT_DB_PATH = "./packages/server/data/subscriptions.db";
-const _MIGRATIONS_DIR = "./packages/server/src/migration/migrations";
 
 // ============================================================================
 // Utility Functions

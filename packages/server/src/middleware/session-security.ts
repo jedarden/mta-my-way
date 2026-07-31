@@ -466,10 +466,6 @@ export async function assessSessionRisk(
 ): Promise<SessionRiskAssessment> {
   const {
     eventHistoryWindow = 24 * 60 * 60 * 1000, // 24 hours
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    includeGeolocation = false,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    knownGeo,
   } = options;
 
   const riskFactors: string[] = [];
@@ -837,8 +833,6 @@ export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {}) 
   const {
     enforceIpBinding = true,
     checkUserAgent = true,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    riskThreshold = 80,
     reauthOnHighRisk = true,
   } = options;
 

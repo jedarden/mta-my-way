@@ -13,12 +13,6 @@
 
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  generateCsrfToken as generateAuthCsrfToken,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getSessionCsrfToken,
-} from "./authentication.js";
 import { securityLogger } from "./security-logging.js";
 
 // ============================================================================
@@ -80,12 +74,6 @@ const DEFAULT_OPTIONS: Required<Omit<CsrfProtectionOptions, "excludePaths">> = {
  * Safe HTTP methods that don't require CSRF protection.
  */
 const SAFE_METHODS = ["GET", "HEAD", "OPTIONS", "TRACE"];
-
-/**
- * State-changing methods that require CSRF protection.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const UNSAFE_METHODS = ["POST", "PUT", "DELETE", "PATCH"];
 
 // ============================================================================
 // Token Storage

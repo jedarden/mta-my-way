@@ -75,16 +75,6 @@ export interface SessionCookieOptions extends CookieSecurityOptions {
   cookieName?: string;
 }
 
-/**
- * Signed cookie data format.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface SignedCookieData {
-  value: string;
-  signature: string;
-  timestamp: number;
-}
-
 // ============================================================================
 // Cookie Signing
 // ============================================================================
@@ -194,8 +184,6 @@ export function buildCookieString(
     path = "/",
     domain,
     maxAge,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    signed = true,
   } = options;
 
   let cookie = `${name}=${value}`;
@@ -603,10 +591,6 @@ export function cookieSessionAuth(
   const {
     sessionCookieName = "session_token",
     csrfCookieName = "csrf_token",
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    csrfHeaderName = "x-csrf-token",
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    csrfCookieOptions,
   } = options;
 
   return async (c, next) => {

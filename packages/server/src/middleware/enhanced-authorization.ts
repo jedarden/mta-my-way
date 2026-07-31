@@ -13,8 +13,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logAuthorizationFailure, logAuthorizationSuccess, logDataAccess } from "./audit-log.js";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { type AuthContext, getAuthContext } from "./authentication.js";
 import {
   type Permission,
   type RbacAuthContext,
@@ -23,15 +21,7 @@ import {
   hasAllPermissions,
   hasAnyPermission,
   hasPermission,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  requireOwnershipOrAdmin,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  requirePermission,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  requireRole,
 } from "./rbac.js";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { securityLogger } from "./security-logging.js";
 
 // ============================================================================
 // Types

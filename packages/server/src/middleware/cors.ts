@@ -67,9 +67,8 @@ const PRIVATE_NETWORK_PATTERNS = [
  */
 function isPrivateNetworkOrigin(origin: string): boolean {
   try {
-    const url = new URL(origin);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const hostname = url.hostname;
+    // Validate that the origin parses as a URL before pattern-matching it.
+    new URL(origin);
 
     return PRIVATE_NETWORK_PATTERNS.some((pattern) => pattern.test(origin));
   } catch {
@@ -154,17 +153,11 @@ function validateOrigin(
  */
 export function cors(options: CorsOptions = {}): MiddlewareHandler {
   const {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    allowedOrigins = [],
     allowedMethods = DEFAULT_ALLOWED_METHODS,
     allowedHeaders = DEFAULT_ALLOWED_HEADERS,
     exposedHeaders = [],
     allowCredentials = false,
     maxAge = DEFAULT_MAX_AGE,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    blockPrivateNetworks = true,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    blockNullOrigin = true,
     logRejections = true,
   } = options;
 

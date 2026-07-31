@@ -535,7 +535,7 @@ function resolveSessionConflict(
 function terminateSessionAndContinue(
   keyId: string,
   sessionIdToTerminate: string,
-  newSession: AuthSession,
+  _newSession: AuthSession,
   existingSessions: EnhancedSession[],
   reason: string
 ): SessionConflictResult {

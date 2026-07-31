@@ -12,8 +12,6 @@
  */
 
 import type { Context, MiddlewareHandler } from "hono";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
 import {
   saveApiKey as dbSaveApiKey,
@@ -23,8 +21,6 @@ import {
 import {
   type ApiKey,
   type ApiKeyScope,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type AuthContext,
   type Permission,
   type UserRole,
   assignRoleToApiKey,
@@ -37,16 +33,7 @@ import {
   revokeApiKey,
   revokePermissionsFromApiKey,
 } from "./authentication.js";
-import {
-  type RbacAuthContext,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getRbacAuthContext,
-  requireOwnershipOrAdmin,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  requirePermission,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  requireRole,
-} from "./rbac.js";
+import { type RbacAuthContext, requireOwnershipOrAdmin } from "./rbac.js";
 import { securityLogger } from "./security-logging.js";
 
 // ============================================================================
