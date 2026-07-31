@@ -30,45 +30,49 @@ function formatZodError(error: ZodError): ValidationErrorDetail[] {
     // For nested objects, join the path with dots
     const field = issue.path.map((p) => (typeof p === "number" ? `[${p}]` : p)).join(".");
 
-    if (issue.code === ZodIssueCode.invalid_enum_value) {
+    // zod v4 replaced the `invalid_enum_value` code with `invalid_value`,
+    // and renamed the enum members from `options` to `values`.
+    if (issue.code === ZodIssueCode.invalid_value) {
       return {
         field,
-        message: `Must be one of: ${issue.options.join(", ")}`,
+        message: `Must be one of: ${issue.values.join(", ")}`,
       };
     }
 
+    // zod v4 renamed the `type` discriminator on size issues to `origin`,
+    // and reports z.int() as "int" alongside "number".
     if (issue.code === ZodIssueCode.too_small) {
-      if (issue.type === "string") {
+      if (issue.origin === "string") {
         return {
           field,
           message: issue.message || `String must be at least ${issue.minimum} character(s)`,
         };
       }
-      if (issue.type === "array") {
+      if (issue.origin === "array") {
         return {
           field,
           message: issue.message || `Array must contain at least ${issue.minimum} item(s)`,
         };
       }
-      if (issue.type === "number") {
+      if (issue.origin === "number" || issue.origin === "int") {
         return { field, message: issue.message || `Number must be at least ${issue.minimum}` };
       }
     }
 
     if (issue.code === ZodIssueCode.too_big) {
-      if (issue.type === "string") {
+      if (issue.origin === "string") {
         return {
           field,
           message: issue.message || `String must be at most ${issue.maximum} character(s)`,
         };
       }
-      if (issue.type === "array") {
+      if (issue.origin === "array") {
         return {
           field,
           message: issue.message || `Array must contain at most ${issue.maximum} item(s)`,
         };
       }
-      if (issue.type === "number") {
+      if (issue.origin === "number" || issue.origin === "int") {
         return { field, message: issue.message || `Number must be at most ${issue.maximum}` };
       }
     }

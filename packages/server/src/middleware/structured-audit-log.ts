@@ -245,12 +245,17 @@ const DEFAULT_SENSITIVE_PATTERNS: SensitivePattern[] = [
 /**
  * Default retention policies by compliance category.
  */
+const FALLBACK_RETENTION_POLICY: RetentionPolicy = {
+  retentionDays: 90,
+  archiveBeforeDeletion: false,
+}; // 90 days
+
 const DEFAULT_RETENTION_POLICIES: Record<string, RetentionPolicy> = {
   soc2: { retentionDays: 2555, archiveBeforeDeletion: true }, // 7 years
   hipaa: { retentionDays: 2190, archiveBeforeDeletion: true }, // 6 years
   gdpr: { retentionDays: 0, archiveBeforeDeletion: false }, // Indefinite until user request
   pciDss: { retentionDays: 365, archiveBeforeDeletion: true }, // 1 year
-  default: { retentionDays: 90, archiveBeforeDeletion: false }, // 90 days
+  default: FALLBACK_RETENTION_POLICY,
 };
 
 // ============================================================================
@@ -418,7 +423,9 @@ export function logAuditEventFromContext(
   const userAgent = c.req.header("User-Agent");
 
   // Extract actor information from context (if available)
-  const actor = c.get("auth") as { keyId?: string; role?: string; sessionId?: string } | undefined;
+  const actor = c.get("auth") as
+    | { userId?: string; keyId?: string; role?: string; sessionId?: string }
+    | undefined;
 
   const event: StructuredAuditEvent = {
     metadata: {
@@ -432,7 +439,7 @@ export function logAuditEventFromContext(
     outcome: params.outcome,
     action: params.action,
     actor: {
-      userId: actor?.userId as string | undefined,
+      userId: actor?.userId,
       keyId: actor?.keyId,
       sessionId: actor?.sessionId,
       role: actor?.role,
@@ -697,7 +704,7 @@ export function generateComplianceReport(params: {
  * @returns Retention policy
  */
 export function getRetentionPolicy(compliance: string): RetentionPolicy {
-  return DEFAULT_RETENTION_POLICIES[compliance] || DEFAULT_RETENTION_POLICIES.default;
+  return DEFAULT_RETENTION_POLICIES[compliance] || FALLBACK_RETENTION_POLICY;
 }
 
 /**
@@ -724,7 +731,7 @@ export function applyRetentionPolicies(): number {
     const eventTime = new Date(event.timestamp).getTime();
 
     // Check compliance-specific retention
-    let retentionDays = DEFAULT_RETENTION_POLICIES.default.retentionDays;
+    let retentionDays = FALLBACK_RETENTION_POLICY.retentionDays;
     for (const [compliance, enabled] of Object.entries(event.compliance || {})) {
       if (enabled) {
         const policy = DEFAULT_RETENTION_POLICIES[compliance];
@@ -853,7 +860,7 @@ export function detectSecurityIncidents(): Array<{
     if (events.length >= 5) {
       incidents.push({
         type: "brute_force",
-        severity: "high",
+        severity: "error",
         description: `Potential brute force attack from IP ${ip} (${events.length} failed attempts)`,
         events,
       });

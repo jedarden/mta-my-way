@@ -86,8 +86,11 @@ export function responseSizeLimits(options: ResponseSizeLimitOptions = {}): Midd
     const originalJson = c.json.bind(c);
 
     // Override json method to check response size
-    c.json = (data: unknown, status = 200, headers = {}) => {
-      const response = originalJson(data, status, headers);
+    type JsonFn = (data: unknown, status?: unknown, headers?: unknown) => Response;
+    const rawJson = originalJson as unknown as JsonFn;
+
+    c.json = ((data: unknown, status: unknown = 200, headers: unknown = {}) => {
+      const response = rawJson(data, status, headers);
 
       // Estimate JSON size
       const jsonString = JSON.stringify(data);
@@ -95,11 +98,12 @@ export function responseSizeLimits(options: ResponseSizeLimitOptions = {}): Midd
 
       // Check JSON size limit
       if (jsonSize > maxJsonSize) {
-        securityLogger.logBlockedAttack(c, "json_response_size_limit", {
-          actualSize: jsonSize,
-          maxSize: maxJsonSize,
-        });
-        return originalJson(
+        securityLogger.logBlockedAttack(
+          c,
+          "json_response_size_limit",
+          `JSON response of ${jsonSize} bytes exceeds the ${maxJsonSize} byte limit`
+        );
+        return rawJson(
           {
             error: "Response too large",
             maxSize: maxJsonSize,
@@ -110,7 +114,7 @@ export function responseSizeLimits(options: ResponseSizeLimitOptions = {}): Midd
       }
 
       return response;
-    };
+    }) as typeof c.json;
 
     await next();
 
@@ -127,11 +131,11 @@ export function responseSizeLimits(options: ResponseSizeLimitOptions = {}): Midd
 
     // Check if size limit is exceeded
     if (estimatedSize && estimatedSize > maxSize) {
-      securityLogger.logBlockedAttack(c, "response_size_limit", {
-        actualSize: estimatedSize,
-        maxSize,
-        contentType,
-      });
+      securityLogger.logBlockedAttack(
+        c,
+        "response_size_limit",
+        `Response of ${estimatedSize} bytes (${contentType ?? "unknown"}) exceeds the ${maxSize} byte limit`
+      );
 
       // Override response with error
       c.res = originalJson(
@@ -157,10 +161,11 @@ export function responseSizeLimits(options: ResponseSizeLimitOptions = {}): Midd
     // Log large responses for monitoring
     if (estimatedSize && estimatedSize > 1024 * 1024) {
       // Log responses > 1MB
-      securityLogger.logSecurityEvent(c, "large_response", {
-        size: estimatedSize,
-        contentType: contentType || "unknown",
-      });
+      securityLogger.logUnusualActivity(
+        c,
+        "large_response",
+        `Response of ${estimatedSize} bytes (${contentType || "unknown"})`
+      );
     }
   };
 }

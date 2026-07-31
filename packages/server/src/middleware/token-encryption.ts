@@ -68,7 +68,7 @@ export interface KeyDerivationOptions {
  */
 let encryptionConfig: {
   masterKey: CryptoKey;
-  masterKeyRaw: Uint8Array;
+  masterKeyRaw: Uint8Array<ArrayBuffer>;
   version: number;
 } | null = null;
 
@@ -174,7 +174,7 @@ export async function deriveEncryptionKey(
   const fullContext = contextOption || context;
 
   // Use provided salt or derive a deterministic salt from the context
-  let saltBytes: Uint8Array;
+  let saltBytes: Uint8Array<ArrayBuffer>;
   if (salt) {
     saltBytes = new TextEncoder().encode(salt);
   } else {
@@ -359,7 +359,7 @@ export async function encryptTokens(tokens: string[], context?: string): Promise
       const encrypted = await encryptToken(token, context);
       results.push(encrypted);
     } catch (error) {
-      logger.error("Failed to encrypt token", { error });
+      logger.error("Failed to encrypt token", error as Error);
       throw error;
     }
   }
@@ -381,7 +381,7 @@ export async function decryptTokens(
       const decrypted = await decryptToken(encrypted, context);
       results.push(decrypted);
     } catch (error) {
-      logger.error("Failed to decrypt token", { error, version: encrypted.version });
+      logger.error("Failed to decrypt token", error as Error, { version: encrypted.version });
       throw error;
     }
   }
@@ -485,7 +485,7 @@ export async function reencryptTokens(
       const reencrypted = await reencryptToken(oldEncrypted, context);
       results.push(reencrypted);
     } catch (error) {
-      logger.error("Failed to re-encrypt token", { error, version: oldEncrypted.version });
+      logger.error("Failed to re-encrypt token", error as Error, { version: oldEncrypted.version });
       throw error;
     }
   }

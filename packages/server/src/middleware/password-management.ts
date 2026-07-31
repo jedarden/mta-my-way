@@ -1967,7 +1967,7 @@ async function checkBreachedPassword(
 
     return { breached: false, count: 0 };
   } catch (error) {
-    logger.warn("Error checking breached password", error as Error);
+    logger.warn("Error checking breached password", { error: String(error) });
     return { breached: false, count: 0 };
   }
 }
@@ -2019,7 +2019,7 @@ export async function hashPassword(password: string): Promise<PasswordHash> {
   // Extract the salt from the encoded hash
   // Argon2 format: $argon2id$v=19$m=65536,t=3,p=4$salt$hash
   const parts = hash.split("$");
-  const salt = parts[4]; // Extract salt from encoded hash
+  const salt = parts[4] ?? ""; // Extract salt from encoded hash
 
   return {
     hash,

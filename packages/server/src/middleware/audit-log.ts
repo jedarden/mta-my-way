@@ -185,7 +185,7 @@ export function addAuditEvent(event: Omit<AuditEvent, "id" | "timestamp">): stri
           ? "warn"
           : "info";
 
-  logger[logLevel]("Audit event", {
+  const auditContext = {
     id: auditEvent.id,
     category: auditEvent.category,
     action: auditEvent.action,
@@ -193,7 +193,13 @@ export function addAuditEvent(event: Omit<AuditEvent, "id" | "timestamp">): stri
     performedBy: auditEvent.performedBy,
     resourceType: auditEvent.resourceType,
     resourceId: auditEvent.resourceId,
-  });
+  };
+
+  if (logLevel === "error") {
+    logger.error("Audit event", undefined, auditContext);
+  } else {
+    logger[logLevel]("Audit event", auditContext);
+  }
 
   return auditEvent.id;
 }
