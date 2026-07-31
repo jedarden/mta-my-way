@@ -346,6 +346,10 @@ function buildPositionsMap(
         currentStopId: pos.currentStopId,
         timestamp: pos.timestamp,
         isAssigned: pos.isAssigned,
+        // The vehicle-position feed carries no reroute/express signal; those are
+        // derived from trip updates in the transformer. Default to false here.
+        isRerouted: false,
+        isExpress: false,
         destination: destName || "Unknown",
         delay: pos.delay,
       };

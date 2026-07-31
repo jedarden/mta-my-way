@@ -17,9 +17,9 @@ import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
 import {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type ApiKey,
   type AuthContext,
+  type Permission,
+  type UserRole,
   assignRoleToApiKey as authAssignRole,
   getApiKeyPermissions as authGetApiKeyPermissions,
   grantPermissionsToApiKey as authGrantPermissions,
@@ -30,7 +30,7 @@ import { getRolePermissions as getRolePerms } from "./roles.js";
 import { securityLogger } from "./security-logging.js";
 
 // Re-export the types from authentication for convenience
-export type { UserRole, Permission } from "./authentication.js";
+export type { UserRole, Permission };
 
 // Re-export getRolePermissions from roles.ts for backward compatibility
 export { getRolePerms as getRolePermissions };
@@ -319,9 +319,9 @@ export function isRoleHigher(role1: UserRole, role2: UserRole): boolean {
  * Get the highest role from a list of roles.
  */
 export function getHighestRole(roles: UserRole[]): UserRole | null {
-  if (roles.length === 0) return null;
-
   let highest = roles[0];
+  if (highest === undefined) return null;
+
   for (const role of roles) {
     if (isRoleHigher(role, highest)) {
       highest = role;

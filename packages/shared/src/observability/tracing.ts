@@ -134,7 +134,12 @@ export class Tracer {
       return null;
     }
 
-    const [, traceId, spanId, sampled] = parts;
+    const traceId = parts[1];
+    const spanId = parts[2];
+    const sampled = parts[3];
+    if (!traceId || !spanId || !sampled) {
+      return null;
+    }
     return {
       traceId,
       spanId,

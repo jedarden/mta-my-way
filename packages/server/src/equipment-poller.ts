@@ -168,10 +168,11 @@ function parseENEFeed(xml: string): RawOutage[] {
   let match;
 
   while ((match = outageRegex.exec(xml)) !== null) {
-    const block = match[1];
+    // Group 1 always exists when the outage regex matches.
+    const block = match[1] ?? "";
     const getTag = (tag: string): string => {
       const tagMatch = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
-      return tagMatch ? tagMatch[1].trim() : "";
+      return tagMatch?.[1]?.trim() ?? "";
     };
 
     outages.push({
@@ -202,13 +203,14 @@ function parseENEDate(dateStr: string): number | undefined {
   const match = cleaned.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)/i);
   if (!match) return undefined;
 
-  const month = parseInt(match[1], 10) - 1;
-  const day = parseInt(match[2], 10);
-  const year = parseInt(match[3], 10);
-  let hour = parseInt(match[4], 10);
-  const minute = parseInt(match[5], 10);
-  const second = parseInt(match[6], 10);
-  const ampm = match[7].toUpperCase();
+  // All seven groups are non-optional in the pattern, so a match guarantees them.
+  const month = parseInt(match[1]!, 10) - 1;
+  const day = parseInt(match[2]!, 10);
+  const year = parseInt(match[3]!, 10);
+  let hour = parseInt(match[4]!, 10);
+  const minute = parseInt(match[5]!, 10);
+  const second = parseInt(match[6]!, 10);
+  const ampm = match[7]!.toUpperCase();
 
   if (ampm === "PM" && hour !== 12) hour += 12;
   if (ampm === "AM" && hour === 12) hour = 0;

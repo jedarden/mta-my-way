@@ -27,8 +27,6 @@ import { HTTPException } from "hono/http-exception";
 import { logger } from "../observability/logger.js";
 import { getRolePermissions } from "./roles.js";
 import {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  sanitizeObject,
   sanitizeStringSimple,
   validateApiKeyFormat,
   validateSessionTokenFormat,
@@ -37,13 +35,9 @@ import {
 import { securityLogger } from "./security-logging.js";
 import {
   type EncryptedData,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  configureEncryption,
   decryptToken,
   encryptToken,
   generateTokenFingerprint,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  hashToken,
   isEncryptionConfigured,
 } from "./token-encryption.js";
 
@@ -158,13 +152,21 @@ function timingSafeEqual(a: string, b: string): boolean {
     return false;
   }
 
-  // Use Web Crypto API for timing-safe comparison if available
-  if (typeof crypto !== "undefined" && crypto.subtle && crypto.subtle.timingSafeEqual) {
+  // Use Web Crypto API for timing-safe comparison if available.
+  // `timingSafeEqual` is a runtime extension (Node, Workers), not part of the
+  // standard SubtleCrypto lib type, so it is feature-detected through a cast.
+  const subtle = typeof crypto !== "undefined" ? crypto.subtle : undefined;
+  const subtleTimingSafeEqual = (
+    subtle as
+      | (SubtleCrypto & { timingSafeEqual?: (a: Uint8Array, b: Uint8Array) => boolean })
+      | undefined
+  )?.timingSafeEqual;
+  if (subtle && subtleTimingSafeEqual) {
     const encoder = new TextEncoder();
     const bufferA = encoder.encode(a);
     const bufferB = encoder.encode(b);
     try {
-      return crypto.subtle.timingSafeEqual(bufferA, bufferB);
+      return subtleTimingSafeEqual.call(subtle, bufferA, bufferB);
     } catch {
       // Fall through to manual implementation if timingSafeEqual fails
     }
@@ -303,6 +305,11 @@ export interface ApiKey {
   lastFailedAt?: number;
   /** Whether key is temporarily locked out */
   lockedUntil?: number;
+  /**
+   * Free-form bag for key lifecycle bookkeeping (rotation backups, counters).
+   * Consumers must narrow values before use.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -696,8 +703,8 @@ export function resetAuthenticationState(): void {
 export async function registerApiKey(apiKey: ApiKey): Promise<void> {
   // Ensure the key has required fields for lockout
   const fullKey: ApiKey = {
-    failedAttempts: 0,
     ...apiKey,
+    failedAttempts: apiKey.failedAttempts ?? 0,
   };
 
   apiKeys.set(fullKey.keyId, fullKey);
@@ -1153,7 +1160,6 @@ async function verifyApiKeySecret(keyId: string, secret: string): Promise<boolea
 // ============================================================================
 
 const SESSION_TTL_MS = 86_400_000; // 24 hours
-const _MAX_SESSIONS_PER_KEY = 100;
 const SESSION_METADATA_MAX_KEYS = 20;
 const SESSION_METADATA_MAX_VALUE_LENGTH = 500;
 
@@ -1243,14 +1249,15 @@ function sanitizeSessionMetadata(
     if (Array.isArray(value)) {
       // Limit array size
       const maxArraySize = 100;
-      if (value.length > maxArraySize) {
+      let items: unknown[] = value;
+      if (items.length > maxArraySize) {
         logger.warn("Session metadata array exceeds maximum size", {
-          length: value.length,
+          length: items.length,
           maxSize: maxArraySize,
         });
-        value = value.slice(0, maxArraySize);
+        items = items.slice(0, maxArraySize);
       }
-      return value.map((item) => sanitizeValue(item, depth + 1));
+      return items.map((item) => sanitizeValue(item, depth + 1));
     }
 
     // Handle nested objects
@@ -1352,8 +1359,10 @@ function detectBrowserFamily(userAgent: string): string | undefined {
 /**
  * Get or create device fingerprint record.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function getOrCreateDevice(userAgent: string, clientIp: string): Promise<DeviceFingerprint> {
+async function getOrCreateDevice(
+  userAgent: string,
+  _clientIp: string
+): Promise<DeviceFingerprint> {
   const deviceId = await generateDeviceFingerprint(userAgent);
   const existing = deviceFingerprints.get(deviceId);
 
@@ -1387,7 +1396,7 @@ export function getSessionCountByDeviceType(keyId: string): Record<string, numbe
     (s) => s.keyId === keyId && s.active && s.expiresAt > Date.now()
   );
 
-  const counts: Record<string, number> = {
+  const counts = {
     mobile: 0,
     desktop: 0,
     tablet: 0,
@@ -1398,7 +1407,7 @@ export function getSessionCountByDeviceType(keyId: string): Record<string, numbe
     if (session.metadata?.deviceType) {
       const deviceType = session.metadata.deviceType as string;
       if (deviceType in counts) {
-        counts[deviceType]++;
+        counts[deviceType as keyof typeof counts]++;
       } else {
         counts.unknown++;
       }
@@ -1649,13 +1658,15 @@ export async function createSession(
     if (deviceSessions.length > 0) {
       // Sort by last activity and revoke oldest
       deviceSessions.sort(([, a], [, b]) => a.lastActivityAt - b.lastActivityAt);
-      const [oldestSessionId] = deviceSessions[0];
-      revokeSession(oldestSessionId, "system");
-      logger.info("Session revoked due to device limit", {
-        keyId,
-        deviceType,
-        limit: deviceLimitCheck.limit,
-      });
+      const oldest = deviceSessions[0];
+      if (oldest) {
+        revokeSession(oldest[0], "system");
+        logger.info("Session revoked due to device limit", {
+          keyId,
+          deviceType,
+          limit: deviceLimitCheck.limit,
+        });
+      }
     }
   }
 
@@ -2067,7 +2078,6 @@ export async function refreshSession(
   // Find the refresh token by token value (not tokenId)
   // The refreshToken parameter is the random token string returned to the client
   let tokenEntry: [string, RefreshToken] | undefined;
-  let decryptedToken = refreshToken;
 
   // First, try to find by direct token match (for unencrypted tokens)
   tokenEntry = Array.from(refreshTokens.entries()).find(([, t]) => t.token === refreshToken);
@@ -2080,8 +2090,6 @@ export async function refreshSession(
           const decrypted = await decryptToken(tokenData.encryptedToken, "refresh_tokens");
           if (decrypted === refreshToken) {
             tokenEntry = [tokenId, tokenData];
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            decryptedToken = decrypted;
             break;
           }
         } catch {
@@ -2420,8 +2428,7 @@ export async function checkRefreshTokenExpiry(refreshToken: string): Promise<num
   // This handles the case where the caller has the original plaintext token
   if (!tokenEntry && isEncryptionConfigured()) {
     for (const entry of refreshTokens.entries()) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [tokenId, tokenData] = entry;
+      const [, tokenData] = entry;
       if (tokenData.isEncrypted && tokenData.encryptedToken) {
         try {
           const decrypted = await decryptToken(tokenData.encryptedToken, "refresh_tokens");
@@ -2544,8 +2551,7 @@ export function verifyRequestSignature(
   timestamp: number,
   method: string,
   path: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  body: string
+  _body: string
 ): boolean {
   // Sanitize and validate key ID
   const sanitizedKeyId = sanitizeStringSimple(keyId, { maxLength: 100 });
@@ -2565,7 +2571,8 @@ export function verifyRequestSignature(
   const now = Date.now();
   if (Math.abs(now - timestamp) > 300_000) {
     securityLogger.logSuspiciousRequest(
-      { req: { method, path }, header: () => undefined } as Context,
+      // Minimal stand-in context: the logger only reads `req` and `header`.
+      { req: { method, path }, header: () => undefined } as unknown as Context,
       "expired_timestamp",
       "Request signature timestamp too old"
     );
@@ -2916,6 +2923,7 @@ export function signedRequestAuth(
       role: apiKey.role,
       additionalPermissions: apiKey.additionalPermissions,
       rateLimitTier: apiKey.rateLimitTier,
+      authMethod: "signature",
     };
     c.set("auth", authContext);
 
@@ -3078,14 +3086,6 @@ function generateAuthCsrfTokenInternal(): string {
  */
 export function getSessionCsrfToken(sessionId: string): string | undefined {
   return sessions.get(sessionId)?.csrfToken;
-}
-
-/**
- * Verify CSRF token for a session.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function verifyCsrfToken(session: AuthSession, token: string): boolean {
-  return session.csrfToken === token;
 }
 
 // ============================================================================
@@ -3330,7 +3330,7 @@ export async function verifyTotpCode(keyId: string, code: string): Promise<TotpV
     const hmac = new Uint8Array(signature);
 
     // Extract 4-byte dynamic truncation
-    const offset = hmac[hmac.length - 1] & 0x0f;
+    const offset = hmac[hmac.length - 1]! & 0x0f;
     const binary =
       ((hmac[offset]! & 0x7f) << 24) |
       ((hmac[offset + 1]! & 0xff) << 16) |
@@ -3361,7 +3361,9 @@ export async function verifyTotpCode(keyId: string, code: string): Promise<TotpV
 /**
  * Base32 decode utility for TOTP secret.
  */
-function base32Decode(input: string): Uint8Array {
+// Returns Uint8Array<ArrayBuffer> (not the ArrayBufferLike default) so the
+// result satisfies BufferSource for Web Crypto calls.
+function base32Decode(input: string): Uint8Array<ArrayBuffer> {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   const bits: string[] = [];
 

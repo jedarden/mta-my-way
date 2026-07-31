@@ -153,7 +153,7 @@ export function initDelayDetector(
  * Called by the poller after each successful feed parse.
  */
 export function extractVehiclePositions(
-  feedId: string,
+  _feedId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   message: any
 ): Array<{
@@ -237,9 +237,14 @@ export function extractVehiclePositions(
     if (entity.tripUpdate?.stopTimeUpdate) {
       for (const stu of entity.tripUpdate.stopTimeUpdate) {
         if (stu.stopId === stopId || stu.stopSequence === stopSequence) {
-          delay = stu.arrival?.delay ?? stu.departure?.delay ?? undefined;
-          if (typeof delay === "object" && delay !== null && "toNumber" in delay) {
-            delay = delay.toNumber();
+          // protobufjs may hand back a Long object rather than a plain number.
+          const rawDelay: unknown = stu.arrival?.delay ?? stu.departure?.delay ?? undefined;
+          if (typeof rawDelay === "object" && rawDelay !== null && "toNumber" in rawDelay) {
+            delay = (rawDelay as { toNumber(): number }).toNumber();
+          } else if (typeof rawDelay === "number") {
+            delay = rawDelay;
+          } else {
+            delay = undefined;
           }
           break;
         }
@@ -462,7 +467,8 @@ function generateAlerts(segments: DelayedSegment[]): void {
   const newAlerts: StationAlert[] = [];
 
   for (const [lineKey, lineSegments] of lineGroups) {
-    const [routeId, direction] = lineKey.split(":");
+    // lineKey is always built as `${routeId}:${direction}`.
+    const [routeId = "", direction = ""] = lineKey.split(":");
     const route = routes?.[routeId];
     const lineName = route?.shortName ?? routeId;
     const directionLabel = direction === "N" ? "Northbound" : "Southbound";

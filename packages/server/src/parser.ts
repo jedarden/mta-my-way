@@ -86,7 +86,7 @@ export function parseFeed(feedId: string, data: Uint8Array): ParsedFeed {
   // Backward-compat: duration of the first window entry
   const tripReplacementPeriod =
     tripReplacementPeriods.length > 0
-      ? tripReplacementPeriods[0].end - tripReplacementPeriods[0].start
+      ? tripReplacementPeriods[0]!.end - tripReplacementPeriods[0]!.start
       : null;
 
   return {
