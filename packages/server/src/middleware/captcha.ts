@@ -67,6 +67,20 @@ export interface CaptchaVerificationResult {
 }
 
 /**
+ * Raw siteverify response body shared by Turnstile, reCAPTCHA and hCaptcha.
+ * `response.json()` is typed `unknown`, so provider responses are read through this shape.
+ */
+interface SiteverifyResponse {
+  success?: boolean;
+  score?: number;
+  challenge_ts?: string;
+  hostname?: string;
+  "error-codes"?: string[];
+  /** Custom providers return a plain message instead of `error-codes`. */
+  error?: string;
+}
+
+/**
  * CAPTCHA challenge data for frontend.
  */
 export interface CaptchaChallenge {
@@ -234,7 +248,7 @@ async function verifyTurnstile(
     signal: AbortSignal.timeout(config.timeout || 10000),
   });
 
-  const data = await response.json();
+  const data = (await response.json()) as SiteverifyResponse;
 
   if (!data.success) {
     return {
@@ -285,7 +299,7 @@ async function verifyRecaptcha(
     signal: AbortSignal.timeout(config.timeout || 10000),
   });
 
-  const data = await response.json();
+  const data = (await response.json()) as SiteverifyResponse;
 
   if (!data.success) {
     return {
@@ -336,7 +350,7 @@ async function verifyHcaptcha(
     signal: AbortSignal.timeout(config.timeout || 10000),
   });
 
-  const data = await response.json();
+  const data = (await response.json()) as SiteverifyResponse;
 
   if (!data.success) {
     return {
@@ -399,7 +413,7 @@ async function verifyCustomProvider(
     };
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as SiteverifyResponse;
 
   if (!data.success) {
     return {
@@ -485,7 +499,11 @@ export function requireCaptcha(options: {
     const riskAssessment = c.get("sessionRiskAssessment") as { riskScore?: number } | undefined;
 
     // Skip if risk is below threshold
-    if (skipBelowRiskScore && riskAssessment && riskAssessment.riskScore < skipBelowRiskScore) {
+    if (
+      skipBelowRiskScore &&
+      riskAssessment?.riskScore !== undefined &&
+      riskAssessment.riskScore < skipBelowRiskScore
+    ) {
       return next();
     }
 
@@ -533,7 +551,11 @@ export function requireCaptcha(options: {
     if (!result.success) {
       // Check if client should be temporarily blocked
       if (hasExceededCaptchaAttempts(clientIp)) {
-        securityLogger.logSuspiciousActivity(c, "captcha_abuse_detected");
+        securityLogger.logSuspiciousActivity(
+          c,
+          "captcha_abuse_detected",
+          "Client exceeded the failed CAPTCHA attempt threshold"
+        );
         throw new HTTPException(429, {
           message: "Too many failed CAPTCHA attempts. Please try again later.",
         });
@@ -579,7 +601,7 @@ export function conditionalCaptcha(options: {
     const riskAssessment = c.get("sessionRiskAssessment") as { riskScore?: number } | undefined;
     if (
       mergedTriggers.minRiskScore &&
-      riskAssessment &&
+      riskAssessment?.riskScore !== undefined &&
       riskAssessment.riskScore >= mergedTriggers.minRiskScore
     ) {
       shouldRequireCaptcha = true;

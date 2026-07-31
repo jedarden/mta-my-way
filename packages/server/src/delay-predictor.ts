@@ -21,6 +21,7 @@ import type {
   DelayPattern,
   DelayPrediction,
   DelayRecord,
+  DelaySeverity,
   DelayStats,
   RouteDelaySummary,
   StationIndex,
@@ -43,9 +44,6 @@ const MIN_OBSERVATIONS_FOR_PREDICTION = 5;
 /** Default weather condition when no data available */
 const DEFAULT_WEATHER: WeatherCondition = "clear";
 
-/** Probability threshold for considering a delay "likely" */
-const _DELAY_PROBABILITY_THRESHOLD = 0.3;
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -56,14 +54,13 @@ interface StoredDelayRecord extends DelayRecord {
   timestampMs: number;
 }
 
-/** Aggregated delay statistics keyed by pattern */
-interface _PatternKey {
-  routeId: string;
-  direction: "N" | "S";
-  fromStationId: string;
-  toStationId: string;
-  timeBucket: TimeBucket;
-  dayCategory: DayCategory;
+/**
+ * Mean of the recorded delay ratios for a pattern.
+ * `AggregatedStats` stores the raw ratios; the average is derived on demand.
+ */
+function meanDelayRatio(stats: AggregatedStats): number {
+  if (stats.delayRatios.length === 0) return 0;
+  return stats.delayRatios.reduce((a, b) => a + b, 0) / stats.delayRatios.length;
 }
 
 /** Aggregated stats for a pattern */
@@ -107,7 +104,6 @@ let weatherOverride: WeatherCondition | null = null;
 let currentWeather: WeatherCondition = DEFAULT_WEATHER;
 
 let config: Required<DelayPredictorConfig>;
-let _travelTimes: TravelTimeIndex | null = null;
 let stations: StationIndex | null = null;
 
 // ---------------------------------------------------------------------------
@@ -158,11 +154,10 @@ export function getDayCategoryForTimestamp(timestamp: number): DayCategory {
  * Initialize the delay predictor with dependencies.
  */
 export function initDelayPredictor(
-  travelTimesData: TravelTimeIndex,
+  _travelTimesData: TravelTimeIndex,
   stationData: StationIndex,
   predictorConfig?: DelayPredictorConfig
 ): void {
-  _travelTimes = travelTimesData;
   stations = stationData;
   config = {
     maxRecords: predictorConfig?.maxRecords ?? MAX_DELAY_RECORDS,
@@ -458,7 +453,7 @@ export function getRouteDelayPatterns(routeId: string, direction: "N" | "S"): De
     for (const stats of groupStats) {
       totalObs += stats.totalObservations;
       totalDelays += stats.delayCount;
-      totalDelayRatio += stats.avgDelayRatio * stats.totalObservations;
+      totalDelayRatio += meanDelayRatio(stats) * stats.totalObservations;
     }
 
     patterns.push({
@@ -592,7 +587,7 @@ function getSegmentStats(
       stats.toStationId === toStationId
     ) {
       totalObs += stats.totalObservations;
-      weightedDelayRatio += stats.avgDelayRatio * stats.totalObservations;
+      weightedDelayRatio += meanDelayRatio(stats) * stats.totalObservations;
     }
   }
 
@@ -618,11 +613,11 @@ function convertToDelayStats(stats: AggregatedStats): DelayStats {
     toStationId: stats.toStationId,
     totalObservations: stats.totalObservations,
     delayCount: stats.delayCount,
-    avgDelayRatio: stats.delayRatios.reduce((a, b) => a + b, 0) / stats.delayRatios.length,
+    avgDelayRatio: meanDelayRatio(stats),
     maxDelayRatio: Math.max(...stats.delayRatios),
-    medianDelayRatio: len > 0 ? sortedRatios[Math.floor(len / 2)] : 0,
-    p90DelayRatio: len > 0 ? sortedRatios[Math.floor(len * 0.9)] : 0,
-    p95DelayRatio: len > 0 ? sortedRatios[Math.floor(len * 0.95)] : 0,
+    medianDelayRatio: sortedRatios[Math.floor(len / 2)] ?? 0,
+    p90DelayRatio: sortedRatios[Math.floor(len * 0.9)] ?? 0,
+    p95DelayRatio: sortedRatios[Math.floor(len * 0.95)] ?? 0,
     lastUpdated: new Date(stats.lastUpdated).toISOString(),
   };
 }
@@ -799,6 +794,5 @@ export function initDelayPredictorForTesting(): void {
     minObservations: MIN_OBSERVATIONS_FOR_PREDICTION,
     persistencePath: "",
   };
-  _travelTimes = {};
   stations = {};
 }

@@ -371,6 +371,7 @@ async function sendEmailNotification(
   logger.info("Email notification sent", {
     to: preferences.email,
     subject: template.subject,
+    body: formatTemplate(template, event),
     eventId: event.eventId,
   });
 
@@ -384,8 +385,7 @@ async function sendEmailNotification(
 async function sendSmsNotification(
   event: SecurityEvent,
   preferences: NotificationPreferences,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  template: NotificationTemplate
+  _template: NotificationTemplate
 ): Promise<boolean> {
   if (!preferences.phone) {
     return false;
@@ -407,8 +407,7 @@ async function sendSmsNotification(
 async function sendPushNotification(
   event: SecurityEvent,
   preferences: NotificationPreferences,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  template: NotificationTemplate
+  _template: NotificationTemplate
 ): Promise<boolean> {
   if (!preferences.pushToken) {
     return false;
@@ -429,10 +428,8 @@ async function sendPushNotification(
  */
 async function sendInAppNotification(
   event: SecurityEvent,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  preferences: NotificationPreferences,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  template: NotificationTemplate
+  _preferences: NotificationPreferences,
+  _template: NotificationTemplate
 ): Promise<boolean> {
   // In production, store in database for frontend to fetch
   logger.info("In-app notification created", {
@@ -485,6 +482,18 @@ async function sendWebhookNotification(
 // ============================================================================
 
 /**
+ * Parse an "HH:MM" string into minutes past midnight.
+ * Returns null when the value is not a well-formed time.
+ */
+function parseMinutesOfDay(value: string): number | null {
+  const [hour, minute] = value.split(":").map(Number);
+  if (hour === undefined || minute === undefined || Number.isNaN(hour) || Number.isNaN(minute)) {
+    return null;
+  }
+  return hour * 60 + minute;
+}
+
+/**
  * Check if current time is within quiet hours.
  */
 function isQuietHours(preferences: NotificationPreferences): boolean {
@@ -495,11 +504,13 @@ function isQuietHours(preferences: NotificationPreferences): boolean {
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes();
 
-  const [startHour, startMin] = preferences.quietHours.start.split(":").map(Number);
-  const [endHour, endMin] = preferences.quietHours.end.split(":").map(Number);
+  const startTime = parseMinutesOfDay(preferences.quietHours.start);
+  const endTime = parseMinutesOfDay(preferences.quietHours.end);
 
-  const startTime = startHour * 60 + startMin;
-  const endTime = endHour * 60 + endMin;
+  // Malformed quiet-hours config: treat as "not quiet hours" rather than guessing.
+  if (startTime === null || endTime === null) {
+    return false;
+  }
 
   if (startTime < endTime) {
     // Simple range (e.g., 22:00 - 06:00 doesn't work, but 22:00 - 23:59 does)
@@ -517,7 +528,6 @@ function isQuietHours(preferences: NotificationPreferences): boolean {
 /**
  * Format a notification template with event data.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatTemplate(template: NotificationTemplate, event: SecurityEvent): string {
   let body = template.body;
 
@@ -588,6 +598,19 @@ function getTemplate(eventType: SecurityEventType): NotificationTemplate {
  */
 function getDefaultTemplate(eventType: SecurityEventType): NotificationTemplate {
   const templates: Record<SecurityEventType, Omit<NotificationTemplate, "placeholders">> = {
+    // Generic fallback for every known event type. Spread first so the
+    // specific templates below take precedence.
+    ...Object.keys(EVENT_SEVERITY).reduce(
+      (acc, key) => {
+        acc[key as SecurityEventType] = {
+          eventType: key as SecurityEventType,
+          subject: "Security notification",
+          body: "Security event {{eventType}} detected on your account at {{timestamp}}.",
+        };
+        return acc;
+      },
+      {} as Record<SecurityEventType, Omit<NotificationTemplate, "placeholders">>
+    ),
     login_success_new_device: {
       eventType: "login_success_new_device",
       subject: "New device signed in to your account",
@@ -659,20 +682,6 @@ function getDefaultTemplate(eventType: SecurityEventType): NotificationTemplate 
       actionUrl: "/password-reset",
       actionLabel: "Reset Password",
     },
-    // Default template for unspecified events
-    ...Object.keys(EVENT_SEVERITY).reduce(
-      (acc, key) => {
-        if (!acc[key as SecurityEventType]) {
-          acc[key as SecurityEventType] = {
-            eventType: key as SecurityEventType,
-            subject: "Security notification",
-            body: `Security event {{eventType}} detected on your account at {{timestamp}}.`,
-          };
-        }
-        return acc;
-      },
-      {} as Record<SecurityEventType, Omit<NotificationTemplate, "placeholders">>
-    ),
   };
 
   const template = templates[eventType];

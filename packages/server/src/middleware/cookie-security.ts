@@ -143,7 +143,12 @@ export async function verifySignedCookie(signedValue: string): Promise<string | 
     return null;
   }
 
-  const [timestampStr, value, signatureB64] = parts;
+  const timestampStr = parts[0];
+  const value = parts[1];
+  const signatureB64 = parts[2];
+  if (!timestampStr || !value || !signatureB64) {
+    return null;
+  }
   const timestamp = parseInt(timestampStr, 10);
 
   // Check timestamp is within 24 hours
