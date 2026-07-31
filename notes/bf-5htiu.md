@@ -8,7 +8,16 @@ Child 1 of bf-1ic7x split. Observation only — **no code changes were made**.
 npm run typecheck    # → tsc --build
 ```
 
-- Run at: 2026-07-30, working tree at commit `4714f92` (plus the pre-existing
+- Re-verified at commit `468c733`: **exit code 1, 810 errors, 1085 lines of output** —
+  identical to the original capture except for line-number drift on four
+  `packages/server/src/app.ts` errors (the file grew between the two runs). The
+  attached output file has been refreshed to match this run.
+- Note for future runs: `npm`/`node` are not on the default non-interactive `PATH`
+  in this environment. Prefix with
+  `export PATH="/nix/store/b3x7xvp565xqlj0whi2giwgbrplfwfpb-nodejs-22.16.0/bin:$PATH"`
+  or `npm run typecheck` fails with exit 127 (`npm: command not found`), which is
+  easy to mistake for a build failure.
+- Originally run at: 2026-07-30, working tree at commit `4714f92` (plus the pre-existing
   uncommitted modifications listed in `git status` at the time: `.beads/issues.jsonl`,
   `.needle-predispatch-sha`, `package-lock.json`, `packages/{server,shared,web}/package.json`,
   `packages/server/src/middleware/cookie-security.ts`,
