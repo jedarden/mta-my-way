@@ -287,7 +287,7 @@ function cleanVersion(version: string): string {
   return version
     .replace(/^[\^~]/, "")
     .replace(/>=?|<=?|<|>|=/, "")
-    .split(" ")[0]
+    .split(" ")[0]!
     .trim();
 }
 
@@ -481,7 +481,7 @@ export function securityCheckOnStartup(
 
       // In production, you might want to exit if critical vulnerabilities are found
       if (report.vulnerabilitiesBySeverity.critical > 0) {
-        logger.error("Critical vulnerabilities detected", {
+        logger.error("Critical vulnerabilities detected", undefined, {
           count: report.vulnerabilitiesBySeverity.critical,
           message: "Consider blocking startup",
         });

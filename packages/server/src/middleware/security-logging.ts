@@ -69,7 +69,7 @@ interface SecurityLoggerOptions {
  * for sensitive field redaction and trace correlation.
  */
 function defaultLogFn(event: SecurityEvent): void {
-  structuredLogger.warn("security_event", event as Record<string, unknown>);
+  structuredLogger.warn("security_event", event as unknown as Record<string, unknown>);
 }
 
 /**

@@ -207,7 +207,7 @@ export function decodeJwt(token: string): DecodedJwt | null {
       return null;
     }
 
-    const [headerB64, payloadB64, signature] = parts;
+    const [headerB64, payloadB64, signature] = parts as [string, string, string];
 
     // Decode header
     const headerJson = base64UrlDecode(headerB64);
@@ -523,7 +523,7 @@ async function hmacSha256(data: string, secret: string): Promise<string> {
 /**
  * Convert base64url string to bytes.
  */
-function base64UrlToBytes(base64url: string): Uint8Array {
+function base64UrlToBytes(base64url: string): Uint8Array<ArrayBuffer> {
   const padded = base64url + "=".repeat((4 - (base64url.length % 4)) % 4);
   const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
   const binary = atob(base64);

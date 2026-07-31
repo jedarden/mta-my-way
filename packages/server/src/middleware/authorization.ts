@@ -17,9 +17,6 @@ import { logger } from "../observability/logger.js";
 import { type ApiKeyScope, type AuthContext, getAuthContext } from "./authentication.js";
 import { securityLogger } from "./security-logging.js";
 
-// Re-export RBAC types for compatibility
-export type { PermissionAction, ResourceType, ResourcePolicy, AuthorizationResult };
-
 // ============================================================================
 // Types
 // ============================================================================

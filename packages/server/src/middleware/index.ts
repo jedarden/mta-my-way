@@ -177,7 +177,7 @@ export {
   type RbacAuthContext,
   type RbacOptions,
   type ResourceCategory,
-  type PermissionAction,
+  type PermissionAction as RbacPermissionAction,
   type RoleDefinition,
 } from "./rbac.js";
 export {
@@ -324,7 +324,7 @@ export {
   clearNotificationRateLimit,
   type SecurityEventType,
   type SecurityEventSeverity,
-  type SecurityEvent,
+  type SecurityEvent as NotificationSecurityEvent,
   type NotificationPreferences,
   type NotificationChannel,
   type NotificationDeliveryResult,
@@ -569,7 +569,7 @@ export {
   type AuditOutcome,
   type AuditEventMetadata,
   type RetentionPolicy,
-  type AuditLogStats,
+  type AuditLogStats as StructuredAuditLogStats,
 } from "./structured-audit-log.js";
 export {
   createEnhancedAuth,
