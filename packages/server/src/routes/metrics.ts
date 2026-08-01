@@ -5,7 +5,7 @@
  * This allows Prometheus or other monitoring systems to scrape metrics from the application.
  */
 
-import type { Context, Next } from "hono";
+import type { Context, Hono, Next } from "hono";
 import {
   activeConnections,
   cacheHits,
@@ -72,7 +72,7 @@ export async function metricsMiddleware(c: Context, next: Next) {
     const duration = (Date.now() - start) / 1000; // Convert to seconds
     const status = c.res.status;
 
-    httpRequestsTotal.inc({
+    httpRequestsTotal.inc(1, {
       method,
       route: path,
       status: status.toString(),
@@ -96,7 +96,7 @@ export async function metricsMiddleware(c: Context, next: Next) {
     // Record failed request
     const duration = (Date.now() - start) / 1000;
 
-    httpRequestsTotal.inc({
+    httpRequestsTotal.inc(1, {
       method,
       route: path,
       status: "500",

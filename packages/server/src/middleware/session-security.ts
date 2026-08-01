@@ -189,7 +189,8 @@ export function parseIpAddress(ip: string): IpInfo {
  * Check if IPv4 address is private.
  */
 function isPrivateIpv4(octets: number[]): boolean {
-  const [first, second] = octets;
+  const first = octets[0] ?? 0;
+  const second = octets[1] ?? 0;
 
   // 10.0.0.0/8
   if (first === 10) return true;
@@ -295,7 +296,7 @@ export function getIpClass(ip: string): string {
   const info = parseIpAddress(ip);
 
   if (info.type === "ipv4" && info.octets) {
-    const [first] = info.octets;
+    const first = info.octets[0] ?? 0;
 
     if (first < 128) return "A";
     if (first < 192) return "B";
