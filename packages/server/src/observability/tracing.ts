@@ -78,7 +78,7 @@ class Tracer {
       return null;
     }
 
-    const [, traceId, spanId, sampled] = parts;
+    const [, traceId, spanId, sampled] = parts as [string, string, string, string];
     return {
       traceId,
       spanId,
@@ -325,7 +325,7 @@ export const tracingMiddleware: MiddlewareHandler = async (c, next) => {
     headers.set("traceparent", traceParent);
   }
 
-  const parentContext = tracer.extractContext(headers);
+  const parentContext = tracer.extractContext(headers) ?? undefined;
 
   // Start a span for this request
   const path = c.req.path;
