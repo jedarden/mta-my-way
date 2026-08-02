@@ -164,3 +164,79 @@ groups:
         annotations:
           summary: "Many escalator outages detected"
           description: "{{ $value }} escalators are out of service"
+
+  - name: mta-my-way-infra
+    interval: 30s
+    rules:
+      # Pod not ready alert - catches pods stuck in Pending/Unknown/Failed phases
+      - alert: MtaMyWayPodNotReady
+        expr: |
+          kube_pod_status_phase{namespace="mta-my-way", phase!="Running"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          service: mta-my-way
+        annotations:
+          summary: "Pod is not in Running state"
+          description: "Pod {{ $labels.pod }} has been in phase {{ $labels.phase }} for more than 5 minutes"
+
+      # Pod container waiting with FailedMount reason
+      - alert: MtaMyWayPodFailedMount
+        expr: |
+          kube_pod_container_status_waiting_reason{namespace="mta-my-way", reason="FailedMount"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          service: mta-my-way
+        annotations:
+          summary: "Pod volume mount failed"
+          description: "Pod {{ $labels.pod }} container {{ $labels.container }} has FailedMount for more than 2 minutes"
+
+      # Pod container waiting with CrashLoopBackOff
+      - alert: MtaMyWayPodCrashLoopBackOff
+        expr: |
+          kube_pod_container_status_waiting_reason{namespace="mta-my-way", reason="CrashLoopBackOff"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          service: mta-my-way
+        annotations:
+          summary: "Pod is in CrashLoopBackOff"
+          description: "Pod {{ $labels.pod }} container {{ $labels.container }} has been in CrashLoopBackOff for more than 5 minutes"
+
+      # Pod container waiting with ImagePullBackOff
+      - alert: MtaMyWayPodImagePullBackOff
+        expr: |
+          kube_pod_container_status_waiting_reason{namespace="mta-my-way", reason="ImagePullBackOff"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          service: mta-my-way
+        annotations:
+          summary: "Pod image pull failed"
+          description: "Pod {{ $labels.pod }} container {{ $labels.container }} has ImagePullBackOff for more than 5 minutes"
+
+      # PVC read/write errors (via kube-state-metrics)
+      - alert: MtaMyWayPVCErrors
+        expr: |
+          kube_persistentvolumeclaim_status_phase{namespace="mta-my-way", phase!="Bound"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "PVC is not in Bound state"
+          description: "PVC {{ $labels.persistentvolumeclaim }} has been in phase {{ $labels.phase }} for more than 5 minutes"
+
+      # ReplicaSet mismatch - expected replicas not ready
+      - alert: MtaMyWayReplicasUnavailable
+        expr: |
+          kube_deployment_status_replicas_available{namespace="mta-my-way"}
+          < kube_deployment_spec_replicas{namespace="mta-my-way"}
+        for: 10m
+        labels:
+          severity: warning
+          service: mta-my-way
+        annotations:
+          summary: "Deployment replicas unavailable"
+          description: "Deployment {{ $labels.deployment }} has {{ $value }} available replicas, expected {{ $labels.spec_replicas }}"
