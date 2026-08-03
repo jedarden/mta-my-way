@@ -68,18 +68,6 @@ import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
-import {
-  DEFAULT_CONTEXT,
-  clearManualOverrideForOwner,
-  detectAndUpdateContextWithOwner,
-  detectContextFromRequest,
-  getContextByOwner,
-  getContextSettings,
-  getContextTransitions,
-  getContextTransitionsForOwner,
-  getCurrentContext,
-  updateContextSettings,
-} from "./context-service.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
