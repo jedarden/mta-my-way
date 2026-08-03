@@ -24,6 +24,8 @@ import { logger } from "../observability/logger.js";
 // ---------------------------------------------------------------------------
 
 let db: Database.Database | null = null;
+let pushDbReady = false;
+let pushDbInitError: Error | null = null;
 
 // Default owner ID for unauthenticated or legacy data
 const DEFAULT_OWNER_ID = "anonymous";
@@ -32,44 +34,62 @@ const DEFAULT_OWNER_ID = "anonymous";
  * Initialize the push subscriptions database.
  * Must be called before any other function in this module.
  *
+ * This function is best-effort: if the database cannot be opened due to
+ * filesystem errors, corruption, or permission issues, the error is logged
+ * and the server continues starting. DB-dependent endpoints will return
+ * 503 Service Unavailable in degraded mode.
+ *
  * @param dbPath  Path to the SQLite database file (or ":memory:" for tests)
  */
 export function initPushDatabase(dbPath: string): void {
-  db = new Database(dbPath);
-
-  // WAL mode for better concurrent read performance
-  db.pragma("journal_mode = WAL");
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS push_subscriptions (
-      endpoint_hash TEXT PRIMARY KEY,
-      endpoint TEXT NOT NULL,
-      p256dh TEXT NOT NULL,
-      auth TEXT NOT NULL,
-      favorites TEXT NOT NULL DEFAULT '[]',
-      quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
-      morning_scores TEXT NOT NULL DEFAULT '{}',
-      briefing_hour INTEGER NOT NULL DEFAULT 7,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
-      ON push_subscriptions(updated_at);
-
-    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
-      ON push_subscriptions(owner_id);
-  `);
-
-  // Migration: add briefing_hour column to existing tables
   try {
-    db.exec("ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7");
-  } catch {
-    // Column already exists — ignore
-  }
+    db = new Database(dbPath);
 
-  logger.info("Push database initialized", { path: dbPath });
+    // WAL mode for better concurrent read performance
+    db.pragma("journal_mode = WAL");
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        endpoint_hash TEXT PRIMARY KEY,
+        endpoint TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        favorites TEXT NOT NULL DEFAULT '[]',
+        quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
+        morning_scores TEXT NOT NULL DEFAULT '{}',
+        briefing_hour INTEGER NOT NULL DEFAULT 7,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
+        ON push_subscriptions(updated_at);
+
+      CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
+        ON push_subscriptions(owner_id);
+    `);
+
+    // Migration: add briefing_hour column to existing tables
+    try {
+      db.exec("ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7");
+    } catch {
+      // Column already exists — ignore
+    }
+
+    pushDbReady = true;
+    pushDbInitError = null;
+    logger.info("Push database initialized", { path: dbPath });
+  } catch (err) {
+    const error = err as Error;
+    pushDbReady = false;
+    pushDbInitError = error;
+    db = null;
+    logger.error("Failed to initialize push database — running in degraded mode", error, {
+      path: dbPath,
+      hint: "DB-dependent endpoints will return 503. Stateless endpoints remain available.",
+    });
+  }
 }
 
 /**
@@ -79,15 +99,44 @@ export function closePushDatabase(): void {
   if (db) {
     db.close();
     db = null;
+    pushDbReady = false;
+    pushDbInitError = null;
   }
+}
+
+/**
+ * Check if the push database is available and ready for use.
+ *
+ * @returns true if the database was successfully initialized, false otherwise
+ */
+export function isPushDatabaseReady(): boolean {
+  return pushDbReady && db !== null;
+}
+
+/**
+ * Get the initialization error if database failed to initialize.
+ *
+ * @returns The error that occurred during initialization, or null if successful
+ */
+export function getPushDatabaseInitError(): Error | null {
+  return pushDbInitError;
 }
 
 /**
  * Get the push database instance.
  * Used by other services that need to share this database.
+ *
+ * @throws Error if database was not successfully initialized
  */
 export function getPushDatabase(): Database.Database {
-  return getDb();
+  if (!pushDbReady || db === null) {
+    throw new Error(
+      pushDbInitError
+        ? `Push database not available: ${pushDbInitError.message}`
+        : "Push database not initialized. Call initPushDatabase() first."
+    );
+  }
+  return db;
 }
 
 // ---------------------------------------------------------------------------
@@ -249,9 +298,10 @@ export function getSubscriptionsByOwner(
 
 /**
  * Get the total number of active subscriptions (for health endpoint).
+ * Returns 0 if the database is not available.
  */
 export function getSubscriptionCount(): number {
-  if (!db) return 0;
+  if (!pushDbReady || db === null) return 0;
   const stmt = db.prepare("SELECT COUNT(*) as count FROM push_subscriptions");
   const row = stmt.get() as { count: number };
   return row.count;
