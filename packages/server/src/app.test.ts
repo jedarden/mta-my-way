@@ -517,6 +517,10 @@ describe("API /api/health", () => {
 
     const body = await res.json();
     const parsed = HealthResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      console.log("Health response validation failed:", JSON.stringify(body, null, 2));
+      console.log("Zod errors:", JSON.stringify(parsed.error?.issues, null, 2));
+    }
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       // Status can be "ok" or "degraded" depending on feed initialization state
