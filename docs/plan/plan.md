@@ -1682,7 +1682,18 @@ The following shipped features represent deliberate deviations from the original
 
    **Rationale:** While the core use case remains the favorites-first home screen, the map features enhance situational awareness (e.g., "Why is my F train delayed? Show me the whole line") and provide entry points for new users who want to explore the system before committing to favorites.
 
----
+6. **Server-side context storage despite client-side design:** The original plan (Section 5, Phase 5) explicitly designed context-aware switching as a purely client-side feature using localStorage: "On each favorite tap, append `{favoriteId, dayOfWeek, hour}` to a localStorage array" and "Entirely client-side using localStorage." However, the codebase ships a comprehensive server-side context implementation including:
+   - `packages/server/src/context-service.ts` (617 lines, 20+ exported functions)
+   - Database tables: `user_context` and `context_transitions` with migrations 016/017
+   - 6 API routes under `/api/context/*` (GET /api/context, POST /api/context/detect, POST /api/context/override, etc.)
+   - RBAC integration with ownership checks and `predictions:create` permission
+   - 3 Prometheus metrics counters (detections, transitions, overrides)
+
+   **Status:** The server-side context API is fully implemented but completely unused by the frontend. An audit of all 206 files in `packages/web/src` confirmed zero API calls to `/api/context` endpoints. The frontend's `contextStore.ts` implements the planned client-side design (localStorage + Zustand) with no server-side dependencies.
+
+   **Privacy implications:** The server-side implementation stores context state and transitions in SQLite with owner-based scoping via RBAC. While no PII is directly stored, the factors captured (location patterns, time-based usage, screen activity) could theoretically be used for behavioral profiling. However, since the frontend never calls these APIs, no user data is actually being stored server-side.
+
+   **Rationale:** The server-side context feature was implemented during Phase 5 development as part of a broader context-aware switching initiative, but the frontend team ultimately shipped the purely client-side approach specified in the original plan. The server-side implementation remains available for potential future features such as cross-device context sync or enhanced analytics, but it is not active in the current configuration and has zero runtime impact (no background services or polling). The feature represents a significant investment that could be leveraged if cross-device sync becomes a priority (see deviation #4 for similar auth framework rationale).
 
 ### Critical Files for Implementation
 
