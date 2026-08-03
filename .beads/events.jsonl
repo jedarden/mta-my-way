@@ -6315,3 +6315,13 @@
 {"bead":"bf-5jrvw","event":"claim","strand":"explore","ts":"2026-08-03T11:00:22.363414255+00:00","worker":"debug-worker"}
 {"adapter":"echo-test","bead":"bf-5jrvw","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T11:00:22.408558444+00:00","worker":"debug-worker"}
 {"bead":"bf-5jrvw","duration_ms":57,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T11:00:22.466959794+00:00","worker":"debug-worker"}
+{"bead":"bf-7d28c","event":"claim","strand":"explore","ts":"2026-08-03T11:01:21.087688033+00:00","worker":"debug-worker"}
+{"adapter":"echo-test","bead":"bf-7d28c","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T11:01:21.138938604+00:00","worker":"debug-worker"}
+{"bead":"bf-7d28c","duration_ms":55,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T11:01:21.195391051+00:00","worker":"debug-worker"}
+{"bead":"bf-7d28c","event":"claim","strand":"explore","ts":"2026-08-03T11:01:21.326507463+00:00","worker":"test-worker"}
+{"bead":"bf-5jrvw","event":"claim","strand":"explore","ts":"2026-08-03T11:01:21.752224834+00:00","worker":"debug-worker"}
+{"adapter":"echo-test","bead":"bf-5jrvw","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T11:01:21.797019276+00:00","worker":"debug-worker"}
+{"bead":"bf-5jrvw","duration_ms":55,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T11:01:21.853812142+00:00","worker":"debug-worker"}
+{"bead":"bf-5jrvw","event":"claim","strand":"explore","ts":"2026-08-03T11:01:22.302820427+00:00","worker":"test-worker"}
+{"adapter":"echo-test","bead":"bf-5jrvw","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T11:01:22.345968846+00:00","worker":"test-worker"}
+{"bead":"bf-5jrvw","duration_ms":50,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T11:01:22.397825464+00:00","worker":"test-worker"}
