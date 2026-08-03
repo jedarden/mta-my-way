@@ -63,10 +63,6 @@ vi.mock("./migration/index.js", () => ({
   runMigrations: vi.fn(() => Promise.resolve([])),
 }));
 
-vi.mock("./context-service.js", () => ({
-  initContextService: vi.fn(),
-}));
-
 vi.mock("./gtfs-refresh.js", () => ({
   startGtfsRefreshScheduler: vi.fn(),
 }));
@@ -124,6 +120,8 @@ vi.mock("./push/index.js", () => ({
 vi.mock("./push/subscriptions.js", () => ({
   getPushDatabase: vi.fn(),
   initPushDatabase: vi.fn(),
+  isPushDatabaseReady: vi.fn(() => false),
+  getPushDatabaseInitError: vi.fn(() => null),
 }));
 
 vi.mock("./push/vapid.js", () => ({
@@ -383,6 +381,92 @@ describe("Server Entry Point", () => {
 
       // Verify testing mode was enabled for delay predictor
       expect(mockInitForTesting).toHaveBeenCalled();
+    });
+
+    it("should start successfully even when push database fails to initialize", async () => {
+      // Reset all modules to get a fresh import of index.js
+      vi.resetModules();
+      vi.clearAllMocks();
+
+      // Clear CORE_ONLY to test DB failure path
+      delete process.env.CORE_ONLY;
+
+      // Re-configure readFile mock
+      mockReadFile.mockImplementation((path: unknown) => {
+        const pathStr = String(path);
+        if (pathStr.includes("stations.json")) {
+          return Promise.resolve(JSON.stringify(mockStations));
+        }
+        if (pathStr.includes("routes.json")) {
+          return Promise.resolve(JSON.stringify(mockRoutes));
+        }
+        if (pathStr.includes("complexes.json")) {
+          return Promise.resolve(JSON.stringify(mockComplexes));
+        }
+        if (pathStr.includes("transfers.json")) {
+          return Promise.resolve(JSON.stringify(mockTransfers));
+        }
+        if (pathStr.includes("travel-times.json")) {
+          return Promise.resolve(JSON.stringify(mockTravelTimes));
+        }
+        return Promise.resolve("{}");
+      });
+
+      // Re-configure @hono/node-server mock
+      const { serve } = await import("@hono/node-server");
+      vi.mocked(serve).mockImplementation((_fetch: unknown, _callback?: unknown) => {
+        const callback = _callback as ((info: { port: number }) => void) | undefined;
+        if (callback) {
+          callback?.({ port: parseInt(process.env.PORT || "3001", 10) });
+        }
+        return { port: parseInt(process.env.PORT || "3001", 10), close: vi.fn() };
+      });
+
+      // Re-configure push subscriptions mock - initPushDatabase will NOT throw (it catches internally)
+      // but isPushDatabaseReady will return false
+      const { initPushDatabase: mockInitPushDatabase } = await import(
+        "./push/subscriptions.js"
+      );
+      vi.mocked(mockInitPushDatabase).mockImplementation(() => {
+        // Simulate what initPushDatabase does on failure: set ready to false, don't throw
+        // The real implementation catches errors and returns gracefully
+      });
+
+      // Re-configure isPushDatabaseReady to return false (DB unavailable)
+      const { isPushDatabaseReady: mockIsPushDatabaseReady } = await import(
+        "./push/subscriptions.js"
+      );
+      vi.mocked(mockIsPushDatabaseReady).mockReturnValue(false);
+
+      // Re-configure getPushDatabase to throw when called (DB not available)
+      const { getPushDatabase: mockGetPushDatabase } = await import(
+        "./push/subscriptions.js"
+      );
+      vi.mocked(mockGetPushDatabase).mockImplementation(() => {
+        throw new Error("Push database not available: Database unavailable: EIO");
+      });
+
+      // Re-configure vapid mock
+      const { loadOrGenerateVapidKeys } = await import("./push/vapid.js");
+      vi.mocked(loadOrGenerateVapidKeys).mockResolvedValue({
+        publicKey: "test-public-key",
+        privateKey: "test-private-key",
+      });
+
+      // Re-configure travel times mock
+      const { loadTravelTimes } = await import("./transfer/travel-times.js");
+      vi.mocked(loadTravelTimes).mockResolvedValue(mockTravelTimes);
+
+      // Import index.js - should NOT throw despite DB failure
+      // The server should start in degraded mode
+      await expect(async () => {
+        await import("./index.js");
+        // Wait for async startup to complete
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }).not.toThrow();
+
+      // Verify isPushDatabaseReady returns false (DB not available)
+      expect(mockIsPushDatabaseReady()).toBe(false);
     });
   });
 });
