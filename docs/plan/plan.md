@@ -1682,18 +1682,27 @@ The following shipped features represent deliberate deviations from the original
 
    **Rationale:** While the core use case remains the favorites-first home screen, the map features enhance situational awareness (e.g., "Why is my F train delayed? Show me the whole line") and provide entry points for new users who want to explore the system before committing to favorites.
 
-6. **Server-side context storage despite client-side design:** The original plan (Section 5, Phase 5) explicitly designed context-aware switching as a purely client-side feature using localStorage: "On each favorite tap, append `{favoriteId, dayOfWeek, hour}` to a localStorage array" and "Entirely client-side using localStorage." However, the codebase ships a comprehensive server-side context implementation including:
-   - `packages/server/src/context-service.ts` (617 lines, 20+ exported functions)
-   - Database tables: `user_context` and `context_transitions` with migrations 016/017
-   - 6 API routes under `/api/context/*` (GET /api/context, POST /api/context/detect, POST /api/context/override, etc.)
-   - RBAC integration with ownership checks and `predictions:create` permission
-   - 3 Prometheus metrics counters (detections, transitions, overrides)
+6. **[RESOLVED] Server-side context storage removed to align with client-side design:** The original plan (Section 5, Phase 5) explicitly designed context-aware switching as a purely client-side feature using localStorage: "On each favorite tap, append `{favoriteId, dayOfWeek, hour}` to a localStorage array" and "Entirely client-side using localStorage." During Phase 5 development, a comprehensive server-side context implementation was initially added but was **removed in August 2026** to restore alignment with the plan's client-side, no-PII architecture.
 
-   **Status:** The server-side context API is fully implemented but completely unused by the frontend. An audit of all 206 files in `packages/web/src` confirmed zero API calls to `/api/context` endpoints. The frontend's `contextStore.ts` implements the planned client-side design (localStorage + Zustand) with no server-side dependencies.
+   **Historical implementation (removed 2026-08):**
+   - `packages/server/src/context-service.ts` (617 lines, 20+ exported functions) — DELETED
+   - 6 API routes under `/api/context/*` — REMOVED from app.ts (now commented as DISABLED)
+   - RBAC integration with ownership checks and `predictions:create` permission — REMOVED
+   - 3 Prometheus metrics counters (detections, transitions, overrides) — REMOVED
 
-   **Privacy implications:** The server-side implementation stores context state and transitions in SQLite with owner-based scoping via RBAC. While no PII is directly stored, the factors captured (location patterns, time-based usage, screen activity) could theoretically be used for behavioral profiling. However, since the frontend never calls these APIs, no user data is actually being stored server-side.
+   **Database artifacts (deprecated but retained for backward compatibility):**
+   - Migration 016 creates `user_context` and `context_transitions` tables as DEPRECATED
+   - Migration 017 adds `owner_id` to `user_context` as DEPRECATED
+   - These tables exist only for database backward compatibility; new code MUST NOT use them
+   - See migration 016 comments: "These tables remain for backward compatibility with existing databases but should not be used by new code"
 
-   **Rationale:** The server-side context feature was implemented during Phase 5 development as part of a broader context-aware switching initiative, but the frontend team ultimately shipped the purely client-side approach specified in the original plan. The server-side implementation remains available for potential future features such as cross-device context sync or enhanced analytics, but it is not active in the current configuration and has zero runtime impact (no background services or polling). The feature represents a significant investment that could be leveraged if cross-device sync becomes a priority (see deviation #4 for similar auth framework rationale).
+   **Current status (2026-08-03):** ✅ RESOLVED — The frontend correctly implements the planned client-side design:
+   - `packages/web/src/stores/contextStore.ts` uses Zustand + localStorage persistence
+   - Local `detectContext()` function from `@mta-my-way/shared` — no server-side API calls
+   - Cross-store bridge to favoritesStore for tap history — fully client-side
+   - Zero server-side dependencies, zero PII storage, perfect alignment with plan.md
+
+   **Resolution rationale:** The server-side context feature represented a deviation from the plan's privacy promise ("No PII stored server-side") and the explicit client-side architecture specified in Section 5. Rather than document this as a permanent deviation, the server-side implementation was removed to restore alignment with the original design. The database tables remain only to support existing databases that may have created them; migration down() includes proper cleanup. Any future cross-device sync features MUST use a client-side-first approach (e.g., WebRTC, user-controlled export/import) rather than server-side storage.
 
 ### Critical Files for Implementation
 
