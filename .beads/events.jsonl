@@ -4766,3 +4766,5 @@
 {"adapter":"echo-test","bead":"bf-5jrvw","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T10:38:01.830847149+00:00","worker":"debug-worker"}
 {"bead":"bf-5jrvw","duration_ms":52,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T10:38:01.884299293+00:00","worker":"debug-worker"}
 {"bead":"bf-5jrvw","event":"claim","strand":"explore","ts":"2026-08-03T10:38:01.949520907+00:00","worker":"test-worker"}
+{"bead":"bf-7d28c","event":"claim","strand":"explore","ts":"2026-08-03T10:38:02.495027468+00:00","worker":"debug-worker"}
+{"adapter":"echo-test","bead":"bf-7d28c","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T10:38:02.537928352+00:00","worker":"debug-worker"}
