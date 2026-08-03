@@ -64,7 +64,10 @@ import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } f
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
-import { getStatefulStatus } from "./services/stateful-client.js";
+import {
+  callStatefulService,
+  getStatefulStatus,
+} from "./services/stateful-client.js";
 import {
   auditLogAccess,
   cors,
@@ -1940,6 +1943,29 @@ ${
     requireResourceAccess("subscription", "create", { adminBypass: false }),
     auditLogAccess("subscription", "create"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/push/subscribe", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Push notifications temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       // Check if push database is available
       if (!isPushDatabaseReady()) {
         return c.json(
@@ -1987,6 +2013,29 @@ ${
     requireResourceAccess("subscription", "delete", { adminBypass: true }),
     auditLogAccess("subscription", "delete"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/push/unsubscribe", {
+            method: "DELETE",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Push notifications temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       // Check if push database is available
       if (!isPushDatabaseReady()) {
         return c.json(
@@ -2034,6 +2083,29 @@ ${
     requireResourceAccess("subscription", "update", { adminBypass: true }),
     auditLogAccess("subscription", "update"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/push/subscription", {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Push notifications temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       // Check if push database is available
       if (!isPushDatabaseReady()) {
         return c.json(
@@ -2086,6 +2158,29 @@ ${
     requireResourceAccess("trip", "create"),
     auditLogAccess("trip", "create"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/trips", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+          return c.json(result, 201);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       // Check if push database is available (trip tracking shares the same DB)
       if (!isPushDatabaseReady()) {
         return c.json(
@@ -2157,7 +2252,29 @@ ${
   );
 
   /** Get trips from the journal with optional filters */
-  app.get("/api/trips", requirePermission("trips:read:own" as Permission), (c) => {
+  app.get("/api/trips", requirePermission("trips:read:own" as Permission), async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+    // In CORE_ONLY mode, proxy to stateful subsystem
+    if (CORE_ONLY) {
+      try {
+        const queryString = c.req.url.split("?")[1] || "";
+        const result = await callStatefulService(`/api/trips?${queryString}`, {
+          method: "GET",
+        });
+        return c.json(result);
+      } catch (err) {
+        logger.error("Stateful subsystem proxy failed", err as Error);
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+    }
+
     const query = validateQuery(c, tripQuerySchema);
     if (query instanceof Response) return query;
 
@@ -2189,7 +2306,29 @@ ${
       },
       adminBypass: true,
     }),
-    (c) => {
+    async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const tripId = c.req.param("tripId");
+          const result = await callStatefulService(`/api/trips/${tripId}`, {
+            method: "GET",
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
 
@@ -2218,6 +2357,30 @@ ${
     requireResourceAccess("trip", "update"),
     auditLogAccess("trip", "update"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const tripId = c.req.param("tripId");
+          const body = await c.req.json();
+          const result = await callStatefulService(`/api/trips/${tripId}/notes`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       const auth = getRbacAuthContext(c);
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
@@ -2252,7 +2415,29 @@ ${
     }),
     requireResourceAccess("trip", "delete"),
     auditLogAccess("trip", "delete"),
-    (c) => {
+    async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const tripId = c.req.param("tripId");
+          const result = await callStatefulService(`/api/trips/${tripId}`, {
+            method: "DELETE",
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       const auth = getRbacAuthContext(c);
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
