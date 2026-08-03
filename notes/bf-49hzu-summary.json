@@ -1,0 +1,243 @@
+{
+  "bead_id": "bf-49hzu",
+  "task": "Parse typecheck output and determine pass/fail status",
+  "status": "FAIL",
+  "exit_code": 1,
+  "timestamp": "2026-08-03T09:36:00Z",
+  "source_bead": "bf-5htiu",
+  "source_file": "notes/bf-5htiu-typecheck-output.txt",
+
+  "summary": {
+    "total_errors": 810,
+    "total_files_affected": 95,
+    "output_lines": 1085,
+    "typescript_version": "5.9.3",
+    "command": "npm run typecheck",
+    "command_expanded": "tsc --build"
+  },
+
+  "errors_by_package": {
+    "packages/web": {
+      "count": 484,
+      "percentage": 59.8,
+      "description": "Web application layer - primarily test files"
+    },
+    "packages/server": {
+      "count": 289,
+      "percentage": 35.7,
+      "description": "Server API and middleware layer"
+    },
+    "packages/shared": {
+      "count": 37,
+      "percentage": 4.6,
+      "description": "Shared utilities and testing helpers"
+    }
+  },
+
+  "errors_by_type": {
+    "TS2322": {
+      "count": 140,
+      "meaning": "Type X is not assignable to type Y",
+      "category": "type_mismatch"
+    },
+    "TS6133": {
+      "count": 110,
+      "meaning": "Declared but its value is never read",
+      "category": "unused_code"
+    },
+    "TS2345": {
+      "count": 97,
+      "meaning": "Argument type not assignable to parameter type",
+      "category": "type_mismatch"
+    },
+    "TS2739": {
+      "count": 87,
+      "meaning": "Type missing properties from another type",
+      "category": "missing_properties"
+    },
+    "TS2532": {
+      "count": 74,
+      "meaning": "Object is possibly 'undefined'",
+      "category": "null_safety"
+    },
+    "TS2741": {
+      "count": 59,
+      "meaning": "Property missing in type but required",
+      "category": "missing_properties"
+    },
+    "TS2304": {
+      "count": 46,
+      "meaning": "Cannot find name",
+      "category": "undefined_reference"
+    },
+    "TS18048": {
+      "count": 44,
+      "meaning": "Value is possibly 'undefined'",
+      "category": "null_safety"
+    },
+    "TS2339": {
+      "count": 41,
+      "meaning": "Property does not exist on type",
+      "category": "type_mismatch"
+    },
+    "TS18046": {
+      "count": 34,
+      "meaning": "Value is of type 'unknown'",
+      "category": "type_safety"
+    }
+  },
+
+  "top_files": [
+    {
+      "file": "packages/server/src/middleware/rbac.ts",
+      "errors": 43,
+      "package": "server",
+      "category": "middleware_security"
+    },
+    {
+      "file": "packages/web/src/hooks/useContextSort.test.ts",
+      "errors": 42,
+      "package": "web",
+      "category": "test_file"
+    },
+    {
+      "file": "packages/web/src/components/health/LineStatusTile.test.tsx",
+      "errors": 39,
+      "package": "web",
+      "category": "test_file"
+    },
+    {
+      "file": "packages/web/src/components/favorites/FavoritesList.test.tsx",
+      "errors": 35,
+      "package": "web",
+      "category": "test_file"
+    },
+    {
+      "file": "packages/web/src/components/arrivals/ArrivalList.test.tsx",
+      "errors": 35,
+      "package": "web",
+      "category": "test_file"
+    },
+    {
+      "file": "packages/web/src/components/alerts/AlertCard.test.tsx",
+      "errors": 35,
+      "package": "web",
+      "category": "test_file"
+    },
+    {
+      "file": "packages/server/src/middleware/captcha.ts",
+      "errors": 35,
+      "package": "server",
+      "category": "middleware_security"
+    },
+    {
+      "file": "packages/server/src/middleware/authentication.ts",
+      "errors": 32,
+      "package": "server",
+      "category": "middleware_security"
+    }
+  ],
+
+  "error_categories": {
+    "test_fixture_issues": {
+      "estimated_count": 324,
+      "percentage": 40,
+      "description": "Test mocks and fixtures missing required fields",
+      "fixable_batch": true,
+      "priority": "medium"
+    },
+    "strict_null_checks": {
+      "estimated_count": 118,
+      "percentage": 15,
+      "description": "Null safety violations requiring strict checks",
+      "fixable_batch": false,
+      "priority": "high"
+    },
+    "unused_declarations": {
+      "estimated_count": 113,
+      "percentage": 14,
+      "description": "Unused imports, variables, and type declarations",
+      "fixable_batch": true,
+      "priority": "low"
+    },
+    "api_type_mismatches": {
+      "estimated_count": 97,
+      "percentage": 12,
+      "description": "Real type incompatibilities in API calls",
+      "fixable_batch": false,
+      "priority": "high"
+    },
+    "missing_properties": {
+      "estimated_count": 146,
+      "percentage": 18,
+      "description": "Interface implementations missing required properties",
+      "fixable_batch": false,
+      "priority": "high"
+    }
+  },
+
+  "critical_issues": [
+    {
+      "file": "packages/server/src/app.ts",
+      "line": 1195,
+      "error": "Health endpoint response shape mismatch - delayDetector object incompatible",
+      "type": "blocking_production",
+      "priority": "immediate"
+    },
+    {
+      "file": "packages/server/src/middleware/authentication.ts",
+      "line": "multiple",
+      "error": "Calling non-existent SubtleCrypto.timingSafeEqual",
+      "type": "blocking_production",
+      "priority": "immediate"
+    },
+    {
+      "file": "packages/server/src/delay-predictor.ts",
+      "line": 685,
+      "error": "Undefined DelaySeverity type reference",
+      "type": "blocking_production",
+      "priority": "immediate"
+    }
+  ],
+
+  "recommendations": {
+    "phase_1_immediate": [
+      "Fix app.ts health endpoint response type",
+      "Resolve authentication.ts crypto API issues",
+      "Fix undefined DelaySeverity reference",
+      "Address middleware export conflicts"
+    ],
+    "phase_2_week_1": [
+      "Update all test fixtures with required fields",
+      "Fix React Testing Library mock types",
+      "Systematic unused import cleanup",
+      "Update packages/web test files"
+    ],
+    "phase_3_week_2": [
+      "Fix middleware layer type errors",
+      "Address delay detector/predictor null safety",
+      "Fix equipment poller null checks",
+      "Clean up server-side unused declarations"
+    ],
+    "phase_4_week_2": [
+      "Fix testing/observability-helpers.ts",
+      "Fix testing/test-helpers.ts",
+      "Update test helpers for strict null safety"
+    ]
+  },
+
+  "next_steps": [
+    "Typecheck does NOT pass - cannot close verification bead",
+    "Create focused fix beads for Phase 1 critical issues",
+    "Batch-create Phase 2/3 beads for systematic cleanup",
+    "Re-run typecheck after each phase to validate progress"
+  ],
+
+  "metadata": {
+    "analysis_completed": "2026-08-03T09:36:00Z",
+    "analyst": "claude-code-glm-4.7-roam3",
+    "workspace": "/home/coding/mta-my-way",
+    "parent_bead": "bf-1ic7x",
+    "child_1_bead": "bf-5htiu"
+  }
+}
