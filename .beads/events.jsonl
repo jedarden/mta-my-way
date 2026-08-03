@@ -4656,3 +4656,17 @@
 {"bead":"bf-2k27l","event":"claim","strand":"explore","ts":"2026-08-03T10:32:56.664910470+00:00","worker":"test-worker"}
 {"adapter":"echo-test","bead":"bf-2k27l","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T10:32:56.708504793+00:00","worker":"test-worker"}
 {"bead":"bf-2k27l","duration_ms":53,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T10:32:56.762825128+00:00","worker":"test-worker"}
+{"bead":"bf-5jrvw","event":"claim","strand":"explore","ts":"2026-08-03T10:37:44.245051720+00:00","worker":"test-worker"}
+{"adapter":"echo-test","bead":"bf-5jrvw","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T10:37:44.285166889+00:00","worker":"test-worker"}
+{"bead":"bf-5jrvw","duration_ms":56,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T10:37:44.342931512+00:00","worker":"test-worker"}
+{"bead":"bf-7d28c","event":"claim","strand":"explore","ts":"2026-08-03T10:37:45.642777457+00:00","worker":"debug-worker"}
+{"adapter":"echo-test","bead":"bf-7d28c","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T10:37:45.681842881+00:00","worker":"debug-worker"}
+{"bead":"bf-7d28c","duration_ms":60,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T10:37:45.742985926+00:00","worker":"debug-worker"}
+{"bead":"bf-7d28c","event":"claim","strand":"explore","ts":"2026-08-03T10:37:45.881770095+00:00","worker":"test-worker"}
+{"bead":"bf-44o8q","event":"claim","strand":"explore","ts":"2026-08-03T10:37:47.366149708+00:00","worker":"debug-worker"}
+{"adapter":"echo-test","bead":"bf-44o8q","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T10:37:47.415412382+00:00","worker":"debug-worker"}
+{"bead":"bf-44o8q","duration_ms":119,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T10:37:47.536325671+00:00","worker":"debug-worker"}
+{"bead":"bf-7d28c","event":"claim","strand":"explore","ts":"2026-08-03T10:37:47.846977753+00:00","worker":"test-worker"}
+{"adapter":"echo-test","bead":"bf-7d28c","event":"dispatch","model":null,"strand":"explore","ts":"2026-08-03T10:37:47.889631709+00:00","worker":"test-worker"}
+{"bead":"bf-7d28c","duration_ms":52,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-08-03T10:37:47.942864825+00:00","worker":"test-worker"}
+{"bead":"bf-7d28c","event":"claim","strand":"explore","ts":"2026-08-03T10:37:48.106793279+00:00","worker":"debug-worker"}
