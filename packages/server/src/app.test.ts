@@ -247,6 +247,9 @@ vi.mock("./push/subscriptions.js", () => ({
   getPushDatabaseInitError: vi.fn(() => null),
 }));
 
+// Import the mocked module for use in tests
+import { isPushDatabaseReady as mockedIsPushDatabaseReady } from "./push/subscriptions.js";
+
 vi.mock("./push/vapid.js", () => ({
   getVapidPublicKey: vi.fn(() => "test-public-key-base64"),
 }));
