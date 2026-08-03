@@ -279,8 +279,6 @@ spec:
           value: "false"
         - name: PUSH_DB_PATH
           value: "/data/subscriptions.db"
-        - name: ALERT_HISTORY_PATH
-          value: "/data/alert_history.db"
         - name: PORT
           value: "3001"
         volumeMounts:
