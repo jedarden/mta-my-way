@@ -47,6 +47,7 @@ import { validateSecurityOrThrow } from "./security-startup.js";
 import { setSecurityDb } from "./security/security-db.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
+import { initContextService } from "./context-service.js";
 import { initTripTracking } from "./trip-tracking.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -208,12 +209,10 @@ async function main(): Promise<void> {
 
       // Initialize trip tracking and journal (Phase 5) — only if DB is ready
       initTripTracking(pushDb, stations);
-      initContextService(pushDb, stations);
 
       logger.info("Stateful subsystems initialized", {
         pushDb: "ready",
         tripTracking: "enabled",
-        contextService: "enabled",
       });
     } else {
       logger.warn("Push database unavailable — running in degraded mode", {
