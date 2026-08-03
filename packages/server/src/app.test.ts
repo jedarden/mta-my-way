@@ -267,6 +267,7 @@ const HealthResponseSchema = z.object({
   status: z.enum(["ok", "degraded"]),
   timestamp: z.string(),
   uptime_seconds: z.number(),
+  deploymentMode: z.enum(["core-only", "full"]),
   feeds: z.array(
     z.object({
       id: z.string(),
@@ -275,17 +276,17 @@ const HealthResponseSchema = z.object({
       lastSuccessAt: z.string().nullable(),
       lastPollAt: z.string().nullable(),
       consecutiveFailures: z.number(),
-      entityCount: z.number().nullable(),
+      entityCount: z.number(),
       lastError: z.string().nullable(),
-      tripReplacementPeriod: z.number().nullable(),
+      tripReplacementPeriod: z.string().nullable(),
       avgLatencyMs: z.number(),
       errorCount24h: z.number(),
-      parseErrors: z.number(),
+      parseErrors: z.any().optional(),
     })
   ),
   alerts: z.object({
     count: z.number(),
-    lastSuccessAt: z.string().nullable(),
+    lastSuccessAt: z.number().nullable(),
     matchRate: z.number(),
     consecutiveFailures: z.number(),
     circuitOpen: z.boolean(),
@@ -297,12 +298,29 @@ const HealthResponseSchema = z.object({
     thresholdMultiplier: z.number(),
     minTrainsForLineAlert: z.number(),
   }),
-  equipment: z.object({
-    lastUpdated: z.string().nullable(),
-    outageCount: z.number(),
-    stationCount: z.number(),
+  delayPredictor: z.object({
+    enabled: z.boolean(),
+    modelAccuracy: z.number(),
+    lastTrainedAt: z.string().nullable(),
   }),
-  pushSubscriptions: z.number(),
+  equipment: z.object({
+    lastSuccessAt: z.string().nullable(),
+    outages: z.number(),
+    consecutiveFailures: z.number(),
+    circuitOpen: z.boolean(),
+  }),
+  pushDb: z.object({
+    ready: z.boolean(),
+    subscriptionCount: z.number(),
+  }),
+  statefulSubsystem: z.object({
+    reachable: z.boolean().nullable(),
+    circuitOpen: z.boolean(),
+    consecutiveFailures: z.number(),
+    lastSuccessAt: z.string().nullable(),
+    lastError: z.string().nullable(),
+    serviceUrl: z.string(),
+  }),
   cacheHitRate: z.number(),
   memory: z.object({
     rssBytes: z.number(),
