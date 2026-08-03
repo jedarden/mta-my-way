@@ -80,7 +80,6 @@ import {
   rateLimiter,
   requestId,
   requestSizeLimits,
-  requireAdmin,
   requireResourceAccess,
   requireSameOrigin,
   responseSizeLimits,
@@ -102,7 +101,6 @@ import {
   getRbacAuthContext,
   requireOwnershipOrAdmin,
   requirePermission,
-  requireRole,
 } from "./middleware/rbac.js";
 // OAuth 2.0 imports - DISABLED: Feature not used by frontend
 // Uncomment to re-enable OAuth 2.0 authentication functionality.
@@ -116,7 +114,6 @@ import {
 import { logger, metrics, tracingMiddleware } from "./observability/index.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
 import {
-  getPushDatabase,
   getSubscriptionCount,
   getSubscriptionOwner,
   isPushDatabaseReady,
@@ -565,6 +562,7 @@ export function createApp(
     status: string;
     timestamp: string;
     uptime_seconds: number;
+    deploymentMode: string;
     feeds: Array<{
       id: string;
       name: string;
@@ -730,6 +728,19 @@ export function createApp(
       <span class="status-icon">${statusIcon}</span>
       <span class="status-text">${healthData.status.toUpperCase()}</span>
     </div>
+
+${
+  healthData.deploymentMode === "core-only"
+    ? `
+    <div class="card" style="margin-bottom: 20px; border-color: #f59e0b;">
+      <div class="card-title" style="color: #f59e0b;">⚠ Core-Only Mode</div>
+      <div style="font-size: 14px; color: #94a3b8;">
+        Running in stateless core mode. Push notifications, trip tracking, and password reset are unavailable.
+      </div>
+    </div>
+    `
+    : ""
+    }
 
     <div class="grid">
       <!-- System Overview -->
@@ -986,7 +997,8 @@ export function createApp(
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
-    const status = allFeedsOk && alertsOk && pushDbOk ? "ok" : "degraded";
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    const status = allFeedsOk && alertsOk && (pushDbOk || CORE_ONLY) ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
 
     const memUsage = process.memoryUsage();
@@ -1020,6 +1032,7 @@ export function createApp(
         status,
         timestamp: new Date().toISOString(),
         uptime_seconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+        deploymentMode: CORE_ONLY ? "core-only" : "full",
         feeds: feedStates.map((f) => ({
           id: f.id,
           name: f.name,
@@ -1095,7 +1108,9 @@ export function createApp(
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
-    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    const pushDbOk = isPushDatabaseReady();
+    const status = allFeedsOk && alertsOk && (pushDbOk || CORE_ONLY) ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
 
     const memUsage = process.memoryUsage();
@@ -1128,6 +1143,7 @@ export function createApp(
       status,
       timestamp: new Date().toISOString(),
       uptime_seconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+      deploymentMode: CORE_ONLY ? "core-only" : "full",
       feeds: feedStates.map((f) => ({
         id: f.id,
         name: f.name,
