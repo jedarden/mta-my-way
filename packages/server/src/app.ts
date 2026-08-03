@@ -64,6 +64,7 @@ import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } f
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
+import { getStatefulStatus } from "./services/stateful-client.js";
 import {
   auditLogAccess,
   cors,
@@ -451,7 +452,7 @@ export function createApp(
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
   // NOTE: /status is a public read-only HTML page (not under /api/*, so not affected)
-  // NOTE: /api/context, /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
+  // NOTE: /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
   // NOTE: /api/auth/password is enabled for password reset functionality
   app.use(
     "/api/*",
@@ -469,7 +470,6 @@ export function createApp(
         "/api/positions",
         "/api/push/vapid-public-key",
         "/api/journal",
-        // "/api/context", // DISABLED: Feature not used by frontend
         // "/api/auth/oauth", // DISABLED: Feature not used by frontend
         // "/api/auth/mfa", // DISABLED: Feature not used by frontend
         // "/api/auth/session", // DISABLED: Feature not used by frontend
@@ -998,7 +998,12 @@ ${
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
     const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-    const status = allFeedsOk && alertsOk && (pushDbOk || CORE_ONLY) ? "ok" : "degraded";
+    const statefulStatus = getStatefulStatus();
+    const statefulReachable = statefulStatus.reachable === true;
+
+    // Core status depends only on feeds and alerts - stateful subsystem degradation is acceptable
+    // This allows the stateless core to report "ok" even when stateful subsystem is down
+    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
 
     const memUsage = process.memoryUsage();
@@ -1071,6 +1076,7 @@ ${
           ready: pushDbOk,
           subscriptionCount: getSubscriptionCount(),
         },
+        statefulSubsystem: getStatefulStatus(),
         cacheHitRate,
         memory: {
           rssBytes: memUsage.rss,
