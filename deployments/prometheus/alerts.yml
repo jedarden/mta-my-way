@@ -45,6 +45,22 @@ groups:
           summary: "Service is down"
           description: "MTA My Way service has been down for 2 minutes"
 
+      # Pod not ready alert (catches pods stuck in ContainerCreating, FailedMount, etc.)
+      - alert: MtaMyWayPodNotReady
+        expr: |
+          (kube_pod_status_ready{namespace="mta-my-way", pod=~"mta-my-way-.*"} == 0)
+          or
+          (kube_pod_container_status_waiting_reason{namespace="mta-my-way", pod=~"mta-my-way-.*", reason="ContainerCreating"} > 0)
+          or
+          (kube_pod_container_status_waiting_reason{namespace="mta-my-way", pod=~"mta-my-way-.*", reason="FailedMount"} > 0)
+        for: 15m
+        labels:
+          severity: critical
+          service: mta-my-way
+        annotations:
+          summary: "Pod is not ready"
+          description: "MTA My Way pod has been not ready or stuck in ContainerCreating/FailedMount for 15 minutes"
+
   - name: mta-my-way-feed
     interval: 1m
     rules:
