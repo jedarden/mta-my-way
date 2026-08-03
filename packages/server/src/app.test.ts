@@ -243,6 +243,8 @@ vi.mock("./push/subscriptions.js", () => ({
   updateSubscriptionFavorites: vi.fn(),
   updateSubscriptionQuietHours: vi.fn(),
   updateSubscriptionMorningScores: vi.fn(),
+  isPushDatabaseReady: vi.fn(() => true),
+  getPushDatabaseInitError: vi.fn(() => null),
 }));
 
 vi.mock("./push/vapid.js", () => ({
