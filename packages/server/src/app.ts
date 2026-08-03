@@ -41,16 +41,9 @@ import {
   commuteAnalyzeRequestSchema,
   commuteIdQuerySchema,
   complexIdParamsSchema,
-  contextClearRequestSchema,
-  contextDetectRequestSchema,
-  contextOverrideRequestSchema,
-  contextSettingsUpdateRequestSchema,
   dateRangeParamsSchema,
   emptyQuerySchema,
   equipmentQuerySchema,
-  getContextIcon,
-  getContextLabel,
-  getContextUIHints,
   lineIdParamsSchema,
   positionsQuerySchema,
   pushSubscribeRequestSchema,
@@ -126,6 +119,7 @@ import {
   getPushDatabase,
   getSubscriptionCount,
   getSubscriptionOwner,
+  isPushDatabaseReady,
   removeSubscription,
   updateSubscriptionFavorites,
   updateSubscriptionMorningScores,
@@ -372,22 +366,15 @@ export function createApp(
   // -------------------------------------------------------------------------
   // GET /health — returns 200 with { status: "ok" } when the server is ready
   // to handle requests.  Used by orchestrators (Playwright, Kubernetes, etc.)
-  // to detect when the HTTP server is listening and the database is reachable.
+  // to detect when the HTTP server is listening.
+  //
+  // This endpoint no longer requires database connectivity — the server is
+  // considered ready even if the push DB is unavailable (degraded mode).
+  // Feed poller readiness is reported by /api/health.
   //
   // Registered BEFORE all middleware so it responds within ~1ms regardless of
-  // rate-limit state, CSRF tokens, etc.  Only checks database connectivity
-  // (a single SELECT 1) — feed poller readiness is reported by /api/health.
+  // rate-limit state, CSRF tokens, etc.
   app.get("/health", () => {
-    try {
-      const db = getPushDatabase();
-      db.prepare("SELECT 1").get();
-    } catch {
-      return new Response(JSON.stringify({ status: "error", message: "database unreachable" }), {
-        status: 503,
-        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-      });
-    }
-
     return new Response(
       JSON.stringify({
         status: "ok",
@@ -989,6 +976,7 @@ export function createApp(
       (f) => f.circuitOpenAt === null && f.lastSuccessAt !== null && !f.isStale
     );
     const alertsOk = !alertsStatus.circuitOpen && alertsStatus.lastSuccessAt !== null;
+    const pushDbOk = isPushDatabaseReady();
 
     // Count feeds that have been failing for >5 minutes
     const now = Date.now();
@@ -998,7 +986,7 @@ export function createApp(
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
-    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
+    const status = allFeedsOk && alertsOk && pushDbOk ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
 
     const memUsage = process.memoryUsage();
@@ -1066,7 +1054,10 @@ export function createApp(
         delayDetector: getDelayDetectorStatus(),
         delayPredictor: getDelayPredictorStatus(),
         equipment: getEquipmentStatus(),
-        pushSubscriptions: getSubscriptionCount(),
+        pushDb: {
+          ready: pushDbOk,
+          subscriptionCount: getSubscriptionCount(),
+        },
         cacheHitRate,
         memory: {
           rssBytes: memUsage.rss,
@@ -1927,6 +1918,17 @@ export function createApp(
     requireResourceAccess("subscription", "create", { adminBypass: false }),
     auditLogAccess("subscription", "create"),
     async (c) => {
+      // Check if push database is available
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Push notifications temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushSubscribeRequestSchema);
@@ -1963,6 +1965,17 @@ export function createApp(
     requireResourceAccess("subscription", "delete", { adminBypass: true }),
     auditLogAccess("subscription", "delete"),
     async (c) => {
+      // Check if push database is available
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Push notifications temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushUnsubscribeRequestSchema);
@@ -1999,6 +2012,17 @@ export function createApp(
     requireResourceAccess("subscription", "update", { adminBypass: true }),
     auditLogAccess("subscription", "update"),
     async (c) => {
+      // Check if push database is available
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Push notifications temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushUpdateRequestSchema);
@@ -2040,6 +2064,17 @@ export function createApp(
     requireResourceAccess("trip", "create"),
     auditLogAccess("trip", "create"),
     async (c) => {
+      // Check if push database is available (trip tracking shares the same DB)
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, tripCreateRequestSchema);
@@ -2280,228 +2315,6 @@ export function createApp(
       totalTrips,
     });
   });
-
-  // -------------------------------------------------------------------------
-  // Context-aware switching API (Phase 5)
-  // -------------------------------------------------------------------------
-
-  // Apply same-origin protection to context operations
-  app.use("/api/context/*", requireSameOrigin());
-
-  /** Get current context and UI hints - scoped to authenticated user */
-  app.get("/api/context", (c) => {
-    // Validate that no unexpected query parameters are passed
-    const query = validateQuery(c, emptyQuerySchema);
-    if (query instanceof Response) return query;
-
-    const auth = getRbacAuthContext(c);
-    const ownerId = auth?.keyId || "anonymous";
-
-    // Get context settings (global)
-    const settings = getContextSettings();
-
-    // Admin users get full summary, regular users get scoped data
-    let currentContext: ReturnType<typeof getCurrentContext>;
-    let recentTransitions: ReturnType<typeof getContextTransitions>;
-
-    if (auth?.role === "admin") {
-      // Admins see the global context (for system monitoring)
-      currentContext = getCurrentContext();
-      recentTransitions = getContextTransitions(10);
-    } else {
-      // Regular users get their own context if available, otherwise default
-      const userContext = getContextByOwner(ownerId);
-      currentContext = userContext || { ...DEFAULT_CONTEXT };
-
-      // Get user's own transitions
-      const userTransitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-      recentTransitions = userTransitions || [];
-    }
-
-    const uiHints = getContextUIHints(currentContext.context);
-    const label = getContextLabel(currentContext.context);
-    const icon = getContextIcon(currentContext.context);
-
-    c.header("Cache-Control", "public, max-age=15");
-    return c.json({
-      current: currentContext,
-      settings,
-      uiHints,
-      label,
-      icon,
-      recentTransitions,
-    });
-  });
-
-  /** Get context for a specific owner with ownership check */
-  app.get(
-    "/api/context/owner/:ownerId",
-    requireOwnershipOrAdmin("context", {
-      getOwnerId: (c) => {
-        return c.req.param("ownerId") || "";
-      },
-      adminBypass: true,
-    }),
-    (c) => {
-      const ownerId = c.req.param("ownerId");
-
-      if (!ownerId) {
-        return c.json({ error: "Owner ID is required" }, 400);
-      }
-
-      const contextState = getContextByOwner(ownerId);
-      const transitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-
-      if (!contextState) {
-        return c.json({ error: "Context not found" }, 404);
-      }
-
-      c.header("Cache-Control", "public, max-age=15");
-      return c.json({
-        current: contextState,
-        settings: getContextSettings(),
-        uiHints: getContextUIHints(contextState.context),
-        label: getContextLabel(contextState.context),
-        icon: getContextIcon(contextState.context),
-        recentTransitions: transitions || [],
-      });
-    }
-  );
-
-  /** Detect context from request parameters */
-  app.post(
-    "/api/context/detect",
-    requireResourceAccess("context", "create"),
-    requirePermission("predictions:create" as Permission),
-    async (c) => {
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, contextDetectRequestSchema);
-        if (body instanceof Response) return body;
-
-        // Get owner ID from auth context - users can only detect context for themselves
-        const ownerId = auth?.keyId || "anonymous";
-
-        // tapHistory in the API schema uses a different shape than FavoriteTapEvent;
-        // location-based detection is sufficient server-side.
-        const context = detectContextFromRequest({
-          latitude: body.latitude,
-          longitude: body.longitude,
-          currentScreen: body.currentScreen,
-          screenTime: body.screenTime,
-          recentActions: body.recentActions,
-        });
-
-        // Store context with ownership - always use authenticated user's ID
-        const { context: detectedContext } = detectAndUpdateContextWithOwner(
-          {
-            nearStation: context.factors.location.nearStation,
-            nearStationId: context.factors.location.stationId,
-            distanceToStation: context.factors.location.distance,
-            tapHistory: [],
-            currentScreen: body.currentScreen || "home",
-            screenTime: body.screenTime || 0,
-            recentActions: body.recentActions || [],
-          },
-          ownerId
-        );
-
-        c.header("Cache-Control", "no-cache");
-        return c.json({ context: detectedContext });
-      } catch (err) {
-        logger.error("Context detection failed", err as Error);
-        return c.json(
-          {
-            error: "Failed to detect context",
-            message: err instanceof Error ? err.message : "Unknown error",
-          },
-          500
-        );
-      }
-    }
-  );
-
-  /** Set manual context override */
-  app.post(
-    "/api/context/override",
-    requireResourceAccess("context", "update"),
-    requirePermission("predictions:create" as Permission),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, contextOverrideRequestSchema);
-        if (body instanceof Response) return body;
-
-        const { context } = body;
-        const ownerId = auth?.keyId || "anonymous";
-
-        // Store context with ownership - always use authenticated user's ID
-        const { context: newContext } = detectAndUpdateContextWithOwner(
-          {
-            nearStation: false,
-            tapHistory: [],
-            currentScreen: "home",
-            screenTime: 0,
-            recentActions: [],
-            manualOverride: context,
-          },
-          ownerId
-        );
-
-        c.header("Cache-Control", "no-cache");
-        return c.json({ success: true, context: newContext });
-      } catch (error) {
-        logger.error("Context override failed", error as Error);
-        return c.json({ error: "Failed to set context override" }, 500);
-      }
-    }
-  );
-
-  /** Clear manual context override - requires authentication */
-  app.post(
-    "/api/context/clear",
-    requireResourceAccess("context", "update"),
-    requirePermission("predictions:create" as Permission),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      const auth = getRbacAuthContext(c);
-      const body = await validateBody(c, contextClearRequestSchema);
-      if (body instanceof Response) return body;
-
-      // Get owner ID from auth context
-      const ownerId = auth?.keyId || "anonymous";
-
-      // Clear manual override for authenticated user only (owner-scoped)
-      const context = clearManualOverrideForOwner(ownerId);
-
-      logger.info("Manual context override cleared", { ownerId });
-
-      c.header("Cache-Control", "no-cache");
-      return c.json({ success: true, context });
-    }
-  );
-
-  /** Update context settings - admin only */
-  app.patch(
-    "/api/context/settings",
-    requireRole("admin"),
-    requireAdmin(),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      try {
-        const body = await validateBody(c, contextSettingsUpdateRequestSchema);
-        if (body instanceof Response) return body;
-
-        updateContextSettings(body);
-
-        return c.json({ success: true, settings: getContextSettings() });
-      } catch (error) {
-        logger.error("Context settings update failed", error as Error);
-        return c.json({ error: "Failed to update context settings" }, 500);
-      }
-    }
-  );
 
   // -------------------------------------------------------------------------
   // OAuth 2.0 Authentication - DISABLED: Feature not used by frontend
