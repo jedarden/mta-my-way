@@ -45,4 +45,4 @@ __pycache__/
 test-results/
 
 # Needle worker state (runtime artifacts)
-.needle/
+.needle/.beads/.bf_history/

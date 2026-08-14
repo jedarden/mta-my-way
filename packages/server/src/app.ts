@@ -41,16 +41,9 @@ import {
   commuteAnalyzeRequestSchema,
   commuteIdQuerySchema,
   complexIdParamsSchema,
-  contextClearRequestSchema,
-  contextDetectRequestSchema,
-  contextOverrideRequestSchema,
-  contextSettingsUpdateRequestSchema,
   dateRangeParamsSchema,
   emptyQuerySchema,
   equipmentQuerySchema,
-  getContextIcon,
-  getContextLabel,
-  getContextUIHints,
   lineIdParamsSchema,
   positionsQuerySchema,
   pushSubscribeRequestSchema,
@@ -68,21 +61,13 @@ import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
-import {
-  DEFAULT_CONTEXT,
-  clearManualOverrideForOwner,
-  detectAndUpdateContextWithOwner,
-  detectContextFromRequest,
-  getContextByOwner,
-  getContextSettings,
-  getContextTransitions,
-  getContextTransitionsForOwner,
-  getCurrentContext,
-  updateContextSettings,
-} from "./context-service.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
+import {
+  callStatefulService,
+  getStatefulStatus,
+} from "./services/stateful-client.js";
 import {
   auditLogAccess,
   cors,
@@ -99,7 +84,6 @@ import {
   rateLimiter,
   requestId,
   requestSizeLimits,
-  requireAdmin,
   requireResourceAccess,
   requireSameOrigin,
   responseSizeLimits,
@@ -121,7 +105,6 @@ import {
   getRbacAuthContext,
   requireOwnershipOrAdmin,
   requirePermission,
-  requireRole,
 } from "./middleware/rbac.js";
 // OAuth 2.0 imports - DISABLED: Feature not used by frontend
 // Uncomment to re-enable OAuth 2.0 authentication functionality.
@@ -135,9 +118,9 @@ import {
 import { logger, metrics, tracingMiddleware } from "./observability/index.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
 import {
-  getPushDatabase,
   getSubscriptionCount,
   getSubscriptionOwner,
+  isPushDatabaseReady,
   removeSubscription,
   updateSubscriptionFavorites,
   updateSubscriptionMorningScores,
@@ -384,22 +367,15 @@ export function createApp(
   // -------------------------------------------------------------------------
   // GET /health — returns 200 with { status: "ok" } when the server is ready
   // to handle requests.  Used by orchestrators (Playwright, Kubernetes, etc.)
-  // to detect when the HTTP server is listening and the database is reachable.
+  // to detect when the HTTP server is listening.
+  //
+  // This endpoint no longer requires database connectivity — the server is
+  // considered ready even if the push DB is unavailable (degraded mode).
+  // Feed poller readiness is reported by /api/health.
   //
   // Registered BEFORE all middleware so it responds within ~1ms regardless of
-  // rate-limit state, CSRF tokens, etc.  Only checks database connectivity
-  // (a single SELECT 1) — feed poller readiness is reported by /api/health.
+  // rate-limit state, CSRF tokens, etc.
   app.get("/health", () => {
-    try {
-      const db = getPushDatabase();
-      db.prepare("SELECT 1").get();
-    } catch {
-      return new Response(JSON.stringify({ status: "error", message: "database unreachable" }), {
-        status: 503,
-        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-      });
-    }
-
     return new Response(
       JSON.stringify({
         status: "ok",
@@ -479,7 +455,7 @@ export function createApp(
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
   // NOTE: /status is a public read-only HTML page (not under /api/*, so not affected)
-  // NOTE: /api/context, /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
+  // NOTE: /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
   // NOTE: /api/auth/password is enabled for password reset functionality
   app.use(
     "/api/*",
@@ -497,7 +473,6 @@ export function createApp(
         "/api/positions",
         "/api/push/vapid-public-key",
         "/api/journal",
-        // "/api/context", // DISABLED: Feature not used by frontend
         // "/api/auth/oauth", // DISABLED: Feature not used by frontend
         // "/api/auth/mfa", // DISABLED: Feature not used by frontend
         // "/api/auth/session", // DISABLED: Feature not used by frontend
@@ -590,6 +565,7 @@ export function createApp(
     status: string;
     timestamp: string;
     uptime_seconds: number;
+    deploymentMode: string;
     feeds: Array<{
       id: string;
       name: string;
@@ -755,6 +731,19 @@ export function createApp(
       <span class="status-icon">${statusIcon}</span>
       <span class="status-text">${healthData.status.toUpperCase()}</span>
     </div>
+
+${
+  healthData.deploymentMode === "core-only"
+    ? `
+    <div class="card" style="margin-bottom: 20px; border-color: #f59e0b;">
+      <div class="card-title" style="color: #f59e0b;">⚠ Core-Only Mode</div>
+      <div style="font-size: 14px; color: #94a3b8;">
+        Running in stateless core mode. Push notifications, trip tracking, and password reset are unavailable.
+      </div>
+    </div>
+    `
+    : ""
+    }
 
     <div class="grid">
       <!-- System Overview -->
@@ -1001,6 +990,7 @@ export function createApp(
       (f) => f.circuitOpenAt === null && f.lastSuccessAt !== null && !f.isStale
     );
     const alertsOk = !alertsStatus.circuitOpen && alertsStatus.lastSuccessAt !== null;
+    const pushDbOk = isPushDatabaseReady();
 
     // Count feeds that have been failing for >5 minutes
     const now = Date.now();
@@ -1010,6 +1000,12 @@ export function createApp(
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    const statefulStatus = getStatefulStatus();
+    const statefulReachable = statefulStatus.reachable === true;
+
+    // Core status depends only on feeds and alerts - stateful subsystem degradation is acceptable
+    // This allows the stateless core to report "ok" even when stateful subsystem is down
     const status = allFeedsOk && alertsOk ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
 
@@ -1044,6 +1040,7 @@ export function createApp(
         status,
         timestamp: new Date().toISOString(),
         uptime_seconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+        deploymentMode: CORE_ONLY ? "core-only" : "full",
         feeds: feedStates.map((f) => ({
           id: f.id,
           name: f.name,
@@ -1078,7 +1075,11 @@ export function createApp(
         delayDetector: getDelayDetectorStatus(),
         delayPredictor: getDelayPredictorStatus(),
         equipment: getEquipmentStatus(),
-        pushSubscriptions: getSubscriptionCount(),
+        pushDb: {
+          ready: pushDbOk,
+          subscriptionCount: getSubscriptionCount(),
+        },
+        statefulSubsystem: getStatefulStatus(),
         cacheHitRate,
         memory: {
           rssBytes: memUsage.rss,
@@ -1116,7 +1117,9 @@ export function createApp(
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
-    const status = allFeedsOk && alertsOk ? "ok" : "degraded";
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    const pushDbOk = isPushDatabaseReady();
+    const status = allFeedsOk && alertsOk && (pushDbOk || CORE_ONLY) ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
 
     const memUsage = process.memoryUsage();
@@ -1149,6 +1152,7 @@ export function createApp(
       status,
       timestamp: new Date().toISOString(),
       uptime_seconds: Math.floor((Date.now() - SERVER_START_MS) / 1000),
+      deploymentMode: CORE_ONLY ? "core-only" : "full",
       feeds: feedStates.map((f) => ({
         id: f.id,
         name: f.name,
@@ -1939,6 +1943,40 @@ export function createApp(
     requireResourceAccess("subscription", "create", { adminBypass: false }),
     auditLogAccess("subscription", "create"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/push/subscribe", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Push notifications temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
+      // Check if push database is available
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Push notifications temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushSubscribeRequestSchema);
@@ -1975,6 +2013,40 @@ export function createApp(
     requireResourceAccess("subscription", "delete", { adminBypass: true }),
     auditLogAccess("subscription", "delete"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/push/unsubscribe", {
+            method: "DELETE",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Push notifications temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
+      // Check if push database is available
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Push notifications temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushUnsubscribeRequestSchema);
@@ -2011,6 +2083,40 @@ export function createApp(
     requireResourceAccess("subscription", "update", { adminBypass: true }),
     auditLogAccess("subscription", "update"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/push/subscription", {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Push notifications temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
+      // Check if push database is available
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Push notifications temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, pushUpdateRequestSchema);
@@ -2052,6 +2158,40 @@ export function createApp(
     requireResourceAccess("trip", "create"),
     auditLogAccess("trip", "create"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const body = await c.req.json();
+          const result = await callStatefulService("/api/trips", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+          return c.json(result, 201);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
+      // Check if push database is available (trip tracking shares the same DB)
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       try {
         const auth = getRbacAuthContext(c);
         const body = await validateBody(c, tripCreateRequestSchema);
@@ -2112,7 +2252,29 @@ export function createApp(
   );
 
   /** Get trips from the journal with optional filters */
-  app.get("/api/trips", requirePermission("trips:read:own" as Permission), (c) => {
+  app.get("/api/trips", requirePermission("trips:read:own" as Permission), async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+    // In CORE_ONLY mode, proxy to stateful subsystem
+    if (CORE_ONLY) {
+      try {
+        const queryString = c.req.url.split("?")[1] || "";
+        const result = await callStatefulService(`/api/trips?${queryString}`, {
+          method: "GET",
+        });
+        return c.json(result);
+      } catch (err) {
+        logger.error("Stateful subsystem proxy failed", err as Error);
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+    }
+
     const query = validateQuery(c, tripQuerySchema);
     if (query instanceof Response) return query;
 
@@ -2144,7 +2306,29 @@ export function createApp(
       },
       adminBypass: true,
     }),
-    (c) => {
+    async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const tripId = c.req.param("tripId");
+          const result = await callStatefulService(`/api/trips/${tripId}`, {
+            method: "GET",
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
 
@@ -2173,6 +2357,30 @@ export function createApp(
     requireResourceAccess("trip", "update"),
     auditLogAccess("trip", "update"),
     async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const tripId = c.req.param("tripId");
+          const body = await c.req.json();
+          const result = await callStatefulService(`/api/trips/${tripId}/notes`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       const auth = getRbacAuthContext(c);
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
@@ -2207,7 +2415,29 @@ export function createApp(
     }),
     requireResourceAccess("trip", "delete"),
     auditLogAccess("trip", "delete"),
-    (c) => {
+    async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const tripId = c.req.param("tripId");
+          const result = await callStatefulService(`/api/trips/${tripId}`, {
+            method: "DELETE",
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       const auth = getRbacAuthContext(c);
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
@@ -2292,228 +2522,6 @@ export function createApp(
       totalTrips,
     });
   });
-
-  // -------------------------------------------------------------------------
-  // Context-aware switching API (Phase 5)
-  // -------------------------------------------------------------------------
-
-  // Apply same-origin protection to context operations
-  app.use("/api/context/*", requireSameOrigin());
-
-  /** Get current context and UI hints - scoped to authenticated user */
-  app.get("/api/context", (c) => {
-    // Validate that no unexpected query parameters are passed
-    const query = validateQuery(c, emptyQuerySchema);
-    if (query instanceof Response) return query;
-
-    const auth = getRbacAuthContext(c);
-    const ownerId = auth?.keyId || "anonymous";
-
-    // Get context settings (global)
-    const settings = getContextSettings();
-
-    // Admin users get full summary, regular users get scoped data
-    let currentContext: ReturnType<typeof getCurrentContext>;
-    let recentTransitions: ReturnType<typeof getContextTransitions>;
-
-    if (auth?.role === "admin") {
-      // Admins see the global context (for system monitoring)
-      currentContext = getCurrentContext();
-      recentTransitions = getContextTransitions(10);
-    } else {
-      // Regular users get their own context if available, otherwise default
-      const userContext = getContextByOwner(ownerId);
-      currentContext = userContext || { ...DEFAULT_CONTEXT };
-
-      // Get user's own transitions
-      const userTransitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-      recentTransitions = userTransitions || [];
-    }
-
-    const uiHints = getContextUIHints(currentContext.context);
-    const label = getContextLabel(currentContext.context);
-    const icon = getContextIcon(currentContext.context);
-
-    c.header("Cache-Control", "public, max-age=15");
-    return c.json({
-      current: currentContext,
-      settings,
-      uiHints,
-      label,
-      icon,
-      recentTransitions,
-    });
-  });
-
-  /** Get context for a specific owner with ownership check */
-  app.get(
-    "/api/context/owner/:ownerId",
-    requireOwnershipOrAdmin("context", {
-      getOwnerId: (c) => {
-        return c.req.param("ownerId") || "";
-      },
-      adminBypass: true,
-    }),
-    (c) => {
-      const ownerId = c.req.param("ownerId");
-
-      if (!ownerId) {
-        return c.json({ error: "Owner ID is required" }, 400);
-      }
-
-      const contextState = getContextByOwner(ownerId);
-      const transitions = getContextTransitionsForOwner(ownerId, ownerId, 10);
-
-      if (!contextState) {
-        return c.json({ error: "Context not found" }, 404);
-      }
-
-      c.header("Cache-Control", "public, max-age=15");
-      return c.json({
-        current: contextState,
-        settings: getContextSettings(),
-        uiHints: getContextUIHints(contextState.context),
-        label: getContextLabel(contextState.context),
-        icon: getContextIcon(contextState.context),
-        recentTransitions: transitions || [],
-      });
-    }
-  );
-
-  /** Detect context from request parameters */
-  app.post(
-    "/api/context/detect",
-    requireResourceAccess("context", "create"),
-    requirePermission("predictions:create" as Permission),
-    async (c) => {
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, contextDetectRequestSchema);
-        if (body instanceof Response) return body;
-
-        // Get owner ID from auth context - users can only detect context for themselves
-        const ownerId = auth?.keyId || "anonymous";
-
-        // tapHistory in the API schema uses a different shape than FavoriteTapEvent;
-        // location-based detection is sufficient server-side.
-        const context = detectContextFromRequest({
-          latitude: body.latitude,
-          longitude: body.longitude,
-          currentScreen: body.currentScreen,
-          screenTime: body.screenTime,
-          recentActions: body.recentActions,
-        });
-
-        // Store context with ownership - always use authenticated user's ID
-        const { context: detectedContext } = detectAndUpdateContextWithOwner(
-          {
-            nearStation: context.factors.location.nearStation,
-            nearStationId: context.factors.location.stationId,
-            distanceToStation: context.factors.location.distance,
-            tapHistory: [],
-            currentScreen: body.currentScreen || "home",
-            screenTime: body.screenTime || 0,
-            recentActions: body.recentActions || [],
-          },
-          ownerId
-        );
-
-        c.header("Cache-Control", "no-cache");
-        return c.json({ context: detectedContext });
-      } catch (err) {
-        logger.error("Context detection failed", err as Error);
-        return c.json(
-          {
-            error: "Failed to detect context",
-            message: err instanceof Error ? err.message : "Unknown error",
-          },
-          500
-        );
-      }
-    }
-  );
-
-  /** Set manual context override */
-  app.post(
-    "/api/context/override",
-    requireResourceAccess("context", "update"),
-    requirePermission("predictions:create" as Permission),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, contextOverrideRequestSchema);
-        if (body instanceof Response) return body;
-
-        const { context } = body;
-        const ownerId = auth?.keyId || "anonymous";
-
-        // Store context with ownership - always use authenticated user's ID
-        const { context: newContext } = detectAndUpdateContextWithOwner(
-          {
-            nearStation: false,
-            tapHistory: [],
-            currentScreen: "home",
-            screenTime: 0,
-            recentActions: [],
-            manualOverride: context,
-          },
-          ownerId
-        );
-
-        c.header("Cache-Control", "no-cache");
-        return c.json({ success: true, context: newContext });
-      } catch (error) {
-        logger.error("Context override failed", error as Error);
-        return c.json({ error: "Failed to set context override" }, 500);
-      }
-    }
-  );
-
-  /** Clear manual context override - requires authentication */
-  app.post(
-    "/api/context/clear",
-    requireResourceAccess("context", "update"),
-    requirePermission("predictions:create" as Permission),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      const auth = getRbacAuthContext(c);
-      const body = await validateBody(c, contextClearRequestSchema);
-      if (body instanceof Response) return body;
-
-      // Get owner ID from auth context
-      const ownerId = auth?.keyId || "anonymous";
-
-      // Clear manual override for authenticated user only (owner-scoped)
-      const context = clearManualOverrideForOwner(ownerId);
-
-      logger.info("Manual context override cleared", { ownerId });
-
-      c.header("Cache-Control", "no-cache");
-      return c.json({ success: true, context });
-    }
-  );
-
-  /** Update context settings - admin only */
-  app.patch(
-    "/api/context/settings",
-    requireRole("admin"),
-    requireAdmin(),
-    auditLogAccess("context", "update"),
-    async (c) => {
-      try {
-        const body = await validateBody(c, contextSettingsUpdateRequestSchema);
-        if (body instanceof Response) return body;
-
-        updateContextSettings(body);
-
-        return c.json({ success: true, settings: getContextSettings() });
-      } catch (error) {
-        logger.error("Context settings update failed", error as Error);
-        return c.json({ error: "Failed to update context settings" }, 500);
-      }
-    }
-  );
 
   // -------------------------------------------------------------------------
   // OAuth 2.0 Authentication - DISABLED: Feature not used by frontend

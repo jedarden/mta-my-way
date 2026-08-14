@@ -1682,7 +1682,27 @@ The following shipped features represent deliberate deviations from the original
 
    **Rationale:** While the core use case remains the favorites-first home screen, the map features enhance situational awareness (e.g., "Why is my F train delayed? Show me the whole line") and provide entry points for new users who want to explore the system before committing to favorites.
 
----
+6. **[RESOLVED] Server-side context storage removed to align with client-side design:** The original plan (Section 5, Phase 5) explicitly designed context-aware switching as a purely client-side feature using localStorage: "On each favorite tap, append `{favoriteId, dayOfWeek, hour}` to a localStorage array" and "Entirely client-side using localStorage." During Phase 5 development, a comprehensive server-side context implementation was initially added but was **removed in August 2026** to restore alignment with the plan's client-side, no-PII architecture.
+
+   **Historical implementation (removed 2026-08):**
+   - `packages/server/src/context-service.ts` (617 lines, 20+ exported functions) — DELETED
+   - 6 API routes under `/api/context/*` — REMOVED from app.ts (now commented as DISABLED)
+   - RBAC integration with ownership checks and `predictions:create` permission — REMOVED
+   - 3 Prometheus metrics counters (detections, transitions, overrides) — REMOVED
+
+   **Database artifacts (deprecated but retained for backward compatibility):**
+   - Migration 016 creates `user_context` and `context_transitions` tables as DEPRECATED
+   - Migration 017 adds `owner_id` to `user_context` as DEPRECATED
+   - These tables exist only for database backward compatibility; new code MUST NOT use them
+   - See migration 016 comments: "These tables remain for backward compatibility with existing databases but should not be used by new code"
+
+   **Current status (2026-08-03):** ✅ RESOLVED — The frontend correctly implements the planned client-side design:
+   - `packages/web/src/stores/contextStore.ts` uses Zustand + localStorage persistence
+   - Local `detectContext()` function from `@mta-my-way/shared` — no server-side API calls
+   - Cross-store bridge to favoritesStore for tap history — fully client-side
+   - Zero server-side dependencies, zero PII storage, perfect alignment with plan.md
+
+   **Resolution rationale:** The server-side context feature represented a deviation from the plan's privacy promise ("No PII stored server-side") and the explicit client-side architecture specified in Section 5. Rather than document this as a permanent deviation, the server-side implementation was removed to restore alignment with the original design. The database tables remain only to support existing databases that may have created them; migration down() includes proper cleanup. Any future cross-device sync features MUST use a client-side-first approach (e.g., WebRTC, user-controlled export/import) rather than server-side storage.
 
 ### Critical Files for Implementation
 
@@ -1708,16 +1728,16 @@ readdirent /var/lib/kubelet/pods/.../volumes/kubernetes.io~csi/pvc-.../mount: in
 
 This is a Rackspace Spot Cinder CSI-layer I/O error on the `mta-my-way-data` PVC (`sata` storage class, correctly configured per workspace policy — the storage class itself is not the problem). No open bead tracked this; `deployments/prometheus/alerts.yml` has no rule for `FailedMount`/pod-not-ready conditions, only `up{job="mta-my-way"} == 0`, which a pod that never starts scraping won't reliably trigger. It went undetected for 9+ hours until this audit.
 
-The deeper issue this exposes is architectural, not just an infra hiccup: `k8s/apexalgo-iad/mta-my-way/deployment.yaml` runs `replicas: 1` with `strategy: Recreate`, one container, one required `volumeMount` at `/data` backing two SQLite databases (`DATABASE_PATH` for push subscriptions, `ALERT_HISTORY_PATH` for alert history — see `packages/server/src/push/subscriptions.ts`). Because the volumeMount is required in the pod spec, kubelet cannot start the container at all when the mount fails — which means the app cannot serve *any* traffic, including the fully in-memory, zero-persistence-required paths (`/api/arrivals/*`, `/api/stations`, `/api/routes`, `/api/alerts`, `/api/commute/analyze`, and all static PWA assets) that make up the entire stated value proposition (plan.md Section 1: "open and see your data in under three seconds"). The plan's own Risk table (Section 10) already treats push notifications as best-effort ("do not rely on push as the sole notification channel"), but the deployment topology doesn't reflect that: a storage fault in the least-critical subsystem (push/password-reset) currently takes the most-critical one (real-time arrivals) down with it. This is also the second known PVC-related incident for this app (see closed bead `bf-15tr`, a Cinder minimum-size issue) — the failure mode recurs.
+The deeper issue this exposes is architectural, not just an infra hiccup: `k8s/apexalgo-iad/mta-my-way/deployment.yaml` runs `replicas: 1` with `strategy: Recreate`, one container, one required `volumeMount` at `/data` backing a single SQLite database (`PUSH_DB_PATH` for push subscriptions, trips, sessions, and security tables — see `packages/server/src/push/subscriptions.ts`). Because the volumeMount is required in the pod spec, kubelet cannot start the container at all when the mount fails — which means the app cannot serve *any* traffic, including the fully in-memory, zero-persistence-required paths (`/api/arrivals/*`, `/api/stations`, `/api/routes`, `/api/alerts`, `/api/commute/analyze`, and all static PWA assets) that make up the entire stated value proposition (plan.md Section 1: "open and see your data in under three seconds"). The plan's own Risk table (Section 10) already treats push notifications as best-effort ("do not rely on push as the sole notification channel"), but the deployment topology doesn't reflect that: a storage fault in the least-critical subsystem (push/password-reset) currently takes the most-critical one (real-time arrivals) down with it. This is also the second known PVC-related incident for this app (see closed bead `bf-15tr`, a Cinder minimum-size issue) — the failure mode recurs.
 
 ### Decision
 
 Split the container's responsibilities along the fault line the plan already implies:
 
 1. A stateless **core** path — GTFS-RT polling, the arrivals/stations/routes/alerts/commute-analysis endpoints, and static PWA asset serving — with zero filesystem dependency beyond the read-only, image-baked GTFS JSON in `packages/server/data/`. No PVC, no `volumeMounts`. It schedules and becomes `Ready` on any node regardless of Cinder/CSI health, and because there's no single-writer state, it can run `replicas: 2+` with a standard `RollingUpdate` strategy instead of the current `Recreate`.
-2. A **stateful** subsystem for anything requiring durable writes (push subscriptions, alert history, and the dormant auth/session/password-reset tables) that keeps the existing PVC + `Recreate` + `replicas: 1` shape, but is now allowed to be unavailable without taking the core down.
+2. A **stateful** subsystem for anything requiring durable writes (push subscriptions, trips, sessions, security tables, and the dormant auth/password-reset tables) that keeps the existing PVC + `Recreate` + `replicas: 1` shape, but is now allowed to be unavailable without taking the core down.
 
-Wire them as an optional dependency: the core process calls the stateful subsystem over its internal ClusterIP Service with a short timeout and circuit breaker. If it's unreachable, push/auth/password-reset endpoints degrade to `503` and `/api/health` reports that subsystem `degraded` — everything else keeps working exactly as it does today when feeds are healthy. As an incremental first step (deployable before the full manifest split), make the `better-sqlite3` opens in `packages/server/src/push/subscriptions.ts` (and the alert-history equivalent) lazy/best-effort rather than a startup-blocking call in `index.ts`, so an unwritable or corrupt `/data` doesn't crash process startup even in cases where the mount technically succeeds but the filesystem underneath is bad.
+Wire them as an optional dependency: the core process calls the stateful subsystem over its internal ClusterIP Service with a short timeout and circuit breaker. If it's unreachable, push/auth/password-reset endpoints degrade to `503` and `/api/health` reports that subsystem `degraded` — everything else keeps working exactly as it does today when feeds are healthy. As an incremental first step (deployable before the full manifest split), make the `better-sqlite3` open in `packages/server/src/push/subscriptions.ts` lazy/best-effort rather than a startup-blocking call in `index.ts`, so an unwritable or corrupt `/data` doesn't crash process startup even in cases where the mount technically succeeds but the filesystem underneath is bad.
 
 ### Alternatives Considered
 

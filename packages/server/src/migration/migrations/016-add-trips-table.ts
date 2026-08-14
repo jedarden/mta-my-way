@@ -56,6 +56,11 @@ export function up(db: Database.Database): void {
   `);
 
   // User context state table
+  // DEPRECATED: This table represents server-side context storage that conflicts with
+  // plan.md Section 5.3 Feature #3, which explicitly requires "Entirely client-side using localStorage"
+  // for context switching. The /api/context endpoints and context-service.ts were removed in 2026-08
+  // to align with the plan's client-side, no-PII design. These tables remain for backward compatibility
+  // with existing databases but should not be used by new code.
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_context (
       id TEXT PRIMARY KEY,
@@ -70,6 +75,8 @@ export function up(db: Database.Database): void {
   `);
 
   // Context transition history
+  // DEPRECATED: Companion table to user_context, deprecated for the same reasons.
+  // Should not be used by new code; context switching is client-side only per plan.md.
   db.exec(`
     CREATE TABLE IF NOT EXISTS context_transitions (
       id TEXT PRIMARY KEY,
@@ -82,6 +89,7 @@ export function up(db: Database.Database): void {
   `);
 
   // Index for context queries
+  // DEPRECATED: Indexes for deprecated user_context and context_transitions tables.
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_context_detected_at ON user_context(detected_at);
     CREATE INDEX IF NOT EXISTS idx_context_transitions_triggered_at ON context_transitions(triggered_at);
