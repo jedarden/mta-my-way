@@ -1,31 +1,27 @@
-# NEEDLE workspace configuration
-# Workspace: /home/coding/mta-my-way
-
 agent:
   default: glm
   timeout: 600
-
 strands:
   pluck:
     enabled: true
     exclude_labels:
-      - deferred
-      - human
-      - blocked
+    - deferred
+    - human
+    - blocked
   explore:
     enabled: true
     workspaces:
-      - /home/coding/AgentScribe
-      - /home/coding/ai-code-battle
-      - /home/coding/spaxel
-      - /home/coding/domain-check
+    - /home/coding/AgentScribe
+    - /home/coding/ai-code-battle
+    - /home/coding/spaxel
+    - /home/coding/domain-check
   weave:
     enabled: true
     max_beads_per_run: 3
     cooldown_hours: 24
     doc_patterns:
-      - "README*"
-      - "docs/**/*"
+    - README*
+    - docs/**/*
   unravel:
     enabled: true
     max_beads_per_run: 3
@@ -35,49 +31,34 @@ strands:
     cooldown_hours: 48
     severity_threshold: 3
     scanners:
-      - name: lint
-        command: "npm run lint 2>&1"
-      - name: test
-        command: "npm test 2>&1"
-
+    - name: lint
+      command: npm run lint 2>&1
+    - name: test
+      command: npm test 2>&1
 verification:
-  - /home/coding/.needle/hooks/verify-changes.sh
-
+- /home/coding/.needle/hooks/verify-changes.sh
 prompt:
   context_files: []
-  instructions: |
-    You are working on MTA My Way, a mobile-first PWA for NYC subway commuters.
+  instructions: 'You are working on MTA My Way, a mobile-first PWA for NYC subway
+    commuters.
+
     The project is a TypeScript monorepo (packages/server, packages/web, packages/shared).
+
     Backend is Hono on Node.js; frontend is React + Vite.
-    Follow existing code patterns. Run `npm test` and `npm run lint` before closing a bead.
+
+    Follow existing code patterns. Run `npm test` and `npm run lint` before closing
+    a bead.
+
+    '
   templates:
-    pluck: |
-      ## Workflow
-
-      You are a coding agent. Complete the task below, then close the bead.
-
-      Steps:
-      1. Read the task description and context below
-      2. Implement the required changes in {workspace_path}
-      3. Commit your work: `git commit -am "brief description of what was done"`
-      4. Push: `git push`
-      5. Close the bead: `br close {bead_id} --body "brief summary of what was implemented"`
-
-      If you cannot complete the task — do NOT close the bead. It will be retried automatically.
-
-      ---
-
-      ## Task: {bead_title}
-
-      {bead_body}
-
-      ## Rules
-
-      {workspace_instructions}
-
-      ## Context
-
-      {context_file_contents}
-
-      Bead ID: {bead_id}
-
+    pluck: "## Workflow\n\nYou are a coding agent. Complete the task below, then close\
+      \ the bead.\n\nSteps:\n1. Read the task description and context below\n2. Implement\
+      \ the required changes in {workspace_path}\n3. Commit your work: `git commit\
+      \ -am \"brief description of what was done\"`\n4. Push: `git push`\n5. Close\
+      \ the bead: `br close {bead_id} --body \"brief summary of what was implemented\"\
+      `\n\nIf you cannot complete the task \u2014 do NOT close the bead. It will be\
+      \ retried automatically.\n\n---\n\n## Task: {bead_title}\n\n{bead_body}\n\n\
+      ## Rules\n\n{workspace_instructions}\n\n## Context\n\n{context_file_contents}\n\
+      \nBead ID: {bead_id}\n"
+bead_cli:
+  backend: bead-rs
