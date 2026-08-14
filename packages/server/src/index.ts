@@ -22,7 +22,6 @@ import type {
 } from "@mta-my-way/shared";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
-import { initContextService } from "./context-service.js";
 import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
@@ -38,12 +37,17 @@ import { initObservability, logger, shutdownObservability } from "./observabilit
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
-import { getPushDatabase, initPushDatabase } from "./push/subscriptions.js";
+import {
+  getPushDatabase,
+  initPushDatabase,
+  isPushDatabaseReady,
+} from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { setSecurityDb } from "./security/security-db.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
+import { initContextService } from "./context-service.js";
 import { initTripTracking } from "./trip-tracking.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +60,23 @@ const DATA_DIR = join(__dirname, "..", "data");
 const WEB_DIST = resolve(__dirname, "..", "..", "web", "dist");
 
 const PORT = parseInt(process.env["PORT"] ?? "3001", 10);
+
+/**
+ * CORE_ONLY mode: When set to true, the server runs in stateless mode.
+ *
+ * In CORE_ONLY mode:
+ * - No database initialization (push subscriptions, trip tracking, context service)
+ * - No push notification pipeline
+ * - No session cleanup
+ * - DB-dependent endpoints return 503 Service Unavailable
+ *
+ * This mode is used for the stateless core deployment that can run replicas 2+
+ * with zero dependency on PVC-backed storage. The stateful subsystem runs as
+ * a separate deployment with replicas=1 and PVC mount.
+ *
+ * Per ADR-001 (2026-07-20): "Decouple the Core Read Path from Persistent-Volume-Backed State"
+ */
+const CORE_ONLY = process.env["CORE_ONLY"] === "true";
 
 /**
  * Load a JSON data file from the data directory
@@ -146,45 +167,64 @@ async function main(): Promise<void> {
   // Hono app (builds TransferEngine internally from loaded data)
   const app = createApp(stations, routes, complexes, transfers, WEB_DIST);
 
-  // Push notification subsystem
-  const pushDbPath = process.env["PUSH_DB_PATH"] ?? join(DATA_DIR, "subscriptions.db");
-  initPushDatabase(pushDbPath);
-  const pushDb = getPushDatabase();
+  // Push notification subsystem — best-effort initialization
+  // In CORE_ONLY mode, skip all DB-dependent subsystems entirely
+  if (!CORE_ONLY) {
+    const pushDbPath = process.env["PUSH_DB_PATH"] ?? join(DATA_DIR, "subscriptions.db");
+    initPushDatabase(pushDbPath);
 
-  // Run database migrations
-  try {
-    const results = await runMigrations(pushDb);
-    const applied = results.filter((r) => r.applied);
-    if (applied.length > 0) {
-      logger.info("Database migrations applied", {
-        count: applied.length,
-        versions: applied.map((r) => r.version),
+    // Only proceed with migrations and DB-dependent services if DB is ready
+    if (isPushDatabaseReady()) {
+      const pushDb = getPushDatabase();
+
+      // Run database migrations
+      try {
+        const results = await runMigrations(pushDb);
+        const applied = results.filter((r) => r.applied);
+        if (applied.length > 0) {
+          logger.info("Database migrations applied", {
+            count: applied.length,
+            versions: applied.map((r) => r.version),
+          });
+        }
+      } catch (err) {
+        logger.error("Database migration failed", err as Error);
+        throw err;
+      }
+
+      // Wire security persistence — must run after migrations so tables exist
+      setSecurityDb(pushDb);
+      await initApiKeyRegistryFromDb();
+      loadRateLimitDataFromDb();
+      initPasswordManagementFromDb();
+      initNotificationsFromDb();
+
+      // Start automatic session cleanup (expires idle/timed-out sessions every 5 minutes)
+      startSessionCleanup();
+
+      const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
+      configureWebPush(vapidKeys);
+      startPushPipeline();
+      startBriefingScheduler();
+
+      // Initialize trip tracking and journal (Phase 5) — only if DB is ready
+      initTripTracking(pushDb, stations);
+
+      logger.info("Stateful subsystems initialized", {
+        pushDb: "ready",
+        tripTracking: "enabled",
+      });
+    } else {
+      logger.warn("Push database unavailable — running in degraded mode", {
+        hint: "DB-dependent endpoints (push subscribe, trip tracking, sessions) will return 503",
       });
     }
-  } catch (err) {
-    logger.error("Database migration failed", err as Error);
-    throw err;
+  } else {
+    logger.info("CORE_ONLY mode: skipping all DB-dependent subsystems", {
+      disabled: ["push subscriptions", "trip tracking", "context service", "session cleanup", "password reset"],
+      hint: "Set CORE_ONLY=false to enable stateful features",
+    });
   }
-
-  // Wire security persistence — must run after migrations so tables exist
-  setSecurityDb(pushDb);
-  await initApiKeyRegistryFromDb();
-  loadRateLimitDataFromDb();
-  initPasswordManagementFromDb();
-  initNotificationsFromDb();
-
-  // Start automatic session cleanup (expires idle/timed-out sessions every 5 minutes)
-  startSessionCleanup();
-
-  const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
-  configureWebPush(vapidKeys);
-  startPushPipeline();
-  startBriefingScheduler();
-
-  // Initialize trip tracking and journal (Phase 5)
-  initTripTracking(pushDb, stations);
-
-  initContextService(pushDb, stations);
 
   // Weekly GTFS static data refresh (first run fires 7 days after startup)
   startGtfsRefreshScheduler();
