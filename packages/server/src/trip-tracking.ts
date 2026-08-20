@@ -25,32 +25,111 @@ const DEFAULT_COMMUTE_ID = "default";
 // Database instance (set via initTripTracking)
 let db: Database.Database | null = null;
 let stations: StationIndex | null = null;
+let tripTrackingInitialized = false;
 
 // Default owner ID for unauthenticated or legacy data
 export const DEFAULT_OWNER_ID = "anonymous";
 
 /**
  * Initialize trip tracking service.
+ * Note: This is now a no-op for initialization - trip tracking uses
+ * lazy initialization on first use, sharing the same database as push subscriptions.
  */
-export function initTripTracking(database: Database.Database, stationData: StationIndex): void {
+export function initTripTracking(database: Database.Database | null, stationData: StationIndex): void {
   db = database;
   stations = stationData;
+  tripTrackingInitialized = true;
 
-  // Run migrations
-  void import("./migration/index.js").then(({ runMigrations }) => {
-    runMigrations(db!).catch((err) => {
-      logger.error(
-        "Failed to run trip tracking migrations",
-        err instanceof Error ? err : undefined
+  // Set initial active trips count if database is available
+  if (db) {
+    const totalTrips = getTotalTripCount();
+    setActiveTripsCount(totalTrips);
+    logger.info("Trip tracking initialized", { totalTrips });
+  } else {
+    logger.info("Trip tracking configured (will initialize lazily on first use)");
+  }
+}
+
+/**
+ * Ensure the trip tracking tables are created (called on first use).
+ */
+async function ensureTripTrackingTables(): Promise<void> {
+  // Import getPushDatabase to get the shared database instance
+  const { getPushDatabase, isPushDatabaseReady } = await import("./push/subscriptions.js");
+
+  if (!isPushDatabaseReady()) {
+    throw new Error("Push database not available for trip tracking");
+  }
+
+  db = getPushDatabase();
+
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS trips (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        origin_station_id TEXT NOT NULL,
+        origin_station_name TEXT NOT NULL,
+        destination_station_id TEXT NOT NULL,
+        destination_station_name TEXT NOT NULL,
+        line TEXT NOT NULL,
+        departure_time INTEGER NOT NULL,
+        arrival_time INTEGER NOT NULL,
+        actual_duration_minutes INTEGER NOT NULL,
+        scheduled_duration_minutes INTEGER,
+        source TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        owner_id TEXT NOT NULL DEFAULT 'anonymous'
       );
-    });
-  });
 
-  // Set initial active trips count
-  const totalTrips = getTotalTripCount();
-  setActiveTripsCount(totalTrips);
+      CREATE INDEX IF NOT EXISTS idx_trips_date ON trips(date);
+      CREATE INDEX IF NOT EXISTS idx_trips_owner_id ON trips(owner_id);
+      CREATE INDEX IF NOT EXISTS idx_trips_line ON trips(line);
 
-  logger.info("Trip tracking initialized", { totalTrips });
+      CREATE TABLE IF NOT EXISTS commute_stats (
+        commute_id TEXT PRIMARY KEY,
+        origin_station_id TEXT NOT NULL,
+        origin_station_name TEXT NOT NULL,
+        destination_station_id TEXT NOT NULL,
+        destination_station_name TEXT NOT NULL,
+        average_duration_minutes REAL,
+        median_duration_minutes REAL,
+        std_dev_minutes REAL,
+        total_trips INTEGER NOT NULL DEFAULT 0,
+        trips_this_week INTEGER NOT NULL DEFAULT 0,
+        trend_percentage REAL,
+        last_updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_commute_stats_owner ON commute_stats(commute_id);
+    `);
+
+    logger.info("Trip tracking tables initialized");
+  } catch (err) {
+    logger.error("Failed to create trip tracking tables", err as Error);
+    throw err;
+  }
+}
+
+/**
+ * Get the database instance, throwing if not available.
+ */
+async function getDb(): Promise<Database.Database> {
+  if (!db) {
+    // Try to get the database from push subscriptions
+    const { getPushDatabase, isPushDatabaseReady } = await import("./push/subscriptions.js");
+    if (!isPushDatabaseReady()) {
+      throw new Error("Trip tracking database not available - push DB not ready");
+    }
+    db = getPushDatabase();
+  }
+
+  if (!db?.open) {
+    throw new Error("Trip tracking database not available");
+  }
+  return db;
 }
 
 // ============================================================================
@@ -63,11 +142,24 @@ export function initTripTracking(database: Database.Database, stationData: Stati
  * @param trip - Trip data to record
  * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export function recordTrip(
+export async function recordTrip(
   trip: Omit<TripRecord, "id">,
   ownerId: string = DEFAULT_OWNER_ID
-): TripRecord | null {
-  if (!db?.open) {
+): Promise<TripRecord | null> {
+  // Ensure tables exist on first use
+  if (!tripTrackingInitialized) {
+    throw new Error("Trip tracking not initialized. Call initTripTracking() first.");
+  }
+
+  // Initialize tables lazily if needed
+  if (db) {
+    try {
+      await ensureTripTrackingTables();
+    } catch (err) {
+      logger.error("Cannot record trip: failed to initialize tables", err as Error);
+      return null;
+    }
+  } else {
     logger.error("Cannot record trip: database connection is not open");
     return null;
   }

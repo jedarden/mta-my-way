@@ -26,70 +26,177 @@ import { logger } from "../observability/logger.js";
 let db: Database.Database | null = null;
 let pushDbReady = false;
 let pushDbInitError: Error | null = null;
+let pushDbPath: string | null = null;
+let initAttempted = false;
+let initPromise: Promise<void> | null = null;
+
+// Retry configuration
+const MAX_INIT_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 1000;
 
 // Default owner ID for unauthenticated or legacy data
 const DEFAULT_OWNER_ID = "anonymous";
 
 /**
- * Initialize the push subscriptions database.
- * Must be called before any other function in this module.
+ * Configure the push database path without opening it.
+ * The database will be opened lazily on first use.
+ *
+ * @param dbPath  Path to the SQLite database file (or ":memory:" for tests)
+ */
+export function configurePushDatabase(dbPath: string): void {
+  pushDbPath = dbPath;
+  logger.info("Push database path configured", { path: dbPath });
+}
+
+/**
+ * Initialize the push subscriptions database with retry logic.
+ * This function is called lazily on first database access.
  *
  * This function is best-effort: if the database cannot be opened due to
  * filesystem errors, corruption, or permission issues, the error is logged
  * and the server continues starting. DB-dependent endpoints will return
  * 503 Service Unavailable in degraded mode.
- *
- * @param dbPath  Path to the SQLite database file (or ":memory:" for tests)
  */
-export function initPushDatabase(dbPath: string): void {
-  try {
-    db = new Database(dbPath);
+async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
+  if (pushDbReady) {
+    return; // Already initialized successfully
+  }
 
-    // WAL mode for better concurrent read performance
-    db.pragma("journal_mode = WAL");
+  if (initPromise) {
+    return initPromise; // Already in progress
+  }
 
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS push_subscriptions (
-        endpoint_hash TEXT PRIMARY KEY,
-        endpoint TEXT NOT NULL,
-        p256dh TEXT NOT NULL,
-        auth TEXT NOT NULL,
-        favorites TEXT NOT NULL DEFAULT '[]',
-        quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
-        morning_scores TEXT NOT NULL DEFAULT '{}',
-        briefing_hour INTEGER NOT NULL DEFAULT 7,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
-        ON push_subscriptions(updated_at);
-
-      CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
-        ON push_subscriptions(owner_id);
-    `);
-
-    // Migration: add briefing_hour column to existing tables
-    try {
-      db.exec("ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7");
-    } catch {
-      // Column already exists — ignore
+  initPromise = (async () => {
+    if (!pushDbPath) {
+      const error = new Error("Push database path not configured. Call configurePushDatabase() first.");
+      pushDbInitError = error;
+      logger.error("Push database not configured", error);
+      return;
     }
 
-    pushDbReady = true;
-    pushDbInitError = null;
-    logger.info("Push database initialized", { path: dbPath });
-  } catch (err) {
-    const error = err as Error;
-    pushDbReady = false;
-    pushDbInitError = error;
-    db = null;
-    logger.error("Failed to initialize push database — running in degraded mode", error, {
-      path: dbPath,
-      hint: "DB-dependent endpoints will return 503. Stateless endpoints remain available.",
-    });
+    try {
+      db = new Database(pushDbPath);
+
+      // WAL mode for better concurrent read performance
+      db.pragma("journal_mode = WAL");
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          endpoint_hash TEXT PRIMARY KEY,
+          endpoint TEXT NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          favorites TEXT NOT NULL DEFAULT '[]',
+          quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
+          morning_scores TEXT NOT NULL DEFAULT '{}',
+          briefing_hour INTEGER NOT NULL DEFAULT 7,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
+          ON push_subscriptions(updated_at);
+
+        CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
+          ON push_subscriptions(owner_id);
+      `);
+
+      // Migration: add briefing_hour column to existing tables
+      try {
+        db.exec("ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7");
+      } catch {
+        // Column already exists — ignore
+      }
+
+      pushDbReady = true;
+      pushDbInitError = null;
+      initAttempted = true;
+      logger.info("Push database initialized (lazy)", { path: pushDbPath });
+    } catch (err) {
+      const error = err as Error;
+      pushDbInitError = error;
+      db = null;
+      initAttempted = true;
+
+      // Retry with exponential backoff
+      if (retryCount < MAX_INIT_RETRIES && isRetryableError(error)) {
+        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, retryCount);
+        logger.warn(`Push database init failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_INIT_RETRIES})`, {
+          path: pushDbPath,
+          error: error.message,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        initPromise = null;
+        return initPushDatabaseWithRetry(retryCount + 1);
+      }
+
+      logger.error("Failed to initialize push database — running in degraded mode", error, {
+        path: pushDbPath,
+        retriesAttempted: retryCount + 1,
+        hint: "DB-dependent endpoints will return 503. Stateless endpoints remain available.",
+      });
+    } finally {
+      initPromise = null;
+    }
+  })();
+
+  return initPromise;
+}
+
+/**
+ * Check if an error is retryable (transient filesystem errors).
+ */
+function isRetryableError(error: Error): boolean {
+  const retryablePatterns = [
+    /ELOCKED/,
+    /EBUSY/,
+    /EIO/,
+    /ENOENT/,
+    /EACCES/,
+    /EPERM/,
+    /database is locked/,
+    /database is malformed/,
+    /disk I\/O error/,
+    /no such file or directory/,
+    /permission denied/,
+  ];
+
+  const message = error.message.toLowerCase();
+  return retryablePatterns.some((pattern) => pattern.test(message));
+}
+
+/**
+ * Ensure the database is initialized before use.
+ * Called automatically by all database operations.
+ */
+async function ensureDbInitialized(): Promise<void> {
+  if (pushDbReady) {
+    return;
   }
+
+  await initPushDatabaseWithRetry();
+
+  if (!pushDbReady) {
+    throw new Error(
+      pushDbInitError
+        ? `Push database not available: ${pushDbInitError.message}`
+        : "Push database not initialized"
+    );
+  }
+}
+
+/**
+ * Initialize the push subscriptions database (synchronous, for backward compatibility).
+ * This is now a no-op; use configurePushDatabase() instead.
+ * The database will be opened lazily on first use.
+ *
+ * @deprecated Use configurePushDatabase() instead. Database is now initialized lazily.
+ */
+export function initPushDatabase(dbPath: string): void {
+  configurePushDatabase(dbPath);
+  logger.info("initPushDatabase called (now a no-op, DB will initialize lazily)", { path: dbPath });
 }
 
 /**
@@ -150,9 +257,10 @@ function hashEndpoint(endpoint: string): string {
   return createHash("sha256").update(endpoint).digest("hex");
 }
 
-function getDb(): Database.Database {
+async function getDb(): Promise<Database.Database> {
+  await ensureDbInitialized();
   if (!db) {
-    throw new Error("Push database not initialized. Call initPushDatabase() first.");
+    throw new Error("Push database not available after initialization.");
   }
   return db;
 }
@@ -168,14 +276,14 @@ function getDb(): Database.Database {
  * @param request - Subscription request data
  * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export function upsertSubscription(
+export async function upsertSubscription(
   request: PushSubscribeRequest,
   ownerId: string = DEFAULT_OWNER_ID
-): {
+): Promise<{
   success: boolean;
   endpointHash: string;
-} {
-  const database = getDb();
+}> {
+  const database = await getDb();
   const { subscription, favorites, quietHours, morningScores, briefingHour } = request;
   const endpointHash = hashEndpoint(subscription.endpoint);
   const now = new Date().toISOString();
@@ -209,7 +317,7 @@ export function upsertSubscription(
   );
 
   // Update push subscriptions active metric
-  setPushSubscriptionsActive(getSubscriptionCount());
+  setPushSubscriptionsActive(await getSubscriptionCount());
 
   logger.info("Push subscription upserted", {
     endpointHash,
@@ -225,8 +333,8 @@ export function upsertSubscription(
  * @param endpoint - Subscription endpoint
  * @param ownerId - Owner ID for access control (if not provided, any owner can delete)
  */
-export function removeSubscription(endpoint: string, ownerId?: string): boolean {
-  const database = getDb();
+export async function removeSubscription(endpoint: string, ownerId?: string): Promise<boolean> {
+  const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
 
   let stmt: Database.Statement;
@@ -238,7 +346,7 @@ export function removeSubscription(endpoint: string, ownerId?: string): boolean 
 
     if (result.changes > 0) {
       // Update push subscriptions active metric
-      setPushSubscriptionsActive(getSubscriptionCount());
+      setPushSubscriptionsActive(await getSubscriptionCount());
       logger.info("Push subscription removed", { endpointHash, ownerId });
     }
 
@@ -249,7 +357,7 @@ export function removeSubscription(endpoint: string, ownerId?: string): boolean 
 
     if (result.changes > 0) {
       // Update push subscriptions active metric
-      setPushSubscriptionsActive(getSubscriptionCount());
+      setPushSubscriptionsActive(await getSubscriptionCount());
       logger.info("Push subscription removed (admin)", { endpointHash });
     }
 
@@ -261,8 +369,8 @@ export function removeSubscription(endpoint: string, ownerId?: string): boolean 
  * Get all subscriptions. Used by the matcher and sender.
  * Note: This returns all subscriptions without ownership filtering - use carefully.
  */
-export function getAllSubscriptions(): PushSubscriptionRecord[] {
-  const database = getDb();
+export async function getAllSubscriptions(): Promise<PushSubscriptionRecord[]> {
+  const database = await getDb();
 
   const stmt = database.prepare(
     "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, briefing_hour as briefingHour, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions"
@@ -278,16 +386,16 @@ export function getAllSubscriptions(): PushSubscriptionRecord[] {
  * @param requestingOwnerId - Owner ID making the request (for authorization)
  * @returns Array of subscription records or null if unauthorized
  */
-export function getSubscriptionsByOwner(
+export async function getSubscriptionsByOwner(
   ownerId: string,
   requestingOwnerId: string
-): PushSubscriptionRecord[] | null {
+): Promise<PushSubscriptionRecord[] | null> {
   // Users can only access their own subscriptions (unless admin, which is checked at middleware level)
   if (ownerId !== requestingOwnerId) {
     return null;
   }
 
-  const database = getDb();
+  const database = await getDb();
 
   const stmt = database.prepare(
     "SELECT endpoint_hash as endpointHash, endpoint, p256dh, auth, favorites, quiet_hours as quietHours, morning_scores as morningScores, briefing_hour as briefingHour, created_at as createdAt, updated_at as updatedAt FROM push_subscriptions WHERE owner_id = ?"
@@ -300,7 +408,7 @@ export function getSubscriptionsByOwner(
  * Get the total number of active subscriptions (for health endpoint).
  * Returns 0 if the database is not available.
  */
-export function getSubscriptionCount(): number {
+export async function getSubscriptionCount(): Promise<number> {
   if (!pushDbReady || db === null) return 0;
   const stmt = db.prepare("SELECT COUNT(*) as count FROM push_subscriptions");
   const row = stmt.get() as { count: number };
@@ -315,12 +423,12 @@ export function getSubscriptionCount(): number {
  * @param favorites - New favorites
  * @param ownerId - Owner ID for access control
  */
-export function updateSubscriptionFavorites(
+export async function updateSubscriptionFavorites(
   endpoint: string,
   favorites: PushFavoriteTuple[],
   ownerId: string
-): boolean {
-  const database = getDb();
+): Promise<boolean> {
+  const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
   const now = new Date().toISOString();
 
@@ -346,12 +454,12 @@ export function updateSubscriptionFavorites(
  * @param quietHours - New quiet hours settings
  * @param ownerId - Owner ID for access control
  */
-export function updateSubscriptionQuietHours(
+export async function updateSubscriptionQuietHours(
   endpoint: string,
   quietHours: { enabled: boolean; startHour: number; endHour: number },
   ownerId: string
-): boolean {
-  const database = getDb();
+): Promise<boolean> {
+  const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
   const now = new Date().toISOString();
 
@@ -377,12 +485,12 @@ export function updateSubscriptionQuietHours(
  * @param morningScores - New morning scores
  * @param ownerId - Owner ID for access control
  */
-export function updateSubscriptionMorningScores(
+export async function updateSubscriptionMorningScores(
   endpoint: string,
   morningScores: MorningScoreMap,
   ownerId: string
-): boolean {
-  const database = getDb();
+): Promise<boolean> {
+  const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
   const now = new Date().toISOString();
 
@@ -408,12 +516,12 @@ export function updateSubscriptionMorningScores(
  * @param briefingHour - Hour (0–23) at which to send morning briefing
  * @param ownerId - Owner ID for access control
  */
-export function updateSubscriptionBriefingHour(
+export async function updateSubscriptionBriefingHour(
   endpoint: string,
   briefingHour: number,
   ownerId: string
-): boolean {
-  const database = getDb();
+): Promise<boolean> {
+  const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
   const now = new Date().toISOString();
 
@@ -436,8 +544,8 @@ export function updateSubscriptionBriefingHour(
  * Remove subscriptions that haven't been updated in the given number of days.
  * Push subscriptions expire; this cleans up stale entries.
  */
-export function purgeStaleSubscriptions(maxAgeDays: number = 60): number {
-  const database = getDb();
+export async function purgeStaleSubscriptions(maxAgeDays: number = 60): Promise<number> {
+  const database = await getDb();
 
   const stmt = database.prepare(`
     DELETE FROM push_subscriptions
@@ -455,8 +563,8 @@ export function purgeStaleSubscriptions(maxAgeDays: number = 60): number {
  * @param ownerId - Owner ID to verify
  * @returns true if the subscription belongs to the owner
  */
-export function checkSubscriptionOwnership(endpoint: string, ownerId: string): boolean {
-  const database = getDb();
+export async function checkSubscriptionOwnership(endpoint: string, ownerId: string): Promise<boolean> {
+  const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
 
   const row = database
@@ -472,8 +580,8 @@ export function checkSubscriptionOwnership(endpoint: string, ownerId: string): b
  * @param endpoint - Subscription endpoint to query
  * @returns Owner ID or undefined if subscription not found
  */
-export function getSubscriptionOwner(endpoint: string): string | undefined {
-  const database = getDb();
+export async function getSubscriptionOwner(endpoint: string): Promise<string | undefined> {
+  const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
 
   const row = database

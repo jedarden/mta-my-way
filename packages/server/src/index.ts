@@ -22,6 +22,7 @@ import type {
 } from "@mta-my-way/shared";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
+import { initContextService } from "./context-service.js";
 import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
@@ -37,17 +38,12 @@ import { initObservability, logger, shutdownObservability } from "./observabilit
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
-import {
-  getPushDatabase,
-  initPushDatabase,
-  isPushDatabaseReady,
-} from "./push/subscriptions.js";
+import { configurePushDatabase, getPushDatabase, isPushDatabaseReady } from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { setSecurityDb } from "./security/security-db.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
-import { initContextService } from "./context-service.js";
 import { initTripTracking } from "./trip-tracking.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -171,57 +167,32 @@ async function main(): Promise<void> {
   // In CORE_ONLY mode, skip all DB-dependent subsystems entirely
   if (!CORE_ONLY) {
     const pushDbPath = process.env["PUSH_DB_PATH"] ?? join(DATA_DIR, "subscriptions.db");
-    initPushDatabase(pushDbPath);
 
-    // Only proceed with migrations and DB-dependent services if DB is ready
-    if (isPushDatabaseReady()) {
-      const pushDb = getPushDatabase();
+    // Configure push database path — will be opened lazily on first use
+    configurePushDatabase(pushDbPath);
 
-      // Run database migrations
-      try {
-        const results = await runMigrations(pushDb);
-        const applied = results.filter((r) => r.applied);
-        if (applied.length > 0) {
-          logger.info("Database migrations applied", {
-            count: applied.length,
-            versions: applied.map((r) => r.version),
-          });
-        }
-      } catch (err) {
-        logger.error("Database migration failed", err as Error);
-        throw err;
-      }
+    // Configure trip tracking — will use the same database, initialized lazily
+    initTripTracking(null, stations);
 
-      // Wire security persistence — must run after migrations so tables exist
-      setSecurityDb(pushDb);
-      await initApiKeyRegistryFromDb();
-      loadRateLimitDataFromDb();
-      initPasswordManagementFromDb();
-      initNotificationsFromDb();
+    // Note: Database migrations and DB-dependent services initialization
+    // are now deferred. They will be triggered on first use of DB-dependent
+    // features. If the DB cannot be opened, those features will return 503
+    // while core functionality remains available.
 
-      // Start automatic session cleanup (expires idle/timed-out sessions every 5 minutes)
-      startSessionCleanup();
-
-      const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
-      configureWebPush(vapidKeys);
-      startPushPipeline();
-      startBriefingScheduler();
-
-      // Initialize trip tracking and journal (Phase 5) — only if DB is ready
-      initTripTracking(pushDb, stations);
-
-      logger.info("Stateful subsystems initialized", {
-        pushDb: "ready",
-        tripTracking: "enabled",
-      });
-    } else {
-      logger.warn("Push database unavailable — running in degraded mode", {
-        hint: "DB-dependent endpoints (push subscribe, trip tracking, sessions) will return 503",
-      });
-    }
+    logger.info("Stateful subsystems configured", {
+      pushDb: "lazy-init",
+      tripTracking: "lazy-init",
+      hint: "DB will be initialized on first use. Core endpoints remain available.",
+    });
   } else {
     logger.info("CORE_ONLY mode: skipping all DB-dependent subsystems", {
-      disabled: ["push subscriptions", "trip tracking", "context service", "session cleanup", "password reset"],
+      disabled: [
+        "push subscriptions",
+        "trip tracking",
+        "context service",
+        "session cleanup",
+        "password reset",
+      ],
       hint: "Set CORE_ONLY=false to enable stateful features",
     });
   }
