@@ -977,7 +977,7 @@ ${
    *   Note: "degraded" status can coexist with a 200 response (e.g. one stale feed
    *         but fewer than 3 failing). 503 implies "degraded" but not vice versa.
    */
-  app.get("/api/health", (c) => {
+  app.get("/api/health", async (c) => {
     // Validate that no unexpected query parameters are passed
     const query = validateQuery(c, emptyQuerySchema);
     if (query instanceof Response) return query;
@@ -1072,7 +1072,7 @@ ${
         equipment: getEquipmentStatus(),
         pushDb: {
           ready: pushDbOk,
-          subscriptionCount: getSubscriptionCount(),
+          subscriptionCount: await getSubscriptionCount(),
         },
         statefulSubsystem: getStatefulStatus(),
         cacheHitRate,
@@ -1979,11 +1979,11 @@ ${
 
         // Use the authenticated user's keyId as the owner
         const ownerId = auth?.keyId || "anonymous";
-        upsertSubscription(body, ownerId);
+        await upsertSubscription(body, ownerId);
 
         logger.info("Push subscription registered", {
           lines: body.favorites?.map((f) => f.lines).flat() ?? [],
-          total_subscriptions: getSubscriptionCount(),
+          total_subscriptions: await getSubscriptionCount(),
           ownerId,
         });
 
@@ -2001,7 +2001,7 @@ ${
     requireOwnershipOrAdmin("subscriptions", {
       getOwnerId: async (c) => {
         const body = await c.req.json().catch(() => ({}));
-        return getSubscriptionOwner(body.endpoint) || "";
+        return await getSubscriptionOwner(body.endpoint) || "";
       },
       adminBypass: true,
     }),
@@ -2049,11 +2049,11 @@ ${
 
         // Use the authenticated user's keyId as the owner
         const ownerId = auth?.keyId || "anonymous";
-        const removed = removeSubscription(body.endpoint, ownerId);
+        const removed = await removeSubscription(body.endpoint, ownerId);
 
         logger.info("Push subscription removed", {
           removed,
-          total_subscriptions: getSubscriptionCount(),
+          total_subscriptions: await getSubscriptionCount(),
           ownerId,
         });
 
@@ -2071,7 +2071,7 @@ ${
     requireOwnershipOrAdmin("subscriptions", {
       getOwnerId: async (c) => {
         const body = await c.req.json().catch(() => ({}));
-        return getSubscriptionOwner(body.endpoint) || "";
+        return await getSubscriptionOwner(body.endpoint) || "";
       },
       adminBypass: true,
     }),
@@ -2120,15 +2120,15 @@ ${
         const ownerId = auth?.keyId || "anonymous";
 
         if (body.favorites) {
-          updateSubscriptionFavorites(body.endpoint, body.favorites, ownerId);
+          await updateSubscriptionFavorites(body.endpoint, body.favorites, ownerId);
         }
 
         if (body.quietHours) {
-          updateSubscriptionQuietHours(body.endpoint, body.quietHours, ownerId);
+          await updateSubscriptionQuietHours(body.endpoint, body.quietHours, ownerId);
         }
 
         if (body.morningScores) {
-          updateSubscriptionMorningScores(body.endpoint, body.morningScores, ownerId);
+          await updateSubscriptionMorningScores(body.endpoint, body.morningScores, ownerId);
         }
 
         return c.json({ success: true });
@@ -2217,7 +2217,7 @@ ${
 
         // Use authenticated user's keyId as owner
         const ownerId = auth?.keyId || "anonymous";
-        const trip = recordTrip(
+        const trip = await recordTrip(
           {
             date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
             origin: { stationId: origin, stationName: originStation.name },
