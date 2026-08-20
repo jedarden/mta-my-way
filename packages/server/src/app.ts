@@ -65,10 +65,6 @@ import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js"
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import {
-  callStatefulService,
-  getStatefulStatus,
-} from "./services/stateful-client.js";
-import {
   auditLogAccess,
   cors,
   csrfProtection,
@@ -129,6 +125,7 @@ import {
 } from "./push/subscriptions.js";
 import { getVapidPublicKey } from "./push/vapid.js";
 import { buildPasswordResetRoutes } from "./routes/password-reset.routes.js";
+import { callStatefulService, getStatefulStatus } from "./services/stateful-client.js";
 import { createTransferEngine } from "./transfer/index.js";
 import { lookupTrip } from "./trip-lookup.js";
 import {
@@ -743,7 +740,7 @@ ${
     </div>
     `
     : ""
-    }
+}
 
     <div class="grid">
       <!-- System Overview -->
@@ -1001,8 +998,6 @@ ${
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
     const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-    const statefulStatus = getStatefulStatus();
-    const statefulReachable = statefulStatus.reachable === true;
 
     // Core status depends only on feeds and alerts - stateful subsystem degradation is acceptable
     // This allows the stateless core to report "ok" even when stateful subsystem is down

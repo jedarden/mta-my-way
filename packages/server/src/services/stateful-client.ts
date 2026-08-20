@@ -137,8 +137,7 @@ export async function callStatefulService<T = unknown>(
     // In half-open state (after reset timeout), allow one test request
     const now = Date.now();
     const isHalfOpen =
-      circuitState.circuitOpenAt !== null &&
-      now - circuitState.circuitOpenAt >= CIRCUIT_RESET_MS;
+      circuitState.circuitOpenAt !== null && now - circuitState.circuitOpenAt >= CIRCUIT_RESET_MS;
 
     if (!isHalfOpen) {
       logger.debug("Stateful circuit breaker open - request rejected", { path });
@@ -203,7 +202,7 @@ export async function checkStatefulHealth(): Promise<boolean> {
       method: "GET",
     });
     return response.status === "ok";
-  } catch (err) {
+  } catch {
     return false;
   }
 }
