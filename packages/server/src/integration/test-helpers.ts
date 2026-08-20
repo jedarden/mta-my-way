@@ -497,7 +497,8 @@ export async function cleanupAllState(): Promise<void> {
   await tryReset("../transformer.js", "resetTransformerState");
 
   // ---- context-service.ts -------------------------------------------------
-  await tryReset("../context-service.js", "resetContextService");
+  // REMOVED: context-service was deleted in 2026-08 as part of client-side-only context design
+  // await tryReset("../context-service.js", "resetContextService");
 }
 
 // ---------------------------------------------------------------------------
