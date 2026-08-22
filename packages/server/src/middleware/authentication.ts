@@ -2777,6 +2777,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
                 authMethod: "session",
                 mfaVerified: isSessionMfaVerified(sessionToken),
               };
+              c.set("session", session);
               c.set("auth", authContext);
 
               return next();
@@ -2967,6 +2968,7 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
               authMethod: "session",
               mfaVerified: isSessionMfaVerified(sessionToken),
             };
+            c.set("session", session);
             c.set("auth", authContext);
             return next();
           }
