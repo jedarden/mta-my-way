@@ -85,6 +85,7 @@ import {
   responseSizeLimits,
   securityHeaders,
   securityLogging,
+  sessionSecurity,
   validateBody,
   validateParams,
   validateQuery,
@@ -448,6 +449,10 @@ export function createApp(
   // Parses Authorization header and sets auth context if present
   // Individual routes can require specific permissions using requirePermission
   app.use("/api/*", optionalAuth({ allowSessions: true }));
+
+  // Apply enhanced session validation only to API routes. This is intentionally
+  // optional so anonymous access to core features such as arrivals is preserved.
+  app.use("/api/*", sessionSecurity());
 
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
