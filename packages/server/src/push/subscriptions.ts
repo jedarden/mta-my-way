@@ -27,7 +27,6 @@ let db: Database.Database | null = null;
 let pushDbReady = false;
 let pushDbInitError: Error | null = null;
 let pushDbPath: string | null = null;
-let initAttempted = false;
 let initPromise: Promise<void> | null = null;
 
 // Retry configuration
@@ -111,13 +110,11 @@ async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
 
       pushDbReady = true;
       pushDbInitError = null;
-      initAttempted = true;
       logger.info("Push database initialized (lazy)", { path: pushDbPath });
     } catch (err) {
       const error = err as Error;
       pushDbInitError = error;
       db = null;
-      initAttempted = true;
 
       // Retry with exponential backoff
       if (retryCount < MAX_INIT_RETRIES && isRetryableError(error)) {
@@ -263,6 +260,20 @@ async function getDb(): Promise<Database.Database> {
     throw new Error("Push database not available after initialization.");
   }
   return db;
+}
+
+/**
+ * Run an operation against the durable state database.
+ *
+ * Push subscriptions and authenticated user preferences intentionally share
+ * the same SQLite database, which is mounted only by the stateful service.
+ * Keeping access behind this helper preserves the lazy initialization and
+ * degraded-mode behavior used by the push subsystem.
+ */
+export async function withPushDatabase<T>(
+  operation: (database: Database.Database) => T | Promise<T>
+): Promise<T> {
+  return operation(await getDb());
 }
 
 // ---------------------------------------------------------------------------

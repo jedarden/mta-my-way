@@ -126,6 +126,7 @@ import {
 } from "./push/subscriptions.js";
 import { getVapidPublicKey } from "./push/vapid.js";
 import { buildPasswordResetRoutes } from "./routes/password-reset.routes.js";
+import { buildPreferencesRoutes } from "./routes/preferences.routes.js";
 import { callStatefulService, getStatefulStatus } from "./services/stateful-client.js";
 import { createTransferEngine } from "./transfer/index.js";
 import { lookupTrip } from "./trip-lookup.js";
@@ -2961,6 +2962,9 @@ ${
   // Build and register password reset routes
   const passwordResetRoutes = buildPasswordResetRoutes();
 
+  // Preferences sync routes
+  const preferencesRoutes = buildPreferencesRoutes();
+
   /** Get password policy requirements */
   app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
 
@@ -2972,6 +2976,22 @@ ${
 
   /** Change password for authenticated user */
   app.post("/api/auth/password/change", ...passwordResetRoutes.changePassword);
+
+  // -------------------------------------------------------------------------
+  // Preferences Sync Routes - session-authenticated cross-device sync
+  // -------------------------------------------------------------------------
+
+  /** Get user's synced preferences */
+  app.get("/api/preferences", preferencesRoutes.getPreferences);
+
+  /** Update user's synced preferences */
+  app.put("/api/preferences", preferencesRoutes.putPreferences);
+
+  /** Get current auth status */
+  app.get("/api/auth/session", preferencesRoutes.getSession);
+
+  /** Revoke current session (sign out) */
+  app.post("/api/auth/session/revoke", preferencesRoutes.revokeSession);
 
   // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)
