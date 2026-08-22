@@ -5,8 +5,10 @@ import {
   LiveRegion,
   OfflineBanner,
   ScreenErrorBoundary,
+  SyncErrorToast,
   useRouteChangeAnnouncer,
 } from "./components/common";
+import { usePreferencesSync } from "./hooks/usePreferencesSync";
 import { usePeriodicSync } from "./lib/periodicSync";
 
 // HomeScreen is eagerly loaded (initial route, critical for FCP)
@@ -64,11 +66,13 @@ function AppRoutes() {
 
   // Keep IDB sync config current and register Periodic Background Sync
   usePeriodicSync();
+  usePreferencesSync();
 
   return (
     <>
       {/* Live region for screen reader announcements (route changes, etc.) */}
       <LiveRegion />
+      <SyncErrorToast />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route

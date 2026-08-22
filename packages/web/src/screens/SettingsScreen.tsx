@@ -1,6 +1,18 @@
+import { useState } from "react";
 import Screen from "../components/layout/Screen";
+import { useAuth } from "../hooks/useAuth";
+import { clearLocalPreferences } from "../hooks/usePreferencesSync";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useSettingsStore } from "../stores/settingsStore";
+import { usePreferencesSyncStore } from "../stores/syncStore";
+
+function formatLastSynced(timestamp: number | null): string {
+  if (!timestamp) return "Not yet synced";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(timestamp);
+}
 
 export default function SettingsScreen() {
   const theme = useSettingsStore((s) => s.theme);
@@ -13,6 +25,35 @@ export default function SettingsScreen() {
   const setQuietHours = useSettingsStore((s) => s.setQuietHours);
   const accessibleMode = useSettingsStore((s) => s.accessibleMode);
   const setAccessibleMode = useSettingsStore((s) => s.setAccessibleMode);
+
+  const { auth, signOut } = useAuth();
+  const syncStatus = usePreferencesSyncStore((state) => state.status);
+  const lastSyncedAt = usePreferencesSyncStore((state) => state.lastSyncedAt);
+  const hasPendingChanges = usePreferencesSyncStore((state) => state.hasPendingChanges);
+  const requestSync = usePreferencesSyncStore((state) => state.requestSync);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    const didSignOut = await signOut();
+    if (!didSignOut) {
+      setAccountError("We couldn't sign you out right now. Please try again.");
+      return;
+    }
+    setAccountError(null);
+  };
+
+  const handleDeleteLocalData = async () => {
+    const didSignOut = await signOut();
+    if (!didSignOut) {
+      setAccountError("We couldn't sign you out, so your local data was left unchanged.");
+      return;
+    }
+
+    clearLocalPreferences();
+    setAccountError(null);
+    setConfirmDelete(false);
+  };
 
   const {
     isSupported,
@@ -200,6 +241,143 @@ export default function SettingsScreen() {
   return (
     <Screen>
       <div className="px-4 pt-2 pb-4">
+        <section aria-labelledby="sync-heading" className="mb-6">
+          <h2
+            id="sync-heading"
+            className="text-lg font-semibold mb-4 text-text-primary dark:text-dark-text-primary"
+          >
+            Sync
+          </h2>
+          <div className="bg-surface dark:bg-dark-surface rounded-lg">
+            <div className="p-4 border-b border-background dark:border-dark-background">
+              {auth.loading ? (
+                <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                  Checking sync status…
+                </p>
+              ) : auth.authenticated ? (
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-text-primary dark:text-dark-text-primary">
+                        {auth.profile?.name || auth.profile?.email || "Signed in"}
+                      </p>
+                      <p className="text-13 text-text-secondary dark:text-dark-text-secondary mt-0.5">
+                        {syncStatus === "syncing"
+                          ? "Syncing your preferences…"
+                          : hasPendingChanges
+                            ? "Changes are waiting to sync"
+                            : "Sync is active"}
+                      </p>
+                    </div>
+                    <span
+                      className="rounded-full bg-green-100 px-2 py-1 text-12 font-medium text-green-800 dark:bg-green-900/50 dark:text-green-200"
+                      aria-label="Signed in and syncing"
+                    >
+                      Signed in
+                    </span>
+                  </div>
+                  <p className="mt-3 text-13 text-text-secondary dark:text-dark-text-secondary">
+                    Last synced:{" "}
+                    <time
+                      dateTime={lastSyncedAt ? new Date(lastSyncedAt).toISOString() : undefined}
+                    >
+                      {formatLastSynced(lastSyncedAt)}
+                    </time>
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={requestSync}
+                      disabled={syncStatus === "syncing"}
+                      className="text-13 font-medium text-mta-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Sync now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleSignOut()}
+                      className="text-13 text-red-600 hover:underline dark:text-red-400"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                  {confirmDelete ? (
+                    <div
+                      className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/40"
+                      role="alertdialog"
+                      aria-labelledby="delete-local-data-heading"
+                    >
+                      <p
+                        id="delete-local-data-heading"
+                        className="text-13 text-text-primary dark:text-dark-text-primary"
+                      >
+                        Delete favorites, commutes, and settings from this device? Your synced copy
+                        will remain in your account.
+                      </p>
+                      <div className="mt-3 flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteLocalData()}
+                          className="text-13 font-medium text-red-700 hover:underline dark:text-red-300"
+                        >
+                          Delete local data and sign out
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelete(false)}
+                          className="text-13 text-text-secondary hover:underline dark:text-dark-text-secondary"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(true)}
+                      className="mt-4 text-13 text-text-secondary hover:underline dark:text-dark-text-secondary"
+                    >
+                      Stop syncing and delete local data
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <p className="font-medium text-text-primary dark:text-dark-text-primary">
+                      Not signed in
+                    </p>
+                    <span className="rounded-full bg-gray-100 px-2 py-1 text-12 font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                      Local only
+                    </span>
+                  </div>
+                  <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-3">
+                    Sign in to sync your favorites, commutes, and settings across devices.
+                  </p>
+                  <div className="flex gap-2">
+                    <a
+                      href="/auth/google"
+                      className="flex-1 bg-white dark:bg-gray-800 text-text-primary dark:text-dark-text-primary px-4 py-2 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <span className="text-13 font-medium">Continue with Google</span>
+                    </a>
+                    <a
+                      href="/auth/github"
+                      className="flex-1 bg-gray-900 dark:bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      <span className="text-13 font-medium">Continue with GitHub</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+              {accountError && (
+                <p className="mt-3 text-13 text-red-600 dark:text-red-400" role="alert">
+                  {accountError}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
         <section aria-labelledby="appearance-heading" className="mb-6">
           <h2
             id="appearance-heading"
