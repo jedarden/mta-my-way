@@ -57,18 +57,22 @@ import {
   tripNotesUpdateRequestSchema,
   tripQuerySchema,
 } from "@mta-my-way/shared";
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
+import { getApiKeyById, registerApiKey } from "./middleware/authentication.js";
 import {
   auditLogAccess,
   cors,
+  createSession,
   csrfProtection,
+  generateApiKey,
   generateCsrfToken,
+  hashApiKey,
   hostHeaderProtection,
   hppProtection,
   httpMethodRestrictions,
@@ -86,6 +90,7 @@ import {
   securityHeaders,
   securityLogging,
   sessionSecurity,
+  setSessionCookie,
   validateBody,
   validateParams,
   validateQuery,
@@ -103,15 +108,13 @@ import {
   requireOwnershipOrAdmin,
   requirePermission,
 } from "./middleware/rbac.js";
-// OAuth 2.0 imports - DISABLED: Feature not used by frontend
-// Uncomment to re-enable OAuth 2.0 authentication functionality.
-// import {
-//   cleanupExpiredStates,
-//   createAuthorizationUrl,
-//   getActiveOAuthProviders,
-//   handleOAuthCallback,
-//   initializeDefaultProviders,
-// } from "./oauth/index.js";
+import {
+  cancelOAuthAuthorization,
+  createAuthorizationUrl,
+  getActiveOAuthProviders,
+  handleOAuthCallback,
+  initializeDefaultProviders,
+} from "./oauth/index.js";
 import { logger, metrics, tracingMiddleware } from "./observability/index.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
 import {
@@ -148,6 +151,34 @@ const UNHEALTHY_FEED_THRESHOLD = 3;
 
 /** Cache header for static GTFS data */
 const STATIC_CACHE_HEADER = `public, max-age=${CACHE_TTLS.gtfsStatic}, stale-while-revalidate=${CACHE_TTLS.gtfsStaticStale}`;
+
+const OAUTH_SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
+
+/**
+ * Sessions are authorized through the app's existing key/role registry. OAuth
+ * identities receive an internal-only user key; its generated secret is never
+ * returned or used as an API credential.
+ */
+async function ensureOAuthIdentity(keyId: string): Promise<void> {
+  if (getApiKeyById(keyId)) return;
+
+  const secret = await generateApiKey();
+  const { hash, salt } = await hashApiKey(secret);
+  const now = Date.now();
+  await registerApiKey({
+    keyId,
+    keyHash: hash,
+    keySalt: salt,
+    scope: "write",
+    role: "user",
+    rateLimitTier: 60,
+    active: true,
+    createdAt: now,
+    expiresAt: 0,
+    failedAttempts: 0,
+    metadata: { authProvider: "oauth" },
+  });
+}
 
 /**
  * Common abbreviation mappings for station search
@@ -494,6 +525,9 @@ export function createApp(
 
   // Rate limiting on all API routes (60 req/min per IP, token bucket)
   app.use("/api/*", rateLimiter());
+
+  // OAuth routes are public by design, but sign-in attempts are still rate-limited.
+  app.use("/auth/*", rateLimiter());
 
   // Response size limits for API routes (OWASP A01, A04)
   // Prevents DoS via large response payloads
@@ -2944,6 +2978,99 @@ ${
   //     message: "Session revoked successfully",
   //   });
   // });
+
+  // -------------------------------------------------------------------------
+  // OAuth 2.0 Sign-In (opt-in)
+  // -------------------------------------------------------------------------
+
+  initializeDefaultProviders();
+
+  const beginOAuth = async (c: Context) => {
+    c.header("Cache-Control", "no-store");
+    c.header("Pragma", "no-cache");
+
+    const providerId = c.req.param("providerId");
+    if (!providerId) return c.json({ error: "Provider not found" }, 404);
+    const authorization = await createAuthorizationUrl(providerId);
+    if ("error" in authorization) {
+      return c.json({ error: authorization.error }, 404);
+    }
+
+    return c.redirect(authorization.url);
+  };
+
+  const finishOAuth = async (c: Context) => {
+    c.header("Cache-Control", "no-store");
+    c.header("Pragma", "no-cache");
+
+    const providerId = c.req.param("providerId");
+    if (!providerId) return c.json({ success: false, error: "Provider not found" }, 404);
+    const state = c.req.query("state");
+    const code = c.req.query("code");
+    const providerError = c.req.query("error");
+
+    if (providerError) {
+      cancelOAuthAuthorization(providerId, state);
+      logger.warn("OAuth authorization was denied", { providerId, providerError });
+      return c.json({ success: false, error: "OAuth authorization was denied" }, 400);
+    }
+
+    if (!state || !code) {
+      return c.json({ success: false, error: "Missing OAuth callback parameters" }, 400);
+    }
+
+    const clientIp =
+      c.req.header("cf-connecting-ip") ||
+      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+      c.req.header("x-real-ip") ||
+      "unknown";
+    const result = await handleOAuthCallback(
+      providerId,
+      state,
+      code,
+      clientIp,
+      c.req.header("user-agent"),
+      async (keyId, ip, userAgent, metadata) => {
+        await ensureOAuthIdentity(keyId);
+        const session = await createSession(keyId, ip, userAgent, metadata, {
+          type: "oauth",
+          ipBinding: true,
+          createRefreshToken: false,
+        });
+        return { sessionId: session.sessionId };
+      }
+    );
+
+    if (!result.success || !result.sessionId) {
+      return c.json({ success: false, error: result.error || "OAuth sign-in failed" }, 400);
+    }
+
+    await setSessionCookie(c, result.sessionId, {
+      cookieName: "session_id",
+      secure: isProduction,
+      sameSite: "lax",
+      maxAge: OAUTH_SESSION_MAX_AGE_SECONDS,
+    });
+
+    return c.json({
+      success: true,
+      profile: {
+        provider: result.profile?.providerId,
+        email: result.profile?.email,
+        name: result.profile?.name,
+        picture: result.profile?.picture,
+      },
+    });
+  };
+
+  /** Browser-facing redirects used by the sign-in buttons. */
+  app.get("/auth/:providerId", beginOAuth);
+  app.get("/auth/:providerId/callback", finishOAuth);
+
+  /** Backward-compatible API aliases for the existing client hook. */
+  app.get("/api/auth/oauth/authorize/:providerId", beginOAuth);
+  app.get("/api/auth/oauth/callback/:providerId", finishOAuth);
+  app.get("/api/auth/oauth/providers", (c) => c.json({ providers: getActiveOAuthProviders() }));
 
   // -------------------------------------------------------------------------
   // Password Reset & Management
