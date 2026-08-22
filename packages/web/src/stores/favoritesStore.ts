@@ -24,6 +24,13 @@ interface FavoritesState {
 
   recordTap: (favoriteId: string) => void;
   completeOnboarding: () => void;
+  replaceFromSync: (preferences: {
+    favorites: Favorite[];
+    commutes: Commute[];
+    tapHistory: FavoriteTapEvent[];
+    onboardingComplete: boolean;
+  }) => void;
+  clearLocalData: () => void;
 }
 
 /** Maximum tap history entries (FIFO cap) */
@@ -168,6 +175,20 @@ export const useFavoritesStore = create<FavoritesState>()(
 
       completeOnboarding: () => {
         set({ onboardingComplete: true });
+      },
+
+      /** Replace user-owned data with the authenticated server snapshot. */
+      replaceFromSync: (preferences) => {
+        set({
+          favorites: preferences.favorites,
+          commutes: preferences.commutes,
+          tapHistory: preferences.tapHistory.slice(-MAX_TAP_HISTORY),
+          onboardingComplete: preferences.onboardingComplete,
+        });
+      },
+
+      clearLocalData: () => {
+        set({ favorites: [], commutes: [], tapHistory: [], onboardingComplete: false });
       },
     }),
     persistConfig

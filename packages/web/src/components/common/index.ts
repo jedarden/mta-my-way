@@ -51,6 +51,7 @@ export { FocusTrap, useFocusTrap } from "./FocusTrap";
 
 // Live region announcers
 export { LiveRegion, useLiveAnnouncer, useRouteChangeAnnouncer } from "./LiveAnnouncer";
+export { SyncErrorToast } from "./SyncErrorToast";
 
 // PWA prompts (lazy-load these in App.tsx for better code splitting)
 export {

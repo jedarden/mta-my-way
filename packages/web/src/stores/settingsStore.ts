@@ -1,3 +1,4 @@
+import type { Settings } from "@mta-my-way/shared";
 import { create } from "zustand";
 import { type PersistOptions, createJSONStorage, persist } from "zustand/middleware";
 import { createSafeMigration, setMigrationFailed } from "./migration";
@@ -25,10 +26,22 @@ interface SettingsState {
   setHapticFeedback: (enabled: boolean) => void;
   setAccessibleMode: (enabled: boolean) => void;
   setQuietHours: (quietHours: QuietHours) => void;
+  replaceFromSync: (settings: Settings) => void;
+  clearLocalData: () => void;
 }
 
 /** Current schema version for this store */
 const STORE_VERSION = 1;
+
+const DEFAULT_SETTINGS = {
+  theme: "system" as const,
+  showUnassignedTrips: false,
+  refreshInterval: 30,
+  alertSeverityFilter: "delays" as const,
+  hapticFeedback: true,
+  accessibleMode: false,
+  quietHours: { enabled: false, startHour: 22, endHour: 7 },
+};
 
 /** Migration functions keyed by target version */
 const migrations = new Map<number, (state: unknown) => unknown>([
@@ -52,13 +65,7 @@ const persistConfig: PersistOptions<SettingsState> = {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      theme: "system",
-      showUnassignedTrips: false,
-      refreshInterval: 30,
-      alertSeverityFilter: "delays",
-      hapticFeedback: true,
-      accessibleMode: false,
-      quietHours: { enabled: false, startHour: 22, endHour: 7 },
+      ...DEFAULT_SETTINGS,
 
       setTheme: (theme) => set({ theme }),
       setShowUnassignedTrips: (showUnassignedTrips) => set({ showUnassignedTrips }),
@@ -68,6 +75,8 @@ export const useSettingsStore = create<SettingsState>()(
       setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),
       setAccessibleMode: (accessibleMode) => set({ accessibleMode }),
       setQuietHours: (quietHours) => set({ quietHours }),
+      replaceFromSync: (settings) => set({ ...DEFAULT_SETTINGS, ...settings }),
+      clearLocalData: () => set(DEFAULT_SETTINGS),
     }),
     persistConfig
   )
