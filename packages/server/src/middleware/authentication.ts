@@ -2682,7 +2682,7 @@ function extractApiKey(c: Context): { keyId: string; secret: string } | null {
 }
 
 /**
- * Extract session token from request headers.
+ * Extract session token from request headers or the HttpOnly session cookie.
  *
  * Applies input validation to ensure the token is in valid UUID format.
  */
@@ -2711,6 +2711,19 @@ function extractSessionToken(c: Context): string | null {
 
     // Not a valid session token format - return null to allow API key auth to proceed
     return null;
+  }
+
+  // Browser OAuth callbacks create an HttpOnly session_id cookie. Preserve
+  // header authentication precedence while allowing normal browser requests
+  // to use the same validated session path as API clients.
+  const cookieHeader = c.req.header("Cookie");
+  const cookieToken = cookieHeader
+    ?.split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith("session_id="))
+    ?.slice("session_id=".length);
+  if (cookieToken && validateSessionTokenFormat(cookieToken)) {
+    return cookieToken;
   }
 
   return null;
@@ -2966,6 +2979,11 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
               sessionId: session.sessionId,
               rateLimitTier: apiKey.rateLimitTier,
               authMethod: "session",
+              oauthProvider:
+                session.sessionType === "oauth" &&
+                typeof session.metadata?.oauthProvider === "string"
+                  ? session.metadata.oauthProvider
+                  : undefined,
               mfaVerified: isSessionMfaVerified(sessionToken),
             };
             c.set("session", session);
