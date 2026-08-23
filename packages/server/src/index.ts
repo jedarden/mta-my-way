@@ -26,25 +26,12 @@ import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { startGtfsRefreshScheduler } from "./gtfs-refresh.js";
-import { initApiKeyRegistryFromDb } from "./middleware/api-key-management.js";
-import { loadRateLimitDataFromDb } from "./middleware/auth-rate-limit.js";
-import { startSessionCleanup } from "./middleware/concurrent-session-management.js";
-import { initPasswordManagementFromDb } from "./middleware/password-management.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
-import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
 import { runMigrations } from "./migration/index.js";
 import { initObservability, logger, shutdownObservability } from "./observability/index.js";
 import { initPoller, startPoller } from "./poller.js";
-import { startBriefingScheduler } from "./push/briefing.js";
-import { startPushPipeline } from "./push/index.js";
-import {
-  configurePushDatabase,
-  getPushDatabase,
-  isPushDatabaseReady,
-} from "./push/subscriptions.js";
-import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
+import { configurePushDatabase } from "./push/subscriptions.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
-import { setSecurityDb } from "./security/security-db.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 import { initTripTracking } from "./trip-tracking.js";

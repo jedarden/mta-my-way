@@ -35,7 +35,10 @@ export const DEFAULT_OWNER_ID = "anonymous";
  * Note: This is now a no-op for initialization - trip tracking uses
  * lazy initialization on first use, sharing the same database as push subscriptions.
  */
-export function initTripTracking(database: Database.Database | null, stationData: StationIndex): void {
+export function initTripTracking(
+  database: Database.Database | null,
+  stationData: StationIndex
+): void {
   db = database;
   stations = stationData;
   tripTrackingInitialized = true;
@@ -115,8 +118,9 @@ async function ensureTripTrackingTables(): Promise<void> {
 
 /**
  * Get the database instance, throwing if not available.
+ * @deprecated Use push subscriptions database directly via getPushDatabase()
  */
-async function getDb(): Promise<Database.Database> {
+async function _getDb(): Promise<Database.Database> {
   if (!db) {
     // Try to get the database from push subscriptions
     const { getPushDatabase, isPushDatabaseReady } = await import("./push/subscriptions.js");

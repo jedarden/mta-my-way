@@ -55,7 +55,7 @@ export async function sendPushNotification(
 
     if (statusCode === 410 || statusCode === 404) {
       logger.info("Push subscription expired", { status: statusCode });
-      removeSubscription(record.endpoint);
+      await removeSubscription(record.endpoint);
 
       // Record push notification failed metric for expired subscription
       recordPushNotificationFailed(`subscription_expired_${statusCode}`);
