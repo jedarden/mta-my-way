@@ -14,12 +14,12 @@ import type { Context } from "hono";
 import { invalidateSession } from "../middleware/authentication.js";
 import { getRbacAuthContext } from "../middleware/index.js";
 import { logger } from "../observability/logger.js";
-import { callStatefulService } from "../services/stateful-client.js";
 import {
   getUserPreferences,
   normalizeUserPreferences,
   replaceUserPreferences,
 } from "../preferences.js";
+import { callStatefulService } from "../services/stateful-client.js";
 
 type UserPreferencesPayload = Pick<UserPreferences, "favorites" | "commutes"> &
   Partial<Omit<UserPreferences, "favorites" | "commutes">>;

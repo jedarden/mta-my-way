@@ -49,7 +49,11 @@ export type {
 } from "@opentelemetry/api";
 
 // Aliased type exports for backward compatibility
-import type { Span as _Span, SpanContext as _SpanContext, Tracer as _Tracer } from "@opentelemetry/api";
+import type {
+  Span as _Span,
+  SpanContext as _SpanContext,
+  Tracer as _Tracer,
+} from "@opentelemetry/api";
 export type { _Span as OTelSpan, _SpanContext as OTelSpanContext, _Tracer as OTelTracer };
 
 // ============================================================================

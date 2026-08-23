@@ -424,9 +424,7 @@ describe("Server Entry Point", () => {
 
       // Re-configure push subscriptions mock - initPushDatabase will NOT throw (it catches internally)
       // but isPushDatabaseReady will return false
-      const { initPushDatabase: mockInitPushDatabase } = await import(
-        "./push/subscriptions.js"
-      );
+      const { initPushDatabase: mockInitPushDatabase } = await import("./push/subscriptions.js");
       vi.mocked(mockInitPushDatabase).mockImplementation(() => {
         // Simulate what initPushDatabase does on failure: set ready to false, don't throw
         // The real implementation catches errors and returns gracefully
@@ -439,9 +437,7 @@ describe("Server Entry Point", () => {
       vi.mocked(mockIsPushDatabaseReady).mockReturnValue(false);
 
       // Re-configure getPushDatabase to throw when called (DB not available)
-      const { getPushDatabase: mockGetPushDatabase } = await import(
-        "./push/subscriptions.js"
-      );
+      const { getPushDatabase: mockGetPushDatabase } = await import("./push/subscriptions.js");
       vi.mocked(mockGetPushDatabase).mockImplementation(() => {
         throw new Error("Push database not available: Database unavailable: EIO");
       });

@@ -181,7 +181,7 @@ export function healthCache(): MiddlewareHandler {
 export function noCache(): MiddlewareHandler {
   return async (c, next) => {
     await next();
-    c.header("Cache-Control", buildCacheHeader({ noCache: true }));
+    c.header("Cache-Control", buildCacheHeader({ maxAge: 0, noCache: true }));
   };
 }
 
@@ -191,7 +191,7 @@ export function noCache(): MiddlewareHandler {
 export function noStore(): MiddlewareHandler {
   return async (c, next) => {
     await next();
-    c.header("Cache-Control", buildCacheHeader({ noStore: true }));
+    c.header("Cache-Control", buildCacheHeader({ maxAge: 0, noStore: true }));
   };
 }
 

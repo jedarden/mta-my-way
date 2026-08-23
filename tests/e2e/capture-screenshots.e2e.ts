@@ -5,7 +5,7 @@
  * Run with: npx playwright test capture-screenshots --project="Mobile Chrome"
  */
 
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Bypass onboarding by setting localStorage state directly.

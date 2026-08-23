@@ -67,7 +67,9 @@ async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
 
   initPromise = (async () => {
     if (!pushDbPath) {
-      const error = new Error("Push database path not configured. Call configurePushDatabase() first.");
+      const error = new Error(
+        "Push database path not configured. Call configurePushDatabase() first."
+      );
       pushDbInitError = error;
       logger.error("Push database not configured", error);
       return;
@@ -103,7 +105,9 @@ async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
 
       // Migration: add briefing_hour column to existing tables
       try {
-        db.exec("ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7");
+        db.exec(
+          "ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7"
+        );
       } catch {
         // Column already exists — ignore
       }
@@ -119,10 +123,13 @@ async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
       // Retry with exponential backoff
       if (retryCount < MAX_INIT_RETRIES && isRetryableError(error)) {
         const delay = BASE_RETRY_DELAY_MS * Math.pow(2, retryCount);
-        logger.warn(`Push database init failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_INIT_RETRIES})`, {
-          path: pushDbPath,
-          error: error.message,
-        });
+        logger.warn(
+          `Push database init failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_INIT_RETRIES})`,
+          {
+            path: pushDbPath,
+            error: error.message,
+          }
+        );
 
         await new Promise((resolve) => setTimeout(resolve, delay));
         initPromise = null;
@@ -574,7 +581,10 @@ export async function purgeStaleSubscriptions(maxAgeDays: number = 60): Promise<
  * @param ownerId - Owner ID to verify
  * @returns true if the subscription belongs to the owner
  */
-export async function checkSubscriptionOwnership(endpoint: string, ownerId: string): Promise<boolean> {
+export async function checkSubscriptionOwnership(
+  endpoint: string,
+  ownerId: string
+): Promise<boolean> {
   const database = await getDb();
   const endpointHash = hashEndpoint(endpoint);
 

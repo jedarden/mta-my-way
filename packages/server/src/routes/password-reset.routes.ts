@@ -18,7 +18,6 @@ import {
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
 } from "@mta-my-way/shared";
-import { callStatefulService } from "../services/stateful-client.js";
 import type { MiddlewareHandler } from "hono";
 import {
   generatePasswordResetToken,
@@ -49,6 +48,7 @@ import {
   sendPasswordResetEmail,
   sendPasswordResetNotificationEmail,
 } from "../services/password-reset.service.js";
+import { callStatefulService } from "../services/stateful-client.js";
 
 // ============================================================================
 // In-Memory User Storage (Replace with database in production)
@@ -672,7 +672,12 @@ export const changePasswordHandler: MiddlewareHandler = async (c) => {
 /**
  * Build password reset routes with all middleware.
  */
-export function buildPasswordResetRoutes() {
+export function buildPasswordResetRoutes(): {
+  getPasswordPolicy: MiddlewareHandler;
+  requestPasswordReset: MiddlewareHandler[];
+  confirmPasswordReset: MiddlewareHandler[];
+  changePassword: MiddlewareHandler[];
+} {
   const handlers = {
     getPasswordPolicy: getPasswordPolicyHandler,
     requestPasswordReset: [

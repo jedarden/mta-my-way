@@ -772,16 +772,14 @@ export function resetDelayPredictor(): void {
  * Get delay predictor status
  */
 export function getDelayPredictorStatus(): {
-  totalRecords: number;
-  aggregatedPatterns: number;
-  minObservations: number;
-  currentWeather: WeatherCondition;
+  enabled: boolean;
+  modelAccuracy: number;
+  lastTrainedAt: string | null;
 } {
   return {
-    totalRecords: delayRecords.length,
-    aggregatedPatterns: aggregatedStats.size,
-    minObservations: config?.minObservations ?? MIN_OBSERVATIONS_FOR_PREDICTION,
-    currentWeather: weatherOverride ?? currentWeather,
+    enabled: config !== null,
+    modelAccuracy: 0, // Not tracked in current implementation
+    lastTrainedAt: null, // Not tracked in current implementation
   };
 }
 

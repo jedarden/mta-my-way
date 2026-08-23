@@ -588,10 +588,7 @@ export function cookieSessionAuth(
     csrfCookieOptions?: CsrfCookieOptions;
   } = {}
 ): MiddlewareHandler {
-  const {
-    sessionCookieName = "session_token",
-    csrfCookieName = "csrf_token",
-  } = options;
+  const { sessionCookieName = "session_token", csrfCookieName = "csrf_token" } = options;
 
   return async (c, next) => {
     // Attach session token from cookie to context

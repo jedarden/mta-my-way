@@ -1360,10 +1360,7 @@ function detectBrowserFamily(userAgent: string): string | undefined {
 /**
  * Get or create device fingerprint record.
  */
-async function getOrCreateDevice(
-  userAgent: string,
-  _clientIp: string
-): Promise<DeviceFingerprint> {
+async function getOrCreateDevice(userAgent: string, _clientIp: string): Promise<DeviceFingerprint> {
   const deviceId = await generateDeviceFingerprint(userAgent);
   const existing = deviceFingerprints.get(deviceId);
 

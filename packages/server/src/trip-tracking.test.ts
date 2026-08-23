@@ -8,6 +8,7 @@
 import { existsSync, unlinkSync } from "node:fs";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "./observability/logger.js";
 import {
   DEFAULT_OWNER_ID,
   type TripRecord,
@@ -28,7 +29,6 @@ import {
   resetTripTrackingForTesting,
   updateTripNotes,
 } from "./trip-tracking.js";
-import { logger } from "./observability/logger.js";
 
 // Mock the metrics module
 vi.mock("./middleware/metrics.js", () => ({

@@ -831,11 +831,7 @@ export interface SessionSecurityMiddlewareOptions {
  * Enhances session validation with risk assessment and additional security checks.
  */
 export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {}) {
-  const {
-    enforceIpBinding = true,
-    checkUserAgent = true,
-    reauthOnHighRisk = true,
-  } = options;
+  const { enforceIpBinding = true, checkUserAgent = true, reauthOnHighRisk = true } = options;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async (c: any, next: any) => {

@@ -1231,7 +1231,7 @@ ${
       failingFeedsCount: failingFeeds.length,
     };
 
-    const html = buildStatusHtml(healthData);
+    const html = buildStatusHtml(healthData as any); // eslint-disable-line @typescript-eslint/no-explicit-any
     c.header("Content-Type", "text/html; charset=utf-8");
     c.header("Cache-Control", "public, max-age=30");
     return c.html(html, httpStatus as 200 | 503);
@@ -2635,18 +2635,37 @@ ${
   );
 
   /** Get journal summary (recent trips + stats) */
-  app.get("/api/journal/summary", requirePermission("journals:read:own" as Permission), async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+  app.get(
+    "/api/journal/summary",
+    requirePermission("journals:read:own" as Permission),
+    async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
 
-    // In CORE_ONLY mode, proxy to stateful subsystem
-    if (CORE_ONLY) {
-      try {
-        const result = await callStatefulService("/api/journal/summary", {
-          method: "GET",
-        });
-        return c.json(result);
-      } catch (err) {
-        logger.error("Stateful subsystem proxy failed", err as Error);
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const result = await callStatefulService("/api/journal/summary", {
+            method: "GET",
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
+      // Validate that no unexpected query parameters are passed
+      const query = validateQuery(c, emptyQuerySchema);
+      if (query instanceof Response) return query;
+
+      // Check if push database is available for trip tracking
+      if (!isPushDatabaseReady()) {
         return c.json(
           {
             error: "Trip tracking temporarily unavailable",
@@ -2655,40 +2674,25 @@ ${
           503
         );
       }
+
+      const auth = getRbacAuthContext(c);
+      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+
+      const recentTrips = getTrips({ limit: 10, ownerId });
+      const stats = calculateCommuteStats("default", ownerId);
+
+      // Non-admin users only get their own trip count
+      const totalTrips =
+        auth?.role === "admin" ? getTotalTripCount() : getTrips({ limit: 1000000, ownerId }).length;
+
+      c.header("Cache-Control", "public, max-age=30");
+      return c.json({
+        recentTrips,
+        stats,
+        totalTrips,
+      });
     }
-
-    // Validate that no unexpected query parameters are passed
-    const query = validateQuery(c, emptyQuerySchema);
-    if (query instanceof Response) return query;
-
-    // Check if push database is available for trip tracking
-    if (!isPushDatabaseReady()) {
-      return c.json(
-        {
-          error: "Trip tracking temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-
-    const auth = getRbacAuthContext(c);
-    const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
-
-    const recentTrips = getTrips({ limit: 10, ownerId });
-    const stats = calculateCommuteStats("default", ownerId);
-
-    // Non-admin users only get their own trip count
-    const totalTrips =
-      auth?.role === "admin" ? getTotalTripCount() : getTrips({ limit: 1000000, ownerId }).length;
-
-    c.header("Cache-Control", "public, max-age=30");
-    return c.json({
-      recentTrips,
-      stats,
-      totalTrips,
-    });
-  });
+  );
 
   // -------------------------------------------------------------------------
   // OAuth 2.0 Authentication - DISABLED: Feature not used by frontend
@@ -3228,13 +3232,22 @@ ${
   app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
 
   /** Initiate password reset request */
-  app.post("/api/auth/password/reset", ...passwordResetRoutes.requestPasswordReset);
+  app.post(
+    "/api/auth/password/reset",
+    ...(passwordResetRoutes.requestPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+  );
 
   /** Confirm password reset with token */
-  app.post("/api/auth/password/reset/confirm", ...passwordResetRoutes.confirmPasswordReset);
+  app.post(
+    "/api/auth/password/reset/confirm",
+    ...(passwordResetRoutes.confirmPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+  );
 
   /** Change password for authenticated user */
-  app.post("/api/auth/password/change", ...passwordResetRoutes.changePassword);
+  app.post(
+    "/api/auth/password/change",
+    ...(passwordResetRoutes.changePassword as any) // eslint-disable-line @typescript-eslint/no-explicit-any,
+  );
 
   // -------------------------------------------------------------------------
   // Preferences Sync Routes - session-authenticated cross-device sync

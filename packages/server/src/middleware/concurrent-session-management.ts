@@ -609,7 +609,7 @@ export function terminateSession(sessionId: string): boolean {
         userSessionRegistry.set(keyId, sessions);
       }
 
-      removeFromDeviceRegistry(session);
+      removeFromDeviceRegistry(session!);
 
       logger.info("Session terminated", { sessionId, keyId });
       return true;

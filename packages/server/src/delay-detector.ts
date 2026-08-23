@@ -709,16 +709,14 @@ export function resetDelayDetector(): void {
  * Get delay detector status for health endpoint.
  */
 export function getDelayDetectorStatus(): {
-  trackedTrips: number;
-  activeAlerts: number;
-  thresholdMultiplier: number;
-  minTrainsForLineAlert: number;
+  enabled: boolean;
+  activePredictions: number;
+  lastRunAt: string | null;
 } {
   return {
-    trackedTrips: trackedTrips.size,
-    activeAlerts: activePredictedAlerts.size,
-    thresholdMultiplier: config?.thresholdMultiplier ?? DEFAULT_THRESHOLD_MULTIPLIER,
-    minTrainsForLineAlert: config?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
+    enabled: config !== null,
+    activePredictions: activePredictedAlerts.size,
+    lastRunAt: null, // Not tracked in current implementation
   };
 }
 

@@ -25,11 +25,7 @@ import {
   getRecentSecurityEvents,
   queryAuditLog,
 } from "./audit-log.js";
-import {
-  getApiKeyById,
-  getRegisteredApiKeys,
-  revokeApiKey,
-} from "./authentication.js";
+import { getApiKeyById, getRegisteredApiKeys, revokeApiKey } from "./authentication.js";
 import { type Permission, getRbacAuthContext, requirePermission } from "./rbac.js";
 import { securityLogger } from "./security-logging.js";
 
@@ -446,7 +442,7 @@ export async function exportAuditLogs(c: Context): Promise<Response> {
  * GET /admin/security - Get recent security events.
  */
 export async function getSecurityEvents(c: Context): Promise<Response> {
-  const limit = c.req.query("limit") ? parseInt(c.req.query("limit"), 10) : 50;
+  const limit = c.req.query("limit") ? parseInt(c.req.query("limit")!, 10) : 50;
   const events = getRecentSecurityEvents(limit);
 
   return c.json({

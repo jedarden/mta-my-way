@@ -421,13 +421,15 @@ export function getStationsWithBrokenElevators(): Set<string> {
 /**
  * Get equipment cache status for the health endpoint.
  */
-export function getEquipmentStatus(): EquipmentCacheStatus {
+export function getEquipmentStatus(): {
+  lastSuccessAt: string | null;
+  outages: number;
+  consecutiveFailures: number;
+} {
   return {
-    lastFetchAt: status.lastFetchAt ? new Date(status.lastFetchAt).toISOString() : null,
     lastSuccessAt: status.lastSuccessAt ? new Date(status.lastSuccessAt).toISOString() : null,
-    outageCount: equipmentByStation.size,
+    outages: equipmentByStation.size,
     consecutiveFailures: status.consecutiveFailures,
-    circuitOpen: status.circuitOpen,
   };
 }
 
