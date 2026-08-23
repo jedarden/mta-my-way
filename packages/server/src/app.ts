@@ -2313,6 +2313,17 @@ ${
     const query = validateQuery(c, tripQuerySchema);
     if (query instanceof Response) return query;
 
+    // Check if push database is available for trip tracking
+    if (!isPushDatabaseReady()) {
+      return c.json(
+        {
+          error: "Trip tracking temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
+
     const auth = getRbacAuthContext(c);
 
     // Non-admin users can only see their own trips
@@ -2367,6 +2378,17 @@ ${
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
 
+      // Check if push database is available for trip tracking
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+
       const { tripId } = params;
       const trip = getTripById(tripId);
 
@@ -2419,6 +2441,17 @@ ${
       const auth = getRbacAuthContext(c);
       const params = validateParams(c, tripIdParamsSchema);
       if (params instanceof Response) return params;
+
+      // Check if push database is available for trip tracking
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
 
       const body = await validateBody(c, tripNotesUpdateRequestSchema);
       if (body instanceof Response) return body;
