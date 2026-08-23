@@ -37,7 +37,11 @@ import { initObservability, logger, shutdownObservability } from "./observabilit
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
-import { configurePushDatabase, getPushDatabase, isPushDatabaseReady } from "./push/subscriptions.js";
+import {
+  configurePushDatabase,
+  getPushDatabase,
+  isPushDatabaseReady,
+} from "./push/subscriptions.js";
 import { configureWebPush, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { setSecurityDb } from "./security/security-db.js";

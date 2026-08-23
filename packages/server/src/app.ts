@@ -2041,7 +2041,7 @@ ${
     requireOwnershipOrAdmin("subscriptions", {
       getOwnerId: async (c) => {
         const body = await c.req.json().catch(() => ({}));
-        return await getSubscriptionOwner(body.endpoint) || "";
+        return (await getSubscriptionOwner(body.endpoint)) || "";
       },
       adminBypass: true,
     }),
@@ -2111,7 +2111,7 @@ ${
     requireOwnershipOrAdmin("subscriptions", {
       getOwnerId: async (c) => {
         const body = await c.req.json().catch(() => ({}));
-        return await getSubscriptionOwner(body.endpoint) || "";
+        return (await getSubscriptionOwner(body.endpoint)) || "";
       },
       adminBypass: true,
     }),
