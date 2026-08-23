@@ -2525,12 +2525,45 @@ ${
   );
 
   /** Get commute statistics */
-  app.get("/api/journal/stats", requirePermission("journals:read:own" as Permission), (c) => {
+  app.get("/api/journal/stats", requirePermission("journals:read:own" as Permission), async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+    // In CORE_ONLY mode, proxy to stateful subsystem
+    if (CORE_ONLY) {
+      try {
+        const queryString = c.req.url.split("?")[1] || "";
+        const result = await callStatefulService(`/api/journal/stats?${queryString}`, {
+          method: "GET",
+        });
+        return c.json(result);
+      } catch (err) {
+        logger.error("Stateful subsystem proxy failed", err as Error);
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+    }
+
     const query = validateQuery(c, commuteIdQuerySchema);
     if (query instanceof Response) return query;
 
     const auth = getRbacAuthContext(c);
     const commuteId = query.commuteId ?? "default";
+
+    // Check if push database is available for trip tracking
+    if (!isPushDatabaseReady()) {
+      return c.json(
+        {
+          error: "Trip tracking temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
 
     // Non-admin users can only see their own stats
     const stats = calculateCommuteStats(
@@ -2546,9 +2579,43 @@ ${
   app.get(
     "/api/journal/dates/:startDate/:endDate",
     requirePermission("journals:read:own" as Permission),
-    (c) => {
+    async (c) => {
+      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+      // In CORE_ONLY mode, proxy to stateful subsystem
+      if (CORE_ONLY) {
+        try {
+          const path = c.req.path;
+          const queryString = c.req.url.split("?")[1] || "";
+          const result = await callStatefulService(`${path}?${queryString}`, {
+            method: "GET",
+          });
+          return c.json(result);
+        } catch (err) {
+          logger.error("Stateful subsystem proxy failed", err as Error);
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+      }
+
       const params = validateParams(c, dateRangeParamsSchema);
       if (params instanceof Response) return params;
+
+      // Check if push database is available for trip tracking
+      if (!isPushDatabaseReady()) {
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
 
       const auth = getRbacAuthContext(c);
       const { startDate, endDate } = params;
@@ -2568,10 +2635,42 @@ ${
   );
 
   /** Get journal summary (recent trips + stats) */
-  app.get("/api/journal/summary", requirePermission("journals:read:own" as Permission), (c) => {
+  app.get("/api/journal/summary", requirePermission("journals:read:own" as Permission), async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+
+    // In CORE_ONLY mode, proxy to stateful subsystem
+    if (CORE_ONLY) {
+      try {
+        const result = await callStatefulService("/api/journal/summary", {
+          method: "GET",
+        });
+        return c.json(result);
+      } catch (err) {
+        logger.error("Stateful subsystem proxy failed", err as Error);
+        return c.json(
+          {
+            error: "Trip tracking temporarily unavailable",
+            degraded: true,
+          },
+          503
+        );
+      }
+    }
+
     // Validate that no unexpected query parameters are passed
     const query = validateQuery(c, emptyQuerySchema);
     if (query instanceof Response) return query;
+
+    // Check if push database is available for trip tracking
+    if (!isPushDatabaseReady()) {
+      return c.json(
+        {
+          error: "Trip tracking temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
 
     const auth = getRbacAuthContext(c);
     const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
