@@ -28,6 +28,7 @@ export default tseslint.config(
       "packages/server/vitest.config.ts",
       "packages/shared/vitest.config.ts",
       "packages/web/public/**",
+      "**/testing/**",
     ],
   },
   {

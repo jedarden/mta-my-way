@@ -27,7 +27,6 @@ import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predic
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { startGtfsRefreshScheduler } from "./gtfs-refresh.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
-import { runMigrations } from "./migration/index.js";
 import { initObservability, logger, shutdownObservability } from "./observability/index.js";
 import { initPoller, startPoller } from "./poller.js";
 import { configurePushDatabase } from "./push/subscriptions.js";
