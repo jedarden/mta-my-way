@@ -333,7 +333,22 @@ describe("HomeScreen", () => {
     it("should vibrate when haptic feedback is enabled and refresh is triggered", async () => {
       vi.mocked(useSettingsStore).mockImplementation((selector) => {
         const state = {
+          theme: "system" as const,
+          showUnassignedTrips: false,
+          refreshInterval: 30,
+          alertSeverityFilter: "delays" as const,
           hapticFeedback: true,
+          accessibleMode: false,
+          quietHours: { enabled: false, startHour: 22, endHour: 7 },
+          setTheme: vi.fn(),
+          setShowUnassignedTrips: vi.fn(),
+          setRefreshInterval: vi.fn(),
+          setAlertSeverityFilter: vi.fn(),
+          setHapticFeedback: vi.fn(),
+          setAccessibleMode: vi.fn(),
+          setQuietHours: vi.fn(),
+          replaceFromSync: vi.fn(),
+          clearLocalData: vi.fn(),
         };
         return selector ? selector(state) : state;
       });
@@ -402,9 +417,14 @@ describe("HomeScreen", () => {
       vi.mocked(favoritesHook.useFavorites).mockReturnValue({
         favorites: [],
         hasFavorites: false,
+        onboardingComplete: false,
+        addFavorite: vi.fn(),
         updateFavorite: vi.fn(),
         removeFavorite: vi.fn(),
         reorderFavorites: vi.fn(),
+        togglePin: vi.fn(),
+        recordTap: vi.fn(),
+        completeOnboarding: vi.fn(),
       });
 
       renderWithRouter(<HomeScreen />);
@@ -415,7 +435,7 @@ describe("HomeScreen", () => {
     it("should update time ago text every 15 seconds", async () => {
       renderWithRouter(<HomeScreen />);
 
-      const initialText = screen.getByText(/Updated/i).textContent;
+      screen.getByText(/Updated/i);
 
       // Fast forward 15 seconds - the component should still be stable
       await act(async () => {

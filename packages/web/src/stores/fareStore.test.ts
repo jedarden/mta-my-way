@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the migration module
 vi.mock("./migration", () => ({
-  createSafeMigration: vi.fn(() => (state: unknown, version: number) => state),
+  createSafeMigration: vi.fn(() => (state: unknown, _version: number) => state),
   setMigrationFailed: vi.fn(),
 }));
 
@@ -97,8 +97,9 @@ describe("fareStore", () => {
       for (let i = 0; i < 510; i++) {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
+          time: Date.now(),
           stationId: `${i}`,
-          stationName: `Station ${i}`,
+          source: "tracked",
         };
         useFareStore.getState().addRideLogEntry(entry);
       }
