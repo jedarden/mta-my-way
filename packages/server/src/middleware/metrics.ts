@@ -16,9 +16,6 @@ import {
   cacheMisses,
   commuteAnalysisDuration,
   commuteAnalysisRequests,
-  contextDetections,
-  contextOverrides,
-  contextTransitions,
   delayPredictionDuration,
   delayPredictionRequests,
   equipmentElevatorsOut,
@@ -328,31 +325,6 @@ export function recordDelayPredictionRequest(success: boolean, hasData: boolean)
  */
 export function recordDelayPredictionDuration(durationSeconds: number): void {
   delayPredictionDuration.observe(durationSeconds);
-}
-
-// ============================================================================
-// Context Detection Metrics
-// ============================================================================
-
-/**
- * Record a context detection metric.
- */
-export function recordContextDetection(context: string, confidence: string): void {
-  contextDetections.inc(1, { context, confidence });
-}
-
-/**
- * Record a context transition metric.
- */
-export function recordContextTransition(fromContext: string, toContext: string): void {
-  contextTransitions.inc(1, { from: fromContext, to: toContext });
-}
-
-/**
- * Record a context override metric.
- */
-export function recordContextOverride(context: string): void {
-  contextOverrides.inc(1, { context });
 }
 
 // ============================================================================

@@ -11,9 +11,6 @@ import {
   recordCacheMissMetric,
   recordCommuteAnalysisDuration,
   recordCommuteAnalysisRequest,
-  recordContextDetection,
-  recordContextOverride,
-  recordContextTransition,
   recordDelayPredictionDuration,
   recordDelayPredictionRequest,
   recordFeedEntitiesProcessed,
@@ -274,26 +271,6 @@ describe("HTTP Metrics Middleware", () => {
       expect(() => recordDelayPredictionDuration(0.1)).not.toThrow();
       expect(() => recordDelayPredictionDuration(0.5)).not.toThrow();
       expect(() => recordDelayPredictionDuration(2.0)).not.toThrow();
-    });
-  });
-
-  describe("Context Detection Metrics", () => {
-    it("should record context detection", () => {
-      expect(() => recordContextDetection("commute", "high")).not.toThrow();
-      expect(() => recordContextDetection("home", "medium")).not.toThrow();
-      expect(() => recordContextDetection("work", "low")).not.toThrow();
-    });
-
-    it("should record context transition", () => {
-      expect(() => recordContextTransition("home", "commute")).not.toThrow();
-      expect(() => recordContextTransition("commute", "work")).not.toThrow();
-      expect(() => recordContextTransition("work", "home")).not.toThrow();
-    });
-
-    it("should record context override", () => {
-      expect(() => recordContextOverride("commute")).not.toThrow();
-      expect(() => recordContextOverride("work")).not.toThrow();
-      expect(() => recordContextOverride("home")).not.toThrow();
     });
   });
 

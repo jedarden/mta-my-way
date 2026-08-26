@@ -457,22 +457,6 @@ export const delayPredictionAccuracy = metrics.gauge(
 );
 
 // ============================================================================
-// Context Detection Metrics
-// ============================================================================
-
-export const contextDetections = metrics.counter(
-  "context_detections_total",
-  "Total context detections"
-);
-export const contextTransitions = metrics.counter(
-  "context_transitions_total",
-  "Total context state transitions"
-);
-export const contextOverrides = metrics.counter(
-  "context_overrides_total",
-  "Total manual context overrides"
-);
-
 // ============================================================================
 // Alert Metrics
 // ============================================================================
