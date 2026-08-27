@@ -137,7 +137,7 @@ import {
 import { getVapidPublicKey } from "./push/vapid.js";
 import { buildPasswordResetRoutes } from "./routes/password-reset.routes.js";
 import { buildPreferencesRoutes } from "./routes/preferences.routes.js";
-import { callStatefulService, getStatefulStatus } from "./services/stateful-client.js";
+import { getStatefulStatus } from "./services/stateful-client.js";
 import { createTransferEngine } from "./transfer/index.js";
 import { lookupTrip } from "./trip-lookup.js";
 import {
@@ -3021,6 +3021,17 @@ ${
     });
     app.get("/auth/:providerId/callback", async (c) => {
       return finishOAuth(c);
+    });
+
+    /** Sign-out convenience route (browser-facing) */
+    app.get("/auth/signout", async (c) => {
+      const auth = getRbacAuthContext(c);
+      if (!auth?.sessionId) {
+        return c.json({ success: false, error: "No active session" }, 400);
+      }
+
+      // Note: redirect to the API route for session revocation
+      return c.redirect("/api/auth/session/revoke");
     });
 
     /** Backward-compatible API aliases for the existing client hook. */
