@@ -63,9 +63,13 @@ test.describe("Health endpoint", () => {
     const body = await response.json();
 
     expect(body).toHaveProperty("delayDetector");
-    expect(body.delayDetector).toHaveProperty("trackedTrips");
-    expect(body.delayDetector).toHaveProperty("activeAlerts");
-    expect(body.delayDetector).toHaveProperty("thresholdMultiplier");
+    expect(body.delayDetector).toHaveProperty("enabled");
+    expect(typeof body.delayDetector.enabled).toBe("boolean");
+    expect(body.delayDetector).toHaveProperty("activePredictions");
+    expect(typeof body.delayDetector.activePredictions).toBe("number");
+    expect(body.delayDetector).toHaveProperty("lastRunAt");
+    // lastRunAt can be null if the detector hasn't run yet
+    expect(body.delayDetector.lastRunAt === null || typeof body.delayDetector.lastRunAt === "string").toBe(true);
   });
 
   test("rejects unexpected query parameters", async ({ request }) => {
