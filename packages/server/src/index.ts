@@ -22,6 +22,7 @@ import type {
 } from "@mta-my-way/shared";
 import { startAlertsPoller } from "./alerts-poller.js";
 import { createApp } from "./app.js";
+import { CORE_ONLY } from "./config.js";
 import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
@@ -45,23 +46,6 @@ const DATA_DIR = join(__dirname, "..", "data");
 const WEB_DIST = resolve(__dirname, "..", "..", "web", "dist");
 
 const PORT = parseInt(process.env["PORT"] ?? "3001", 10);
-
-/**
- * CORE_ONLY mode: When set to true, the server runs in stateless mode.
- *
- * In CORE_ONLY mode:
- * - No database initialization (push subscriptions, trip tracking, context service)
- * - No push notification pipeline
- * - No session cleanup
- * - DB-dependent endpoints return 503 Service Unavailable
- *
- * This mode is used for the stateless core deployment that can run replicas 2+
- * with zero dependency on PVC-backed storage. The stateful subsystem runs as
- * a separate deployment with replicas=1 and PVC mount.
- *
- * Per ADR-001 (2026-07-20): "Decouple the Core Read Path from Persistent-Volume-Backed State"
- */
-const CORE_ONLY = process.env["CORE_ONLY"] === "true";
 
 /**
  * Load a JSON data file from the data directory
@@ -97,7 +81,8 @@ async function main(): Promise<void> {
   });
 
   // Enable test mode if environment variable is set (for E2E tests)
-  const testMode = process.env["TEST_MODE"] === "true";
+  const testMode =
+    (process.env["TEST_MODE"] ?? "").toLowerCase() === "true" || process.env["TEST_MODE"] === "1";
   if (testMode) {
     setRateLimiterTestMode(true);
     logger.info("Test mode enabled");
