@@ -25,7 +25,7 @@ export default defineConfig({
   plugins: [virtualPwaRegisterPlugin()],
   test: {
     pool: "forks",
-    poolOptions: { forks: { maxForks: 4 } },
+    maxForks: 4,
     env: {
       TEST_MODE: "true",
     },
@@ -47,7 +47,7 @@ export default defineConfig({
           globals: true,
           setupFiles: ["./packages/web/src/test/setup.ts"],
           pool: "forks",
-          poolOptions: { forks: { maxForks: 4 } },
+          maxForks: 4,
           resolve: {
             alias: {
               "virtual:pwa-register": path.resolve(
@@ -64,7 +64,7 @@ export default defineConfig({
           environment: "node",
           include: ["packages/server/src/**/*.test.ts"],
           pool: "forks",
-          poolOptions: { forks: { maxForks: 4 } },
+          maxForks: 4,
           setupFiles: ["./packages/server/src/test/setup.ts"],
         },
       },
@@ -75,7 +75,7 @@ export default defineConfig({
           include: ["packages/shared/src/**/*.test.ts"],
           globals: true,
           pool: "forks",
-          poolOptions: { forks: { maxForks: 4 } },
+          maxForks: 4,
           setupFiles: [],
         },
       },

@@ -5,7 +5,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     pool: "forks",
-    poolOptions: { forks: { maxForks: 4 } },
+    maxForks: 4,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
