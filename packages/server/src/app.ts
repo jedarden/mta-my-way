@@ -497,8 +497,45 @@ export function createApp(
   // Prevents DoS via deeply nested JSON structures
   app.use("/api/*", jsonDepthProtection());
 
+  // -------------------------------------------------------------------------
+  // CSP violation reporting endpoint (MUST be before mass assignment middleware)
+  // -------------------------------------------------------------------------
+  // This endpoint accepts nested CSP report objects, so it must be registered
+  // before the global mass assignment protection middleware is applied to /api/*
+  app.post("/api/security/csp-report", async (c) => {
+    try {
+      const contentType = c.req.header("Content-Type") ?? "";
+      const baseContentType = contentType.split(";")[0]!.trim().toLowerCase();
+      const allowed = ["application/csp-report", "application/json", "application/reports+json"];
+      if (!allowed.includes(baseContentType)) {
+        return c.json({ error: "Unsupported Media Type" }, 415);
+      }
+
+      const report = await c.req.json().catch(() => null);
+
+      if (!report) {
+        return c.json({ error: "Invalid report" }, 400);
+      }
+
+      // Log the CSP violation for security monitoring
+      logger.warn("CSP violation detected", {
+        "user-agent": c.req.header("user-agent"),
+        referrer: c.req.header("referrer"),
+        "x-forwarded-for": c.req.header("x-forwarded-for")?.split(",")[0] ?? "unknown",
+        report,
+      });
+
+      // Return 200 to acknowledge the report
+      return c.json({ received: true });
+    } catch (error) {
+      logger.error("Failed to process CSP report", error as Error);
+      return c.json({ error: "Failed to process report" }, 400);
+    }
+  });
+
   // Mass assignment protection for API routes (OWASP A01)
   // Prevents mass assignment attacks by filtering writable fields
+  // NOTE: /api/security/csp-report is exempt (registered above)
   app.use("/api/*", massAssignmentProtection());
 
   // Optional authentication for all API routes
@@ -1283,39 +1320,6 @@ ${
     return c.text(metricsText);
   });
 
-  // -------------------------------------------------------------------------
-  // CSP violation reporting endpoint
-  // -------------------------------------------------------------------------
-  app.post("/api/security/csp-report", async (c) => {
-    try {
-      const contentType = c.req.header("Content-Type") ?? "";
-      const baseContentType = contentType.split(";")[0]!.trim().toLowerCase();
-      const allowed = ["application/csp-report", "application/json", "application/reports+json"];
-      if (!allowed.includes(baseContentType)) {
-        return c.json({ error: "Unsupported Media Type" }, 415);
-      }
-
-      const report = await c.req.json().catch(() => null);
-
-      if (!report) {
-        return c.json({ error: "Invalid report" }, 400);
-      }
-
-      // Log the CSP violation for security monitoring
-      logger.warn("CSP violation detected", {
-        "user-agent": c.req.header("user-agent"),
-        referrer: c.req.header("referrer"),
-        "x-forwarded-for": c.req.header("x-forwarded-for")?.split(",")[0] ?? "unknown",
-        report,
-      });
-
-      // Return 200 to acknowledge the report
-      return c.json({ received: true });
-    } catch (error) {
-      logger.error("Failed to process CSP report", error as Error);
-      return c.json({ error: "Failed to process report" }, 400);
-    }
-  });
 
   // -------------------------------------------------------------------------
   // Security disclosure policy (RFC 9116)

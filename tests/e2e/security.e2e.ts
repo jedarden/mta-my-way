@@ -149,7 +149,7 @@ test.describe("OWASP A03: Injection", () => {
 
 test.describe("OWASP A05: Security Misconfiguration", () => {
   test("does not expose stack traces in error responses", async ({ request }) => {
-    const response = await request.get("/api/nonexistent");
+    const response = await request.get("/api/stations/999999");
 
     expect(response.status()).toBe(404);
     const body = await response.json();
@@ -158,7 +158,7 @@ test.describe("OWASP A05: Security Misconfiguration", () => {
   });
 
   test("does not expose internal paths in error messages", async ({ request }) => {
-    const response = await request.get("/api/nonexistent");
+    const response = await request.get("/api/stations/999999");
 
     expect(response.status()).toBe(404);
     const body = await response.json();
@@ -229,6 +229,9 @@ test.describe("CSP violation reporting", () => {
 
     const response = await request.post("/api/security/csp-report", {
       data: report,
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     // Should accept the report
