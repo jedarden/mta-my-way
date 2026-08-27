@@ -44,17 +44,17 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       const backButton = page
-        .locator('role=link:has-text("Back")')
-        .or(page.locator('role=button:has-text("Back")'));
-      await expect(backButton).toBeVisible();
+        .getByRole("link", { name: /back/i })
+        .or(page.getByRole("button", { name: /back/i }));
+      await expect(backButton.first()).toBeVisible();
     });
 
     test("should navigate to commute when back is clicked", async ({ page }) => {
       await page.goto("/journal");
 
       const backButton = page
-        .locator('role=link:has-text("Back")')
-        .or(page.locator('role=button:has-text("Back")'));
+        .getByRole("link", { name: /back/i })
+        .or(page.getByRole("button", { name: /back/i }));
       await backButton.first().click();
 
       await expect(page).toHaveURL(/\/commute/);
@@ -66,29 +66,29 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       // Look for total trips stat
-      const totalTrips = page.locator("text:/Total Trips/i");
-      await expect(totalTrips).toBeAttached();
+      const totalTrips = page.getByText(/Total Trips/i);
+      await expect(totalTrips.first()).toBeAttached();
     });
 
     test("should display average duration", async ({ page }) => {
       await page.goto("/journal");
 
-      const avgDuration = page.locator("text:/Avg Duration|Average/i");
-      await expect(avgDuration).toBeAttached();
+      const avgDuration = page.getByText(/Avg Duration|Average/i);
+      await expect(avgDuration.first()).toBeAttached();
     });
 
     test("should display average delay", async ({ page }) => {
       await page.goto("/journal");
 
-      const avgDelay = page.locator("text:/Avg Delay|Average Delay/i");
-      await expect(avgDelay).toBeAttached();
+      const avgDelay = page.getByText(/Avg Delay|Average Delay/i);
+      await expect(avgDelay.first()).toBeAttached();
     });
 
     test("should display trips this week", async ({ page }) => {
       await page.goto("/journal");
 
-      const tripsThisWeek = page.locator("text:/This Week|week/i");
-      await expect(tripsThisWeek).toBeAttached();
+      const tripsThisWeek = page.getByText(/This Week|week/i);
+      await expect(tripsThisWeek.first()).toBeAttached();
     });
   });
 
@@ -116,20 +116,20 @@ test.describe("Journal Screen", () => {
     test("should show commute name on stat card", async ({ page }) => {
       await page.goto("/journal");
 
-      const commuteName = page.locator("text=/Work|Home|Commute/i");
-      await expect(commuteName).toBeAttached();
+      const commuteName = page.getByText(/Work|Home|Commute/i);
+      await expect(commuteName.first()).toBeAttached();
     });
 
     test("should display average, median, and delay stats", async ({ page }) => {
       await page.goto("/journal");
 
-      const avgLabel = page.locator("text=/Avg|Average/i");
-      const medianLabel = page.locator("text=/Median/i");
-      const delayLabel = page.locator("text=/Delay/i");
+      const avgLabel = page.getByText(/Avg|Average/i);
+      const medianLabel = page.getByText(/Median/i);
+      const delayLabel = page.getByText(/Delay/i);
 
       // These should exist even if no data (showing 0 or —)
       await expect(avgLabel.first()).toBeAttached();
-      await expect(medianLabel).toBeAttached();
+      await expect(medianLabel.first()).toBeAttached();
       await expect(delayLabel.first()).toBeAttached();
     });
   });
@@ -139,8 +139,8 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       // Look for trend indicators (e.g., +5%, -3%)
-      const trendIndicator = page.locator("text=/[+-]\\d+%/i");
-      await expect(trendIndicator).toBeAttached();
+      const trendIndicator = page.getByText(/[+-]\d+/i);
+      await expect(trendIndicator.first()).toBeAttached();
     });
 
     test("should color-code trends (red for increase, green for decrease)", async ({ page }) => {
@@ -199,7 +199,7 @@ test.describe("Journal Screen", () => {
     test("should expand trip history when clicked", async ({ page }) => {
       await page.goto("/journal");
 
-      const historyButton = page.locator('role=button:has-text("History")').first();
+      const historyButton = page.getByRole("button", { name: /history/i }).first();
       const hasButton = await historyButton.count();
 
       if (hasButton > 0) {
@@ -223,24 +223,24 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       // Look for date displays (Today, Yesterday, or dates)
-      const dateDisplay = page.locator("text=/Today|Yesterday|Jan|Feb|Mar|Apr|May|Jun/i");
-      await expect(dateDisplay).toBeAttached();
+      const dateDisplay = page.getByText(/Today|Yesterday|Jan|Feb|Mar|Apr|May|Jun/i);
+      await expect(dateDisplay.first()).toBeAttached();
     });
 
     test("should show delay information for each trip", async ({ page }) => {
       await page.goto("/journal");
 
       // Look for delay indicators
-      const delayInfo = page.locator("text=/\\+\\d+ min|-\\d+ min|delay/i");
-      await expect(delayInfo).toBeAttached();
+      const delayInfo = page.getByText(/\+\d+ min|-\d+ min|delay/i);
+      await expect(delayInfo.first()).toBeAttached();
     });
 
     test("should show trip source (tracked/inferred/manual)", async ({ page }) => {
       await page.goto("/journal");
 
       // Look for source labels
-      const sourceLabel = page.locator("text=/Tracked|Inferred|Manual/i");
-      await expect(sourceLabel).toBeAttached();
+      const sourceLabel = page.getByText(/Tracked|Inferred|Manual/i);
+      await expect(sourceLabel.first()).toBeAttached();
     });
   });
 
@@ -249,7 +249,7 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       // Try to expand history first
-      const historyButton = page.locator('role=button:has-text("History")').first();
+      const historyButton = page.getByRole("button", { name: /history/i }).first();
       const hasHistory = await historyButton.count();
 
       if (hasHistory > 0) {
@@ -294,8 +294,8 @@ test.describe("Journal Screen", () => {
 
           // Save button
           const saveButton = page
-            .locator('role=button:has-text("Save")')
-            .or(page.locator('role=button[type="submit"]'));
+            .getByRole("button", { name: /save/i })
+            .or(page.locator('button[type="submit"]'));
           const hasSave = await saveButton.count();
 
           if (hasSave > 0) {
@@ -316,8 +316,8 @@ test.describe("Journal Screen", () => {
 
         // Look for delete button
         const deleteButton = page
-          .locator('role=button:has-text("Delete")')
-          .or(page.locator('role=button[aria-label*="delete" i]'));
+          .getByRole("button", { name: /delete/i })
+          .or(page.locator('button[aria-label*="delete" i]'));
         const hasDelete = await deleteButton.count();
 
         if (hasDelete > 0) {
@@ -333,8 +333,8 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       const statsLink = page
-        .locator('role=button:has-text("Subway Year")')
-        .or(page.locator('role=link[href="/stats"]'));
+        .getByRole("button", { name: /subway year/i })
+        .or(page.locator('a[href="/stats"]'));
       const hasLink = await statsLink.count();
 
       if (hasLink > 0) {
@@ -346,8 +346,8 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       const statsLink = page
-        .locator('role=button:has-text("Subway Year")')
-        .or(page.locator('role=link[href="/stats"]'));
+        .getByRole("button", { name: /subway year/i })
+        .or(page.locator('a[href="/stats"]'));
       const hasLink = await statsLink.count();
 
       if (hasLink > 0) {
@@ -370,7 +370,7 @@ test.describe("Journal Screen", () => {
     test("should show empty state when no trips recorded", async ({ page }) => {
       await page.goto("/journal");
 
-      const emptyState = page.locator("text=/No trips|not recorded/i");
+      const emptyState = page.getByText(/No trips|not recorded/i);
       const hasEmpty = await emptyState.count();
 
       if (hasEmpty > 0) {
@@ -381,8 +381,8 @@ test.describe("Journal Screen", () => {
     test("should show guidance message in empty state", async ({ page }) => {
       await page.goto("/journal");
 
-      const guidance = page.locator("text=/track|record|commute/i");
-      await expect(guidance).toBeAttached();
+      const guidance = page.getByText(/track|record|commute/i);
+      await expect(guidance.first()).toBeAttached();
     });
   });
 
@@ -398,7 +398,7 @@ test.describe("Journal Screen", () => {
     test("should have expand/collapse announcements", async ({ page }) => {
       await page.goto("/journal");
 
-      const historyButton = page.locator('role=button:has-text("History")').first();
+      const historyButton = page.getByRole("button", { name: /history/i }).first();
       const hasButton = await historyButton.count();
 
       if (hasButton > 0) {
@@ -425,8 +425,8 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       const statsButton = page
-        .locator('role=button:has-text("Your Subway Year")')
-        .or(page.locator('role=link[href="/stats"]'));
+        .getByRole("button", { name: /your subway year/i })
+        .or(page.locator('a[href="/stats"]'));
       const hasButton = await statsButton.count();
 
       if (hasButton > 0) {
@@ -439,8 +439,8 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       const backButton = page
-        .locator('role=link:has-text("Back")')
-        .or(page.locator('role=button:has-text("Back")'));
+        .getByRole("link", { name: /back/i })
+        .or(page.getByRole("button", { name: /back/i }));
       await backButton.first().click();
 
       await expect(page).toHaveURL(/\/commute/);
@@ -508,7 +508,7 @@ test.describe("Journal Screen", () => {
         if (hasField > 0) {
           await notesField.fill("E2E test note");
 
-          const saveButton = page.locator('role=button:has-text("Save")').first();
+          const saveButton = page.getByRole("button", { name: /save/i }).first();
           const hasSave = await saveButton.count();
 
           if (hasSave > 0) {

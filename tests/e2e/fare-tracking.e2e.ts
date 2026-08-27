@@ -208,8 +208,8 @@ test.describe("Fare Tracking", () => {
 
       // Pay-per-ride: 32 * $2.90 = $92.80 vs $132 unlimited
       // Should show pay-per-ride saves
-      const savingsText = page.locator("text=/saves|Pay-per-ride/i");
-      await expect(savingsText).toBeAttached();
+      const savingsText = page.getByText(/saves|Pay-per-ride/i);
+      await expect(savingsText.first()).toBeAttached();
     });
 
     test("should show unlimited pass is better when applicable", async ({ page }) => {
@@ -228,8 +228,8 @@ test.describe("Fare Tracking", () => {
 
       // Pay-per-ride: 60 * $2.90 = $174 vs $132 unlimited
       // Should show unlimited saves
-      const unlimitedText = page.locator("text=/Unlimited saves/i");
-      await expect(unlimitedText).toBeAttached();
+      const unlimitedText = page.getByText(/Unlimited saves/i);
+      await expect(unlimitedText.first()).toBeAttached();
     });
 
     test("should show comparison values", async ({ page }) => {
@@ -247,11 +247,11 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should show both pay-per-ride and unlimited amounts
-      const payPerRide = page.locator("text=/Pay-per-ride:\\s*\\$\\d+/i");
-      const unlimited = page.locator("text=/Unlimited:\\s*\\$\\d+/i");
+      const payPerRide = page.getByText(/Pay-per-ride:\s*\$\d+/i);
+      const unlimited = page.getByText(/Unlimited:\s*\$\d+/i);
 
-      await expect(payPerRide).toBeAttached();
-      await expect(unlimited).toBeAttached();
+      await expect(payPerRide.first()).toBeAttached();
+      await expect(unlimited.first()).toBeAttached();
     });
   });
 
@@ -271,8 +271,8 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should show nudge banner
-      const nudge = page.locator("text=/Take 1 more ride|1 more round trip/i");
-      await expect(nudge).toBeAttached();
+      const nudge = page.getByText(/Take 1 more ride|1 more round trip/i);
+      await expect(nudge.first()).toBeAttached();
     });
 
     test("should show nudge at 11 rides", async ({ page }) => {
@@ -290,8 +290,8 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should show nudge banner
-      const nudge = page.locator("text=/Take.*for free rides/i");
-      await expect(nudge).toBeAttached();
+      const nudge = page.getByText(/Take.*for free rides/i);
+      await expect(nudge.first()).toBeAttached();
     });
 
     test("should not show nudge when cap is reached", async ({ page }) => {
@@ -309,7 +309,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should not show nudge banner
-      const nudge = page.locator("text=/Take 1 more ride/i");
+      const nudge = page.getByText(/Take 1 more ride/i);
       const hasNudge = await nudge.count();
       expect(hasNudge).toBe(0);
     });
@@ -329,7 +329,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should not show nudge banner
-      const nudge = page.locator("text=/Take.*more.*for free/i");
+      const nudge = page.getByText(/Take.*more.*for free/i);
       const hasNudge = await nudge.count();
       expect(hasNudge).toBe(0);
     });
@@ -344,7 +344,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Fare tracker should not be visible
-      const fareTracker = page.locator("text=/OMNY Fare Cap/i");
+      const fareTracker = page.getByText(/OMNY Fare Cap/i);
       const hasTracker = await fareTracker.count();
 
       expect(hasTracker).toBe(0);
@@ -358,7 +358,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Initially no tracker
-      let fareTracker = page.locator("text=/OMNY Fare Cap/i");
+      let fareTracker = page.getByText(/OMNY Fare Cap/i);
       let hasTracker = await fareTracker.count();
       expect(hasTracker).toBe(0);
 
@@ -377,8 +377,8 @@ test.describe("Fare Tracking", () => {
       await page.reload();
 
       // Now tracker should be visible
-      fareTracker = page.locator("text=/OMNY Fare Cap/i");
-      await expect(fareTracker).toBeAttached();
+      fareTracker = page.getByText(/OMNY Fare Cap/i);
+      await expect(fareTracker.first()).toBeAttached();
     });
   });
 
@@ -399,14 +399,14 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Verify initial data
-      const ridesText = await page.locator("text=/\\d+\\/12/i").first().textContent();
+      const ridesText = await page.getByText(/\d+\/12/i).first().textContent();
       expect(ridesText).toContain("7");
 
       // Reload page
       await page.reload();
 
       // Data should persist
-      const ridesTextAfter = await page.locator("text=/\\d+\\/12/i").first().textContent();
+      const ridesTextAfter = await page.getByText(/\d+\/12/i).first().textContent();
       expect(ridesTextAfter).toContain("7");
     });
 
@@ -440,7 +440,7 @@ test.describe("Fare Tracking", () => {
       await page.goBack();
 
       // Should show updated count
-      const ridesText = await page.locator("text=/\\d+\\/12/i").first().textContent();
+      const ridesText = await page.getByText(/\d+\/12/i).first().textContent();
       expect(ridesText).toContain("8");
     });
   });
@@ -490,8 +490,8 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Progress section should be accessible
-      const progressSection = page.locator("text=/8.*12|rides/i");
-      await expect(progressSection).toBeAttached();
+      const progressSection = page.getByText(/8.*12|rides/i);
+      await expect(progressSection.first()).toBeAttached();
     });
   });
 
@@ -538,7 +538,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Nudge should have distinct background/border
-      const nudge = page.locator("text=/Take.*more.*for free/i").locator("..");
+      const nudge = page.getByText(/Take.*more.*for free/i);
       const hasNudge = await nudge.count();
 
       if (hasNudge > 0) {
