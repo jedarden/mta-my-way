@@ -66,6 +66,7 @@ import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
 import { getApiKeyById, registerApiKey } from "./middleware/authentication.js";
 import {
+  OAUTH_ALLOWED_HOSTNAMES,
   auditLogAccess,
   cors,
   createSession,
@@ -82,8 +83,6 @@ import {
   jsonDepthProtection,
   massAssignmentProtection,
   openRedirectProtection,
-  validateRedirectUrl,
-  OAUTH_ALLOWED_HOSTNAMES,
   optionalAuth,
   pathTraversalPrevention,
   rateLimiter,
@@ -101,6 +100,7 @@ import {
   validateContentType,
   validateParams,
   validateQuery,
+  validateRedirectUrl,
 } from "./middleware/index.js";
 import { httpMetrics } from "./middleware/metrics.js";
 import {
@@ -1319,7 +1319,6 @@ ${
     c.header("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
     return c.text(metricsText);
   });
-
 
   // -------------------------------------------------------------------------
   // Security disclosure policy (RFC 9116)

@@ -56,10 +56,13 @@ test.describe("Search Journey", () => {
     await searchInput.fill("Times");
 
     // Wait for results to appear
-    await page.waitForSelector('text=/Times Sq-42 St/i', { timeout: 5000 });
+    await page.waitForSelector("text=/Times Sq-42 St/i", { timeout: 5000 });
 
     // Click on Times Square result
-    await page.getByRole("link", { name: /Times Sq-42 St/i }).first().click();
+    await page
+      .getByRole("link", { name: /Times Sq-42 St/i })
+      .first()
+      .click();
 
     // Should navigate to station detail
     await expect(page).toHaveURL(/\/station\/725/);
@@ -111,7 +114,10 @@ test.describe("Station Detail Journey", () => {
     await page.goto("/station/725");
 
     // Find and click the favorite button
-    const favoriteButton = page.getByRole("button").filter({ hasText: /favorite|add to/i }).first();
+    const favoriteButton = page
+      .getByRole("button")
+      .filter({ hasText: /favorite|add to/i })
+      .first();
     const hasFavoriteButton = await favoriteButton.count();
 
     if (hasFavoriteButton > 0) {
@@ -156,7 +162,10 @@ test.describe("Favorites Management", () => {
     await page.goto("/search");
 
     // Find a favorite toggle button on popular stations
-    const favoriteButton = page.getByRole("button").filter({ hasText: /favorite|add/i }).first();
+    const favoriteButton = page
+      .getByRole("button")
+      .filter({ hasText: /favorite|add/i })
+      .first();
 
     const hasFavoriteButton = await favoriteButton.count();
 
@@ -381,14 +390,20 @@ test.describe("Full Stack Workflows", () => {
     await searchInput.fill("Times");
 
     // Wait for results to appear
-    await page.waitForSelector('text=/Times Sq-42 St/i', { timeout: 5000 });
+    await page.waitForSelector("text=/Times Sq-42 St/i", { timeout: 5000 });
 
     // Click result
-    await page.getByRole("link", { name: /Times Sq-42 St/i }).first().click();
+    await page
+      .getByRole("link", { name: /Times Sq-42 St/i })
+      .first()
+      .click();
     await expect(page).toHaveURL(/\/station\//);
 
     // Add to favorite
-    const favoriteButton = page.getByRole("button").filter({ hasText: /favorite|add to/i }).first();
+    const favoriteButton = page
+      .getByRole("button")
+      .filter({ hasText: /favorite|add to/i })
+      .first();
     const hasButton = await favoriteButton.count();
 
     if (hasButton > 0) {

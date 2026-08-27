@@ -61,19 +61,25 @@ test.describe("Commute Workflow", () => {
       });
       await page.reload();
 
-      const addButton = page.getByRole("button", { name: /add/i }).or(page.locator('button').filter({ hasText: /add/i }));
+      const addButton = page
+        .getByRole("button", { name: /add/i })
+        .or(page.locator("button").filter({ hasText: /add/i }));
       await expect(addButton.first()).toBeAttached();
     });
 
     test("should display trip journal link", async ({ page }) => {
       await expect(page.locator('role=heading[name="Trip Journal"]')).toBeVisible();
 
-      const journalButton = page.getByRole("button", { name: /view trip history/i }).or(page.locator('a[href="/journal"]'));
+      const journalButton = page
+        .getByRole("button", { name: /view trip history/i })
+        .or(page.locator('a[href="/journal"]'));
       await expect(journalButton.first()).toBeVisible();
     });
 
     test("should navigate to journal when button is clicked", async ({ page }) => {
-      const historyButton = page.getByRole("button", { name: /view trip history|trip history/i }).or(page.locator('a[href="/journal"]'));
+      const historyButton = page
+        .getByRole("button", { name: /view trip history|trip history/i })
+        .or(page.locator('a[href="/journal"]'));
       const hasButton = await historyButton.count();
 
       if (hasButton > 0) {
@@ -122,7 +128,9 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should open commute editor when Add is clicked", async ({ page }) => {
-      const addButton = page.getByRole("button", { name: /add/i }).or(page.locator('button').filter({ hasText: /add/i }));
+      const addButton = page
+        .getByRole("button", { name: /add/i })
+        .or(page.locator("button").filter({ hasText: /add/i }));
       const hasAdd = await addButton.count();
 
       if (hasAdd > 0) {
@@ -135,14 +143,18 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should allow selecting origin station", async ({ page }) => {
-      const addButton = page.getByRole("button", { name: /add/i }).or(page.locator('button').filter({ hasText: /add/i }));
+      const addButton = page
+        .getByRole("button", { name: /add/i })
+        .or(page.locator("button").filter({ hasText: /add/i }));
       const hasAdd = await addButton.count();
 
       if (hasAdd > 0) {
         await addButton.first().click();
 
         // Look for origin picker
-        const originPicker = page.getByRole("button", { name: /origin/i }).or(page.locator('button').filter({ hasText: /origin/i }));
+        const originPicker = page
+          .getByRole("button", { name: /origin/i })
+          .or(page.locator("button").filter({ hasText: /origin/i }));
         const hasPicker = await originPicker.count();
 
         if (hasPicker > 0) {
@@ -156,14 +168,18 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should allow selecting destination station", async ({ page }) => {
-      const addButton = page.getByRole("button", { name: /add/i }).or(page.locator('button').filter({ hasText: /add/i }));
+      const addButton = page
+        .getByRole("button", { name: /add/i })
+        .or(page.locator("button").filter({ hasText: /add/i }));
       const hasAdd = await addButton.count();
 
       if (hasAdd > 0) {
         await addButton.first().click();
 
         // Look for destination picker
-        const destPicker = page.getByRole("button", { name: /destination/i }).or(page.locator('button').filter({ hasText: /destination/i }));
+        const destPicker = page
+          .getByRole("button", { name: /destination/i })
+          .or(page.locator("button").filter({ hasText: /destination/i }));
         const hasPicker = await destPicker.count();
 
         if (hasPicker > 0) {
@@ -177,14 +193,18 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should allow setting commute name", async ({ page }) => {
-      const addButton = page.getByRole("button", { name: /add/i }).or(page.locator('button').filter({ hasText: /add/i }));
+      const addButton = page
+        .getByRole("button", { name: /add/i })
+        .or(page.locator("button").filter({ hasText: /add/i }));
       const hasAdd = await addButton.count();
 
       if (hasAdd > 0) {
         await addButton.first().click();
 
         // Look for name input
-        const nameInput = page.getByRole("textbox", { name: /name/i }).or(page.locator('input[placeholder*="name" i]'));
+        const nameInput = page
+          .getByRole("textbox", { name: /name/i })
+          .or(page.locator('input[placeholder*="name" i]'));
         const hasInput = await nameInput.count();
 
         if (hasInput > 0) {
@@ -197,14 +217,18 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should save new commute", async ({ page }) => {
-      const addButton = page.getByRole("button", { name: /add/i }).or(page.locator('button').filter({ hasText: /add/i }));
+      const addButton = page
+        .getByRole("button", { name: /add/i })
+        .or(page.locator("button").filter({ hasText: /add/i }));
       const hasAdd = await addButton.count();
 
       if (hasAdd > 0) {
         await addButton.first().click();
 
         // Try to save (might fail if form is not filled)
-        const saveButton = page.getByRole("button", { name: /save/i }).or(page.locator('button').filter({ hasText: /save/i }));
+        const saveButton = page
+          .getByRole("button", { name: /save/i })
+          .or(page.locator("button").filter({ hasText: /save/i }));
         const hasSave = await saveButton.count();
 
         if (hasSave > 0) {
@@ -279,7 +303,9 @@ test.describe("Commute Workflow", () => {
     test("should have back button to commute list", async ({ page }) => {
       await page.goto("/commute/test-commute-1");
 
-      const backButton = page.getByRole("button", { name: /back/i }).or(page.locator('a').filter({ hasText: /back/i }));
+      const backButton = page
+        .getByRole("button", { name: /back/i })
+        .or(page.locator("a").filter({ hasText: /back/i }));
       await expect(backButton.first()).toBeVisible();
 
       await backButton.first().click();
@@ -366,7 +392,9 @@ test.describe("Commute Workflow", () => {
     test("should have refresh button", async ({ page }) => {
       await page.goto("/commute/test-commute-1");
 
-      const refreshButton = page.getByRole("button", { name: /refresh/i }).or(page.locator('button[aria-label*="refresh" i]'));
+      const refreshButton = page
+        .getByRole("button", { name: /refresh/i })
+        .or(page.locator('button[aria-label*="refresh" i]'));
       await expect(refreshButton.first()).toBeAttached();
     });
   });
@@ -394,7 +422,9 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should open edit modal when edit is clicked", async ({ page }) => {
-      const editButton = page.getByRole("button", { name: /edit/i }).or(page.locator('button[aria-label*="edit" i]'));
+      const editButton = page
+        .getByRole("button", { name: /edit/i })
+        .or(page.locator('button[aria-label*="edit" i]'));
       const hasEdit = await editButton.count();
 
       if (hasEdit > 0) {
@@ -407,19 +437,25 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should allow changing commute name", async ({ page }) => {
-      const editButton = page.getByRole("button", { name: /edit/i }).or(page.locator('button[aria-label*="edit" i]'));
+      const editButton = page
+        .getByRole("button", { name: /edit/i })
+        .or(page.locator('button[aria-label*="edit" i]'));
       const hasEdit = await editButton.count();
 
       if (hasEdit > 0) {
         await editButton.first().click();
 
-        const nameInput = page.getByRole("textbox", { name: /name/i }).or(page.locator('input[name*="name" i]'));
+        const nameInput = page
+          .getByRole("textbox", { name: /name/i })
+          .or(page.locator('input[name*="name" i]'));
         const hasInput = await nameInput.count();
 
         if (hasInput > 0) {
           await nameInput.first().fill("Updated Work Commute");
 
-          const saveButton = page.getByRole("button", { name: /save/i }).or(page.locator('button').filter({ hasText: /save/i }));
+          const saveButton = page
+            .getByRole("button", { name: /save/i })
+            .or(page.locator("button").filter({ hasText: /save/i }));
           await saveButton.first().click();
 
           // Modal should close
@@ -440,20 +476,26 @@ test.describe("Commute Workflow", () => {
       });
 
       if (initialCount > 0) {
-        const editButton = page.getByRole("button", { name: /edit/i }).or(page.locator('button[aria-label*="edit" i]'));
+        const editButton = page
+          .getByRole("button", { name: /edit/i })
+          .or(page.locator('button[aria-label*="edit" i]'));
         const hasEdit = await editButton.count();
 
         if (hasEdit > 0) {
           await editButton.first().click();
 
-          const deleteButton = page.getByRole("button", { name: /delete/i }).or(page.locator('button').filter({ hasText: /delete/i }));
+          const deleteButton = page
+            .getByRole("button", { name: /delete/i })
+            .or(page.locator("button").filter({ hasText: /delete/i }));
           const hasDelete = await deleteButton.count();
 
           if (hasDelete > 0) {
             await deleteButton.first().click();
 
             // Should show confirmation
-            const confirmButton = page.getByRole("button", { name: /confirm|delete/i }).or(page.locator('button').filter({ hasText: /confirm|delete/i }));
+            const confirmButton = page
+              .getByRole("button", { name: /confirm|delete/i })
+              .or(page.locator("button").filter({ hasText: /confirm|delete/i }));
             await confirmButton.first().click();
 
             // Modal should close and commute should be deleted
@@ -529,7 +571,9 @@ test.describe("Commute Workflow", () => {
     });
 
     test("should allow pinning commute", async ({ page }) => {
-      const pinButton = page.getByRole("button", { name: /pin/i }).or(page.locator('button[aria-label*="pin" i]'));
+      const pinButton = page
+        .getByRole("button", { name: /pin/i })
+        .or(page.locator('button[aria-label*="pin" i]'));
       const hasPin = await pinButton.count();
 
       if (hasPin > 0) {

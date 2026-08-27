@@ -29,7 +29,16 @@ test.describe("Health endpoint", () => {
 
     // All 8 subway feeds must be present (initialized from SUBWAY_FEEDS constant)
     const feedIds = body.feeds.map((f: { id: string }) => f.id);
-    const expectedFeedIds = ["gtfs", "gtfs-ace", "gtfs-bdfm", "gtfs-g", "gtfs-jz", "gtfs-l", "gtfs-nqrw", "gtfs-si"];
+    const expectedFeedIds = [
+      "gtfs",
+      "gtfs-ace",
+      "gtfs-bdfm",
+      "gtfs-g",
+      "gtfs-jz",
+      "gtfs-l",
+      "gtfs-nqrw",
+      "gtfs-si",
+    ];
 
     for (const feedId of expectedFeedIds) {
       expect(feedIds).toContain(feedId);
@@ -99,7 +108,9 @@ test.describe("Health endpoint", () => {
     expect(typeof body.delayDetector.activePredictions).toBe("number");
     expect(body.delayDetector).toHaveProperty("lastRunAt");
     // lastRunAt can be null if the detector hasn't run yet
-    expect(body.delayDetector.lastRunAt === null || typeof body.delayDetector.lastRunAt === "string").toBe(true);
+    expect(
+      body.delayDetector.lastRunAt === null || typeof body.delayDetector.lastRunAt === "string"
+    ).toBe(true);
   });
 
   test("rejects unexpected query parameters", async ({ request }) => {

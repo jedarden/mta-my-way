@@ -35,7 +35,13 @@ import {
   resetAuthenticationState,
   resetSuspiciousActivityTracking,
 } from "../middleware/authentication.js";
-import { cors, csrfProtection, generateCsrfToken, rateLimiter, securityHeaders } from "../middleware/index.js";
+import {
+  cors,
+  csrfProtection,
+  generateCsrfToken,
+  rateLimiter,
+  securityHeaders,
+} from "../middleware/index.js";
 import { hashPassword, validatePassword } from "../middleware/password-management.js";
 import { resetRateLimiter } from "../middleware/rate-limiter.js";
 import { validateApiKeyFormat } from "../middleware/sanitization.js";

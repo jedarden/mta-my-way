@@ -399,14 +399,20 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Verify initial data
-      const ridesText = await page.getByText(/\d+\/12/i).first().textContent();
+      const ridesText = await page
+        .getByText(/\d+\/12/i)
+        .first()
+        .textContent();
       expect(ridesText).toContain("7");
 
       // Reload page
       await page.reload();
 
       // Data should persist
-      const ridesTextAfter = await page.getByText(/\d+\/12/i).first().textContent();
+      const ridesTextAfter = await page
+        .getByText(/\d+\/12/i)
+        .first()
+        .textContent();
       expect(ridesTextAfter).toContain("7");
     });
 
@@ -440,7 +446,10 @@ test.describe("Fare Tracking", () => {
       await page.goBack();
 
       // Should show updated count
-      const ridesText = await page.getByText(/\d+\/12/i).first().textContent();
+      const ridesText = await page
+        .getByText(/\d+\/12/i)
+        .first()
+        .textContent();
       expect(ridesText).toContain("8");
     });
   });

@@ -269,21 +269,25 @@ test.describe("PWA Features", () => {
   });
 
   test.describe("Update Prompt", () => {
-    test.skip(process.env.CI !== "true", "should check for service worker updates", async ({ page }) => {
-      await page.goto("/");
+    test.skip(
+      process.env.CI !== "true",
+      "should check for service worker updates",
+      async ({ page }) => {
+        await page.goto("/");
 
-      // Wait for service worker registration
-      await page.waitForTimeout(2000);
+        // Wait for service worker registration
+        await page.waitForTimeout(2000);
 
-      // Service worker should be registered
-      const swRegistered = await page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return false;
-        const registration = await navigator.serviceWorker.getRegistration();
-        return !!registration;
-      });
+        // Service worker should be registered
+        const swRegistered = await page.evaluate(async () => {
+          if (!("serviceWorker" in navigator)) return false;
+          const registration = await navigator.serviceWorker.getRegistration();
+          return !!registration;
+        });
 
-      expect(swRegistered).toBe(true);
-    });
+        expect(swRegistered).toBe(true);
+      }
+    );
 
     test("should handle update detection", async ({ page }) => {
       await page.goto("/");
