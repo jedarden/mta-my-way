@@ -325,7 +325,7 @@ describe("Cross-Cutting Security Tests", () => {
       expect([403, 401, 200]).toContain(responseWithoutToken.status);
 
       // Request with CSRF token should succeed
-      const csrfToken = createMockCsrfToken().token;
+      const csrfToken = generateCsrfToken();
       const responseWithToken = await app.request("/api/favorites", {
         method: "POST",
         headers: {
@@ -1312,7 +1312,7 @@ describe("Cross-Cutting Security Tests", () => {
 
       // Generate a valid CSRF token and reuse it for rate limit testing
       // (CSRF tokens are single-use by default, but for rate limit testing we need to bypass this)
-      const csrfToken = createMockCsrfToken().token;
+      const csrfToken = generateCsrfToken();
 
       // Exhaust rate limit
       for (let i = 0; i < 60; i++) {
