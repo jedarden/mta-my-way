@@ -2156,7 +2156,7 @@ ${
   // -------------------------------------------------------------------------
 
   // Only mount trip tracking routes if NOT in CORE_ONLY mode
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+  // CORE_ONLY is already declared above
 
   if (!CORE_ONLY) {
     // Apply same-origin protection to all trip tracking operations
@@ -2924,7 +2924,7 @@ ${
   // -------------------------------------------------------------------------
 
   // Only mount OAuth routes if NOT in CORE_ONLY mode
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+  // CORE_ONLY is already declared above
 
   if (!CORE_ONLY) {
     initializeDefaultProviders();
@@ -3051,7 +3051,7 @@ ${
   // -------------------------------------------------------------------------
 
   // Only mount password reset routes if NOT in CORE_ONLY mode
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+  // CORE_ONLY is already declared above
 
   if (!CORE_ONLY) {
     // Prevent caching of all auth responses — tokens and session data must never be cached
