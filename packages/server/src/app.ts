@@ -80,7 +80,12 @@ import {
   httpResponseSplitting,
   inputSanitization,
   jsonDepthProtection,
+  massAssignmentProtection,
+  openRedirectProtection,
+  validateRedirectUrl,
+  OAUTH_ALLOWED_HOSTNAMES,
   optionalAuth,
+  pathTraversalPrevention,
   rateLimiter,
   requestId,
   requestSizeLimits,
@@ -91,7 +96,9 @@ import {
   securityLogging,
   sessionSecurity,
   setSessionCookie,
+  ssrfProtection,
   validateBody,
+  validateContentType,
   validateParams,
   validateQuery,
 } from "./middleware/index.js";
@@ -470,12 +477,29 @@ export function createApp(
   // Request size limits for all routes (DoS protection)
   app.use("*", requestSizeLimits());
 
+  // Path traversal prevention for all routes (OWASP A01)
+  // Blocks directory traversal attacks like ../../../etc/passwd
+  app.use("*", pathTraversalPrevention());
+
   // Input sanitization for all API routes (XSS, SQL injection prevention)
   app.use("/api/*", inputSanitization());
+
+  // SSRF protection for all API routes (OWASP A10)
+  // Prevents Server-Side Request Forgery via URL parameters
+  // Particularly important for MTA feed URLs
+  app.use("/api/*", ssrfProtection());
+
+  // Content type validation for API routes
+  // Ensures Content-Type headers match request body format
+  app.use("/api/*", validateContentType());
 
   // JSON depth protection for API routes (OWASP A01, A03)
   // Prevents DoS via deeply nested JSON structures
   app.use("/api/*", jsonDepthProtection());
+
+  // Mass assignment protection for API routes (OWASP A01)
+  // Prevents mass assignment attacks by filtering writable fields
+  app.use("/api/*", massAssignmentProtection());
 
   // Optional authentication for all API routes
   // Parses Authorization header and sets auth context if present
@@ -519,6 +543,15 @@ export function createApp(
 
   // HPP protection for all API routes (prevents parameter pollution attacks)
   app.use("/api/*", hppProtection({ strategy: "first" }));
+
+  // Open redirect protection for all API routes (OWASP A01 - Unrestricted Redirect)
+  // Blocks malicious redirect URLs via query parameters
+  app.use("/api/*", openRedirectProtection());
+
+  // Mass assignment protection for state-changing API routes (OWASP A08:2013)
+  // Prevents overposting/mass assignment attacks on write operations
+  // Applied to POST, PATCH, PUT requests
+  app.use("/api/*", massAssignmentProtection());
 
   // HTTP metrics collection for all API routes
   app.use("/api/*", httpMetrics());
@@ -3132,7 +3165,15 @@ ${
       return c.json({ error: authorization.error }, 404);
     }
 
-    return c.redirect(authorization.url);
+    // Protect against open redirect vulnerabilities
+    const validationResult = validateRedirectUrl(authorization.url, {
+      allowedHostnames: OAUTH_ALLOWED_HOSTNAMES,
+    });
+    if (!validationResult.valid) {
+      return c.json({ error: "Invalid redirect URL" }, 400);
+    }
+
+    return c.redirect(validationResult.url!);
   };
 
   const finishOAuth = async (c: Context) => {
