@@ -19,8 +19,12 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Commute Workflow", () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to commute screen
+    // Navigate to commute screen and wait for page to load
     await page.goto("/commute");
+    // Wait for React to render by waiting for network to be idle
+    await page.waitForLoadState("networkidle");
+    // Wait a bit for React to finish rendering
+    await page.waitForTimeout(500);
   });
 
   test.describe("Commute List View", () => {
