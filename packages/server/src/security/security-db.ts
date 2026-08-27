@@ -8,7 +8,7 @@
  *   - suspicious-activity-notifications.ts (preferences, events, history, templates)
  *
  * Usage:
- *   import { setSecurityDb } from './security/security-db.js';
+ *   import { setSecurityDb } from './security-db.js';
  *   setSecurityDb(pushDb); // call once after runMigrations()
  *
  * All write functions are no-ops when the DB has not been initialised, so

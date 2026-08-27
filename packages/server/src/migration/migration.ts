@@ -16,7 +16,7 @@
  *
  * Usage:
  * ```ts
- * import { runMigrations, rollbackToVersion } from './migration/index.js';
+ * import { runMigrations, rollbackToVersion } from './index.js';
  * await runMigrations(db);
  * await rollbackToVersion(db, 5); // Rollback all migrations after version 5
  * ```

@@ -537,7 +537,7 @@ export function getCurrentKeyVersion(): number {
  *
  * @example
  * ```ts
- * import { setupTokenEncryption } from './middleware/token-encryption.js';
+ * import { setupTokenEncryption } from './token-encryption.js';
  *
  * // In your app initialization
  * await setupTokenEncryption();

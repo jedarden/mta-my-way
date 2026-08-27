@@ -6,7 +6,7 @@
  * import sub-modules directly.
  *
  * Usage in server entry point:
- *   import { initObservability, shutdownObservability } from './observability/index.js';
+ *   import { initObservability, shutdownObservability } from './index.js';
  *   await initObservability();
  *   // ... application runs ...
  *   await shutdownObservability();
