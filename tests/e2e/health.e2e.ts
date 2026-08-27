@@ -24,17 +24,30 @@ test.describe("Health endpoint", () => {
     const body = await response.json();
 
     expect(body.feeds).toBeInstanceOf(Array);
-    expect(body.feeds.length).toBeGreaterThanOrEqual(8);
+    // Server initializes all 8 feeds at startup, even before polling begins
+    expect(body.feeds.length).toBe(8);
 
+    // All 8 subway feeds must be present (initialized from SUBWAY_FEEDS constant)
     const feedIds = body.feeds.map((f: { id: string }) => f.id);
-    expect(feedIds).toContain("gtfs");
-    expect(feedIds).toContain("gtfs-ace");
-    expect(feedIds).toContain("gtfs-bdfm");
-    expect(feedIds).toContain("gtfs-g");
-    expect(feedIds).toContain("gtfs-jz");
-    expect(feedIds).toContain("gtfs-l");
-    expect(feedIds).toContain("gtfs-nqrw");
-    expect(feedIds).toContain("gtfs-si");
+    const expectedFeedIds = ["gtfs", "gtfs-ace", "gtfs-bdfm", "gtfs-g", "gtfs-jz", "gtfs-l", "gtfs-nqrw", "gtfs-si"];
+
+    for (const feedId of expectedFeedIds) {
+      expect(feedIds).toContain(feedId);
+    }
+
+    // Each feed should have the expected structure, even if never polled
+    for (const feed of body.feeds) {
+      expect(feed).toHaveProperty("id");
+      expect(feed).toHaveProperty("name");
+      expect(feed).toHaveProperty("status");
+      // Status can be: "circuit_open", "never_polled", "stale", or "ok"
+      // "never_polled" is valid on server startup before first poll completes
+      expect(["circuit_open", "never_polled", "stale", "ok"]).toContain(feed.status);
+      expect(feed).toHaveProperty("lastSuccessAt");
+      expect(feed).toHaveProperty("lastPollAt");
+      expect(feed).toHaveProperty("consecutiveFailures");
+      expect(typeof feed.consecutiveFailures).toBe("number");
+    }
   });
 
   test("includes alerts status", async ({ request }) => {
@@ -42,9 +55,26 @@ test.describe("Health endpoint", () => {
     const body = await response.json();
 
     expect(body).toHaveProperty("alerts");
+
+    // Alerts status structure validation
     expect(body.alerts).toHaveProperty("count");
+    expect(typeof body.alerts.count).toBe("number");
+    expect(body.alerts.count).toBeGreaterThanOrEqual(0);
+
     expect(body.alerts).toHaveProperty("circuitOpen");
     expect(typeof body.alerts.circuitOpen).toBe("boolean");
+
+    // Additional alerts fields (present even on startup)
+    expect(body.alerts).toHaveProperty("matchRate");
+    expect(typeof body.alerts.matchRate).toBe("number");
+    expect(body.alerts.matchRate).toBeGreaterThanOrEqual(0);
+    expect(body.alerts.matchRate).toBeLessThanOrEqual(1);
+
+    expect(body.alerts).toHaveProperty("consecutiveFailures");
+    expect(typeof body.alerts.consecutiveFailures).toBe("number");
+
+    expect(body.alerts).toHaveProperty("unmatchedCount");
+    expect(typeof body.alerts.unmatchedCount).toBe("number");
   });
 
   test("includes memory usage metrics", async ({ request }) => {
