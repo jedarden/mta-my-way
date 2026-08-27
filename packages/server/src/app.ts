@@ -1990,43 +1990,36 @@ ${
   // Push notification API
   // -------------------------------------------------------------------------
 
-  // Apply same-origin protection to all push subscription operations
-  app.use("/api/push/*", requireSameOrigin());
+  // Only mount push subscription routes if NOT in CORE_ONLY mode
+  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
 
-  /** Return the VAPID public key so the browser can create a push subscription */
-  app.get("/api/push/vapid-public-key", (c) => {
-    // Validate that no unexpected query parameters are passed
-    const query = validateQuery(c, emptyQuerySchema);
-    if (query instanceof Response) return query;
+  if (!CORE_ONLY) {
+    // Apply same-origin protection to all push subscription operations
+    app.use("/api/push/*", requireSameOrigin());
 
-    const publicKey = getVapidPublicKey();
-    if (!publicKey) {
-      return c.json({ error: "Push notifications not configured" }, 503);
-    }
-    // Short cache: browsers need a fresh key if we ever rotate
-    c.header("Cache-Control", "public, max-age=3600");
-    return c.json({ publicKey });
-  });
+    /** Return the VAPID public key so the browser can create a push subscription */
+    app.get("/api/push/vapid-public-key", (c) => {
+      // Validate that no unexpected query parameters are passed
+      const query = validateQuery(c, emptyQuerySchema);
+      if (query instanceof Response) return query;
 
-  /** Register a push subscription */
-  app.post(
-    "/api/push/subscribe",
-    requireResourceAccess("subscription", "create", { adminBypass: false }),
-    auditLogAccess("subscription", "create"),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+      const publicKey = getVapidPublicKey();
+      if (!publicKey) {
+        return c.json({ error: "Push notifications not configured" }, 503);
+      }
+      // Short cache: browsers need a fresh key if we ever rotate
+      c.header("Cache-Control", "public, max-age=3600");
+      return c.json({ publicKey });
+    });
 
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
-        try {
-          const body = await c.req.json();
-          const result = await callStatefulService("/api/push/subscribe", {
-            method: "POST",
-            body: JSON.stringify(body),
-          });
-          return c.json(result);
-        } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
+    /** Register a push subscription */
+    app.post(
+      "/api/push/subscribe",
+      requireResourceAccess("subscription", "create", { adminBypass: false }),
+      auditLogAccess("subscription", "create"),
+      async (c) => {
+        // Check if push database is available
+        if (!isPushDatabaseReady()) {
           return c.json(
             {
               error: "Push notifications temporarily unavailable",
@@ -2035,68 +2028,45 @@ ${
             503
           );
         }
-      }
 
-      // Check if push database is available
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Push notifications temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, pushSubscribeRequestSchema);
-        if (body instanceof Response) return body;
-
-        // Use the authenticated user's keyId as the owner
-        const ownerId = auth?.keyId || "anonymous";
-        await upsertSubscription(body, ownerId);
-
-        logger.info("Push subscription registered", {
-          lines: body.favorites?.map((f) => f.lines).flat() ?? [],
-          total_subscriptions: await getSubscriptionCount(),
-          ownerId,
-        });
-
-        return c.json({ success: true });
-      } catch (err) {
-        logger.error("Push subscription registration failed", err as Error);
-        return c.json({ error: "Failed to register subscription" }, 500);
-      }
-    }
-  );
-
-  /** Remove a push subscription */
-  app.delete(
-    "/api/push/unsubscribe",
-    requireOwnershipOrAdmin("subscriptions", {
-      getOwnerId: async (c) => {
-        const body = await c.req.json().catch(() => ({}));
-        return (await getSubscriptionOwner(body.endpoint)) || "";
-      },
-      adminBypass: true,
-    }),
-    requireResourceAccess("subscription", "delete", { adminBypass: true }),
-    auditLogAccess("subscription", "delete"),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
         try {
-          const body = await c.req.json();
-          const result = await callStatefulService("/api/push/unsubscribe", {
-            method: "DELETE",
-            body: JSON.stringify(body),
+          const auth = getRbacAuthContext(c);
+          const body = await validateBody(c, pushSubscribeRequestSchema);
+          if (body instanceof Response) return body;
+
+          // Use the authenticated user's keyId as the owner
+          const ownerId = auth?.keyId || "anonymous";
+          await upsertSubscription(body, ownerId);
+
+          logger.info("Push subscription registered", {
+            lines: body.favorites?.map((f) => f.lines).flat() ?? [],
+            total_subscriptions: await getSubscriptionCount(),
+            ownerId,
           });
-          return c.json(result);
+
+          return c.json({ success: true });
         } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
+          logger.error("Push subscription registration failed", err as Error);
+          return c.json({ error: "Failed to register subscription" }, 500);
+        }
+      }
+    );
+
+    /** Remove a push subscription */
+    app.delete(
+      "/api/push/unsubscribe",
+      requireOwnershipOrAdmin("subscriptions", {
+        getOwnerId: async (c) => {
+          const body = await c.req.json().catch(() => ({}));
+          return (await getSubscriptionOwner(body.endpoint)) || "";
+        },
+        adminBypass: true,
+      }),
+      requireResourceAccess("subscription", "delete", { adminBypass: true }),
+      auditLogAccess("subscription", "delete"),
+      async (c) => {
+        // Check if push database is available
+        if (!isPushDatabaseReady()) {
           return c.json(
             {
               error: "Push notifications temporarily unavailable",
@@ -2105,68 +2075,45 @@ ${
             503
           );
         }
-      }
 
-      // Check if push database is available
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Push notifications temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, pushUnsubscribeRequestSchema);
-        if (body instanceof Response) return body;
-
-        // Use the authenticated user's keyId as the owner
-        const ownerId = auth?.keyId || "anonymous";
-        const removed = await removeSubscription(body.endpoint, ownerId);
-
-        logger.info("Push subscription removed", {
-          removed,
-          total_subscriptions: await getSubscriptionCount(),
-          ownerId,
-        });
-
-        return c.json({ success: true });
-      } catch (err) {
-        logger.error("Push subscription removal failed", err as Error);
-        return c.json({ error: "Failed to remove subscription" }, 500);
-      }
-    }
-  );
-
-  /** Update favorites or quiet hours for an existing push subscription */
-  app.patch(
-    "/api/push/subscription",
-    requireOwnershipOrAdmin("subscriptions", {
-      getOwnerId: async (c) => {
-        const body = await c.req.json().catch(() => ({}));
-        return (await getSubscriptionOwner(body.endpoint)) || "";
-      },
-      adminBypass: true,
-    }),
-    requireResourceAccess("subscription", "update", { adminBypass: true }),
-    auditLogAccess("subscription", "update"),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
         try {
-          const body = await c.req.json();
-          const result = await callStatefulService("/api/push/subscription", {
-            method: "PATCH",
-            body: JSON.stringify(body),
+          const auth = getRbacAuthContext(c);
+          const body = await validateBody(c, pushUnsubscribeRequestSchema);
+          if (body instanceof Response) return body;
+
+          // Use the authenticated user's keyId as the owner
+          const ownerId = auth?.keyId || "anonymous";
+          const removed = await removeSubscription(body.endpoint, ownerId);
+
+          logger.info("Push subscription removed", {
+            removed,
+            total_subscriptions: await getSubscriptionCount(),
+            ownerId,
           });
-          return c.json(result);
+
+          return c.json({ success: true });
         } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
+          logger.error("Push subscription removal failed", err as Error);
+          return c.json({ error: "Failed to remove subscription" }, 500);
+        }
+      }
+    );
+
+    /** Update favorites or quiet hours for an existing push subscription */
+    app.patch(
+      "/api/push/subscription",
+      requireOwnershipOrAdmin("subscriptions", {
+        getOwnerId: async (c) => {
+          const body = await c.req.json().catch(() => ({}));
+          return (await getSubscriptionOwner(body.endpoint)) || "";
+        },
+        adminBypass: true,
+      }),
+      requireResourceAccess("subscription", "update", { adminBypass: true }),
+      auditLogAccess("subscription", "update"),
+      async (c) => {
+        // Check if push database is available
+        if (!isPushDatabaseReady()) {
           return c.json(
             {
               error: "Push notifications temporarily unavailable",
@@ -2175,73 +2122,55 @@ ${
             503
           );
         }
-      }
 
-      // Check if push database is available
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Push notifications temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
+        try {
+          const auth = getRbacAuthContext(c);
+          const body = await validateBody(c, pushUpdateRequestSchema);
+          if (body instanceof Response) return body;
 
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, pushUpdateRequestSchema);
-        if (body instanceof Response) return body;
+          const ownerId = auth?.keyId || "anonymous";
 
-        const ownerId = auth?.keyId || "anonymous";
+          if (body.favorites) {
+            await updateSubscriptionFavorites(body.endpoint, body.favorites, ownerId);
+          }
 
-        if (body.favorites) {
-          await updateSubscriptionFavorites(body.endpoint, body.favorites, ownerId);
+          if (body.quietHours) {
+            await updateSubscriptionQuietHours(body.endpoint, body.quietHours, ownerId);
+          }
+
+          if (body.morningScores) {
+            await updateSubscriptionMorningScores(body.endpoint, body.morningScores, ownerId);
+          }
+
+          return c.json({ success: true });
+        } catch (err) {
+          logger.error("Push subscription update failed", err as Error);
+          return c.json({ error: "Failed to update subscription" }, 500);
         }
-
-        if (body.quietHours) {
-          await updateSubscriptionQuietHours(body.endpoint, body.quietHours, ownerId);
-        }
-
-        if (body.morningScores) {
-          await updateSubscriptionMorningScores(body.endpoint, body.morningScores, ownerId);
-        }
-
-        return c.json({ success: true });
-      } catch (err) {
-        logger.error("Push subscription update failed", err as Error);
-        return c.json({ error: "Failed to update subscription" }, 500);
       }
-    }
-  );
+    );
+  }
 
   // -------------------------------------------------------------------------
   // Trip tracking and commute journal API (Phase 5)
   // -------------------------------------------------------------------------
 
-  // Apply same-origin protection to all trip tracking operations
-  app.use("/api/trips*", requireSameOrigin());
-  app.use("/api/journal/*", requireSameOrigin());
+  // Only mount trip tracking routes if NOT in CORE_ONLY mode
+  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
 
-  /** Record a trip in the journal */
-  app.post(
-    "/api/trips",
-    requireResourceAccess("trip", "create"),
-    auditLogAccess("trip", "create"),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+  if (!CORE_ONLY) {
+    // Apply same-origin protection to all trip tracking operations
+    app.use("/api/trips*", requireSameOrigin());
+    app.use("/api/journal/*", requireSameOrigin());
 
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
-        try {
-          const body = await c.req.json();
-          const result = await callStatefulService("/api/trips", {
-            method: "POST",
-            body: JSON.stringify(body),
-          });
-          return c.json(result, 201);
-        } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
+    /** Record a trip in the journal */
+    app.post(
+      "/api/trips",
+      requireResourceAccess("trip", "create"),
+      auditLogAccess("trip", "create"),
+      async (c) => {
+        // Check if push database is available (trip tracking shares the same DB)
+        if (!isPushDatabaseReady()) {
           return c.json(
             {
               error: "Trip tracking temporarily unavailable",
@@ -2250,454 +2179,69 @@ ${
             503
           );
         }
-      }
 
-      // Check if push database is available (trip tracking shares the same DB)
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Trip tracking temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
+        try {
+          const auth = getRbacAuthContext(c);
+          const body = await validateBody(c, tripCreateRequestSchema);
+          if (body instanceof Response) return body;
 
-      try {
-        const auth = getRbacAuthContext(c);
-        const body = await validateBody(c, tripCreateRequestSchema);
-        if (body instanceof Response) return body;
-
-        const {
-          date,
-          origin,
-          destination,
-          line,
-          departureTime,
-          arrivalTime,
-          actualDurationMinutes: providedActualDuration,
-          scheduledDurationMinutes,
-          notes,
-        } = body;
-
-        // Calculate actual duration if not provided
-        const actualDurationMinutes =
-          providedActualDuration ?? Math.round((arrivalTime - departureTime) / 60);
-
-        // Convert station IDs to station objects
-        const originStation = stations[origin];
-        const destStation = stations[destination];
-        if (!originStation || !destStation) {
-          return c.json({ error: "Invalid station ID" }, 400);
-        }
-
-        // Use authenticated user's keyId as owner
-        const ownerId = auth?.keyId || "anonymous";
-        const trip = await recordTrip(
-          {
-            date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
-            origin: { stationId: origin, stationName: originStation.name },
-            destination: { stationId: destination, stationName: destStation.name },
+          const {
+            date,
+            origin,
+            destination,
             line,
             departureTime,
             arrivalTime,
-            actualDurationMinutes,
+            actualDurationMinutes: providedActualDuration,
             scheduledDurationMinutes,
-            source: "manual",
             notes,
-          },
-          ownerId
-        );
+          } = body;
 
-        if (!trip) {
+          // Calculate actual duration if not provided
+          const actualDurationMinutes =
+            providedActualDuration ?? Math.round((arrivalTime - departureTime) / 60);
+
+          // Convert station IDs to station objects
+          const originStation = stations[origin];
+          const destStation = stations[destination];
+          if (!originStation || !destStation) {
+            return c.json({ error: "Invalid station ID" }, 400);
+          }
+
+          // Use authenticated user's keyId as owner
+          const ownerId = auth?.keyId || "anonymous";
+          const trip = await recordTrip(
+            {
+              date: date ?? new Date(departureTime * 1000).toISOString().split("T")[0]!,
+              origin: { stationId: origin, stationName: originStation.name },
+              destination: { stationId: destination, stationName: destStation.name },
+              line,
+              departureTime,
+              arrivalTime,
+              actualDurationMinutes,
+              scheduledDurationMinutes,
+              source: "manual",
+              notes,
+            },
+            ownerId
+          );
+
+          if (!trip) {
+            return c.json({ error: "Failed to record trip" }, 500);
+          }
+
+          c.header("Cache-Control", "no-cache");
+          return c.json({ success: true, trip }, 201);
+        } catch (error) {
+          logger.error("Trip recording failed", error as Error);
           return c.json({ error: "Failed to record trip" }, 500);
         }
-
-        c.header("Cache-Control", "no-cache");
-        return c.json({ success: true, trip }, 201);
-      } catch (error) {
-        logger.error("Trip recording failed", error as Error);
-        return c.json({ error: "Failed to record trip" }, 500);
       }
-    }
-  );
-
-  /** Get trips from the journal with optional filters */
-  app.get("/api/trips", requirePermission("trips:read:own" as Permission), async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-    // In CORE_ONLY mode, proxy to stateful subsystem
-    if (CORE_ONLY) {
-      try {
-        const queryString = c.req.url.split("?")[1] || "";
-        const result = await callStatefulService(`/api/trips?${queryString}`, {
-          method: "GET",
-        });
-        return c.json(result);
-      } catch (err) {
-        logger.error("Stateful subsystem proxy failed", err as Error);
-        return c.json(
-          {
-            error: "Trip tracking temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-    }
-
-    const query = validateQuery(c, tripQuerySchema);
-    if (query instanceof Response) return query;
-
-    // Check if push database is available for trip tracking
-    if (!isPushDatabaseReady()) {
-      return c.json(
-        {
-          error: "Trip tracking temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-
-    const auth = getRbacAuthContext(c);
-
-    // Non-admin users can only see their own trips
-    const trips = getTrips({
-      ...query,
-      ownerId: auth?.role === "admin" ? undefined : auth?.keyId || "anonymous",
-    });
-
-    c.header("Cache-Control", "public, max-age=15");
-    return c.json({
-      trips,
-      count: trips.length,
-      limit: query.limit ?? 50,
-      offset: query.offset ?? 0,
-    });
-  });
-
-  /** Get a single trip by ID */
-  app.get(
-    "/api/trips/:tripId",
-    requireOwnershipOrAdmin("trips", {
-      getOwnerId: (c) => {
-        const tripId = c.req.param("tripId") ?? "";
-        const trip = getTripById(tripId);
-        return trip?.ownerId || "";
-      },
-      adminBypass: true,
-    }),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
-        try {
-          const tripId = c.req.param("tripId");
-          const result = await callStatefulService(`/api/trips/${tripId}`, {
-            method: "GET",
-          });
-          return c.json(result);
-        } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
-          return c.json(
-            {
-              error: "Trip tracking temporarily unavailable",
-              degraded: true,
-            },
-            503
-          );
-        }
-      }
-
-      const params = validateParams(c, tripIdParamsSchema);
-      if (params instanceof Response) return params;
-
-      // Check if push database is available for trip tracking
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Trip tracking temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-
-      const { tripId } = params;
-      const trip = getTripById(tripId);
-
-      if (!trip) {
-        return c.json({ error: "Trip not found" }, 404);
-      }
-
-      c.header("Cache-Control", "public, max-age=60");
-      return c.json(trip);
-    }
-  );
-
-  /** Update trip notes */
-  app.patch(
-    "/api/trips/:tripId/notes",
-    requireOwnershipOrAdmin("trips", {
-      getOwnerId: (c) => {
-        const tripId = c.req.param("tripId") ?? "";
-        const trip = getTripById(tripId);
-        return trip?.ownerId || "";
-      },
-    }),
-    requireResourceAccess("trip", "update"),
-    auditLogAccess("trip", "update"),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
-        try {
-          const tripId = c.req.param("tripId");
-          const body = await c.req.json();
-          const result = await callStatefulService(`/api/trips/${tripId}/notes`, {
-            method: "PATCH",
-            body: JSON.stringify(body),
-          });
-          return c.json(result);
-        } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
-          return c.json(
-            {
-              error: "Trip tracking temporarily unavailable",
-              degraded: true,
-            },
-            503
-          );
-        }
-      }
-
-      const auth = getRbacAuthContext(c);
-      const params = validateParams(c, tripIdParamsSchema);
-      if (params instanceof Response) return params;
-
-      // Check if push database is available for trip tracking
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Trip tracking temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-
-      const body = await validateBody(c, tripNotesUpdateRequestSchema);
-      if (body instanceof Response) return body;
-
-      const { tripId } = params;
-      const { notes } = body;
-
-      // Pass ownerId for defense-in-depth check (middleware already validated)
-      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
-      const success = updateTripNotes(tripId, notes, ownerId);
-
-      if (!success) {
-        return c.json({ error: "Trip not found" }, 404);
-      }
-
-      return c.json({ success: true });
-    }
-  );
-
-  /** Delete a trip from the journal */
-  app.delete(
-    "/api/trips/:tripId",
-    requireOwnershipOrAdmin("trips", {
-      getOwnerId: (c) => {
-        const tripId = c.req.param("tripId") ?? "";
-        const trip = getTripById(tripId);
-        return trip?.ownerId || "";
-      },
-    }),
-    requireResourceAccess("trip", "delete"),
-    auditLogAccess("trip", "delete"),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
-        try {
-          const tripId = c.req.param("tripId");
-          const result = await callStatefulService(`/api/trips/${tripId}`, {
-            method: "DELETE",
-          });
-          return c.json(result);
-        } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
-          return c.json(
-            {
-              error: "Trip tracking temporarily unavailable",
-              degraded: true,
-            },
-            503
-          );
-        }
-      }
-
-      const auth = getRbacAuthContext(c);
-      const params = validateParams(c, tripIdParamsSchema);
-      if (params instanceof Response) return params;
-
-      const { tripId } = params;
-
-      // Pass ownerId for defense-in-depth check (middleware already validated)
-      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
-      const success = deleteTrip(tripId, ownerId);
-
-      if (!success) {
-        return c.json({ error: "Trip not found" }, 404);
-      }
-
-      return c.json({ success: true });
-    }
-  );
-
-  /** Get commute statistics */
-  app.get("/api/journal/stats", requirePermission("journals:read:own" as Permission), async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-    // In CORE_ONLY mode, proxy to stateful subsystem
-    if (CORE_ONLY) {
-      try {
-        const queryString = c.req.url.split("?")[1] || "";
-        const result = await callStatefulService(`/api/journal/stats?${queryString}`, {
-          method: "GET",
-        });
-        return c.json(result);
-      } catch (err) {
-        logger.error("Stateful subsystem proxy failed", err as Error);
-        return c.json(
-          {
-            error: "Trip tracking temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-    }
-
-    const query = validateQuery(c, commuteIdQuerySchema);
-    if (query instanceof Response) return query;
-
-    const auth = getRbacAuthContext(c);
-    const commuteId = query.commuteId ?? "default";
-
-    // Check if push database is available for trip tracking
-    if (!isPushDatabaseReady()) {
-      return c.json(
-        {
-          error: "Trip tracking temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-
-    // Non-admin users can only see their own stats
-    const stats = calculateCommuteStats(
-      commuteId,
-      auth?.role === "admin" ? undefined : auth?.keyId || "anonymous"
     );
 
-    c.header("Cache-Control", "public, max-age=60");
-    return c.json(stats);
-  });
-
-  /** Get trips for a specific date range */
-  app.get(
-    "/api/journal/dates/:startDate/:endDate",
-    requirePermission("journals:read:own" as Permission),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
-        try {
-          const path = c.req.path;
-          const queryString = c.req.url.split("?")[1] || "";
-          const result = await callStatefulService(`${path}?${queryString}`, {
-            method: "GET",
-          });
-          return c.json(result);
-        } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
-          return c.json(
-            {
-              error: "Trip tracking temporarily unavailable",
-              degraded: true,
-            },
-            503
-          );
-        }
-      }
-
-      const params = validateParams(c, dateRangeParamsSchema);
-      if (params instanceof Response) return params;
-
-      // Check if push database is available for trip tracking
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Trip tracking temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-
-      const auth = getRbacAuthContext(c);
-      const { startDate, endDate } = params;
-
-      // Non-admin users can only see their own trips
-      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
-      const trips = getTrips({ startDate, endDate, limit: 1000, ownerId });
-
-      c.header("Cache-Control", "public, max-age=30");
-      return c.json({
-        startDate,
-        endDate,
-        trips,
-        count: trips.length,
-      });
-    }
-  );
-
-  /** Get journal summary (recent trips + stats) */
-  app.get(
-    "/api/journal/summary",
-    requirePermission("journals:read:own" as Permission),
-    async (c) => {
-      const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-      // In CORE_ONLY mode, proxy to stateful subsystem
-      if (CORE_ONLY) {
-        try {
-          const result = await callStatefulService("/api/journal/summary", {
-            method: "GET",
-          });
-          return c.json(result);
-        } catch (err) {
-          logger.error("Stateful subsystem proxy failed", err as Error);
-          return c.json(
-            {
-              error: "Trip tracking temporarily unavailable",
-              degraded: true,
-            },
-            503
-          );
-        }
-      }
-
-      // Validate that no unexpected query parameters are passed
-      const query = validateQuery(c, emptyQuerySchema);
+    /** Get trips from the journal with optional filters */
+    app.get("/api/trips", requirePermission("trips:read:own" as Permission), async (c) => {
+      const query = validateQuery(c, tripQuerySchema);
       if (query instanceof Response) return query;
 
       // Check if push database is available for trip tracking
@@ -2712,23 +2256,247 @@ ${
       }
 
       const auth = getRbacAuthContext(c);
-      const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
 
-      const recentTrips = getTrips({ limit: 10, ownerId });
-      const stats = calculateCommuteStats("default", ownerId);
-
-      // Non-admin users only get their own trip count
-      const totalTrips =
-        auth?.role === "admin" ? getTotalTripCount() : getTrips({ limit: 1000000, ownerId }).length;
-
-      c.header("Cache-Control", "public, max-age=30");
-      return c.json({
-        recentTrips,
-        stats,
-        totalTrips,
+      // Non-admin users can only see their own trips
+      const trips = getTrips({
+        ...query,
+        ownerId: auth?.role === "admin" ? undefined : auth?.keyId || "anonymous",
       });
-    }
-  );
+
+      c.header("Cache-Control", "public, max-age=15");
+      return c.json({
+        trips,
+        count: trips.length,
+        limit: query.limit ?? 50,
+        offset: query.offset ?? 0,
+      });
+    });
+
+    /** Get a single trip by ID */
+    app.get(
+      "/api/trips/:tripId",
+      requireOwnershipOrAdmin("trips", {
+        getOwnerId: (c) => {
+          const tripId = c.req.param("tripId") ?? "";
+          const trip = getTripById(tripId);
+          return trip?.ownerId || "";
+        },
+        adminBypass: true,
+      }),
+      async (c) => {
+        const params = validateParams(c, tripIdParamsSchema);
+        if (params instanceof Response) return params;
+
+        // Check if push database is available for trip tracking
+        if (!isPushDatabaseReady()) {
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+
+        const { tripId } = params;
+        const trip = getTripById(tripId);
+
+        if (!trip) {
+          return c.json({ error: "Trip not found" }, 404);
+        }
+
+        c.header("Cache-Control", "public, max-age=60");
+        return c.json(trip);
+      }
+    );
+
+    /** Update trip notes */
+    app.patch(
+      "/api/trips/:tripId/notes",
+      requireOwnershipOrAdmin("trips", {
+        getOwnerId: (c) => {
+          const tripId = c.req.param("tripId") ?? "";
+          const trip = getTripById(tripId);
+          return trip?.ownerId || "";
+        },
+      }),
+      requireResourceAccess("trip", "update"),
+      auditLogAccess("trip", "update"),
+      async (c) => {
+        const auth = getRbacAuthContext(c);
+        const params = validateParams(c, tripIdParamsSchema);
+        if (params instanceof Response) return params;
+
+        // Check if push database is available for trip tracking
+        if (!isPushDatabaseReady()) {
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+
+        const body = await validateBody(c, tripNotesUpdateRequestSchema);
+        if (body instanceof Response) return body;
+
+        const { tripId } = params;
+        const { notes } = body;
+
+        // Pass ownerId for defense-in-depth check (middleware already validated)
+        const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+        const success = updateTripNotes(tripId, notes, ownerId);
+
+        if (!success) {
+          return c.json({ error: "Trip not found" }, 404);
+        }
+
+        return c.json({ success: true });
+      }
+    );
+
+    /** Delete a trip from the journal */
+    app.delete(
+      "/api/trips/:tripId",
+      requireOwnershipOrAdmin("trips", {
+        getOwnerId: (c) => {
+          const tripId = c.req.param("tripId") ?? "";
+          const trip = getTripById(tripId);
+          return trip?.ownerId || "";
+        },
+      }),
+      requireResourceAccess("trip", "delete"),
+      auditLogAccess("trip", "delete"),
+      async (c) => {
+        const auth = getRbacAuthContext(c);
+        const params = validateParams(c, tripIdParamsSchema);
+        if (params instanceof Response) return params;
+
+        const { tripId } = params;
+
+        // Pass ownerId for defense-in-depth check (middleware already validated)
+        const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+        const success = deleteTrip(tripId, ownerId);
+
+        if (!success) {
+          return c.json({ error: "Trip not found" }, 404);
+        }
+
+        return c.json({ success: true });
+      }
+    );
+
+    /** Get commute statistics */
+    app.get(
+      "/api/journal/stats",
+      requirePermission("journals:read:own" as Permission),
+      async (c) => {
+        const query = validateQuery(c, commuteIdQuerySchema);
+        if (query instanceof Response) return query;
+
+        const auth = getRbacAuthContext(c);
+        const commuteId = query.commuteId ?? "default";
+
+        // Check if push database is available for trip tracking
+        if (!isPushDatabaseReady()) {
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+
+        // Non-admin users can only see their own stats
+        const stats = calculateCommuteStats(
+          commuteId,
+          auth?.role === "admin" ? undefined : auth?.keyId || "anonymous"
+        );
+
+        c.header("Cache-Control", "public, max-age=60");
+        return c.json(stats);
+      }
+    );
+
+    /** Get trips for a specific date range */
+    app.get(
+      "/api/journal/dates/:startDate/:endDate",
+      requirePermission("journals:read:own" as Permission),
+      async (c) => {
+        const params = validateParams(c, dateRangeParamsSchema);
+        if (params instanceof Response) return params;
+
+        // Check if push database is available for trip tracking
+        if (!isPushDatabaseReady()) {
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+
+        const auth = getRbacAuthContext(c);
+        const { startDate, endDate } = params;
+
+        // Non-admin users can only see their own trips
+        const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+        const trips = getTrips({ startDate, endDate, limit: 1000, ownerId });
+
+        c.header("Cache-Control", "public, max-age=30");
+        return c.json({
+          startDate,
+          endDate,
+          trips,
+          count: trips.length,
+        });
+      }
+    );
+
+    /** Get journal summary (recent trips + stats) */
+    app.get(
+      "/api/journal/summary",
+      requirePermission("journals:read:own" as Permission),
+      async (c) => {
+        // Validate that no unexpected query parameters are passed
+        const query = validateQuery(c, emptyQuerySchema);
+        if (query instanceof Response) return query;
+
+        // Check if push database is available for trip tracking
+        if (!isPushDatabaseReady()) {
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+
+        const auth = getRbacAuthContext(c);
+        const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
+
+        const recentTrips = getTrips({ limit: 10, ownerId });
+        const stats = calculateCommuteStats("default", ownerId);
+
+        // Non-admin users only get their own trip count
+        const totalTrips =
+          auth?.role === "admin"
+            ? getTotalTripCount()
+            : getTrips({ limit: 1000000, ownerId }).length;
+
+        c.header("Cache-Control", "public, max-age=30");
+        return c.json({
+          recentTrips,
+          stats,
+          totalTrips,
+        });
+      }
+    );
+  }
 
   // -------------------------------------------------------------------------
   // OAuth 2.0 Authentication - DISABLED: Feature not used by frontend
@@ -3155,203 +2923,175 @@ ${
   // OAuth 2.0 Sign-In (opt-in)
   // -------------------------------------------------------------------------
 
-  initializeDefaultProviders();
+  // Only mount OAuth routes if NOT in CORE_ONLY mode
+  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
 
-  const beginOAuth = async (c: Context) => {
-    c.header("Cache-Control", "no-store");
-    c.header("Pragma", "no-cache");
+  if (!CORE_ONLY) {
+    initializeDefaultProviders();
 
-    const providerId = c.req.param("providerId");
-    if (!providerId) return c.json({ error: "Provider not found" }, 404);
-    const authorization = await createAuthorizationUrl(providerId);
-    if ("error" in authorization) {
-      return c.json({ error: authorization.error }, 404);
-    }
+    const beginOAuth = async (c: Context) => {
+      c.header("Cache-Control", "no-store");
+      c.header("Pragma", "no-cache");
 
-    // Protect against open redirect vulnerabilities
-    const validationResult = validateRedirectUrl(authorization.url, {
-      allowedHostnames: OAUTH_ALLOWED_HOSTNAMES,
-    });
-    if (!validationResult.valid) {
-      return c.json({ error: "Invalid redirect URL" }, 400);
-    }
-
-    return c.redirect(validationResult.url!);
-  };
-
-  const finishOAuth = async (c: Context) => {
-    c.header("Cache-Control", "no-store");
-    c.header("Pragma", "no-cache");
-
-    const providerId = c.req.param("providerId");
-    if (!providerId) return c.json({ success: false, error: "Provider not found" }, 404);
-    const state = c.req.query("state");
-    const code = c.req.query("code");
-    const providerError = c.req.query("error");
-
-    if (providerError) {
-      cancelOAuthAuthorization(providerId, state);
-      logger.warn("OAuth authorization was denied", { providerId, providerError });
-      return c.json({ success: false, error: "OAuth authorization was denied" }, 400);
-    }
-
-    if (!state || !code) {
-      return c.json({ success: false, error: "Missing OAuth callback parameters" }, 400);
-    }
-
-    const clientIp =
-      c.req.header("cf-connecting-ip") ||
-      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-      c.req.header("x-real-ip") ||
-      "unknown";
-    const result = await handleOAuthCallback(
-      providerId,
-      state,
-      code,
-      clientIp,
-      c.req.header("user-agent"),
-      async (keyId, ip, userAgent, metadata) => {
-        await ensureOAuthIdentity(keyId);
-        const session = await createSession(keyId, ip, userAgent, metadata, {
-          type: "oauth",
-          ipBinding: true,
-          createRefreshToken: false,
-        });
-        return { sessionId: session.sessionId };
+      const providerId = c.req.param("providerId");
+      if (!providerId) return c.json({ error: "Provider not found" }, 404);
+      const authorization = await createAuthorizationUrl(providerId);
+      if ("error" in authorization) {
+        return c.json({ error: authorization.error }, 404);
       }
-    );
 
-    if (!result.success || !result.sessionId) {
-      return c.json({ success: false, error: result.error || "OAuth sign-in failed" }, 400);
-    }
+      // Protect against open redirect vulnerabilities
+      const validationResult = validateRedirectUrl(authorization.url, {
+        allowedHostnames: OAUTH_ALLOWED_HOSTNAMES,
+      });
+      if (!validationResult.valid) {
+        return c.json({ error: "Invalid redirect URL" }, 400);
+      }
 
-    await setSessionCookie(c, result.sessionId, {
-      cookieName: "session_id",
-      secure: isProduction,
-      sameSite: "lax",
-      maxAge: OAUTH_SESSION_MAX_AGE_SECONDS,
+      return c.redirect(validationResult.url!);
+    };
+
+    const finishOAuth = async (c: Context) => {
+      c.header("Cache-Control", "no-store");
+      c.header("Pragma", "no-cache");
+
+      const providerId = c.req.param("providerId");
+      if (!providerId) return c.json({ success: false, error: "Provider not found" }, 404);
+      const state = c.req.query("state");
+      const code = c.req.query("code");
+      const providerError = c.req.query("error");
+
+      if (providerError) {
+        cancelOAuthAuthorization(providerId, state);
+        logger.warn("OAuth authorization was denied", { providerId, providerError });
+        return c.json({ success: false, error: "OAuth authorization was denied" }, 400);
+      }
+
+      if (!state || !code) {
+        return c.json({ success: false, error: "Missing OAuth callback parameters" }, 400);
+      }
+
+      const clientIp =
+        c.req.header("cf-connecting-ip") ||
+        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+        c.req.header("x-real-ip") ||
+        "unknown";
+      const result = await handleOAuthCallback(
+        providerId,
+        state,
+        code,
+        clientIp,
+        c.req.header("user-agent"),
+        async (keyId, ip, userAgent, metadata) => {
+          await ensureOAuthIdentity(keyId);
+          const session = await createSession(keyId, ip, userAgent, metadata, {
+            type: "oauth",
+            ipBinding: true,
+            createRefreshToken: false,
+          });
+          return { sessionId: session.sessionId };
+        }
+      );
+
+      if (!result.success || !result.sessionId) {
+        return c.json({ success: false, error: result.error || "OAuth sign-in failed" }, 400);
+      }
+
+      await setSessionCookie(c, result.sessionId, {
+        cookieName: "session_id",
+        secure: isProduction,
+        sameSite: "lax",
+        maxAge: OAUTH_SESSION_MAX_AGE_SECONDS,
+      });
+
+      return c.json({
+        success: true,
+        profile: {
+          provider: result.profile?.providerId,
+          email: result.profile?.email,
+          name: result.profile?.name,
+          picture: result.profile?.picture,
+        },
+      });
+    };
+
+    /** Browser-facing redirects used by the sign-in buttons. */
+    app.get("/auth/:providerId", async (c) => {
+      return beginOAuth(c);
+    });
+    app.get("/auth/:providerId/callback", async (c) => {
+      return finishOAuth(c);
     });
 
-    return c.json({
-      success: true,
-      profile: {
-        provider: result.profile?.providerId,
-        email: result.profile?.email,
-        name: result.profile?.name,
-        picture: result.profile?.picture,
-      },
+    /** Backward-compatible API aliases for the existing client hook. */
+    app.get("/api/auth/oauth/authorize/:providerId", async (c) => {
+      return beginOAuth(c);
     });
-  };
-
-  /** Browser-facing redirects used by the sign-in buttons. */
-  app.get("/auth/:providerId", async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-    if (CORE_ONLY) {
-      return c.json(
-        {
-          error: "Authentication temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-    return beginOAuth(c);
-  });
-  app.get("/auth/:providerId/callback", async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-    if (CORE_ONLY) {
-      return c.json(
-        {
-          error: "Authentication temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-    return finishOAuth(c);
-  });
-
-  /** Backward-compatible API aliases for the existing client hook. */
-  app.get("/api/auth/oauth/authorize/:providerId", async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-    if (CORE_ONLY) {
-      return c.json(
-        {
-          error: "Authentication temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-    return beginOAuth(c);
-  });
-  app.get("/api/auth/oauth/callback/:providerId", async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-    if (CORE_ONLY) {
-      return c.json(
-        {
-          error: "Authentication temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-    return finishOAuth(c);
-  });
-  app.get("/api/auth/oauth/providers", async (c) => {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-    if (CORE_ONLY) {
-      return c.json(
-        {
-          error: "Authentication temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-    return c.json({ providers: getActiveOAuthProviders() });
-  });
+    app.get("/api/auth/oauth/callback/:providerId", async (c) => {
+      return finishOAuth(c);
+    });
+    app.get("/api/auth/oauth/providers", async (c) => {
+      return c.json({ providers: getActiveOAuthProviders() });
+    });
+  }
 
   // -------------------------------------------------------------------------
   // Password Reset & Management
   // -------------------------------------------------------------------------
 
-  // Prevent caching of all auth responses — tokens and session data must never be cached
-  app.use("/api/auth/*", (c, next) => {
-    c.header("Cache-Control", "no-store");
-    c.header("Pragma", "no-cache");
-    return next();
-  });
+  // Only mount password reset routes if NOT in CORE_ONLY mode
+  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
 
-  // Apply same-origin protection to password reset operations
-  app.use("/api/auth/password/*", requireSameOrigin());
+  if (!CORE_ONLY) {
+    // Prevent caching of all auth responses — tokens and session data must never be cached
+    app.use("/api/auth/*", (c, next) => {
+      c.header("Cache-Control", "no-store");
+      c.header("Pragma", "no-cache");
+      return next();
+    });
 
-  // Build and register password reset routes
-  const passwordResetRoutes = buildPasswordResetRoutes();
+    // Apply same-origin protection to password reset operations
+    app.use("/api/auth/password/*", requireSameOrigin());
 
-  // Preferences sync routes
-  const preferencesRoutes = buildPreferencesRoutes();
+    // Build and register password reset routes
+    const passwordResetRoutes = buildPasswordResetRoutes();
 
-  /** Get password policy requirements */
-  app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
+    // Preferences sync routes
+    const preferencesRoutes = buildPreferencesRoutes();
 
-  /** Initiate password reset request */
-  app.post(
-    "/api/auth/password/reset",
-    ...(passwordResetRoutes.requestPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-  );
+    /** Get password policy requirements */
+    app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
 
-  /** Confirm password reset with token */
-  app.post(
-    "/api/auth/password/reset/confirm",
-    ...(passwordResetRoutes.confirmPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-  );
+    /** Initiate password reset request */
+    app.post(
+      "/api/auth/password/reset",
+      ...(passwordResetRoutes.requestPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    );
 
-  /** Change password for authenticated user */
-  app.post(
-    "/api/auth/password/change",
-    ...(passwordResetRoutes.changePassword as any) // eslint-disable-line @typescript-eslint/no-explicit-any,
-  );
+    /** Confirm password reset with token */
+    app.post(
+      "/api/auth/password/reset/confirm",
+      ...(passwordResetRoutes.confirmPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    );
+
+    /** Change password for authenticated user */
+    app.post(
+      "/api/auth/password/change",
+      ...(passwordResetRoutes.changePassword as any) // eslint-disable-line @typescript-eslint/no-explicit-any,
+    );
+
+    /** Get user's synced preferences */
+    app.get("/api/preferences", preferencesRoutes.getPreferences);
+
+    /** Update user's synced preferences */
+    app.put("/api/preferences", preferencesRoutes.putPreferences);
+
+    /** Get current auth status */
+    app.get("/api/auth/session", preferencesRoutes.getSession);
+
+    /** Revoke current session (sign out) */
+    app.post("/api/auth/session/revoke", preferencesRoutes.revokeSession);
+  }
 
   // -------------------------------------------------------------------------
   // Preferences Sync Routes - session-authenticated cross-device sync
