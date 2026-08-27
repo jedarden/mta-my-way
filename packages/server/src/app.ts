@@ -3094,22 +3094,6 @@ ${
   }
 
   // -------------------------------------------------------------------------
-  // Preferences Sync Routes - session-authenticated cross-device sync
-  // -------------------------------------------------------------------------
-
-  /** Get user's synced preferences */
-  app.get("/api/preferences", preferencesRoutes.getPreferences);
-
-  /** Update user's synced preferences */
-  app.put("/api/preferences", preferencesRoutes.putPreferences);
-
-  /** Get current auth status */
-  app.get("/api/auth/session", preferencesRoutes.getSession);
-
-  /** Revoke current session (sign out) */
-  app.post("/api/auth/session/revoke", preferencesRoutes.revokeSession);
-
-  // -------------------------------------------------------------------------
   // Static PWA assets (must come last; catches /* after /api/* routes)
   // -------------------------------------------------------------------------
 
