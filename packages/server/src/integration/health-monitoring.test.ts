@@ -192,10 +192,11 @@ describe("Health and Monitoring Integration Tests", () => {
       const res = await app.request("/api/metrics");
 
       const text = await res.text();
-      // Prometheus metrics should have HELP or TYPE lines
+      // Prometheus metrics should have both HELP and TYPE lines for proper documentation
       const hasHelp = text.includes("# HELP");
       const hasType = text.includes("# TYPE");
-      expect(hasHelp || hasType).toBe(true);
+      expect(hasHelp, "Metrics should include HELP documentation").toBe(true);
+      expect(hasType, "Metrics should include TYPE metadata").toBe(true);
     });
   });
 

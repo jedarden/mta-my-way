@@ -927,9 +927,9 @@ describe("Middleware Chain Integration Tests", () => {
         }),
       });
 
-      // Same-origin middleware behavior depends on request context
-      // In test (no server), there's no origin to compare, so it may pass
-      expect([200, 201, 400, 401, 403]).toContain(res.status);
+      // Same-origin check should pass for same-server requests (no Origin = same origin)
+      // Expect success (201) or validation error (400) for invalid subscription data
+      expect([201, 400]).toContain(res.status);
     });
 
     it("cross-origin POST to push endpoint is rejected", async () => {

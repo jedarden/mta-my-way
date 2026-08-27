@@ -338,7 +338,7 @@ export function csrfProtection(options: CsrfProtectionOptions = {}): MiddlewareH
 
     // Validate token
     if (!token) {
-      securityLogger.logAuthFailure(c, "missing_csrf_token");
+      securityLogger.logAuthFailure(c, "missing_csrf_token", 403);
       throw new HTTPException(403, { message: errorMessage });
     }
 
@@ -348,7 +348,7 @@ export function csrfProtection(options: CsrfProtectionOptions = {}): MiddlewareH
     });
 
     if (!isValid) {
-      securityLogger.logAuthFailure(c, "invalid_csrf_token");
+      securityLogger.logAuthFailure(c, "invalid_csrf_token", 403);
       throw new HTTPException(403, { message: errorMessage });
     }
 
@@ -435,7 +435,7 @@ export function validateCsrf(options: CsrfProtectionOptions = {}): MiddlewareHan
 
     // Validate token
     if (!token || !validateCsrfToken(token, { sessionId, allowReuse: false })) {
-      securityLogger.logAuthFailure(c, "invalid_csrf_token");
+      securityLogger.logAuthFailure(c, "invalid_csrf_token", 403);
       throw new HTTPException(403, { message: errorMessage });
     }
 

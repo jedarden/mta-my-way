@@ -127,8 +127,8 @@ describe("Cross-Cutting Security Tests", () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-          // Should either succeed (if sanitized), reject input (400), or fail auth (401)
-          expect([200, 400, 401]).toContain(response.status);
+          // Endpoint returns 400 for invalid input (SQL injection patterns)
+          expect(response.status).toBe(400);
         }
       });
     });
@@ -158,16 +158,14 @@ describe("Cross-Cutting Security Tests", () => {
         for (const payload of xssPayloads) {
           const response = await app.request(`/api/data?search=${encodeURIComponent(payload)}`);
 
-          // Should succeed, reject input, or fail auth
-          expect([200, 400, 401]).toContain(response.status);
+          // Endpoint sanitizes XSS and returns 200
+          expect(response.status).toBe(200);
 
-          if (response.status === 200) {
-            const data = await response.json();
-            // Response should not contain script tags
-            expect(data.results[0].name).not.toContain("<script>");
-            expect(data.results[0].name).not.toContain("<img");
-            expect(data.results[0].name).not.toContain("<svg");
-          }
+          const data = await response.json();
+          // Response should not contain script tags
+          expect(data.results[0].name).not.toContain("<script>");
+          expect(data.results[0].name).not.toContain("<img");
+          expect(data.results[0].name).not.toContain("<svg");
         }
       });
 
@@ -180,15 +178,14 @@ describe("Cross-Cutting Security Tests", () => {
         const xssPayload = "<script>alert('XSS')</script>";
         const response = await app.request(`/api/items?name=${encodeURIComponent(xssPayload)}`);
 
-        // Should succeed, reject input, or fail auth
-        expect([200, 400, 401]).toContain(response.status);
+        // Endpoint accepts input and returns 200 (XSS is client-side, not server-side)
+        expect(response.status).toBe(200);
 
-        if (response.status === 200) {
-          const data = await response.json();
-          // Verify the response doesn't execute scripts
-          expect(data.items).toBeDefined();
-          expect(data.items[0].name).toBeDefined();
-        }
+        const data = await response.json();
+        // Verify the response doesn't execute scripts
+        expect(data.items).toBeDefined();
+        expect(data.items[0].name).toBeDefined();
+        expect(data.items[0].name).toBe(xssPayload);
       });
     });
 
@@ -240,8 +237,8 @@ describe("Cross-Cutting Security Tests", () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-          // Should succeed, reject input, or fail auth
-          expect([200, 400, 401]).toContain(response.status);
+          // Should reject malicious paths (400) or accept safe paths (200)
+          expect([200, 400]).toContain(response.status);
         }
       });
     });

@@ -236,7 +236,8 @@ describe("End-to-End User Workflow Integration Tests", () => {
         }),
       });
 
-      expect(analyzeRes.status).toBeOneOf([200, 401, 403]);
+      // Valid credentials should succeed - endpoint requires write scope for commute analysis
+      expect(analyzeRes.status).toBe(200);
 
       if (analyzeRes.status === 200) {
         const analysis = await analyzeRes.json();

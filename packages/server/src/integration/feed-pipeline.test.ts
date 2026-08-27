@@ -417,7 +417,8 @@ describe("Feed Data Pipeline Integration Tests", () => {
       // B Division feed contributes stations 724, 725, 726, 730
       const hasADivisionStation = result.has("101");
       const hasBDivisionStation = result.has("725");
-      expect(hasADivisionStation || hasBDivisionStation).toBe(true);
+      expect(hasADivisionStation, "Should include A Division station").toBe(true);
+      expect(hasBDivisionStation, "Should include B Division station").toBe(true);
     });
 
     it("tags each arrival with the correct feedName", () => {

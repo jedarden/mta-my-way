@@ -634,9 +634,8 @@ describe("Password Reset Flow Integration", () => {
         }),
       });
 
-      // This will fail because we don't have proper auth middleware set up in tests
-      // but the endpoint should exist
-      expect([200, 401, 403]).toContain(response.status);
+      // Endpoint requires authentication - without proper middleware setup, expect 401
+      expect(response.status).toBe(401);
     });
   });
 
@@ -652,9 +651,8 @@ describe("Password Reset Flow Integration", () => {
         body: JSON.stringify({ email: testEmail }),
       });
 
-      // In test environment without proper origin, this might still pass
-      // but in production with proper CSRF middleware, it would be checked
-      expect([200, 403]).toContain(response.status);
+      // CSRF middleware should reject requests without proper origin headers
+      expect(response.status).toBe(403);
     });
 
     it("should sanitize email input to prevent injection", async () => {

@@ -200,9 +200,17 @@ export class SecurityEventLogger {
 
   /**
    * Log authentication failure.
+   *
+   * @param c - The Hono context
+   * @param reason - The reason for the authentication failure
+   * @param statusCode - Optional explicit status code (use when status isn't set yet)
    */
-  logAuthFailure(c: Context, reason: string): void {
-    this.log("auth_failure", "high", c, { reason });
+  logAuthFailure(c: Context, reason: string, statusCode?: number): void {
+    const details: Record<string, unknown> = { reason };
+    if (statusCode !== undefined) {
+      details.statusCode = statusCode;
+    }
+    this.log("auth_failure", "high", c, details);
   }
 
   /**
