@@ -3244,13 +3244,73 @@ ${
   };
 
   /** Browser-facing redirects used by the sign-in buttons. */
-  app.get("/auth/:providerId", beginOAuth);
-  app.get("/auth/:providerId/callback", finishOAuth);
+  app.get("/auth/:providerId", async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    if (CORE_ONLY) {
+      return c.json(
+        {
+          error: "Authentication temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
+    return beginOAuth(c);
+  });
+  app.get("/auth/:providerId/callback", async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    if (CORE_ONLY) {
+      return c.json(
+        {
+          error: "Authentication temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
+    return finishOAuth(c);
+  });
 
   /** Backward-compatible API aliases for the existing client hook. */
-  app.get("/api/auth/oauth/authorize/:providerId", beginOAuth);
-  app.get("/api/auth/oauth/callback/:providerId", finishOAuth);
-  app.get("/api/auth/oauth/providers", (c) => c.json({ providers: getActiveOAuthProviders() }));
+  app.get("/api/auth/oauth/authorize/:providerId", async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    if (CORE_ONLY) {
+      return c.json(
+        {
+          error: "Authentication temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
+    return beginOAuth(c);
+  });
+  app.get("/api/auth/oauth/callback/:providerId", async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    if (CORE_ONLY) {
+      return c.json(
+        {
+          error: "Authentication temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
+    return finishOAuth(c);
+  });
+  app.get("/api/auth/oauth/providers", async (c) => {
+    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
+    if (CORE_ONLY) {
+      return c.json(
+        {
+          error: "Authentication temporarily unavailable",
+          degraded: true,
+        },
+        503
+      );
+    }
+    return c.json({ providers: getActiveOAuthProviders() });
+  });
 
   // -------------------------------------------------------------------------
   // Password Reset & Management
