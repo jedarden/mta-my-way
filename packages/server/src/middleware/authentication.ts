@@ -2790,6 +2790,13 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
               c.set("session", session);
               c.set("auth", authContext);
 
+              // Log successful login via session
+              logSessionEvent("login_success", session.sessionId, apiKey.keyId, clientIp, {
+                authMethod: "session",
+                scope: apiKey.scope,
+                mfaVerified: isSessionMfaVerified(sessionToken),
+              });
+
               return next();
             }
           }
@@ -2798,6 +2805,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
         // Invalid session - record suspicious activity
         recordSuspiciousActivity(clientIp, 5);
         securityLogger.logAuthFailure(c, "invalid_session_token");
+        logSessionEvent("login_failed", sessionToken || "unknown", "unknown", clientIp, {
+          reason: "invalid_session_token",
+          authMethod: "session",
+        });
       }
     }
 
@@ -2806,6 +2817,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     if (!apiKeyData) {
       recordSuspiciousActivity(clientIp, 10);
       securityLogger.logAuthFailure(c, "missing_api_key");
+      logSessionEvent("login_failed", "unknown", "unknown", clientIp, {
+        reason: "missing_api_key",
+        authMethod: "api_key",
+      });
       c.header("WWW-Authenticate", `Bearer realm="${realm}"`);
       throw new HTTPException(401, { message: "Authentication required" });
     }
@@ -2816,6 +2831,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     if (!apiKey || !apiKey.active) {
       recordSuspiciousActivity(clientIp, 15);
       securityLogger.logAuthFailure(c, "invalid_api_key");
+      logSessionEvent("login_failed", keyId, keyId, clientIp, {
+        reason: "invalid_api_key",
+        authMethod: "api_key",
+      });
       c.header("WWW-Authenticate", `Bearer realm="${realm}"`);
       throw new HTTPException(401, { message: "Invalid API key" });
     }
@@ -2823,6 +2842,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     // Check expiration
     if (apiKey.expiresAt > 0 && Date.now() > apiKey.expiresAt) {
       securityLogger.logAuthFailure(c, "expired_api_key");
+      logSessionEvent("login_failed", keyId, keyId, clientIp, {
+        reason: "expired_api_key",
+        authMethod: "api_key",
+      });
       c.header("WWW-Authenticate", `Bearer realm="${realm}"`);
       throw new HTTPException(401, { message: "API key expired" });
     }
@@ -2831,6 +2854,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     if (isKeyLockedOut(apiKey)) {
       recordSuspiciousActivity(clientIp, 25);
       securityLogger.logAuthFailure(c, "api_key_locked_out");
+      logSessionEvent("login_failed", keyId, keyId, clientIp, {
+        reason: "api_key_locked_out",
+        authMethod: "api_key",
+      });
       throw new HTTPException(429, {
         message: "API key temporarily locked due to failed attempts. Please try again later.",
       });
@@ -2840,6 +2867,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     if (!(await verifyApiKeySecret(keyId, secret))) {
       recordSuspiciousActivity(clientIp, 20);
       securityLogger.logAuthFailure(c, "invalid_api_key_secret");
+      logSessionEvent("login_failed", keyId, keyId, clientIp, {
+        reason: "invalid_api_key_secret",
+        authMethod: "api_key",
+      });
       c.header("WWW-Authenticate", `Bearer realm="${realm}"`);
       throw new HTTPException(401, { message: "Invalid API key" });
     }
@@ -2867,6 +2898,12 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}): MiddlewareHandler {
     };
     c.set("auth", authContext);
 
+    // Log successful login via API key
+    logSessionEvent("login_success", keyId, apiKey.keyId, clientIp, {
+      authMethod: "api_key",
+      scope: apiKey.scope,
+    });
+
     return next();
   };
 }
@@ -2890,12 +2927,30 @@ export function signedRequestAuth(
 
     if (!sigHeader || !keyId || !timestampHeader) {
       securityLogger.logAuthFailure(c, "missing_signature_headers");
+      const clientIpForLog =
+        c.req.header("CF-Connecting-IP") ||
+        c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+        c.req.header("X-Real-IP") ||
+        "unknown";
+      logSessionEvent("login_failed", keyId || "unknown", keyId || "unknown", clientIpForLog, {
+        reason: "missing_signature_headers",
+        authMethod: "signature",
+      });
       throw new HTTPException(401, { message: "Signature authentication required" });
     }
 
     const timestamp = parseInt(timestampHeader, 10);
     if (isNaN(timestamp)) {
       securityLogger.logAuthFailure(c, "invalid_timestamp");
+      const clientIpForLog =
+        c.req.header("CF-Connecting-IP") ||
+        c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+        c.req.header("X-Real-IP") ||
+        "unknown";
+      logSessionEvent("login_failed", keyId || "unknown", keyId || "unknown", clientIpForLog, {
+        reason: "invalid_timestamp",
+        authMethod: "signature",
+      });
       throw new HTTPException(400, { message: "Invalid timestamp" });
     }
 
@@ -2910,6 +2965,15 @@ export function signedRequestAuth(
     // Verify signature
     if (!verifyRequestSignature(keyId, sigHeader, timestamp, c.req.method, c.req.path, body)) {
       securityLogger.logAuthFailure(c, "invalid_signature");
+      const clientIpForLog =
+        c.req.header("CF-Connecting-IP") ||
+        c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+        c.req.header("X-Real-IP") ||
+        "unknown";
+      logSessionEvent("login_failed", keyId, keyId, clientIpForLog, {
+        reason: "invalid_signature",
+        authMethod: "signature",
+      });
       throw new HTTPException(401, { message: "Invalid request signature" });
     }
 
@@ -2917,6 +2981,15 @@ export function signedRequestAuth(
     const apiKey = getApiKey(keyId);
     if (!apiKey || !apiKey.active) {
       securityLogger.logAuthFailure(c, "invalid_api_key");
+      const clientIpForLog =
+        c.req.header("CF-Connecting-IP") ||
+        c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
+        c.req.header("X-Real-IP") ||
+        "unknown";
+      logSessionEvent("login_failed", keyId, keyId, clientIpForLog, {
+        reason: "invalid_api_key",
+        authMethod: "signature",
+      });
       throw new HTTPException(401, { message: "Invalid API key" });
     }
 
@@ -2985,6 +3058,15 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
             };
             c.set("session", session);
             c.set("auth", authContext);
+
+            // Log successful login via session (optional auth)
+            logSessionEvent("login_success", session.sessionId, apiKey.keyId, clientIp, {
+              authMethod: "session",
+              scope: apiKey.scope,
+              mfaVerified: isSessionMfaVerified(sessionToken),
+              optionalAuth: true,
+            });
+
             return next();
           }
         }
@@ -3007,6 +3089,13 @@ export function optionalAuth(options: { allowSessions?: boolean } = {}): Middlew
           authMethod: "api_key",
         };
         c.set("auth", authContext);
+
+        // Log successful login via API key (optional auth)
+        logSessionEvent("login_success", keyId, apiKey.keyId, clientIp, {
+          authMethod: "api_key",
+          scope: apiKey.scope,
+          optionalAuth: true,
+        });
       }
     }
 
