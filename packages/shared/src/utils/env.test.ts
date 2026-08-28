@@ -58,7 +58,7 @@ describe("env utilities", () => {
         expect(parseEnvBool("")).toBe(false);
       });
 
-      it('returns false for undefined (unset env var)', () => {
+      it("returns false for undefined (unset env var)", () => {
         expect(parseEnvBool(undefined)).toBe(false);
       });
 
@@ -92,7 +92,7 @@ describe("env utilities", () => {
         expect(parseEnvBool("-1")).toBe(false);
       });
 
-      it('returns false for random strings', () => {
+      it("returns false for random strings", () => {
         expect(parseEnvBool("foobar")).toBe(false);
       });
 
