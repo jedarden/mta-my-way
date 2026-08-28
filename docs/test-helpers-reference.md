@@ -26,7 +26,7 @@ Creates a mock subway station object with default properties matching NYC subway
 
 **Signature:**
 ```typescript
-function createMockStation(overrides?: Record<string, unknown>): Record<string, unknown>
+function createMockStation(overrides?: Partial<Station>): Station
 ```
 
 **Parameters:**
@@ -38,12 +38,13 @@ function createMockStation(overrides?: Record<string, unknown>): Record<string, 
   - `lines?: string[]` - Subway lines serving this station (e.g., ["1", "2", "3"])
   - `northStopId?: string` - GTFS stop ID for northbound platform (typically `{id}N`)
   - `southStopId?: string` - GTFS stop ID for southbound platform (typically `{id}S`)
-  - `transfers?: Transfer[]` - Array of transfer connections to other stations
+  - `transfers?: TransferConnection[]` - Array of transfer connections to other stations
+  - `complex?: string` - Station complex ID for multi-entrance stations (e.g., "725")
   - `ada?: boolean` - ADA wheelchair accessibility flag
-  - `borough?: string` - NYC borough (lowercase: manhattan, brooklyn, queens, bronx)
+  - `borough?: Borough` - NYC borough type: "manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland"
 
 **Returns:**
-- `Record<string, unknown>` object representing a complete NYC subway station:
+- `Station` object matching the `@mta-my-way/shared/types` Station interface:
   - `id: string` - Station GTFS ID (default: `"725"` - Times Square)
   - `name: string` - Station name (default: `"Times Square-42 St"`)
   - `lat: number` - Latitude coordinate (default: `40.7589`)
@@ -51,9 +52,10 @@ function createMockStation(overrides?: Record<string, unknown>): Record<string, 
   - `lines: string[]` - Lines serving this station (default: `["1", "2", "3", "7", "N", "Q", "R", "W"]`)
   - `northStopId: string` - Northbound platform stop ID (default: `"725N"`)
   - `southStopId: string` - Southbound platform stop ID (default: `"725S"`)
-  - `transfers: Transfer[]` - Transfer connections (default: `[]`)
+  - `transfers: TransferConnection[]` - Transfer connections (default: `[]`)
+  - `complex?: string` - Station complex ID (default: `undefined`)
   - `ada: boolean` - ADA accessible (default: `true`)
-  - `borough: string` - NYC borough (default: `"manhattan"`)
+  - `borough: Borough` - NYC borough (default: `"manhattan"`)
 
 **Usage Examples:**
 
@@ -167,6 +169,45 @@ const bronxStation = createMockStation({
   borough: "bronx",
   ada: true
 });
+
+// Multi-entrance station complexes (stations with multiple entrances/exits)
+const timesSquareComplex = createMockStation({
+  id: "725",
+  name: "Times Square-42 St",
+  lines: ["1", "2", "3", "7", "N", "Q", "R", "W"],
+  complex: "725",  // All entrances share this complex ID
+  transfers: [
+    { toStationId: "628", toLines: ["A", "C", "E"], walkingSeconds: 300, accessible: true },
+    { toStationId: "621", toLines: ["S"], walkingSeconds: 120, accessible: true }
+  ],
+  ada: true,
+  borough: "manhattan"
+});
+
+// Complex with multiple parent stations (e.g., Columbus Circle)
+const columbusCircle = createMockStation({
+  id: "623",
+  name: "59 St-Columbus Circle",
+  lines: ["A", "B", "C", "D", "1"],
+  complex: "623",
+  transfers: [
+    { toStationId: "624", toLines: ["2", "3"], walkingSeconds: 180, accessible: true }
+  ],
+  ada: true,
+  borough: "manhattan"
+});
+
+// Express-local transfer stations (same line, different service)
+const expressLocalTransfer = createMockStation({
+  id: "635",
+  name: "14 St",
+  lines: ["A", "C", "E", "L"],  // A/C/E express, L local
+  transfers: [
+    { toStationId: "632", toLines: ["1", "2", "3"], walkingSeconds: 240, accessible: true }
+  ],
+  ada: true,
+  borough: "manhattan"
+});
 ```
 
 **Common Testing Patterns:**
@@ -220,7 +261,7 @@ const adaStations = [
   const good = createMockStation({ lines: ["7", "N", "Q", "R", "W", "L"] });  // Has all needed lines
   ```
 
-- **Transfers structure**: If overriding `transfers`, must provide complete array with proper `Transfer` structure
+- **Transfers structure**: If overriding `transfers`, must provide complete array with proper `TransferConnection` structure (from `@mta-my-way/shared/types`)
   ```typescript
   const transferStation = createMockStation({
     transfers: [{
