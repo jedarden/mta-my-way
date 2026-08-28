@@ -11,11 +11,26 @@ NixOS system profiles are the mechanism for managing system configuration genera
 ### 1. NixOS Manual (Primary Source)
 **URL:** https://nixos.org/manual/nixos/stable/
 
+#### Chapter/Section Locations:
+
+**Chapter 2: Installation**
+- **Section: "Changing the Configuration"** (approximately section 2.4)
+  - Documents `nixos-rebuild switch`, `test`, `boot`, `build`, `repl`, `build-vm`
+  - Explains profile naming with `-p` flag for GRUB submenu organization
+  - Covers rollback capabilities through boot menu selection
+
+**Chapter 13: Profiles**
+- Located under the Configuration chapter
+- Covers predefined configuration profiles provided by nixpkgs
+- Lists available profiles: All Hardware, Base, Clone Config, Demo, Docker Container, Graphical, Hardened, Headless, Installation Device, Minimal, QEMU Guest
+- Usage pattern: `imports = [ <nixpkgs/nixos/modules/profiles/profile-name.nix> ];`
+
 The main NixOS manual covers:
 - System configuration management
 - `nixos-rebuild` command usage
 - Profile naming with `-p` flag for GRUB submenu organization
 - Rollback capabilities through boot menu selection
+- Predefined configuration profiles for different use cases
 
 Key commands documented:
 - `nixos-rebuild switch` - Build, activate, and set as default boot
