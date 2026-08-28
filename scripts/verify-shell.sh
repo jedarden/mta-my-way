@@ -1,54 +1,59 @@
 #!/usr/bin/env bash
-# Verify shell environment accessibility
-# This script checks that the shell binary exists, the process is running,
-# and environment variables are properly set.
+# Shell Environment Verification Script
+# Verifies shell accessibility and initialization
 
 set -euo pipefail
 
-echo "=== Shell Accessibility Check ==="
-echo
+echo "=== Shell Environment Verification ==="
+echo ""
 
-# 1. Check shell binary
-echo "1. Shell binary:"
-SHELL_BIN="$(which bash 2>/dev/null)" || { echo "❌ bash not found"; exit 1; }
-if [[ -x "$SHELL_BIN" ]]; then
-    echo "✅ bash found and executable: $SHELL_BIN"
-    ls -l "$SHELL_BIN"
-else
-    echo "❌ bash not executable: $SHELL_BIN"
-    exit 1
-fi
-echo
-
-# 2. Check shell process
-echo "2. Shell process status:"
-if ps -p $$ > /dev/null 2>&1; then
-    echo "✅ Current shell process running:"
-    ps -p $$ -o pid,ppid,comm
-else
-    echo "❌ Shell process not found"
-    exit 1
-fi
-echo
-
-# 3. Check environment variables
-echo "3. Environment variables:"
-REQUIRED_VARS=("SHELL" "PATH" "HOME" "USER")
-ALL_SET=true
-for var in "${REQUIRED_VARS[@]}"; do
-    if [[ -v "$var" ]]; then
-        echo "✅ $var=${!var}"
+# Check 1: Shell binary exists and is executable
+echo "1. Checking shell binary..."
+if SHELL_BINARY=$(which bash 2>/dev/null); then
+    if [[ -x "$SHELL_BINARY" ]]; then
+        echo "   ✓ Shell binary found and executable: $SHELL_BINARY"
+        bash --version | head -n 1
     else
-        echo "❌ $var not set"
+        echo "   ✗ Shell binary exists but is not executable"
+        exit 1
+    fi
+else
+    echo "   ✗ Shell binary not found"
+    exit 1
+fi
+echo ""
+
+# Check 2: Current shell process status
+echo "2. Checking current shell process..."
+if CURRENT_SHELL=$(ps -p $$ -o comm= 2>/dev/null); then
+    echo "   ✓ Current shell process: $CURRENT_SHELL"
+else
+    echo "   ✗ Could not determine current shell process"
+    exit 1
+fi
+echo ""
+
+# Check 3: Environment variables
+echo "3. Checking environment variables..."
+REQUIRED_VARS=("SHELL" "PATH" "HOME" "USER" "PWD")
+ALL_SET=true
+
+for var in "${REQUIRED_VARS[@]}"; do
+    if [[ -v "${var}" ]]; then
+        echo "   ✓ $var is set"
+    else
+        echo "   ✗ $var is not set"
         ALL_SET=false
     fi
 done
-echo
 
 if [[ "$ALL_SET" == "true" ]]; then
-    echo "=== All checks passed ==="
-    exit 0
+    echo "   ✓ All required environment variables are set"
 else
-    echo "=== Some checks failed ==="
+    echo "   ✗ Some required environment variables are missing"
     exit 1
 fi
+echo ""
+
+echo "=== All checks passed ==="
+exit 0
