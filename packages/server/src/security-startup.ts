@@ -28,6 +28,7 @@ interface ValidationResult {
  * Checks:
  * - ALLOWED_HOSTS is set in production (prevents host header injection)
  * - PASSWORD_PEPPER is set (optional but recommended)
+ * - SHELL is set (optional but recommended for debugging)
  * - VAPID keys are configured (required for push notifications)
  *
  * In development mode, only warnings are issued. In production mode,
@@ -72,6 +73,16 @@ export function validateSecurityConfiguration(): ValidationResult {
   if (!passwordPepper || passwordPepper.trim() === "" || passwordPepper.length < 32) {
     const message =
       "PASSWORD_PEPPER is not set or too short (should be at least 32 bytes / 64 hex chars). This reduces password security by removing a layer of defense.";
+
+    result.warnings.push(message);
+  }
+
+  // -------------------------------------------------------------------------
+  // SHELL validation
+  // -------------------------------------------------------------------------
+  const shell = process.env["SHELL"];
+  if (!shell || shell.trim() === "") {
+    const message = "SHELL is not set. This may cause issues with shell operations and debugging.";
 
     result.warnings.push(message);
   }

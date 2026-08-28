@@ -368,4 +368,44 @@ describe("security-startup", () => {
       expect(result.warnings.filter((w) => w.includes("VAPID")).length).toBeGreaterThanOrEqual(2);
     });
   });
+
+  describe("SHELL validation", () => {
+    beforeEach(() => {
+      process.env.NODE_ENV = "development";
+      process.env.TEST_MODE = "false";
+      process.env.ALLOWED_HOSTS = "localhost";
+    });
+
+    it("should warn when SHELL is not set", () => {
+      delete process.env.SHELL;
+
+      const result = validateSecurityConfiguration();
+
+      expect(result.warnings.some((w) => w.includes("SHELL"))).toBe(true);
+    });
+
+    it("should warn when SHELL is empty", () => {
+      process.env.SHELL = "";
+
+      const result = validateSecurityConfiguration();
+
+      expect(result.warnings.some((w) => w.includes("SHELL"))).toBe(true);
+    });
+
+    it("should warn when SHELL is whitespace only", () => {
+      process.env.SHELL = "   ";
+
+      const result = validateSecurityConfiguration();
+
+      expect(result.warnings.some((w) => w.includes("SHELL"))).toBe(true);
+    });
+
+    it("should pass when SHELL is set", () => {
+      process.env.SHELL = "/bin/bash";
+
+      const result = validateSecurityConfiguration();
+
+      expect(result.warnings.filter((w) => w.includes("SHELL"))).toHaveLength(0);
+    });
+  });
 });
