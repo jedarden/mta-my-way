@@ -1,104 +1,62 @@
 # NixOS System Binary Directory Structure
 
-**Date:** 2026-08-28
-**Research Context:** Foundational research for understanding where NixOS installs system binaries
+Research findings on where NixOS installs system binaries and how the paths are organized.
 
-## Overview
+## Primary Binary Paths
 
-NixOS uses a unique filesystem layout that deviates from the traditional Unix Filesystem Hierarchy Standard (FHS). Instead of using paths like `/usr/bin` or `/bin`, NixOS provides system binaries through a sophisticated symlink structure that enables package isolation, reproducibility, and atomic upgrades.
+### `/run/current-system/sw/bin` (Runtime Path)
 
-## Primary System Binary Location
+- **Purpose**: Runtime symlink to the current system generation's binaries
+- **Created**: At boot time
+- **Stability**: More stable and always available at runtime
+- **Recommended for**: Scripts and PATH configuration
+- **Structure**: The `sw` stands for "software" and contains user-space binaries
 
-### `/run/current-system/sw/bin/`
+### `/nix/var/nix/profiles/system/sw/bin` (System Profile Path)
 
-This is the standard location where NixOS exposes system-wide binaries to users.
+- **Purpose**: System profile that tracks system-wide package generations
+- **Created**: Each time you run `nixos-rebuild switch`
+- **Management**: The `system` symlink always points to the current generation
+- **Older generations**: Stored as `system-N-link` (e.g., `system-29-link`, `system-30-link`)
+- **List generations**: `sudo nix-env -p /nix/var/nix/profiles/system --list-generations`
 
-- **Purpose:** Provides symlinks to all executables from packages declared in `environment.systemPackages`
-- **Meaning of 'sw':** Stands for "software" - a convention for aggregated user-facing packages
-- **Automatic PATH inclusion:** This directory is automatically added to every user's `PATH` environment variable
-- **Symlink targets:** Individual binaries are symlinks to package derivations in `/nix/store`
-
-## Directory Structure and Symlink Chain
-
-The NixOS binary system follows a hierarchical symlink structure:
+## Directory Structure Chain
 
 ```
-/run/current-system/sw/bin/
-  → points to current system profile generation
-  → /nix/var/nix/profiles/system
-  → /nix/store/<hash>-system-path/
-  → individual package binaries in /nix/store/<hash>-<name>-<version>/bin/
+/run/current-system → /nix/var/nix/profiles/system → /nix/store/[hash]-system
 ```
 
-### Structure Breakdown:
+The relationship:
+1. `/run/current-system` symlinks to the current system generation in `/nix/store`
+2. `/nix/var/nix/profiles/system` is the profile tracking which generation is "current"
+3. Both ultimately point to the same location in the Nix store
 
-1. **`/run/current-system`** - Symlink to the active system profile generation
-2. **`/nix/var/nix/profiles/system`** - System profile location containing all generations
-3. **`/nix/store/<hash>-system-path/`** - The current system derivation
-4. **`/sw/` directory** - Contains standard Unix-like subdirectories:
-   - `/sw/bin` - Executable binaries
-   - `/sw/lib` - Libraries
-   - `/sw/share` - Shared resources
-   - `/sw/etc` - Configuration files
+## The "sw" Directory Contents
 
-## Other Common Binary Paths
+The `sw` (software) subdirectory contains:
+- **`bin/`** - Executable binaries
+- **`share/`** - Shared files (man pages, bash completions, etc.)
+- **`lib/`** - Libraries
+- Other standard software directories
 
-### System-Level Paths
+## Traditional Linux Path Equivalents
 
-- **System profile:** `/nix/var/nix/profiles/system`
-- **System generations:** `/nix/var/nix/profiles/system-*-link` (where `*` is the generation number)
+| Traditional Linux | NixOS |
+|-------------------|-------|
+| `/usr/bin` | `/run/current-system/sw/bin` or `/nix/var/nix/profiles/system/sw/bin` |
+| `/usr/local/bin` | (Not used - same paths apply) |
 
-### User-Level Paths
+## Key Design Principles
 
-- **User profile base:** `/nix/var/nix/profiles/per-user/$username/profile`
-- **User home symlink:** `~/.nix-profile` → points to user's current profile
-- **Individual packages:** `/nix/store/<hash>-<name>-<version>/bin/`
-
-## Why NixOS Deviates from FHS
-
-### Design Rationale
-
-1. **Package Isolation:** Traditional paths like `/usr/bin` would couple packages to system state
-2. **Reproducibility:** Each package has a unique path based on its content hash
-3. **Atomic Upgrades:** System configuration changes are applied atomically via symlink updates
-4. **No Traditional Paths:** No guarantee binaries will be at `/bin/bash`, `/usr/bin/ls`, etc.
-
-### How Rebuilds Work
-
-When you run `nixos-rebuild`:
-
-1. Build a new system configuration derivation in `/nix/store`
-2. Aggregate all `environment.systemPackages` into the `/sw` directory
-3. Create a new generation in the system profile
-4. Atomically update the `/run/current-system` symlink
-
-## Important Usage Notes
-
-### DO:
-
-- **Use PATH for binaries:** Access binaries through your PATH, not absolute store paths
-- **Use Nix code helpers:** In Nix expressions, use `lib.getExe pkgs.package` to find binary paths dynamically
-- **Trust the symlink structure:** Rely on `/run/current-system/sw/bin` for system binaries
-
-### DON'T:
-
-- **Hardcode store paths:** Avoid `/nix/store/...` paths in configuration files like `~/.bashrc`
-- **Assume traditional paths:** Don't expect binaries at `/bin/bash`, `/usr/bin/ls`, etc.
-- **Create symlink chains:** The Nix store cannot contain symlink components (prevents "impure" builds)
+1. **Atomic Upgrades**: Each generation is completely self-contained
+2. **Rollback Capability**: Can switch between generations instantly
+3. **Symlink-based**: Uses symlinks to point to actual store paths in `/nix/store/`
+4. **Declarative**: The system configuration determines what appears in these paths
 
 ## Sources
 
-- [Why doesn't e.g /bin link to /run/current-system/sw/bin?](https://discourse.nixos.org/t/why-doesnt-e-g-bin-link-to-run-current-system-sw-bin/1562)
-- [Common Issue: accessing binaries like /bin/bash](https://discourse.nixos.org/t/common-issue-accessing-binaries-like-bin-bash/63312)
+- [Why doesn't e.g /bin link to /run/current-system/sw/bin? - NixOS Discourse](https://discourse.nixos.org/t/why-doesnt-e-g-bin-link-to-run-current-system-sw-bin/1562)
+- [Common Issue: accessing binaries like /bin/bash - NixOS Discourse](https://discourse.nixos.org/t/common-issue-accessing-binaries-like-bin-bash/63312)
 - [/run/current-system: NixOS. A beginner's look](https://xn--w5d.cc/2020/08/31/current-system-nixos.html)
-- [Nix Reference Manual: Profiles](https://nix.dev/manual/nix/2.22/package-management/profiles)
-- [NixOS Manual](https://nixos.org/manual/nixos/stable/)
-- [Why /nix/var/nix/profiles/per-user is empty](https://discourse.nixos.org/t/why-nix-var-nix-profiles-per-user-is-empty/58095)
-- [NixOS Wiki: User Environment](https://nixos.wiki/wiki/User_Environment)
-
-## Next Steps
-
-This research provides the foundation for understanding how NixOS manages binaries, which is essential for:
-- Understanding ripgrep availability on NixOS systems
-- Configuring applications to find system binaries correctly
-- Debugging PATH and binary accessibility issues on NixOS
+- [How to add stuff to `/run/current-system/sw`? - NixOS Discourse](https://discourse.nixos.org/t/how-to-add-stuff-to-run-current-system-sw-nix-store-isnt-safe/1331)
+- [Why does Nix link out to /run/current-system/sw/ instead of /usr - Reddit](https://www.reddit.com/r/NixOS/comments/1gke8qe/why_does_nix_link_out-to-runcurrentsystemsw/)
