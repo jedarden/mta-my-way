@@ -65,3 +65,38 @@ export function isCoreOnlyMode(): boolean {
  * Use isCoreOnlyMode() if you need the latest value (e.g., in tests).
  */
 export const CORE_ONLY = isCoreOnlyMode();
+
+/**
+ * Get the SHELL environment variable value.
+ *
+ * Returns the SHELL environment variable if set, otherwise returns a default value.
+ * This is useful for scripts and tools that need to know which shell is being used.
+ *
+ * @param defaultValue - Default value to return if SHELL is unset (defaults to "/bin/sh")
+ * @returns The SHELL environment variable value, or the default if unset
+ */
+export function getShellEnv(defaultValue = "/bin/sh"): string {
+  const shell = process.env["SHELL"];
+  if (shell === undefined || shell === "") {
+    return defaultValue;
+  }
+  return shell;
+}
+
+/**
+ * Check if the SHELL environment variable is set.
+ *
+ * @returns true if SHELL is set to a non-empty value, false otherwise
+ */
+export function hasShellEnv(): boolean {
+  const shell = process.env["SHELL"];
+  return shell !== undefined && shell !== "";
+}
+
+/**
+ * Export the parsed SHELL value for direct import.
+ *
+ * This is evaluated once at module load time for performance.
+ * Use getShellEnv() if you need the latest value (e.g., in tests).
+ */
+export const SHELL = getShellEnv();
