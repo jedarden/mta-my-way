@@ -2857,3 +2857,63 @@ expect(hasSecurityHeaders(headers)).toBe(true);
 - All four headers must be present
 - Values only checked for `x-content-type-options` and `strict-transport-security`
 - Case-sensitive header names
+
+---
+
+## E2E Test Helpers (`tests/e2e/helpers/`)
+
+### Port Checking
+
+#### `checkPort(port)`
+
+Checks if a TCP port is already in use on the local machine.
+
+**Signature:**
+```typescript
+function checkPort(port: number): Promise<boolean>
+```
+
+**Parameters:**
+- `port: number` - Port number to check (e.g., `3001`)
+
+**Returns:**
+- `Promise<boolean>` - `true` if port is in use, `false` if port is available
+
+**Example:**
+```typescript
+import { checkPort } from "../helpers/check-port";
+
+const portInUse = await checkPort(3001);
+if (portInUse) {
+  console.error("Port 3001 is already in use");
+  process.exit(1);
+}
+```
+
+**How it works:**
+- Attempts to create a TCP server on the specified port
+- If `EADDRINUSE` error occurs, port is in use → returns `true`
+- If server starts successfully, port is available → returns `false` after closing server
+- Other errors return `false` (assume port is available)
+
+**Edge Cases:**
+- Only checks `127.0.0.1` (localhost) - doesn't detect port usage on other interfaces
+- Must be awaited - returns Promise, not boolean directly
+- Race condition possible between check and actual server start
+- Other processes may bind the port between check and use
+
+**Use Cases:**
+- Pre-flight checks before starting E2E test server
+- CI/CD pipeline validation before service startup
+- Detecting conflicts with development servers
+
+**Exit Code Integration:**
+The helper module includes a `main()` function that exits with:
+- `0` - Port is available
+- `1` - Port is in use
+- `2` - Error occurred during check
+
+```bash
+# Usage in CI scripts
+node tests/e2e/helpers/check-port.ts || exit 1
+```

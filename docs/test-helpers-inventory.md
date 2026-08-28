@@ -361,12 +361,22 @@ const canRead = hasPermission("user", "read:arrivals"); // true
 
 ---
 
+## E2E Test Helpers (`tests/e2e/helpers/`)
+
+### Port Checking
+
+| Function | Purpose | What It Tests |
+|----------|---------|----------------|
+| `checkPort(port)` | Checks if a TCP port is already in use on localhost | Port conflict detection, pre-flight server startup checks, CI/CD validation |
+
+---
+
 ## Summary Statistics
 
-- **Total Functions:** 74
+- **Total Functions:** 75 (74 shared + 1 e2e)
 - **Total Constants:** 5
-- **Files:** 3 (test-helpers.ts, observability-helpers.ts, security-helpers.ts)
-- **Categories:** 9 (Mock Data, Assertions, Setup, Time, Performance, HTTP, Async, Observability, Security)
+- **Files:** 4 (test-helpers.ts, observability-helpers.ts, security-helpers.ts, check-port.ts)
+- **Categories:** 10 (Mock Data, Assertions, Setup, Time, Performance, HTTP, Async, Observability, Security, E2E)
 
 ---
 
