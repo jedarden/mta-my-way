@@ -1383,3 +1383,6 @@
 {"bead":"mtamyway-05e7df66","duration_ms":31293,"event":"fail","exit_code":0,"outcome":"failure","strand":"auto","ts":"2026-08-28T19:26:37.343334713+00:00","worker":"glm-mta"}
 {"bead":"mtamyway-05e7df66","event":"claim","strand":"auto","ts":"2026-08-28T19:26:43.145397939+00:00","worker":"glm-mta"}
 {"adapter":"claude-code-glm-4.7","bead":"mtamyway-05e7df66","event":"dispatch","model":"glm-4.7","strand":"auto","ts":"2026-08-28T19:26:43.151571844+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-05e7df66","duration_ms":39526,"event":"fail","exit_code":0,"outcome":"failure","strand":"auto","ts":"2026-08-28T19:27:22.712762760+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-05e7df66","event":"claim","strand":"auto","ts":"2026-08-28T19:27:22.902767848+00:00","worker":"glm-mta"}
+{"adapter":"claude-code-glm-4.7","bead":"mtamyway-05e7df66","event":"dispatch","model":"glm-4.7","strand":"auto","ts":"2026-08-28T19:27:22.914334062+00:00","worker":"glm-mta"}
