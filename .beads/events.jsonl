@@ -1323,3 +1323,6 @@
 {"bead":"mtamyway-ad69f86e","duration_ms":185404,"event":"fail","exit_code":0,"outcome":"failure","strand":"auto","ts":"2026-08-28T18:47:30.809481113+00:00","worker":"glm-mta"}
 {"bead":"mtamyway-ad69f86e","event":"claim","strand":"auto","ts":"2026-08-28T18:47:56.262411726+00:00","worker":"glm-mta"}
 {"adapter":"claude-code-glm-4.7","bead":"mtamyway-ad69f86e","event":"dispatch","model":"glm-4.7","strand":"auto","ts":"2026-08-28T18:47:56.266912903+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-ad69f86e","duration_ms":51944,"event":"fail","exit_code":0,"outcome":"failure","strand":"auto","ts":"2026-08-28T18:48:48.221895158+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-ad69f86e","event":"claim","strand":"auto","ts":"2026-08-28T18:48:48.382072445+00:00","worker":"glm-mta"}
+{"adapter":"claude-code-glm-4.7","bead":"mtamyway-ad69f86e","event":"dispatch","model":"glm-4.7","strand":"auto","ts":"2026-08-28T18:48:48.384710480+00:00","worker":"glm-mta"}
