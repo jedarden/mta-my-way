@@ -1,0 +1,53 @@
+Search results for "createMockStation" — 2026-08-28
+======================================================
+
+Total occurrences found: 68
+
+DOCUMENTATION FILES:
+--------------------
+docs/cross-cutting.md:42
+  - Import reference
+
+docs/test-helpers-reference.md
+  Lines: 23, 29, 64, 72, 83, 98, 114, 125, 137, 145, 157, 165, 174, 188, 201,
+         218, 219, 220, 224, 244, 245, 253, 260, 261, 266, 303, 315, 647, 648,
+         662, 663, 677, 678, 685, 713, 714, 736, 737, 766, 1152
+  - Function signature documentation
+  - Usage examples throughout the file (40+ occurrences)
+
+docs/test-helpers-inventory.md:25, 327, 329
+  - Inventory listing
+  - Import example with usage
+
+packages/shared/SHARED_PACKAGE_STRUCTURE.md:112
+  - Package structure documentation
+
+SOURCE CODE FILES:
+------------------
+packages/shared/src/testing/index.ts:9
+  - Export statement in testing module
+
+packages/shared/src/testing/smoke.test.ts
+  Lines: 21, 33, 69, 90, 161
+  - Test imports and usage
+
+packages/shared/src/testing/test-helpers.ts
+  Lines: 20, 117, 118, 132, 133, 166, 167
+  - Function definition (line 20)
+  - Usage in helper functions
+
+packages/shared/src/testing/README.md
+  Lines: 35, 45, 142, 143, 1393, 1397, 1537
+  - Documentation and examples
+
+packages/shared/src/testing/TEST_HELPERS_AUDIT.md
+  Lines: 32, 430, 552
+  - Audit documentation
+
+SUMMARY:
+--------
+- Definition: packages/shared/src/testing/test-helpers.ts:20
+- Export: packages/shared/src/testing/index.ts:9
+- Test usage: packages/shared/src/testing/smoke.test.ts (5 occurrences)
+- Documentation: docs/ and packages/shared/src/testing/README.md (58 occurrences)
+- Helper usage: packages/shared/src/testing/test-helpers.ts (6 occurrences in other helpers)
