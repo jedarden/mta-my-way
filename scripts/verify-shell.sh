@@ -1,59 +1,40 @@
 #!/usr/bin/env bash
-# Shell Environment Verification Script
-# Verifies shell accessibility and initialization
+# Verify shell binary accessibility
+# This script checks that the shell binary exists and is executable
 
 set -euo pipefail
 
-echo "=== Shell Environment Verification ==="
-echo ""
+echo "=== Shell Binary Accessibility Check ==="
 
-# Check 1: Shell binary exists and is executable
-echo "1. Checking shell binary..."
-if SHELL_BINARY=$(which bash 2>/dev/null); then
-    if [[ -x "$SHELL_BINARY" ]]; then
-        echo "   ✓ Shell binary found and executable: $SHELL_BINARY"
-        bash --version | head -n 1
-    else
-        echo "   ✗ Shell binary exists but is not executable"
-        exit 1
-    fi
+# 1. Identify current shell
+SHELL_PATH="${SHELL:-/bin/bash}"
+echo "Current shell: $SHELL_PATH"
+
+# 2. Verify binary exists
+if [[ -e "$SHELL_PATH" ]]; then
+  echo "✓ Binary exists: $SHELL_PATH"
 else
-    echo "   ✗ Shell binary not found"
-    exit 1
+  echo "✗ Binary not found: $SHELL_PATH"
+  exit 1
 fi
-echo ""
 
-# Check 2: Current shell process status
-echo "2. Checking current shell process..."
-if CURRENT_SHELL=$(ps -p $$ -o comm= 2>/dev/null); then
-    echo "   ✓ Current shell process: $CURRENT_SHELL"
+# 3. Check execute permissions
+if [[ -x "$SHELL_PATH" ]]; then
+  echo "✓ Binary has execute permissions"
+  ls -la "$SHELL_PATH"
 else
-    echo "   ✗ Could not determine current shell process"
-    exit 1
+  echo "✗ Binary lacks execute permissions"
+  exit 1
 fi
-echo ""
 
-# Check 3: Environment variables
-echo "3. Checking environment variables..."
-REQUIRED_VARS=("SHELL" "PATH" "HOME" "USER" "PWD")
-ALL_SET=true
-
-for var in "${REQUIRED_VARS[@]}"; do
-    if [[ -v "${var}" ]]; then
-        echo "   ✓ $var is set"
-    else
-        echo "   ✗ $var is not set"
-        ALL_SET=false
-    fi
-done
-
-if [[ "$ALL_SET" == "true" ]]; then
-    echo "   ✓ All required environment variables are set"
+# 4. Test invocation
+if "$SHELL_PATH" --version >/dev/null 2>&1; then
+  echo "✓ Binary can be invoked successfully"
+  "$SHELL_PATH" --version 2>&1 | head -1
 else
-    echo "   ✗ Some required environment variables are missing"
-    exit 1
+  echo "✗ Binary cannot be invoked"
+  exit 1
 fi
-echo ""
 
+echo ""
 echo "=== All checks passed ==="
-exit 0
