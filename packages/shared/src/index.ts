@@ -332,7 +332,8 @@ export {
 } from "./utils/retry.js";
 
 // Environment variable parsing utilities
-export { parseEnvBool } from "./utils/env.js";
+export { parseEnvBool, readShellEnv } from "./utils/env.js";
+export type { ShellEnvResult } from "./utils/env.js";
 
 // =============================================================================
 // Observability
