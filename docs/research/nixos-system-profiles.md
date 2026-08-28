@@ -1,209 +1,119 @@
-# NixOS System Profiles Research
+# NixOS System Profiles Documentation Sources
 
-**Bead:** mtamyway-94193af1 (Child 1 of 4: NixOS system profiles and activation scripts)
-**Date:** 2026-08-28
-**Research Type:** Documentation review
+Research conducted: 2026-08-28
 
 ## Overview
 
-This document summarizes research into the official NixOS documentation regarding system profiles, their structure, management, and role in the NixOS activation process.
+NixOS system profiles are the mechanism for managing system configuration generations, enabling atomic upgrades and rollbacks. Profiles are created by `nixos-rebuild` operations and stored as generations in `/nix/var/nix/profiles/`.
 
-## Key Documentation Sources
+## Official Documentation Sources
 
-### Official Documentation
-1. **[NixOS Manual](https://nixos.org/manual/nixos/stable/)** - Primary NixOS documentation
-2. **[Nix Profiles - Nix Reference Manual](https://nix.dev/manual/nix/2.22/package-management/profiles)** - Profile architecture and user environments
-3. **[nix profile Command Reference](https://releases.nixos.org/nix/nix-2.28.3/manual/command-ref/new-cli/nix3-profile.html)** - Profile management commands
+### 1. NixOS Manual (Primary Source)
+**URL:** https://nixos.org/manual/nixos/stable/
 
-### Community Resources
-- **[NixOS Discourse - List and delete NixOS generations](https://discourse.nixos.org/t/list-and-delete-nixos-generations/29637)** - Generation management discussion
+The main NixOS manual covers:
+- System configuration management
+- `nixos-rebuild` command usage
+- Profile naming with `-p` flag for GRUB submenu organization
+- Rollback capabilities through boot menu selection
 
-## What is a System Profile?
+Key commands documented:
+- `nixos-rebuild switch` - Build, activate, and set as default boot
+- `nixos-rebuild test` - Activate without making boot default
+- `nixos-rebuild boot` - Build and set as boot default, activate on reboot
+- `nixos-rebuild build` - Build only, for verification
+- `nixos-rebuild repl` - Interactive configuration exploration
+- `nixos-rebuild build-vm` - Test in QEMU sandbox
 
-### Core Concept
+### 2. Nix Reference Manual - Profiles Section
+**URL:** https://nix.dev/manual/nix/2.22/package-management/profiles
 
-A **system profile** in NixOS is a versioned collection of symlinks that points to specific system configurations in the Nix store. It serves as the foundation for:
+Explains the profile mechanism:
+- **Purpose**: Different user configurations with atomic upgrades and rollbacks
+- **User Environments**: Directory trees of symlinks pointing to activated packages
+- **Generations**: Numbered links (e.g., `default-42-link`, `default-43-link`)
+- **Profile Storage**: `/nix/var/nix/profiles/`
+- **User Profile**: Symlink at `~/.nix-profile`
 
-- **Atomic upgrades** - New configurations are built completely before activation
-- **Rollback capability** - Previous configurations remain available
-- **Generation management** - Each rebuild creates a new generation
+Management commands:
+- `nix-env --rollback` - Revert to previous generation
+- `nix-env --switch-generation 43` - Switch to specific generation
+- `nix-env --list-generations` - View all generations
+- `nix-env --switch-profile` - Change between profiles
+- `nix-env --profile <path>` - Target specific profile
 
-### Location
+### 3. NixOS Wiki - nixos-rebuild
+**URL:** https://wiki.nixos.org/wiki/Nixos-rebuild
 
-The primary NixOS system profile resides at:
+Comprehensive `nixos-rebuild` documentation:
+- Command overview and Python rewrite (`nixos-rebuild-ng`)
+- All subcommands (switch, boot, test, build, dry-activate, build-vm)
+- **System Generations**: Stored as `/nix/var/nix/profiles/system-N-link`
+- **Generation Management**:
+  - `nixos-rebuild list-generations` - List all generations
+  - `nixos-rebuild --rollback switch` - Revert to previous generation
+  - Manual activation: `/nix/var/nix/profiles/system-N-link/bin/switch-to-configuration switch`
+- **Remote Deployment**: Build/deploy across hosts
+
+### 4. NixOS Wiki - System Configuration
+**URL:** https://wiki.nixos.org/wiki/NixOS_system_configuration
+
+Covers:
+- Declarative configuration principles
+- Working with `/etc/nixos/configuration.nix`
+- Configuration workflow
+
+## Additional Documentation Sources
+
+### Nixpkgs Manual
+**URL:** https://nixos.org/nixpkgs/manual/
+- Package management reference
+- Public interface documentation
+
+### NixOS Wiki (General)
+**URL:** https://wiki.nixos.org/
+- Community-maintained documentation
+- Additional guides and how-tos
+
+## Key Concepts
+
+### Profile Structure
 ```
-/nix/var/nix/profiles/system
+/nix/var/nix/profiles/
+├── system-1-link -> /nix/store/...-nixos-system-<hostname>-v1
+├── system-2-link -> /nix/store/...-nixos-system-<hostname>-v2
+├── system-3-link -> /nix/store/...-nixos-system-<hostname>-v3
+└── system -> system-3-link (current generation)
 ```
 
-This directory contains numbered generation symlinks (e.g., `system-1-link`, `system-2-link`) and a `system` symlink pointing to the current generation.
-
-## Profile Architecture
-
-### Nix Store Foundation
-
-Every package and configuration in NixOS occupies a unique location in the Nix store (`/nix/store`), identified by cryptographic hashes of all build inputs:
-- Sources
-- Dependencies
-- Compiler flags
-- Build configuration
-
-This ensures different versions never interfere with each other.
-
-### User Environments
-
-Since typing full Nix store paths would be impractical, Nix creates **user environments**:
-
-1. **Environment Structure** - Directory trees containing symlinks to activated packages
-2. **Storage Location** - User environments themselves reside in the Nix store
-3. **PATH Management** - Nix maintains symlinks outside the store pointing to these environments
-
-### Profile Versioning
-
-Profiles organize **generations** to support atomic upgrades:
-
+### User Profiles
 ```
-~/.nix-profile → profile → profile-N-link → /nix/store/[hash]-profile
+~/.nix-profile -> /nix/var/nix/profiles/per-user/$USER/profile
 ```
 
-For the system profile:
-```
-/nix/var/nix/profiles/system → system-N-link → /nix/store/[hash]-system-[generation]
-```
-
-Each symlink serves as a root for the Nix garbage collector.
-
-## System Profile Management
-
-### Profile Types
-
-| Profile Type | Location | Purpose |
-|-------------|----------|---------|
-| **System** | `/nix/var/nix/profiles/system` | NixOS system configurations |
-| **User** | `$XDG_STATE_HOME/nix/profiles` | Regular user package environments |
-| **Root** | `$NIX_STATE_DIR/profiles/per-user/root` | Root user's profile |
-
-### Commands for System Profile Management
-
-#### Listing Generations
+### Profile Naming
 ```bash
-# NixOS-specific command
-sudo nixos-rebuild list-generations
-
-# Generic nix profile command
-sudo nix profile history --profile /nix/var/nix/profiles/system
-
-# Legacy nix-env command
-sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
-```
-
-#### Managing Old Generations
-```bash
-# Remove generations older than 14 days
-sudo nix profile wipe-history --profile /nix/var/nix/profiles/system --older-than 14d
-
-# Manual deletion (use with caution - can break GRUB entries)
-sudo rm /nix/var/nix/profiles/system-*
-sudo nix-store --gc
-```
-
-#### Inspecting Store Paths
-```bash
-# Show all GC roots pointing at a specific path
-nix-store --query --roots <path>
-```
-
-## nixos-rebuild and Profile Creation
-
-### Build Commands and Their Effects
-
-| Command | Effect on Profile |
-|---------|-------------------|
-| `nixos-rebuild switch` | Creates new generation, activates immediately, sets as default boot |
-| `nixos-rebuild boot` | Creates new generation, makes bootable, but doesn't activate now |
-| `nixos-rebuild build` | Builds configuration but doesn't create profile entry |
-| `nixos-rebuild test` | Builds and activates temporarily (not saved to profile) |
-
-### Profile Groups in GRUB
-
-The `-p` flag creates profile groupings in the GRUB boot menu:
-```bash
+# Create named profile (appears as GRUB submenu)
 nixos-rebuild switch -p test
 ```
 
-This causes configurations to appear under a "NixOS - Profile 'test'" submenu in GRUB.
+### Rollback Methods
+1. **Boot Menu**: Select previous generation from GRUB
+2. **Command**: `sudo nixos-rebuild --rollback switch`
+3. **Manual**: Activate specific generation directly
 
-### Active vs. Booted System
+## Research Notes
 
-You can verify which generation is active by comparing symlinks:
-- **Current running system:** `/run/current-system/`
-- **Booted system:** `/run/booted-system/`
-
-## nix profile Command (Experimental)
-
-The newer `nix profile` command suite provides enhanced profile management:
-
-### Subcommands
-
-| Subcommand | Purpose |
-|------------|---------|
-| `nix profile diff-closures` | Show closure difference between versions |
-| `nix profile history` | Display all versions |
-| `nix profile install` | Install a package into a profile |
-| `nix profile list` | Show installed packages |
-| `nix profile remove` | Delete packages |
-| `nix profile rollback` | Revert to previous version |
-| `nix profile upgrade` | Update packages |
-| `nix profile wipe-history` | Delete non-current versions |
-
-### Compatibility Warning
-
-Once you use `nix profile`, you can no longer use `nix-env` without first deleting `$XDG_STATE_HOME/nix/profiles/profile`. Migration back requires removing this directory (deletes previously installed packages).
-
-### Profile Structure
-
-Each profile version contains:
-- `manifest.nix` - for `nix-env` compatibility
-- `manifest.json` - for `nix profile` metadata
-- Symlink tree - pointing to installed package files
-
-## System Activation Process
-
-### How Activation Works
-
-While the specific activation script details are covered in separate research, the profile-based activation flow is:
-
-1. **Build Phase** - `nixos-rebuild` builds new configuration into Nix store
-2. **Profile Creation** - New generation symlink created under `/nix/var/nix/profiles/system`
-3. **Activation** - Symlinks are updated atomically to point to new generation
-4. **GRUB Update** - Boot menu updated with new entry
-5. **Service Restart** - System services restarted to use new configuration
-
-### Atomicity Guarantees
-
-The symlink-based approach ensures:
-- **No partial states** - Either old or new configuration, never in-between
-- **Safe rollback** - Previous generations remain intact and bootable
-- **No file conflicts** - Multiple configurations coexist in Nix store
-
-## Key Insights
-
-1. **Profiles are Symlink Trees** - All profile management is symlink manipulation, never file mutation
-2. **Generations are GC Roots** - Each generation symlink prevents garbage collection of its store paths
-3. **System Profile is Canonical** - `/nix/var/nix/profiles/system` is the source of truth for boot configurations
-4. **Atomic by Design** - Symlink updates are atomic, enabling safe upgrades and rollbacks
-5. **Command Ecosystem Evolution** - Multiple command interfaces (`nix-env`, `nix profile`, `nixos-rebuild`) with overlapping functionality
-
-## Related Research
-
-This is the first of four related research tasks:
-1. ✅ **NixOS system profiles** (this document)
-2. **Activation scripts** - How profiles are activated
-3. **Generation structure** - What's inside a system generation
-4. **Binary directory structure** - How binaries are organized in the Nix store
+- System profiles are essentially garbage collection roots
+- Each generation is a complete system closure
+- Old generations remain in store until garbage collected
+- Profile isolation prevents interference between users
+- Atomic upgrades via symlink switching
 
 ## Sources
 
 - [NixOS Manual](https://nixos.org/manual/nixos/stable/)
-- [Nix Profiles Reference](https://nix.dev/manual/nix/2.22/package-management/profiles)
-- [nix profile Command](https://releases.nixos.org/nix/nix-2.28.3/manual/command-ref/new-cli/nix3-profile.html)
-- [NixOS Discourse](https://discourse.nixos.org/t/list-and-delete-nixos-generations/29637)
+- [Nix Reference Manual - Profiles](https://nix.dev/manual/nix/2.22/package-management/profiles)
+- [nixos-rebuild - Official NixOS Wiki](https://wiki.nixos.org/wiki/Nixos-rebuild)
+- [NixOS System Configuration Wiki](https://wiki.nixos.org/wiki/NixOS_system_configuration)
+- [Nixpkgs Manual](https://nixos.org/nixpkgs/manual/)
