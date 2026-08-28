@@ -331,6 +331,9 @@ export {
   type RetryResult,
 } from "./utils/retry.js";
 
+// Environment variable parsing utilities
+export { parseEnvBool } from "./utils/env.js";
+
 // =============================================================================
 // Observability
 // =============================================================================
