@@ -22,7 +22,7 @@ This document provides detailed API reference documentation for all test helper 
 
 #### `createMockStation(overrides?)`
 
-Creates a mock subway station object with default properties.
+Creates a mock subway station object with default properties matching NYC subway GTFS data structure.
 
 **Signature:**
 ```typescript
@@ -30,28 +30,92 @@ function createMockStation(overrides?: Record<string, unknown>): Record<string, 
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial station properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
+- `overrides` (optional): Partial station properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults. Accepts any subset of Station properties:
+  - `id?: string` - GTFS station ID (3-digit codes like "725" for Times Square)
+  - `name?: string` - Station display name (e.g., "Times Square-42 St")
+  - `lat?: number` - Latitude coordinate (NYC range: 40.5-40.9)
+  - `lon?: number` - Longitude coordinate (NYC range: -74.3 to -73.7)
+  - `lines?: string[]` - Subway lines serving this station (e.g., ["1", "2", "3"])
+  - `northStopId?: string` - GTFS stop ID for northbound platform (typically `{id}N`)
+  - `southStopId?: string` - GTFS stop ID for southbound platform (typically `{id}S`)
+  - `transfers?: Transfer[]` - Array of transfer connections to other stations
+  - `ada?: boolean` - ADA wheelchair accessibility flag
+  - `borough?: string` - NYC borough (lowercase: manhattan, brooklyn, queens, bronx)
 
 **Returns:**
-- `Record<string, unknown>` object with properties:
-  - `id: string` - Station GTFS ID (default: `"725"`)
+- `Record<string, unknown>` object representing a complete NYC subway station:
+  - `id: string` - Station GTFS ID (default: `"725"` - Times Square)
   - `name: string` - Station name (default: `"Times Square-42 St"`)
   - `lat: number` - Latitude coordinate (default: `40.7589`)
   - `lon: number` - Longitude coordinate (default: `-73.9851`)
   - `lines: string[]` - Lines serving this station (default: `["1", "2", "3", "7", "N", "Q", "R", "W"]`)
-  - `northStopId: string` - Northbound stop ID (default: `"725N"`)
-  - `southStopId: string` - Southbound stop ID (default: `"725S"`)
+  - `northStopId: string` - Northbound platform stop ID (default: `"725N"`)
+  - `southStopId: string` - Southbound platform stop ID (default: `"725S"`)
   - `transfers: Transfer[]` - Transfer connections (default: `[]`)
-  - `ada: boolean` - ADA accessibility (default: `true`)
+  - `ada: boolean` - ADA accessible (default: `true`)
   - `borough: string` - NYC borough (default: `"manhattan"`)
 
-**Example:**
+**Usage Examples:**
+
 ```typescript
-// Basic usage - single station
+// Basic usage - single station with minimal overrides
 const station = createMockStation({
   id: "101",
   name: "South Ferry",
   lines: ["1"],
+  ada: true
+});
+
+// Create a Brooklyn station
+const brooklynStation = createMockStation({
+  id: "237",
+  name: "Atlantic Ave-Barclays Ctr",
+  lat: 40.6855,
+  lon: -73.9771,
+  lines: ["2", "3", "4", "5", "B", "D", "N", "Q", "R"],
+  borough: "brooklyn",
+  ada: true
+});
+
+// Create a transfer station with connections
+const transferStation = createMockStation({
+  id: "R20",
+  name: "Flushing-Main St",
+  lines: ["7"],
+  transfers: [
+    {
+      toStationId: "L16",
+      toLines: ["L"],
+      walkingSeconds: 420,
+      accessible: true
+    }
+  ]
+});
+
+// Create non-ADA accessible station
+const noAdaStation = createMockStation({
+  id: "D14",
+  name: "West 4 St",
+  lines: ["A", "B", "C", "D", "E", "F", "M"],
+  ada: false,
+  transfers: [
+    {
+      toStationId: "621",
+      toLines: ["1", "2", "3"],
+      walkingSeconds: 180,
+      accessible: false
+    }
+  ]
+});
+
+// Create Queens terminal station
+const queensStation = createMockStation({
+  id: "H03",
+  name: "Jamaica-179 St",
+  lat: 40.7577,
+  lon: -73.9311,
+  lines: ["E"],
+  borough: "queens",
   ada: true
 });
 
@@ -62,26 +126,160 @@ const station2 = createMockStation({
   lines: ["2", "3"]  // Replaces entire lines array, doesn't merge
 });
 // Result: id="102", name="Wall St", lines=["2","3"], lat=40.7589 (default preserved)
+```
 
-// Nested property override requires complete object replacement
-const station3 = createMockStation({
-  transfers: [{  // Replaces empty [] with new array
-    toStationId: "726",
-    toLines: ["A", "C"],
-    walkingSeconds: 300,
-    accessible: true
-  }]
+**Real-World NYC Station Patterns:**
+
+```typescript
+// Terminal stations (end of line)
+const terminalStation = createMockStation({
+  id: "101",
+  name: "South Ferry",
+  lines: ["1"],
+  transfers: [] // Terminal stations typically have no transfers
+});
+
+// Major transfer hubs (Times Square, Atlantic Ave, etc.)
+const transferHub = createMockStation({
+  id: "725",
+  name: "Times Square-42 St",
+  lines: ["1", "2", "3", "7", "N", "Q", "R", "W"],
+  transfers: [
+    { toStationId: "628", toLines: ["A", "C", "E"], walkingSeconds: 300, accessible: true },
+    { toStationId: "621", toLines: ["S"], walkingSeconds: 120, accessible: true }
+  ],
+  ada: true
+});
+
+// Express-only stations
+const expressStation = createMockStation({
+  id: "635",
+  name: "14 St",
+  lines: ["A", "C", "E", "L"], // No local 1/2/3 service
+  ada: true
+});
+
+// Borough-specific patterns
+const bronxStation = createMockStation({
+  id: "702",
+  name: "Fordham Rd",
+  lines: ["D", "4"],
+  borough: "bronx",
+  ada: true
 });
 ```
 
+**Common Testing Patterns:**
+
+```typescript
+// Test data setup for station search
+const searchResults = [
+  createMockStation({ id: "725", name: "Times Square" }),
+  createMockStation({ id: "726", name: "34 St-Penn Station" }),
+  createMockStation({ id: "727", name: "42 St-Port Authority" })
+];
+
+// Test arrival data with station context
+const timesSquare = createMockStation({
+  id: "725",
+  name: "Times Square-42 St",
+  lines: ["1", "2", "3"]
+});
+
+const arrivals = [
+  createMockArrival({ line: "1", destination: "South Ferry" }),
+  createMockArrival({ line: "2", destination: "Flatbush Ave" })
+];
+
+// Test favorites with station
+const favorite = createMockFavorite({
+  stationId: timesSquare.id,
+  stationName: timesSquare.name,
+  lines: ["1", "2", "3"]
+});
+
+// Test ADA accessibility filtering
+const adaStations = [
+  createMockStation({ id: "101", name: "South Ferry", ada: true }),
+  createMockStation({ id: "102", name: "Clark St", ada: false })
+].filter(s => s.ada);
+```
+
 **Edge Cases & Gotchas:**
+
 - **Override merging is shallow**: Uses spread syntax (`...overrides`), so nested objects/arrays are replaced, not merged
+  ```typescript
+  const station = createMockStation({ lines: ["1", "2"] });
+  // Result: lines=["1","2"], NOT ["1","2","3","7","N","Q","R","W"]
+  ```
+
 - **Lines array override**: Providing `lines` replaces the entire array - doesn't merge with defaults
+  ```typescript
+  // If you want to ADD lines, you must specify all of them
+  const bad = createMockStation({ lines: ["L"] });  // Only has L, lost all default lines
+  const good = createMockStation({ lines: ["7", "N", "Q", "R", "W", "L"] });  // Has all needed lines
+  ```
+
 - **Transfers structure**: If overriding `transfers`, must provide complete array with proper `Transfer` structure
-- **Station IDs**: Use real MTA GTFS station IDs for realistic tests (e.g., "725" for Times Square)
+  ```typescript
+  const transferStation = createMockStation({
+    transfers: [{
+      toStationId: "726",        // Required: target station GTFS ID
+      toLines: ["A", "C"],       // Required: lines available at transfer
+      walkingSeconds: 300,       // Optional: walking time in seconds
+      accessible: true           // Optional: ADA-compliant transfer path
+    }]
+  });
+  ```
+
+- **Station IDs**: Use real MTA GTFS station IDs for realistic tests
+  - Manhattan: `725` (Times Square), `726` (Penn Station), `621` (Grand Central)
+  - Brooklyn: `237` (Atlantic Ave), `R16` (Court St), `D14` (Pacific St)
+  - Queens: `H03` (Jamaica), `G05` (Court Sq), `R23` (Flushing)
+  - Bronx: `702` (Fordham Rd), `619` (161 St-Yankee Stadium)
+
 - **Coordinates**: `lat`/`lon` should be within NYC bounds for geolocation tests
+  - Manhattan: `lat: 40.70-40.88`, `lon: -74.02--73.92`
+  - Brooklyn: `lat: 40.57-40.70`, `lon: -74.04--73.83`
+  - Queens: `lat: 40.54-40.78`, `lon: -73.92--73.70`
+  - Bronx: `lat: 40.78-40.92`, `lon: -73.93--73.76`
+
+- **Stop ID conventions**: North/south stop IDs typically follow pattern `{stationId}N` and `{stationId}S`
+  - Override if testing stop-specific logic (e.g., platform-specific arrivals)
+
+- **Borough values**: Must use lowercase: `"manhattan"`, `"brooklyn"`, `"queens"`, `"bronx"`
+  - Used for borough-based filtering and analytics
+
 - **Type safety**: Returns `Record<string, unknown>`, not typed `Station` interface
+  - TypeScript won't enforce Station shape at compile time
+  - Use in tests where runtime validation or duck typing is acceptable
+
 - **Timestamp independence**: No timestamps in station objects - safe to use without time mocking
+  - Stations are static data - no `createdAt`, `updatedAt`, or temporal fields
+
+- **Transfer path accessibility**: Mark transfers as `accessible: false` to test ADA routing
+  ```typescript
+  const inaccessibleTransfer = createMockStation({
+    transfers: [{
+      toStationId: "726",
+      toLines: ["A", "C"],
+      walkingSeconds: 180,
+      accessible: false  // No elevator, stairs only
+    }]
+  });
+  ```
+
+- **Multiple line transfers**: A transfer can provide access to multiple lines
+  ```typescript
+  const multiLineTransfer = createMockStation({
+    transfers: [{
+      toStationId: "237",  // Atlantic Ave
+      toLines: ["2", "3", "4", "5", "B", "D", "N", "Q", "R"],  // 9 lines available
+      walkingSeconds: 300,
+      accessible: true
+    }]
+  });
+  ```
 
 ---
 
