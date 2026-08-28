@@ -1,193 +1,318 @@
 # Middleware Configuration Catalog
 
 ## Overview
-This document catalogs all middleware configuration files in the MTA My Way codebase, including where middleware is defined, registered, and how the middleware initialization chain works.
 
-## Main Middleware Directory
-**Location**: `/packages/server/src/middleware/`
+MTA My Way uses a comprehensive middleware architecture built on Hono. All middleware is centralized in `packages/server/src/middleware/` and exported through a barrel export file (`index.ts`).
 
-This directory contains all middleware modules. As of 2026-08-28, there are **82 middleware files** (excluding test files).
+## Core Structure
 
-## Middleware Export Aggregator
-**File**: `/packages/server/src/middleware/index.ts`
-
-This is the central export file that re-exports all middleware functions from individual modules. It contains:
-- 585 lines of exports
-- Exports all middleware functions, types, and utilities
-- Organized by functionality (authentication, security, validation, etc.)
-
-## Key Middleware Definitions
-
-### 1. optionalAuth
-**File**: `/packages/server/src/middleware/authentication.ts` (line 3025)
-
-**Function Signature**:
-```typescript
-export function optionalAuth(options: { allowSessions?: boolean } = {}): MiddlewareHandler
 ```
-
-**Purpose**: Optional authentication middleware that attaches auth context if credentials are provided, but doesn't require them. Useful for endpoints that have enhanced features for authenticated users.
-
-**Behavior**:
-- Parses Authorization header for API key authentication
-- Checks session cookies if `allowSessions: true`
-- Attaches `AuthContext` to `c.set("auth")` if authenticated
-- Continues to next middleware regardless of authentication status
-
-### 2. sessionSecurity
-**File**: `/packages/server/src/middleware/session-security.ts` (line 833)
-
-**Function Signature**:
-```typescript
-export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {})
+packages/server/src/
+├── middleware/
+│   ├── index.ts                          # Barrel exports - all middleware
+│   ├── authentication.ts                 # API key, session, OAuth, MFA
+│   ├── session-security.ts              # IP binding, device trust, risk assessment
+│   ├── authorization.ts                  # Resource-based access control
+│   ├── rbac.ts                          # Role-based access control
+│   ├── csrf-protection.ts               # CSRF token validation
+│   ├── security-headers.ts              # CSP, HSTS, X-Frame-Options
+│   ├── security-logging.ts              # Security event logging
+│   ├── rate-limiter.ts                  # Rate limiting (60 req/min default)
+│   ├── validation.ts                    # Request validation (body, query, params)
+│   ├── cors.ts                          # CORS configuration
+│   └── [70+ additional security middleware files]
+└── app.ts                               # Main application - middleware registration
 ```
-
-**Purpose**: Enhances session validation with risk assessment and additional security checks.
-
-**Behavior**:
-- Enforces IP binding (configurable, checks /24 subnet for IPv4, /64 for IPv6)
-- Validates User-Agent consistency
-- Assesses session risk score
-- Detects impossible travel scenarios
-- Updates device trust levels
 
 ## Middleware Registration Chain
 
-### Main Application Setup
-**File**: `/packages/server/src/app.ts`
+The middleware is registered in `app.ts` in a specific order (lines 430-607):
 
-The `createApp` function (lines 393-2444) registers middleware in the following order:
-
-#### Global Middleware (Applied to `*`)
-1. **requestId** (line 430) - Request ID for correlation
-2. **securityHeaders** (line 434) - CSP, X-Content-Type-Options, etc.
-3. **securityLogging** (line 443) - Security event logging
-4. **httpMethodRestrictions** (line 447) - Blocks dangerous methods
-5. **httpRequestSmuggling** (line 451) - Request smuggling protection
-6. **httpResponseSplitting** (line 455) - CRLF injection protection
-7. **hostHeaderProtection** (line 463) - Host header validation
+### Phase 1: Global Infrastructure (All Routes)
+1. **requestId** (line 430) - Request correlation ID
+2. **securityHeaders** (line 434) - CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+3. **securityLogging** (line 443) - Logs auth failures, rate limit exceeded, blocked attacks
+4. **httpMethodRestrictions** (line 447) - Blocks TRACE, CONNECT
+5. **httpRequestSmuggling** (line 451) - Detects request smuggling attempts
+6. **httpResponseSplitting** (line 455) - Detects CRLF injection
+7. **hostHeaderProtection** (line 463) - Cache poisoning prevention
 8. **tracingMiddleware** (line 475) - Distributed tracing
 9. **requestSizeLimits** (line 478) - DoS protection
 10. **pathTraversalPrevention** (line 482) - Directory traversal protection
 
-#### API-Specific Middleware (Applied to `/api/*`)
+### Phase 2: API-Specific Middleware (/api/*)
 11. **inputSanitization** (line 485) - XSS, SQL injection prevention
-12. **ssrfProtection** (line 490) - SSRF prevention
+12. **ssrfProtection** (line 490) - Server-Side Request Forgery prevention
 13. **validateContentType** (line 494) - Content-Type validation
-14. **jsonDepthProtection** (line 498) - JSON depth DoS protection
-15. **massAssignmentProtection** (line 539) - Mass assignment prevention
-16. **optionalAuth({ allowSessions: true })** (line 544) - Optional authentication
-17. **sessionSecurity()** (line 548) - Session security validation
-18. **csrfProtection** (line 555) - CSRF token validation
-19. **hppProtection** (line 582) - HTTP parameter pollution protection
-20. **openRedirectProtection** (line 586) - Open redirect prevention
-21. **massAssignmentProtection** (line 591) - Additional mass assignment prevention
-22. **httpMetrics** (line 594) - HTTP metrics collection
-23. **rateLimiter** (line 597) - Rate limiting (60 req/min)
-24. **responseSizeLimits** (line 604) - Response size limits
-25. **compressionMiddleware** (line 607) - Brotli/gzip/deflate compression
+14. **jsonDepthProtection** (line 498) - Prevents DoS via deeply nested JSON
+15. **massAssignmentProtection** (line 539) - OWASP A08 protection
+16. **optionalAuth** (line 544) - Parses Authorization header, sets auth context
+17. **sessionSecurity** (line 548) - Enhanced session validation
+18. **csrfProtection** (line 556) - CSRF token validation (state-changing ops)
+19. **hppProtection** (line 582) - Parameter pollution protection
+20. **openRedirectProtection** (line 586) - Blocks malicious redirects
+21. **httpMetrics** (line 594) - Prometheus metrics collection
+22. **rateLimiter** (line 597) - 60 req/min per IP
+23. **responseSizeLimits** (line 604) - DoS protection
+24. **compressionMiddleware** (line 607) - Brotli/gzip/deflate
 
-## Route-Specific Middleware
+## Key Middleware Files
 
-### Password Reset Routes
-**File**: `/packages/server/src/routes/password-reset.routes.ts`
+### 1. sessionSecurity (`middleware/session-security.ts`)
 
-**Function**: `buildPasswordResetRoutes()` (lines 675-707)
+**Location:** `/home/coding/mta-my-way/packages/server/src/middleware/session-security.ts`
 
-Applies additional middleware to password reset endpoints:
-- `authRateLimit("strict")` - Strict rate limiting (5 req/min)
-- `requireCaptcha` - CAPTCHA after rate limit violations
+**Purpose:** Enhanced session security with risk assessment and advanced security checks
+
+**Key Functions:**
+- `sessionSecurity(options)` - Main middleware function (line 833)
+- `assessSessionRisk()` - Risk scoring (0-100) based on IP, UA, session age (line 455)
+- `parseIpAddress()` - IP parsing and classification (line 153)
+- `areIpsInSameSubnet()` - Subnet matching (line 216)
+- `analyzeUserAgent()` - User agent analysis (line 316)
+- `calculateUserAgentSimilarity()` - UA similarity scoring (line 384)
+- `detectImpossibleTravel()` - Impossible travel detection (line 738)
+- `getOrCreateDeviceTrust()` - Device trust management (line 635)
+- `updateDeviceTrust()` - Trust promotion (line 664)
+- `calculateDistance()` - Haversine distance calculation (line 789)
+
+**Security Features:**
+- IP binding enforcement (IPv4 /24, IPv6 /64)
+- User-Agent change detection
+- Session risk assessment (0-100 score)
+- Device trust levels (unknown, untrusted, trusted, highly_trusted)
+- Impossible travel detection
+- Session age and idle time checks
+
+**Options:**
+```typescript
+interface SessionSecurityMiddlewareOptions {
+  enforceIpBinding?: boolean;        // Default: true
+  checkUserAgent?: boolean;          // Default: true
+  riskThreshold?: number;             // 0-100
+  reauthOnHighRisk?: boolean;        // Default: true
+}
+```
+
+**Risk Levels:**
+- 0-19: low (allow)
+- 20-49: medium (monitor)
+- 50-79: high (challenge/re-auth)
+- 80-100: critical (block)
+
+### 2. optionalAuth (`middleware/authentication.ts`)
+
+**Location:** `/home/coding/mta-my-way/packages/server/src/middleware/authentication.ts`
+
+**Purpose:** Optional authentication that attaches auth context if credentials provided, but doesn't require them
+
+**Key Functions:**
+- `optionalAuth(options)` - Main middleware function (line 3025)
+- `apiKeyAuth()` - Required API key authentication (line 2244)
+- `signedRequestAuth()` - HMAC signature verification (line 2547)
+- `getAuthContext()` - Retrieve auth context (line 3109)
+- `isAuthenticated()` - Check authentication status (line 3116)
+- `requireScope()` - Require specific permission scope (line 3123)
+
+**Options:**
+```typescript
+{
+  allowSessions?: boolean;  // Default: true
+}
+```
+
+**Authentication Flow:**
+1. First tries session authentication (if `allowSessions: true`)
+2. Falls back to API key authentication
+3. Attaches `AuthContext` to Hono context if successful
+4. Always calls `next()` - never blocks requests
+
+**AuthContext Structure:**
+```typescript
+interface AuthContext {
+  keyId: string;
+  scope: ApiKeyScope;          // "read" | "write" | "admin"
+  role?: UserRole;             // "admin" | "user" | "guest"
+  additionalPermissions?: Permission[];
+  sessionId?: string;
+  rateLimitTier: number;
+  authMethod: "session" | "api_key";
+  oauthProvider?: string;
+  mfaVerified?: boolean;
+}
+```
+
+### 3. Middleware Index Barrel (`middleware/index.ts`)
+
+**Location:** `/home/coding/mta-my-way/packages/server/src/middleware/index.ts`
+
+**Purpose:** Central export point for all middleware (586 lines)
+
+**Key Export Categories:**
+
+#### Core Infrastructure
+- `requestId` - Request correlation IDs
+- `rateLimiter` - Rate limiting
+- `securityHeaders` - Security headers
+
+#### Validation
+- `validateBody`, `validateQuery`, `validateParams` - Request validation
+- `validateContentType` - Content-Type validation
+
+#### Authentication & Session
+- `optionalAuth` - Optional authentication
+- `apiKeyAuth` - Required API key auth
+- `sessionSecurity` - Enhanced session validation
+- `csrfProtection` - CSRF protection
+- `createSession` - Session creation
+- `invalidateSession` - Session invalidation
+
+#### Authorization
+- `requirePermission` - RBAC permission check
+- `requireResourceAccess` - Resource-based access control
+- `requireSameOrigin` - Same-origin enforcement
 - `auditLogAccess` - Audit logging
-- `requireResourceAccess` - Resource authorization
 
-### Preferences Routes
-**File**: `/packages/server/src/routes/preferences.routes.ts`
+#### Security Protections
+- `inputSanitization` - Input sanitization
+- `pathTraversalPrevention` - Path traversal prevention
+- `ssrfProtection` - SSRF prevention
+- `hostHeaderProtection` - Host header validation
+- `httpMethodRestrictions` - HTTP method filtering
+- `httpRequestSmuggling` - Request smuggling detection
+- `httpResponseSplitting` - Response splitting detection
+- `hppProtection` - Parameter pollution protection
+- `openRedirectProtection` - Open redirect protection
+- `massAssignmentProtection` - Mass assignment prevention
+- `jsonDepthProtection` - JSON depth limiting
+- `responseSizeLimits` - Response size limiting
 
-**Function**: `buildPreferencesRoutes()` (lines 55-152)
+#### CORS & Caching
+- `cors` - CORS configuration
+- `staticCache`, `apiCache`, `noCache` - Cache control
 
-Implements session-only authentication:
-- Validates `authMethod === "session"` (no API key access)
-- Requires authenticated session for preference sync
-- Provides session status and revocation endpoints
+#### Utility
+- `getClientIp` - Client IP extraction
+- `getUserAgent` - User agent extraction
+- `generateApiKey`, `hashApiKey` - API key management
 
-## Middleware Initialization Order
+## Middleware Usage in app.ts
 
-The middleware chain executes in the following order for a typical API request:
+### Registration Pattern
+```typescript
+// Global middleware (all routes)
+app.use("*", requestId);
+app.use("*", securityHeaders({ reportUri: "/api/security/csp-report" }));
 
-1. **Pre-authentication Security**
-   - Request ID generation
-   - Security headers injection
-   - Security logging initialization
-   - HTTP method validation
-   - Request/response smuggling prevention
-   - Host header validation
-   - Tracing setup
-   - Request size validation
-   - Path traversal checks
+// API-specific middleware
+app.use("/api/*", inputSanitization());
+app.use("/api/*", optionalAuth({ allowSessions: true }));
+app.use("/api/*", sessionSecurity());
 
-2. **API-specific Security**
-   - Input sanitization
-   - SSRF protection
-   - Content type validation
-   - JSON depth validation
-   - Mass assignment protection
+// Route-specific middleware
+app.post("/api/commute/analyze",
+  requireResourceAccess("commute", "create"),
+  requirePermission("commutes:create" as Permission),
+  auditLogAccess("commute", "create"),
+  async (c) => { /* handler */ }
+);
+```
 
-3. **Authentication & Session**
-   - **optionalAuth** - Parses credentials, sets auth context
-   - **sessionSecurity** - Validates session security
-   - CSRF protection
+### Middleware Ordering Dependencies
 
-4. **Post-authentication Security**
-   - HPP protection
-   - Open redirect protection
-   - Additional mass assignment protection
-   - Metrics collection
-   - Rate limiting
-   - Response size limits
+**Critical Ordering:**
+1. `requestId` MUST run before `securityLogging` (needs correlation ID)
+2. `optionalAuth` MUST run before `sessionSecurity` (sets auth context)
+3. `sessionSecurity` MUST run before `csrfProtection` (validates session first)
+4. `/api/security/csp-report` MUST be registered before `massAssignmentProtection` (accepts nested objects)
+5. Validation middleware (`validateBody`, `validateQuery`, `validateParams`) must be called explicitly in route handlers
 
-5. **Response Processing**
-   - Compression (brotli/gzip/deflate)
+## Complete Middleware File List
 
-## Key Design Principles
+### Authentication & Authorization (8 files)
+- `authentication.ts` - API keys, sessions, OAuth, MFA
+- `authorization.ts` - Resource-based access control
+- `rbac.ts` - Role-based access control
+- `enhanced-authorization.ts` - Enhanced authorization
+- `enhanced-authentication.ts` - Enhanced authentication
+- `authorization-security.ts` - Time/location-based access
+- `api-key-management.ts` - API key CRUD operations
+- `admin-operations.ts` - Admin-specific operations
 
-1. **Defense in Depth**: Multiple layers of security middleware
-2. **Fail-Safe**: Security middleware defaults to safe behavior
-3. **Optional Auth**: Anonymous access preserved for core features
-4. **Session-Only Routes**: Preferences API enforces session authentication
-5. **Rate Limiting**: Strict limits on sensitive operations (password reset)
-6. **Audit Logging**: All privileged operations are logged
-7. **CSP Reporting**: Dedicated endpoint for CSP violations (registered before mass assignment)
+### Session Management (3 files)
+- `session-security.ts` - IP binding, device trust, risk assessment
+- `concurrent-session-management.ts` - Multi-session handling
+- `cookie-security.ts` - Secure cookie handling
 
-## Middleware Configuration Files Summary
+### Security Protections (15 files)
+- `csrf-protection.ts` - CSRF token validation
+- `security-headers.ts` - CSP, HSTS, security headers
+- `security-logging.ts` - Security event logging
+- `rate-limiter.ts` - Rate limiting
+- `auth-rate-limit.ts` - Auth-specific rate limiting
+- `input-sanitization.ts` - XSS, SQL injection prevention
+- `mass-assignment.ts` - Mass assignment protection
+- `ssrf-protection.ts` - SSRF prevention
+- `open-redirect.ts` - Open redirect protection
+- `path-traversal.ts` - Path traversal prevention
+- `json-depth-protection.ts` - JSON depth limiting
+- `host-header-protection.ts` - Host header validation
+- `http-method-restrictions.ts` - HTTP method filtering
+- `http-request-smuggling.ts` - Request smuggling detection
+- `http-response-splitting.ts` - Response splitting detection
 
-| File | Purpose | Lines |
-|------|---------|-------|
-| `middleware/index.ts` | Central export aggregator | 585 |
-| `middleware/authentication.ts` | API key, session, optionalAuth | 3,300+ |
-| `middleware/session-security.ts` | Session security, risk assessment | 950+ |
-| `middleware/authorization.ts` | RBAC, permissions | 620+ |
-| `middleware/csrf-protection.ts` | CSRF token validation | 400+ |
-| `middleware/rate-limiter.ts` | Rate limiting | 170+ |
-| `middleware/security-headers.ts` | CSP, security headers | 550+ |
-| `middleware/password-management.ts` | Password policy, hashing | 1,800+ |
-| `app.ts` | Middleware registration | 3,100+ |
-| `routes/password-reset.routes.ts` | Route-specific middleware | 700+ |
-| `routes/preferences.routes.ts` | Preferences API middleware | 150+ |
+### HTTP Security (5 files)
+- `cors.ts` - CORS configuration
+- `header-validation.ts` - Header validation
+- `parameter-pollution.ts` - HPP protection
+- `content-type.ts` - Content-Type validation
+- `request-limits.ts` - Request size limits
 
-## Acceptance Criteria Status
+### Cryptography (3 files)
+- `token-encryption.ts` - Token encryption/decryption
+- `enhanced-jwt-security.ts` - JWT validation with compromise detection
+- `jwt-validation.ts` - JWT validation
+- `subresource-integrity.ts` - SRI hash generation
 
-✅ All middleware configuration files identified
-✅ File paths and structure documented  
-✅ Clear understanding of where middleware is registered
-✅ Middleware initialization chain mapped
-✅ sessionSecurity definition located and documented
-✅ optionalAuth definition located and documented
-✅ Ready to verify specific middleware configurations
+### Validation (3 files)
+- `validation.ts` - Request validation (body, query, params)
+- `sanitization.ts` - Input sanitization
+- `captcha.ts` - CAPTCHA verification
 
-## Next Steps
+### Audit & Logging (3 files)
+- `audit-log.ts` - Audit logging
+- `structured-audit-log.ts` - Structured audit events
+- `suspicious-activity-notifications.ts` - Security event notifications
 
-This catalog provides the foundation for:
-1. Verifying specific middleware configurations (e.g., sessionSecurity options)
-2. Adding new middleware to the chain
-3. Understanding middleware interaction and ordering
-4. Debugging middleware-related issues
+### Utility & Infrastructure (8 files)
+- `request-id.ts` - Request correlation IDs
+- `cache.ts` - Cache control headers
+- `response-size-limits.ts` - Response size limiting
+- `metrics.ts` - Prometheus metrics
+- `roles.ts` - Role definitions
+- `dependency-security.ts` - Dependency vulnerability scanning
+- `password-management.ts` - Password policies & hashing
+- `dynamic-rbac-cache.ts` - RBAC caching
+
+### Documentation
+- `SESSION_MIDDLEWARE_VERIFICATION.md` - Session middleware verification report
+
+## Summary
+
+**Total Middleware Files:** 70+ TypeScript files
+
+**Registration Point:** `packages/server/src/app.ts` (lines 430-607)
+
+**Export Point:** `packages/server/src/middleware/index.ts` (586 lines)
+
+**Key Middleware:**
+- `sessionSecurity` - Enhanced session validation with risk assessment
+- `optionalAuth` - Optional authentication for enhanced features
+- 70+ additional security middleware covering OWASP Top 10 and more
+
+**Middleware Chain:**
+1. Global infrastructure (all routes)
+2. API-specific protections (/api/*)
+3. Route-specific authorization (individual endpoints)
+
+The middleware architecture provides defense-in-depth security with comprehensive logging, audit trails, and risk assessment capabilities.
