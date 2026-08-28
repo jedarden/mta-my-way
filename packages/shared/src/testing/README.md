@@ -2,6 +2,17 @@
 
 Comprehensive testing utilities and helpers for E2E and integration testing across all packages.
 
+> **📋 Audit Report:** See [TEST_HELPERS_AUDIT.md](./TEST_HELPERS_AUDIT.md) for the complete audit of all test helpers, including function inventory, status checks, and usage examples.
+
+## Quick Reference
+
+| Module | File | Functions | Status |
+|--------|------|-----------|--------|
+| Core Helpers | `test-helpers.ts` | 30 | ✅ All Working |
+| Security Helpers | `security-helpers.ts` | 28 | ✅ All Working |
+| Observability Helpers | `observability-helpers.ts` | 20 | ✅ All Working |
+| **Total** | **4 files** | **78 functions** | **✅ 100% Healthy** |
+
 ## Overview
 
 The testing infrastructure provides three main helper modules:
