@@ -26,14 +26,14 @@ Creates a mock subway station object with default properties.
 
 **Signature:**
 ```typescript
-function createMockStation(overrides?: Partial<Station>): Station
+function createMockStation(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial station properties to override defaults
+- `overrides` (optional): Partial station properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `Station` object with properties:
+- `Record<string, unknown>` object with properties:
   - `id: string` - Station GTFS ID (default: `"725"`)
   - `name: string` - Station name (default: `"Times Square-42 St"`)
   - `lat: number` - Latitude coordinate (default: `40.7589`)
@@ -47,18 +47,41 @@ function createMockStation(overrides?: Partial<Station>): Station
 
 **Example:**
 ```typescript
+// Basic usage - single station
 const station = createMockStation({
   id: "101",
   name: "South Ferry",
   lines: ["1"],
   ada: true
 });
+
+// Override merging - shallow merge via spread syntax
+const station2 = createMockStation({
+  id: "102",
+  name: "Wall St",
+  lines: ["2", "3"]  // Replaces entire lines array, doesn't merge
+});
+// Result: id="102", name="Wall St", lines=["2","3"], lat=40.7589 (default preserved)
+
+// Nested property override requires complete object replacement
+const station3 = createMockStation({
+  transfers: [{  // Replaces empty [] with new array
+    toStationId: "726",
+    toLines: ["A", "C"],
+    walkingSeconds: 300,
+    accessible: true
+  }]
+});
 ```
 
-**Edge Cases:**
-- If overriding `lines`, ensure line IDs are valid MTA line identifiers
-- `lat`/`lon` should be within NYC bounds for realistic tests
-- `transfers` array should have proper `Transfer` structure with `toStationId`, `toLines`, `walkingSeconds`, `accessible`
+**Edge Cases & Gotchas:**
+- **Override merging is shallow**: Uses spread syntax (`...overrides`), so nested objects/arrays are replaced, not merged
+- **Lines array override**: Providing `lines` replaces the entire array - doesn't merge with defaults
+- **Transfers structure**: If overriding `transfers`, must provide complete array with proper `Transfer` structure
+- **Station IDs**: Use real MTA GTFS station IDs for realistic tests (e.g., "725" for Times Square)
+- **Coordinates**: `lat`/`lon` should be within NYC bounds for geolocation tests
+- **Type safety**: Returns `Record<string, unknown>`, not typed `Station` interface
+- **Timestamp independence**: No timestamps in station objects - safe to use without time mocking
 
 ---
 
@@ -68,14 +91,14 @@ Creates a mock subway route object.
 
 **Signature:**
 ```typescript
-function createMockRoute(overrides?: Partial<Route>): Route
+function createMockRoute(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial route properties to override defaults
+- `overrides` (optional): Partial route properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `Route` object with properties:
+- `Record<string, unknown>` object with properties:
   - `id: string` - Route GTFS ID (default: `"1"`)
   - `shortName: string` - Short route name (default: `"1"`)
   - `longName: string` - Full route name (default: `"Broadway-7th Ave Local"`)
@@ -88,18 +111,39 @@ function createMockRoute(overrides?: Partial<Route>): Route
 
 **Example:**
 ```typescript
+// Create an express route
 const expressRoute = createMockRoute({
   id: "2",
   shortName: "2",
   longName: "7th Ave Express",
-  isExpress: true
+  isExpress: true,
+  color: "#EE352E"  // Same color as 1 train
+});
+
+// Create a route with custom stops
+const localRoute = createMockRoute({
+  id: "1",
+  stops: ["725", "726", "727", "728", "729", "730"]  // Times Square to 14 St
+});
+
+// Override division for IND/BMT lines
+const indRoute = createMockRoute({
+  id: "A",
+  shortName: "A",
+  longName: "8 Ave Express",
+  division: "B",  // IND division
+  color: "#0039A6"
 });
 ```
 
-**Edge Cases:**
-- Express routes should have `isExpress: true` and different color/branch
-- `stops` array should contain valid station IDs
-- `color` should be a valid hex color code
+**Edge Cases & Gotchas:**
+- **Stops array**: Providing `stops` replaces the entire array - use real station IDs from GTFS data
+- **Express vs Local**: Set `isExpress: true` for express routes - affects UI rendering and trip planning
+- **Color codes**: Use official MTA line colors for consistency (1: `#EE352E`, A: `#0039A6`, etc.)
+- **Division codes**: `"A"` = IRT, `"B"` = IND/BMT - affects some system behaviors
+- **Route IDs**: Must match GTFS route IDs (numeric for IRT, letters for IND/BMT)
+- **Override merging**: Shallow merge - nested arrays (stops) are completely replaced
+- **Type safety**: Returns `Record<string, unknown>`, not typed `Route` interface
 
 ---
 
@@ -109,17 +153,17 @@ Creates a mock train arrival object.
 
 **Signature:**
 ```typescript
-function createMockArrival(overrides?: Partial<Arrival>): Arrival
+function createMockArrival(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial arrival properties to override defaults
+- `overrides` (optional): Partial arrival properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `Arrival` object with properties:
+- `Record<string, unknown>` object with properties:
   - `line: string` - Line identifier (default: `"1"`)
   - `direction: "N" | "S"` - Direction (default: `"N"`)
-  - `arrivalTime: number` - Unix timestamp (default: `Date.now() + 120000`)
+  - `arrivalTime: number` - Unix timestamp (default: `Date.now() + 120000` = 2 minutes from now)
   - `minutesAway: number` - Minutes until arrival (default: `2`)
   - `isAssigned: boolean` - Trip assignment status (default: `true`)
   - `isRerouted: boolean` - Reroute status (default: `false`)
@@ -131,19 +175,46 @@ function createMockArrival(overrides?: Partial<Arrival>): Arrival
 
 **Example:**
 ```typescript
+// Create a southbound arrival
 const arrival = createMockArrival({
   line: "A",
   direction: "S",
   minutesAway: 5,
   confidence: "medium"
 });
+
+// Create an arrival with custom destination
+const arrival2 = createMockArrival({
+  line: "2",
+  destination: "New Lots Ave",
+  minutesAway: 12
+});
+
+// Create a low-confidence arrival (stale data)
+const staleArrival = createMockArrival({
+  line: "1",
+  confidence: "low",
+  feedAge: 45,  // 45 seconds old
+  arrivalTime: Date.now() + 60000  // 1 minute away
+});
+
+// Create an unassigned trip
+const unassigned = createMockArrival({
+  isAssigned: false,
+  tripId: "unassigned_trip"
+});
 ```
 
-**Edge Cases:**
-- `arrivalTime` should be >= current time for future arrivals
-- `feedAge` should be realistic (< 60 seconds for live data)
-- `confidence` affects UI display - `"low"` may show warnings
-- `direction` must be exactly `"N"` or `"S"` (literal type)
+**Edge Cases & Gotchas:**
+- **Timestamp coupling**: `arrivalTime` uses `Date.now()` at call time - not stable across tests unless time is mocked
+- **Time inconsistency**: `minutesAway` and `arrivalTime` can become inconsistent - ensure they match if overriding both
+- **Direction type**: Must be literal type `"N"` or `"S"` - string values like `"north"` will fail type checks
+- **Confidence levels**: `"low"` confidence may trigger UI warnings or different display behavior
+- **Feed age**: Should be < 60 seconds for realistic live data; > 60s suggests stale feed
+- **Trip assignments**: `isAssigned: false` means trip ID is unreliable (train not yet assigned by dispatch)
+- **Rerouted trains**: Set `isRerouted: true` to simulate trains on different tracks than usual
+- **Destination names**: Use real MTA destination names for realism (e.g., "Van Cortlandt Park", "New Lots Ave")
+- **Type safety**: Returns `Record<string, unknown>`, not typed `Arrival` interface
 
 ---
 
@@ -153,22 +224,73 @@ Creates a mock service alert object.
 
 **Signature:**
 ```typescript
-function createMockAlert(overrides?: Partial<Alert>): Alert
+function createMockAlert(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial alert properties to override defaults
+- `overrides` (optional): Partial alert properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `Alert` object with properties:
+- `Record<string, unknown>` object with properties:
   - `id: string` - Alert unique ID (default: `"alert_123"`)
   - `severity: "info" | "warning" | "severe"` - Alert level (default: `"warning"`)
   - `headline: string` - Alert headline (default: `"Delays on 1 train"`)
-  - `description: string` - Full description (default: `"1 trains running with delays..."`)
+  - `description: string` - Full description (default: `"1 trains running with delays due to signal problems"`)
   - `affectedLines: string[]` - Lines impacted (default: `["1"]`)
-  - `activePeriod: { start: number, end: number }` - Active window
+  - `activePeriod: { start: number, end: number }` - Active window with start/end timestamps
   - `cause: string` - GTFS cause code (default: `"SIGNAL_PROBLEM"`)
   - `effect: string` - GTFS effect code (default: `"DELAY"`)
+
+**Example:**
+```typescript
+// Create a severe service suspension
+const suspension = createMockAlert({
+  id: "alert_suspension",
+  severity: "severe",
+  headline: "No 1 train service",
+  description: "No 1 train service between 14 St and Chambers St due to signal problems",
+  affectedLines: ["1"],
+  cause: "SIGNAL_PROBLEM",
+  effect: "SUSPENDED"
+});
+
+// Create a planned work alert
+const plannedWork = createMockAlert({
+  id: "alert_planned",
+  severity: "info",
+  headline: "Planned Work",
+  description: "1 trains run local in both directions due to track maintenance",
+  affectedLines: ["1", "2", "3"],
+  activePeriod: {
+    start: Date.now() + 86400000,  // Starts tomorrow
+    end: Date.now() + 172800000     // Ends in 2 days
+  },
+  cause: "CONSTRUCTION",
+  effect: "SIGNIFICANT_DELAYS"
+});
+
+// Create an active delay
+const activeDelay = createMockAlert({
+  severity: "warning",
+  headline: "Delays",
+  affectedLines: ["A", "C"],
+  activePeriod: {
+    start: Date.now() - 3600000,   // Started 1 hour ago
+    end: Date.now() + 3600000      // Ends in 1 hour
+  }
+});
+```
+
+**Edge Cases & Gotchas:**
+- **Timestamp coupling**: `activePeriod.start` and `activePeriod.end` use `Date.now()` at call time - not stable across tests
+- **Active window logic**: Start can be in past (already active) or future (scheduled); end must be > start
+- **Severity affects UI**: `"severe"` alerts may trigger notifications, banners, or special UI treatment
+- **Affected lines array**: Providing `affectedLines` replaces entire array - doesn't merge with defaults
+- **GTFS codes**: Use valid GTFS cause codes (SIGNAL_PROBLEM, CONSTRUCTION, POLICE_ACTIVITY, etc.)
+- **GTFS effects**: Use valid GTFS effect codes (DELAY, SUSPENDED, SIGNIFICANT_DELAYS, etc.)
+- **Multiple lines**: Can alert multiple lines simultaneously - useful for corridor-wide issues
+- **Override merging**: Nested `activePeriod` object is replaced entirely, not merged
+- **Type safety**: Returns `Record<string, unknown>`, not typed `Alert` interface
 
 **Example:**
 ```typescript
@@ -194,18 +316,18 @@ const severeAlert = createMockAlert({
 
 #### `createMockFavorite(overrides?)`
 
-Creates a mock favorite station object.
+Creates a mock favorite station object for user quick access.
 
 **Signature:**
 ```typescript
-function createMockFavorite(overrides?: Partial<Favorite>): Favorite
+function createMockFavorite(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial favorite properties to override defaults
+- `overrides` (optional): Partial favorite properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `Favorite` object with properties:
+- `Record<string, unknown>` object with properties:
   - `id: string` - Favorite unique ID (default: `"fav_123"`)
   - `stationId: string` - Station GTFS ID (default: `"725"`)
   - `stationName: string` - Station name (default: `"Times Square-42 St"`)
@@ -216,78 +338,141 @@ function createMockFavorite(overrides?: Partial<Favorite>): Favorite
 
 **Example:**
 ```typescript
-const favorite = createMockFavorite({
+// Create a home favorite with northbound only
+const home = createMockFavorite({
+  id: "fav_home",
   stationId: "101",
   stationName: "South Ferry",
   label: "Home",
   direction: "N",
-  sortOrder: 1
+  sortOrder: 0,
+  lines: ["1"]
+});
+
+// Create a work favorite with all directions
+const work = createMockFavorite({
+  id: "fav_work",
+  stationId: "725",
+  stationName: "Times Square-42 St",
+  label: "Work",
+  direction: "both",
+  sortOrder: 1,
+  lines: ["1", "2", "3", "7", "N", "Q", "R", "W"]
+});
+
+// Create a favorite with specific lines only
+const selective = createMockFavorite({
+  stationId: "726",
+  stationName: "34 St-Penn Station",
+  label: "Penn Station",
+  direction: "both",
+  lines: ["A", "C", "E"]  // Only ACE lines, not 1/2/3
+});
+
+// Override sortOrder to change display priority
+const priority = createMockFavorite({
+  label: "Gym",
+  sortOrder: -1  // Shows first (lower = higher priority)
 });
 ```
 
-**Edge Cases:**
-- `direction` must be literal type `"N"`, `"S"`, or `"both"`
-- `sortOrder` affects display order (lower = higher priority)
-- `lines` array should be subset of station's available lines
+**Edge Cases & Gotchas:**
+- **Direction type**: Must be literal type `"N"`, `"S"`, or `"both"` - string values like `"north"` will fail type checks
+- **Sort order**: Lower numbers display first (higher priority); can be negative for top priority
+- **Lines filtering**: `lines` array filters which lines to show - should be subset of station's available lines
+- **Station consistency**: `stationId` and `stationName` should match real GTFS data
+- **Direction filtering**: `"N"` shows only northbound, `"S"` only southbound, `"both"` shows both
+- **Override merging**: Providing `lines` replaces entire array - doesn't merge with defaults
+- **Duplicate labels**: Multiple favorites can have same label (not unique constraint in mock)
+- **Type safety**: Returns `Record<string, unknown>`, not typed `Favorite` interface
+- **Display ordering**: UI sorts by `sortOrder` ascending, then by `label` alphabetically
 
 ---
 
 #### `createMockCommute(overrides?)`
 
-Creates a mock commute object.
+Creates a mock commute object for trip planning and transfer suggestions.
 
 **Signature:**
 ```typescript
-function createMockCommute(overrides?: Partial<Commute>): Commute
+function createMockCommute(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial commute properties to override defaults
+- `overrides` (optional): Partial commute properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `Commute` object with properties:
+- `Record<string, unknown>` object with properties:
   - `id: string` - Commute unique ID (default: `"commute_123"`)
   - `name: string` - Commute name (default: `"Work"`)
-  - `origin: Station` - Origin station (uses `createMockStation()`)
-  - `destination: Station` - Destination station (uses `createMockStation()`)
+  - `origin: Station` - Origin station (uses `createMockStation()` internally)
+  - `destination: Station` - Destination station (uses `createMockStation()` internally)
   - `preferredLines: string[]` - Preferred lines (default: `["1", "2", "3"]`)
   - `enableTransferSuggestions: boolean` - Transfer hints (default: `true`)
 
 **Example:**
 ```typescript
+// Create a simple commute with defaults
 const commute = createMockCommute({
+  name: "Home to Office"
+});
+
+// Create a commute with custom stations
+const customCommute = createMockCommute({
   name: "Home to Office",
   origin: createMockStation({ id: "101", name: "South Ferry" }),
   destination: createMockStation({ id: "725", name: "Times Square" }),
   preferredLines: ["1"]
 });
+
+// Create a commute without transfer suggestions
+const noTransfers = createMockCommute({
+  name: "Direct Route",
+  enableTransferSuggestions: false,
+  preferredLines: ["1"]
+});
+
+// Create a commute with multiple preferred lines
+const multiLine = createMockCommute({
+  name: "Multi-Line Commute",
+  origin: createMockStation({ id: "726", name: "34 St-Penn Station" }),
+  destination: createMockStation({ id: "101", name: "South Ferry" }),
+  preferredLines: ["1", "2", "3", "A", "C"],
+  enableTransferSuggestions: true
+});
 ```
 
-**Edge Cases:**
-- `origin` and `destination` should be valid station objects
-- `preferredLines` should include lines actually serving the stations
-- `enableTransferSuggestions` affects transfer recommendations
+**Edge Cases & Gotchas:**
+- **Station object creation**: Default origin/destination use `createMockStation()` internally - always valid station objects
+- **Station consistency**: When providing custom stations, ensure `id` and `name` match real GTFS data
+- **Preferred lines**: Should include lines that actually serve both origin and destination stations
+- **Transfer suggestions**: `enableTransferSuggestions: true` enables transfer recommendation features in UI
+- **Line selection**: `preferredLines` affects which routes are prioritized in trip planning
+- **Override merging**: Providing `origin` or `destination` replaces entire station object (not merged)
+- **Same station**: Can create commutes where origin equals destination (edge case for testing)
+- **Type safety**: Returns `Record<string, unknown>`, not typed `Commute` interface
+- **Nested objects**: `origin` and `destination` are full station objects with all station properties
 
 ---
 
 #### `createMockTripRecord(overrides?)`
 
-Creates a mock historical trip record.
+Creates a mock historical trip record for trip history and analytics.
 
 **Signature:**
 ```typescript
-function createMockTripRecord(overrides?: Partial<TripRecord>): TripRecord
+function createMockTripRecord(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial trip record properties to override defaults
+- `overrides` (optional): Partial trip record properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `TripRecord` object with properties:
+- `Record<string, unknown>` object with properties:
   - `id: string` - Trip unique ID (default: `"trip_123"`)
-  - `date: string` - ISO date string (default: today's date)
-  - `origin: Station` - Origin station
-  - `destination: Station` - Destination station
+  - `date: string` - ISO date string (default: today's date in `YYYY-MM-DD` format)
+  - `origin: Station` - Origin station (uses `createMockStation()` internally)
+  - `destination: Station` - Destination station (uses `createMockStation()` internally)
   - `line: string` - Line taken (default: `"1"`)
   - `departureTime: number` - Unix timestamp (default: 1 hour ago)
   - `arrivalTime: number` - Unix timestamp (default: 30 min ago)
@@ -296,61 +481,127 @@ function createMockTripRecord(overrides?: Partial<TripRecord>): TripRecord
 
 **Example:**
 ```typescript
-const trip = createMockTripRecord({
+// Create a basic trip record with defaults
+const trip = createMockTripRecord();
+
+// Create a manual trip entry (user entered manually)
+const manualTrip = createMockTripRecord({
   date: "2026-08-27",
   line: "A",
   actualDurationMinutes: 45,
   source: "manual"
 });
+
+// Create an inferred trip (system predicted from location)
+const inferredTrip = createMockTripRecord({
+  origin: createMockStation({ id: "725", name: "Times Square" }),
+  destination: createMockStation({ id: "101", name: "South Ferry" }),
+  line: "1",
+  departureTime: Date.now() - 7200000,  // 2 hours ago
+  arrivalTime: Date.now() - 5400000,    // 90 min ago
+  actualDurationMinutes: 30,
+  source: "inferred"
+});
+
+// Create a tracked trip (GPS-tracked journey)
+const trackedTrip = createMockTripRecord({
+  line: "2",
+  actualDurationMinutes: 25,
+  source: "tracked"
+});
+
+// Create a trip with specific timestamps
+const datedTrip = createMockTripRecord({
+  date: "2026-08-20",
+  departureTime: 1692540000000,  // Specific timestamp
+  arrivalTime: 1692541800000,
+  actualDurationMinutes: 30
+});
 ```
 
-**Edge Cases:**
-- `arrivalTime` must be > `departureTime`
-- `actualDurationMinutes` should match timestamp difference
-- `source` affects data reliability and UI display
-- `date` should be ISO format `YYYY-MM-DD`
+**Edge Cases & Gotchas:**
+- **Timestamp coupling**: `departureTime` and `arrivalTime` use `Date.now()` at call time - not stable across tests
+- **Time inconsistency**: Default timestamps (1h ago, 30min ago) may not match `actualDurationMinutes: 30` - ensure consistency if overriding
+- **Date format**: `date` uses `new Date().toISOString().split("T")[0]` - always `YYYY-MM-DD` format
+- **Source types**: `"manual"` (user entered), `"inferred"` (system predicted), `"tracked"` (GPS recorded) - affects data reliability indicators
+- **Station objects**: Default origin/destination use `createMockStation()` internally - always valid station objects
+- **Duration calculation**: `actualDurationMinutes` should approximately equal `(arrivalTime - departureTime) / 60000`
+- **Historical trips**: Set `date` to past dates for historical trip records
+- **Override merging**: Providing `origin` or `destination` replaces entire station object
+- **Type safety**: Returns `Record<string, unknown>`, not typed `TripRecord` interface
+- **Future trips**: Can create trips with `arrivalTime` in future (edge case for testing validation logic)
 
 ---
 
 #### `createMockPushSubscription(overrides?)`
 
-Creates a mock web push subscription object.
+Creates a mock web push subscription object for push notification testing.
 
 **Signature:**
 ```typescript
-function createMockPushSubscription(overrides?: Partial<PushSubscription>): PushSubscription
+function createMockPushSubscription(overrides?: Record<string, unknown>): Record<string, unknown>
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial subscription properties to override defaults
+- `overrides` (optional): Partial subscription properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults.
 
 **Returns:**
-- `PushSubscription` object with properties:
-  - `endpoint: string` - Push service URL (default: FCM test endpoint)
-  - `keys: { p256dh: string, auth: string }` - VAPID keys
-  - `expirationTime: number | null` - Expiration or null (default: `null`)
+- `Record<string, unknown>` object with properties:
+  - `endpoint: string` - Push service URL (default: FCM test endpoint `"https://fcm.googleapis.com/fcm/send/test_endpoint"`)
+  - `keys: { p256dh: string, auth: string }` - VAPID encryption keys
+  - `expirationTime: number | null` - Expiration timestamp or null (default: `null`)
 
 **Example:**
 ```typescript
-const subscription = createMockPushSubscription({
+// Create a basic subscription with defaults
+const subscription = createMockPushSubscription();
+
+// Create a subscription with custom endpoint (Mozilla)
+const mozillaSub = createMockPushSubscription({
   endpoint: "https://updates.push.services.mozilla.com/wpush/v2/test",
   keys: {
-    p256dh: "real_p256dh_key",
-    auth: "real_auth_key"
+    p256dh: "real_p256dh_key_base64_encoded",
+    auth: "real_auth_key_base64_encoded"
+  }
+});
+
+// Create a subscription with expiration
+const expiringSub = createMockPushSubscription({
+  endpoint: "https://fcm.googleapis.com/fcm/send/device123",
+  expirationTime: Date.now() + 86400000000  // Expires in ~1000 days
+});
+
+// Create an expired subscription (for testing cleanup logic)
+const expiredSub = createMockPushSubscription({
+  expirationTime: Date.now() - 86400000  // Expired yesterday
+});
+
+// Override only keys (keep default endpoint)
+const customKeys = createMockPushSubscription({
+  keys: {
+    p256dh: "BMx5h7_8abcdef...",
+    auth: "a1b2c3d4..."
   }
 });
 ```
 
-**Edge Cases:**
-- `endpoint` should be valid URL for push service
-- `keys.p256dh` and `keys.auth` should be base64-encoded
-- `expirationTime: null` means subscription doesn't expire
+**Edge Cases & Gotchas:**
+- **Endpoint format**: Must be valid HTTPS URL format for push service (FCM, Mozilla, etc.)
+- **Key encoding**: `p256dh` and `auth` should be base64-encoded strings (in real subscriptions)
+- **Test keys**: Default keys are `"test_p256dh_key"` and `"test_auth_key"` - not real VAPID keys
+- **Expiration behavior**: `expirationTime: null` means subscription never expires (common in production)
+- **Expired subscriptions**: Set `expirationTime < Date.now()` to test expiration/cleanup logic
+- **Push service types**: Different browsers use different endpoints (FCM for Chrome, Mozilla for Firefox)
+- **Override merging**: Providing `keys` replaces entire keys object - doesn't merge with defaults
+- **VAPID authentication**: Real subscriptions use Web Authentication for encryption - test mocks skip this
+- **Type safety**: Returns `Record<string, unknown>`, not typed `PushSubscription` interface
+- **Duplicate subscriptions**: Same endpoint can be created multiple times (no uniqueness constraint)
 
 ---
 
 #### `createTestFixture()`
 
-Creates a complete test fixture with related objects.
+Creates a complete test fixture with related objects for integration testing.
 
 **Signature:**
 ```typescript
@@ -362,24 +613,68 @@ function createTestFixture(): TestFixture
 
 **Returns:**
 - `TestFixture` object containing:
-  - `stations: { timesSquare: Station, pennStation: Station }`
-  - `routes: { "1": Route }`
-  - `arrivals: { timesSquareNorth: Arrival[], timesSquareSouth: Arrival[] }`
-  - `alerts: Alert[]`
-  - `favorites: Favorite[]`
-  - `commutes: Commute[]`
+  - `stations: { timesSquare: Station, pennStation: Station }` - Two predefined stations
+  - `routes: { "1": Route }` - Route 1 with stops
+  - `arrivals: { timesSquareNorth: Arrival[], timesSquareSouth: Arrival[] }` - Arrival arrays for both directions
+  - `alerts: Alert[]` - Array of service alerts
+  - `favorites: Favorite[]` - Array of favorite stations
+  - `commutes: Commute[]` - Array of commute objects
 
 **Example:**
 ```typescript
-const { stations, arrivals, alerts } = createTestFixture();
+// Destructure the fixture
+const { stations, arrivals, alerts, favorites, commutes } = createTestFixture();
+
+// Access station data
 console.log(stations.timesSquare.name); // "Times Square-42 St"
+console.log(stations.pennStation.id);   // "726"
+
+// Access arrival data
 console.log(arrivals.timesSquareNorth.length); // 3 arrivals
+console.log(arrivals.timesSquareNorth[0].line); // "1"
+
+// Access alerts
+console.log(alerts.length); // 1 alert
+console.log(alerts[0].affectedLines); // ["1"]
+
+// Access favorites
+console.log(favorites[0].label); // "Work"
+
+// Access commutes
+console.log(commutes[0].name); // "Work"
+console.log(commutes[0].origin.id); // "725"
+
+// Use fixture in integration test
+const fixture = createTestFixture();
+test("displays arrivals for Times Square", () => {
+  const { arrivals, stations } = fixture;
+  const northArrivals = arrivals.timesSquareNorth;
+  expect(northArrivals.length).toBeGreaterThan(0);
+  expect(northArrivals[0].line).toBe("1");
+});
 ```
 
-**Edge Cases:**
-- All objects are internally consistent (arrivals reference stations in fixture)
-- Modifications to fixture objects don't affect other fixtures
-- Ideal for integration tests with realistic data relationships
+**Fixture Structure Details:**
+- **stations**: Two stations with IDs `"725"` (Times Square) and `"726"` (Penn Station)
+- **routes**: Single route `"1"` with stops `["101", "102", "103"]`
+- **arrivals**: 
+  - `timesSquareNorth`: 3 arrivals (lines 1, 1, 2 with directions N, N, N)
+  - `timesSquareSouth`: 2 arrivals (lines 1, 2 with directions S, S)
+- **alerts**: 1 warning alert for line 1
+- **favorites**: 1 favorite for Times Square labeled "Work"
+- **commutes**: 1 commute from Times Square to Penn Station named "Work"
+
+**Edge Cases & Gotchas:**
+- **Data relationships**: Fixture maintains internal consistency (arrivals reference stations in fixture)
+- **Isolated fixtures**: Each call creates independent fixture - modifications don't affect other fixtures
+- **No deep cloning**: Fixture objects are plain objects - modifications within fixture persist
+- **Timestamp coupling**: Arrival timestamps use `Date.now()` at call time - not stable across tests
+- **Station IDs**: Uses hardcoded station IDs `"725"` and `"726"` - real Times Square and Penn Station IDs
+- **Limited coverage**: Fixture only includes route 1 - override or extend for other lines
+- **Ideal for integration**: Perfect for testing components with realistic data relationships
+- **Not for unit tests**: Overkill for simple unit tests - use individual `createMock*` functions instead
+- **Type safety**: Returns untyped object structure - not a TypeScript interface
+- **Extending fixtures**: Can override fixture properties after creation for custom scenarios
 
 ---
 
@@ -606,57 +901,133 @@ function assertHasProperties(obj: unknown, requiredProps: string[]): void
 ```
 
 **Parameters:**
-- `obj: unknown` - Object to check
-- `requiredProps: string[]` - Array of required property names
+- `obj: unknown` - Object to check (any type)
+- `requiredProps: string[]` - Array of required property names (strings)
 
 **Returns:**
-- `void` - Throws if assertion fails
+- `void` - Throws Vitest assertion error if any property is missing or object is null/undefined
 
 **Example:**
 ```typescript
+// Basic usage - check station has required fields
+const station = createMockStation();
 assertHasProperties(station, ["id", "name", "lat", "lon"]);
 // Passes if station has all four properties
+
+// Check API response has expected structure
+const response = { status: 200, data: { arrivals: [] } };
+assertHasProperties(response, ["status", "data"]);
+assertHasProperties(response.data, ["arrivals"]);
+
+// Check user object has authentication properties
+const user = { id: "123", email: "test@example.com", authenticated: true };
+assertHasProperties(user, ["id", "email", "authenticated"]);
+
+// Multiple property checks
+assertHasProperties(arrival, ["line", "direction", "arrivalTime", "minutesAway"]);
+
+// Empty array always passes (no properties required)
+assertHasProperties(obj, []);
 ```
 
-**Edge Cases:**
-- Object must be defined and not null
-- Checks nested properties one level deep only
-- Throws Vitest assertion error if any property missing
+**Implementation Details:**
+```typescript
+// Actual implementation from test-helpers.ts
+export function assertHasProperties(obj: unknown, requiredProps: string[]): void {
+  expect(obj).toBeDefined();
+  expect(obj).not.toBeNull();
+
+  const actualObj = obj as Record<string, unknown>;
+  for (const prop of requiredProps) {
+    expect(actualObj).toHaveProperty(prop);
+  }
+}
+```
+
+**Edge Cases & Gotchas:**
+- **Null/undefined handling**: Throws with `"expected undefined to be defined"` if object is null/undefined
+- **Nested properties**: Only checks top-level properties - doesn't validate nested structure
+- **Property existence**: Checks property exists (not null/undefined) - doesn't validate value type
+- **Empty array**: Always passes (no properties to check)
+- **Property order**: Order in `requiredProps` doesn't matter
+- **Inherited properties**: Checks own properties AND inherited properties from prototype chain
+- **Falsy values**: Property exists but has falsy value (0, false, "") still passes
+- **Vitest matcher**: Uses `toHaveProperty()` matcher - provides clear assertion error messages
+- **Type casting**: Internally casts to `Record<string, unknown>` for property access
+- **Performance**: O(n) complexity where n = length of `requiredProps` array
 
 ---
 
 #### `assertIsRecent(timestamp, maxAgeMs?)`
 
-Asserts a timestamp is recent (within max age).
+Asserts a timestamp is recent (within max age from current time).
 
 **Signature:**
 ```typescript
-function assertIsRecent(timestamp: number, maxAgeMs?: number): void
+function assertIsRecent(timestamp: number, maxAgeMs: number = 60000): void
 ```
 
 **Parameters:**
-- `timestamp: number` - Unix timestamp to check
+- `timestamp: number` - Unix timestamp (in milliseconds) to check
 - `maxAgeMs` (optional): Maximum age in milliseconds (default: `60000` = 1 minute)
 
 **Returns:**
-- `void` - Throws if assertion fails
+- `void` - Throws Vitest assertion error if timestamp is too old or in the future
 
 **Example:**
 ```typescript
-assertIsRecent(Date.now() - 30000, 60000); // Passes (30s old, limit 60s)
+// Basic usage - timestamp is within default 60-second window
+assertIsRecent(Date.now() - 30000); // Passes (30s old, limit 60s)
+
+// Custom age limit - 5 minutes
 assertIsRecent(arrival.arrivalTime, 300000); // Within 5 minutes
+
+// Check feed freshness
+assertIsRecent(lastFeedUpdate, 10000); // Feed must be < 10 seconds old
+
+// Check timestamp is not too old
+assertIsRecent(alert.activePeriod.start, 86400000); // Started within last 24 hours
+
+// Check session freshness
+assertIsRecent(session.lastActivityAt, 1800000); // Activity within 30 minutes
+
+// Test data staleness
+const staleTimestamp = Date.now() - 120000; // 2 minutes ago
+assertIsRecent(staleTimestamp, 60000); // Throws (too old for 60s limit)
 ```
 
-**Edge Cases:**
-- Timestamp must be >= 0 (not in future from `Date.now()`)
-- Timestamp must be <= `Date.now()` (not future)
-- Default `maxAgeMs` is 60 seconds - often too short for real data
+**Implementation Details:**
+```typescript
+// Actual implementation from test-helpers.ts
+export function assertIsRecent(timestamp: number, maxAgeMs = 60000): void {
+  const now = Date.now();
+  const age = now - timestamp;
+  expect(age).toBeGreaterThanOrEqual(0);  // Not in future
+  expect(age).toBeLessThanOrEqual(maxAgeMs);  // Not too old
+}
+```
+
+**Edge Cases & Gotchas:**
+- **Current time dependency**: Uses `Date.now()` at assertion time - requires time mocking for stable tests
+- **Future timestamps**: Throws if `timestamp > Date.now()` (age < 0) - prevents future timestamps
+- **Default too short**: Default `maxAgeMs: 60000` (1 minute) often too short for real production data
+- **Recommended limits**: 
+  - Live arrivals: `5000-10000` ms (5-10 seconds)
+  - Feed updates: `10000-60000` ms (10-60 seconds)
+  - User sessions: `1800000-3600000` ms (30-60 minutes)
+  - Alerts: `86400000` ms (24 hours)
+- **Age calculation**: `age = Date.now() - timestamp` - positive means past, negative means future
+- **Zero age**: Timestamp exactly equal to `Date.now()` passes (age = 0, <= maxAgeMs)
+- **Boundary condition**: Timestamp exactly `maxAgeMs` old passes (`age <= maxAgeMs` inclusive check)
+- **Unit confusion**: Parameter is in milliseconds - don't pass seconds (common mistake)
+- **Monotonic time**: Assumes system time doesn't change during test (no DST or manual time adjustments)
+- **Performance**: O(1) complexity - simple arithmetic comparison
 
 ---
 
 #### `assertApiResponse(response, expectedStatus, expectedDataShape)`
 
-Asserts API response has correct status and data shape.
+Asserts API response has correct status code and data structure.
 
 **Signature:**
 ```typescript
@@ -669,52 +1040,193 @@ function assertApiResponse(
 
 **Parameters:**
 - `response: unknown` - Response object with `status` and `data` properties
-- `expectedStatus: number` - Expected HTTP status code
-- `expectedDataShape: Record<string, unknown>` - Expected data structure (partial match)
+- `expectedStatus: number` - Expected HTTP status code (e.g., 200, 404, 500)
+- `expectedDataShape: Record<string, unknown>` - Expected data structure for partial matching
 
 **Returns:**
-- `void` - Throws if assertion fails
+- `void` - Throws Vitest assertion error if status mismatches or data structure doesn't match
 
 **Example:**
 ```typescript
+// Basic usage - check status and data exists
+const response = { status: 200, data: { arrivals: [] } };
 assertApiResponse(response, 200, { arrivals: expect.any(Array) });
-// Checks status is 200 and response.data.arrivals exists
+// Passes if status is 200 and response.data.arrivals exists
+
+// Check error response
+const errorResponse = { status: 404, data: { error: "Not found" } };
+assertApiResponse(errorResponse, 404, { error: expect.any(String) });
+
+// Check complex response structure
+const complexResponse = {
+  status: 200,
+  data: {
+    arrivals: [{ line: "1", direction: "N" }],
+    alerts: [],
+    timestamp: Date.now()
+  }
+};
+assertApiResponse(complexResponse, 200, {
+  arrivals: expect.any(Array),
+  alerts: expect.any(Array),
+  timestamp: expect.any(Number)
+});
+
+// Check response with nested objects
+const nestedResponse = {
+  status: 200,
+  data: {
+    station: { id: "725", name: "Times Square" },
+    arrivals: []
+  }
+};
+assertApiResponse(nestedResponse, 200, {
+  station: { id: expect.any(String), name: expect.any(String) },
+  arrivals: expect.any(Array)
+});
+
+// Partial match - only check specific properties
+const fullResponse = {
+  status: 200,
+  data: {
+    arrivals: [],
+    alerts: [],
+    timestamp: Date.now(),
+    version: "1.0"
+  }
+};
+assertApiResponse(fullResponse, 200, {
+  arrivals: expect.any(Array)
+  // Doesn't check alerts, timestamp, version - partial match
+});
 ```
 
-**Edge Cases:**
-- Uses `toMatchObject()` - partial match, not exact
-- `expectedDataShape` can use Jest matchers
-- Response must have `status` and `data` properties
+**Implementation Details:**
+```typescript
+// Actual implementation from test-helpers.ts
+export function assertApiResponse(
+  response: unknown,
+  expectedStatus: number,
+  expectedDataShape: Record<string, unknown>
+): void {
+  const resp = response as { status?: number; data?: unknown };
+  expect(resp.status).toBe(expectedStatus);
+
+  if (expectedDataShape) {
+    expect(resp.data).toBeDefined();
+    expect(resp.data).toMatchObject(expectedDataShape);
+  }
+}
+```
+
+**Edge Cases & Gotchas:**
+- **Status mismatch**: Throws with `"expected 200 but received 404"` if status differs
+- **Missing status**: Throws if `response.status` is undefined
+- **Data undefined**: Throws `"expected undefined to be defined"` if `response.data` is undefined and `expectedDataShape` provided
+- **Partial matching**: Uses `toMatchObject()` - only checks properties in `expectedDataShape`, ignores extra properties in `response.data`
+- **Jest matchers**: Can use `expect.any()`, `expect.stringContaining()`, etc. in `expectedDataShape`
+- **Nested objects**: Checks nested object structure recursively with `toMatchObject()`
+- **Empty shape**: Passing `{}` as `expectedDataShape` only checks `response.data` exists (any value passes)
+- **Null data**: `response.data: null` fails `.toBeDefined()` check
+- **Type casting**: Internally casts to `{ status?: number; data?: unknown }` - assumes this structure
+- **No data check**: If `expectedDataShape` is empty object `{}`, skips data validation (only checks status)
+- **Array responses**: Use `{ arrivals: expect.any(Array) }` pattern for array responses
+- **Performance**: O(n) where n = depth of `expectedDataShape` object
 
 ---
 
 #### `assertIsSorted(array, key, order?)`
 
-Asserts an array is sorted by a key.
+Asserts an array is sorted by a specific property key in ascending or descending order.
 
 **Signature:**
 ```typescript
-function assertIsSorted<T>(array: T[], key: keyof T, order?: "asc" | "desc"): void
+function assertIsSorted<T>(array: T[], key: keyof T, order: "asc" | "desc" = "asc"): void
 ```
 
 **Parameters:**
-- `array: T[]` - Array to check
-- `key: keyof T` - Property key to sort by
-- `order` (optional): Sort direction (default: `"asc"`)
+- `array: T[]` - Array of objects to check (generic type)
+- `key: keyof T` - Property key to sort by (must exist on all objects)
+- `order` (optional): Sort direction - `"asc"` (ascending) or `"desc"` (descending) (default: `"asc"`)
 
 **Returns:**
-- `void` - Throws if assertion fails
+- `void` - Throws Vitest assertion error if array is not sorted by the specified key
 
 **Example:**
 ```typescript
-assertIsSorted(arrivals, "arrivalTime", "asc");
-assertIsSorted(stations, "name", "desc");
+// Basic ascending sort
+const arrivals = [
+  { arrivalTime: 100, line: "1" },
+  { arrivalTime: 200, line: "2" },
+  { arrivalTime: 300, line: "3" }
+];
+assertIsSorted(arrivals, "arrivalTime", "asc"); // Passes
+
+// Descending sort
+const sortedDesc = [
+  { arrivalTime: 300, line: "3" },
+  { arrivalTime: 200, line: "2" },
+  { arrivalTime: 100, line: "1" }
+];
+assertIsSorted(sortedDesc, "arrivalTime", "desc"); // Passes
+
+// Default order (ascending if not specified)
+assertIsSorted(arrivals, "arrivalTime"); // Uses "asc" by default
+
+// Sort by string property
+const stations = [
+  { name: "A St", id: "101" },
+  { name: "B St", id: "102" },
+  { name: "C St", id: "103" }
+];
+assertIsSorted(stations, "name", "asc"); // Passes
+
+// Mixed array (unsorted) - throws
+const unsorted = [
+  { arrivalTime: 300, line: "3" },
+  { arrivalTime: 100, line: "1" },
+  { arrivalTime: 200, line: "2" }
+];
+assertIsSorted(unsorted, "arrivalTime", "asc"); // Throws
+
+// Empty array - always passes
+assertIsSorted([], "arrivalTime", "asc"); // Passes
+
+// Single element - always passes
+assertIsSorted([{ arrivalTime: 100 }], "arrivalTime", "asc"); // Passes
 ```
 
-**Edge Cases:**
-- Only checks adjacent pairs (O(n) complexity)
-- Requires comparable values (numbers or strings)
-- Empty or single-element arrays always pass
+**Implementation Details:**
+```typescript
+// Actual implementation from test-helpers.ts
+export function assertIsSorted<T>(array: T[], key: keyof T, order: "asc" | "desc" = "asc"): void {
+  for (let i = 0; i < array.length - 1; i++) {
+    const current = array[i][key];
+    const next = array[i + 1][key];
+
+    if (order === "asc") {
+      expect(current).toBeLessThanOrEqual(next);
+    } else {
+      expect(current).toBeGreaterThanOrEqual(next);
+    }
+  }
+}
+```
+
+**Edge Cases & Gotchas:**
+- **Adjacent comparison**: Only checks adjacent pairs (array[i] vs array[i+1]) - O(n) complexity, efficient but may miss transitive violations
+- **Empty arrays**: Always pass (no adjacent pairs to compare)
+- **Single element**: Always pass (no adjacent pairs to compare)
+- **Comparable values**: Requires values to support comparison operators (`<=`, `>=`) - works for numbers, strings, dates
+- **Type safety**: Uses `keyof T` - TypeScript ensures key exists on array elements
+- **Non-existent keys**: TypeScript error if key doesn't exist on type `T`
+- **Stable sort**: Doesn't check sort stability - only verifies order, not original positions of equal elements
+- **Duplicate values**: Equal adjacent values pass in both `"asc"` and `"desc"` (uses `<=` and `>=`)
+- **Mixed types**: Comparison may fail if array has mixed types for same key (e.g., number and string)
+- **Custom objects**: Works with any objects having comparable property values
+- **Descending default**: Default is `"asc"` - must explicitly pass `"desc"` for descending order
+- **Performance**: O(n) where n = array length - efficient for large arrays
+- **No deep comparison**: Only compares values at specified key - doesn't check overall object equality
 
 ---
 
