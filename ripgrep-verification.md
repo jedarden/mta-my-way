@@ -1,6 +1,6 @@
 # Ripgrep Binary Verification
 
-## Date: 2026-08-28
+## Date: 2026-08-28 (Re-verified)
 
 ## Verification Results
 
