@@ -40,6 +40,17 @@ export default defineConfig({
     },
     projects: [
       {
+        // Root-level tests - uses node environment
+        test: {
+          environment: "node",
+          include: ["tests/**/*.test.ts"],
+          exclude: ["tests/e2e/**/*.e2e.ts"],
+          pool: "forks",
+          maxForks: 4,
+          setupFiles: [],
+        },
+      },
+      {
         // Web package - uses jsdom environment for React component testing
         test: {
           environment: "jsdom",
