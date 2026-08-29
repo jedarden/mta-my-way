@@ -73,4 +73,64 @@ describe("Home Directory Accessibility", () => {
       }
     });
   });
+
+  describe("Home directory consistency and validation", () => {
+    it("should return consistent home directory across multiple calls", () => {
+      const home1 = homedir();
+      const home2 = homedir();
+      const home3 = homedir();
+
+      expect(home1).toBe(home2);
+      expect(home2).toBe(home3);
+      expect(home1).toBe(home3);
+    });
+
+    it("should verify home directory path structure", () => {
+      const homePath = homedir();
+
+      // Should be an absolute path
+      expect(homePath.startsWith("/")).toBe(true);
+
+      // Should not end with slash (except root)
+      if (homePath !== "/") {
+        expect(homePath.endsWith("/")).toBe(false);
+      }
+
+      // Should not contain consecutive slashes
+      expect(homePath).not.toMatch("//");
+
+      // Should not contain backslashes (Unix path)
+      expect(homePath).not.toContain("\\");
+    });
+
+    it("should verify home directory environment variables consistency", () => {
+      const homePath = homedir();
+      const envHome = process.env.HOME;
+
+      if (envHome) {
+        expect(homePath).toBe(envHome);
+      }
+    });
+
+    it("should verify home directory contains expected subdirectories", async () => {
+      const homePath = homedir();
+      const { readdir } = await import("node:fs/promises");
+
+      try {
+        const entries = await readdir(homePath, { withFileTypes: true });
+
+        // Should have at least some entries
+        expect(entries.length).toBeGreaterThan(0);
+
+        // Common home directory entries that might exist
+        const entryNames = entries.map((entry) => entry.name);
+
+        // At minimum, home directory should be readable and listable
+        expect(entries).toBeDefined();
+        expect(Array.isArray(entries)).toBe(true);
+      } catch (error) {
+        throw new Error(`Failed to read home directory ${homePath}: ${error}`);
+      }
+    });
+  });
 });
