@@ -85,6 +85,24 @@ describe("Home Directory Accessibility", () => {
       expect(home1).toBe(home3);
     });
 
+    it("should resolve home directory and verify basic properties", () => {
+      const homePath = homedir();
+
+      // Test function: verify home directory resolution
+      expect(homePath).toBeDefined();
+      expect(typeof homePath).toBe("string");
+      expect(homePath.length).toBeGreaterThan(0);
+
+      // Should be absolute path
+      expect(homePath.startsWith("/")).toBe(true);
+
+      // Should not contain null bytes
+      expect(homePath).not.toContain("\0");
+
+      // Should be a valid path format
+      expect(homePath).toMatch(/^\/[a-zA-Z0-9\/_-]*$/);
+    });
+
     it("should verify home directory path structure", () => {
       const homePath = homedir();
 
