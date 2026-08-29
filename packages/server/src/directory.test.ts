@@ -119,4 +119,52 @@ describe("filesystem directory existence", () => {
       expect(existsSync(srcDir)).toBe(true);
     });
   });
+
+  describe("home directory resolution", () => {
+    const homeDir = process.env.HOME || process.env.USERPROFILE;
+
+    it("verifies home directory environment variable is set", () => {
+      expect(homeDir).toBeDefined();
+      expect(typeof homeDir).toBe("string");
+      expect(homeDir?.length).toBeGreaterThan(0);
+    });
+
+    it("verifies home directory exists", () => {
+      expect(homeDir).toBeDefined();
+      if (homeDir) {
+        expect(existsSync(homeDir)).toBe(true);
+      }
+    });
+
+    it("verifies home directory is readable", () => {
+      expect(homeDir).toBeDefined();
+      if (homeDir && existsSync(homeDir)) {
+        expect(() => readdirSync(homeDir)).not.toThrow();
+      }
+    });
+
+    it("resolves home directory path consistently", () => {
+      expect(homeDir).toBeDefined();
+      if (homeDir) {
+        // Test that we can construct paths relative to home directory
+        const testPath = join(homeDir, ".test-path-resolution");
+        expect(testPath).toContain(homeDir);
+        expect(testPath.endsWith(".test-path-resolution")).toBe(true);
+      }
+    });
+
+    it("handles home directory edge cases", () => {
+      expect(homeDir).toBeDefined();
+      if (homeDir) {
+        // Test that home directory doesn't have trailing slashes
+        expect(homeDir.endsWith("/")).toBe(false);
+        expect(homeDir.endsWith("\\")).toBe(false);
+
+        // Test that home directory is an absolute path (Unix or Windows)
+        const isUnixPath = homeDir.startsWith("/");
+        const isWindowsPath = /^[A-Z]:/.test(homeDir);
+        expect(isUnixPath || isWindowsPath).toBe(true);
+      }
+    });
+  });
 });
