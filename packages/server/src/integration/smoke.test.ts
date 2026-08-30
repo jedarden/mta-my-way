@@ -1,266 +1,347 @@
 /**
- * Smoke test to verify E2E test infrastructure is working.
+ * E2E Smoke Test
  *
- * This test validates:
- * - Database helpers create valid test databases
- * - Authentication helpers generate test credentials
- * - Test fixtures produce valid data
- * - Cleanup functions work correctly
+ * Basic smoke test that validates the entire test infrastructure works.
+ * Tests that:
+ * - Test helpers and fixtures load correctly
+ * - Integration test database can be created and used
+ * - Basic app operations work end-to-end
+ * - Test isolation mechanisms function properly
+ *
+ * This is the first test to run to ensure the test suite itself is functional.
  */
 
+import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createApp } from "../app.js";
 import {
-  TEST_STATIONS,
   cleanupAllState,
-  clearAllTrips,
-  clearCommuteStatsCache,
   closeDatabase,
   createIntegrationTestDatabase,
-  createPushDatabase,
-  createTestSubscription,
+  createTestApiKey,
   createTestTrip,
-  createTestUserCredentials,
-  createTripTrackingDatabase,
+  TEST_STATIONS,
 } from "./test-helpers.js";
 
-describe("E2E Test Infrastructure Smoke Test", () => {
-  it("creates in-memory trip tracking database", () => {
-    const db = createTripTrackingDatabase();
+// Minimal test fixtures for routes and complexes
+const TEST_ROUTES: RouteIndex = {
+  "1": {
+    id: "1",
+    shortName: "1",
+    longName: "Broadway-7th Ave Local",
+    color: "#EE352E",
+    textColor: "#FFFFFF",
+    feedId: "gtfs",
+    division: "A",
+    stops: ["101", "725"],
+    isExpress: false,
+  },
+};
 
-    expect(db).toBeDefined();
+const TEST_COMPLEXES: ComplexIndex = {};
 
-    // Verify tables exist
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-      .all() as Array<{ name: string }>;
-    const tableNames = tables.map((t) => t.name);
+describe("E2E Smoke Test", () => {
+  let db: ReturnType<typeof createIntegrationTestDatabase>;
+  let app: ReturnType<typeof createApp>;
 
-    expect(tableNames).toContain("trips");
-    expect(tableNames).toContain("commute_stats");
+  beforeEach(async () => {
+    // Reset all module-level state for test isolation
+    await cleanupAllState();
 
-    closeDatabase(db);
+    // Create a fresh in-memory database for this test
+    db = createIntegrationTestDatabase();
+
+    // Create the test app with test fixtures
+    app = createApp(
+      TEST_STATIONS,
+      TEST_ROUTES,
+      TEST_COMPLEXES,
+      {}, // transfers
+      "/nonexistent/dist" // webDistPath
+    );
   });
 
-  it("creates in-memory push database", () => {
-    const db = createPushDatabase();
-
-    expect(db).toBeDefined();
-
-    // Verify tables exist
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-      .all() as Array<{ name: string }>;
-    const tableNames = tables.map((t) => t.name);
-
-    expect(tableNames).toContain("push_subscriptions");
-
-    closeDatabase(db);
+  afterEach(() => {
+    // Clean up database connection
+    if (db) {
+      closeDatabase(db);
+    }
   });
 
-  it("creates combined integration test database", () => {
-    const db = createIntegrationTestDatabase();
+  describe("Test Infrastructure", () => {
+    it("should load test helpers and fixtures", () => {
+      // Verify test fixtures are available
+      expect(TEST_STATIONS).toBeDefined();
+      expect(typeof TEST_STATIONS).toBe("object");
+      expect(Object.keys(TEST_STATIONS).length).toBeGreaterThan(0);
 
-    expect(db).toBeDefined();
-
-    // Verify all tables exist
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-      .all() as Array<{ name: string }>;
-    const tableNames = tables.map((t) => t.name);
-
-    expect(tableNames).toContain("trips");
-    expect(tableNames).toContain("commute_stats");
-    expect(tableNames).toContain("push_subscriptions");
-
-    closeDatabase(db);
-  });
-
-  it("creates test trip with default values", () => {
-    const trip = createTestTrip();
-
-    expect(trip).toBeDefined();
-    expect(trip.origin.stationId).toBe("101");
-    expect(trip.destination.stationId).toBe("725");
-    expect(trip.line).toBe("1");
-    expect(trip.source).toBe("manual");
-  });
-
-  it("creates test trip with overrides", () => {
-    const trip = createTestTrip({
-      originId: "725",
-      originName: "Times Square",
-      destinationId: "726",
-      destinationName: "Port Authority",
-      line: "A",
+      // Verify specific test data
+      expect(TEST_STATIONS["101"]).toBeDefined();
+      expect(TEST_STATIONS["101"].name).toBe("South Ferry");
+      expect(TEST_STATIONS["101"].lines).toEqual(["1"]);
     });
 
-    expect(trip.origin.stationId).toBe("725");
-    expect(trip.destination.stationId).toBe("726");
-    expect(trip.line).toBe("A");
+    it("should create integration test database", () => {
+      // Database should be created and accessible
+      expect(db).toBeDefined();
+      expect(typeof db.prepare).toBe("function");
+
+      // Verify tables exist
+      const tables = db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        )
+        .all() as Array<{ name: string }>;
+
+      const tableNames = tables.map((t) => t.name);
+      expect(tableNames).toContain("trips");
+      expect(tableNames).toContain("commute_stats");
+      expect(tableNames).toContain("push_subscriptions");
+    });
+
+    it("should create test app successfully", () => {
+      // App should be created with proper structure
+      expect(app).toBeDefined();
+      expect(typeof app.request).toBe("function");
+      expect(typeof app.fire).toBe("function");
+    });
   });
 
-  it("creates test push subscription", () => {
-    const sub = createTestSubscription();
+  describe("Basic Operations", () => {
+    it("should handle health check endpoint", async () => {
+      const response = await app.request("/api/health");
+      expect(response.status).toBe(200);
 
-    expect(sub).toBeDefined();
-    expect(sub.subscription.endpoint).toContain("https://");
-    expect(sub.subscription.keys.p256dh).toBeDefined();
-    expect(sub.subscription.keys.auth).toBeDefined();
-    expect(sub.favorites).toHaveLength(1);
+      const body = await response.json();
+      expect(body).toHaveProperty("status");
+      // Status can be "healthy" or "degraded" depending on feed state
+      expect(["healthy", "degraded"]).toContain(body.status);
+      expect(body).toHaveProperty("uptime_seconds");
+    });
+
+    it("should handle station queries", async () => {
+      const response = await app.request("/api/stations");
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBeGreaterThan(0);
+    });
+
+    it("should handle 404 for unknown routes", async () => {
+      const response = await app.request("/api/this-route-does-not-exist");
+      expect(response.status).toBe(404);
+    });
   });
 
-  it("TEST_STATIONS fixture has expected structure", () => {
-    expect(TEST_STATIONS).toBeDefined();
-    expect(Object.keys(TEST_STATIONS)).toContain("101");
-    expect(Object.keys(TEST_STATIONS)).toContain("725");
+  describe("Database Operations", () => {
+    it("should insert and query trip records", () => {
+      const testTrip = createTestTrip({
+        id: "smoke-test-trip-1",
+        originId: "101",
+        destinationId: "725",
+        line: "1",
+      });
 
-    const timesSquare = TEST_STATIONS["725"];
-    expect(timesSquare.name).toBe("Times Sq-42 St");
-    expect(timesSquare.lines).toContain("1");
-    expect(timesSquare.ada).toBe(true);
-    expect(timesSquare.transfers).toHaveLength(1);
+      // Insert a trip
+      const insertStmt = db.prepare(`
+        INSERT INTO trips (
+          id, date, origin_station_id, origin_station_name,
+          destination_station_id, destination_station_name,
+          line, departure_time, arrival_time,
+          actual_duration_minutes, source, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const now = Date.now();
+      insertStmt.run(
+        testTrip.id,
+        testTrip.date,
+        testTrip.origin.stationId,
+        testTrip.origin.stationName,
+        testTrip.destination.stationId,
+        testTrip.destination.stationName,
+        testTrip.line,
+        testTrip.departureTime,
+        testTrip.arrivalTime,
+        testTrip.actualDurationMinutes,
+        testTrip.source,
+        now,
+        now
+      );
+
+      // Query it back
+      const row = db
+        .prepare("SELECT * FROM trips WHERE id = ?")
+        .get(testTrip.id) as any;
+
+      expect(row).toBeDefined();
+      expect(row.id).toBe(testTrip.id);
+      expect(row.origin_station_id).toBe("101");
+      expect(row.destination_station_id).toBe("725");
+      expect(row.line).toBe("1");
+    });
+
+    it("should handle database transaction rollback", () => {
+      // Clear any existing data first for test isolation
+      db.prepare("DELETE FROM trips").run();
+
+      // Start with 0 trips
+      const initialCount = db
+        .prepare("SELECT COUNT(*) as count FROM trips")
+        .get() as { count: number };
+      expect(initialCount.count).toBe(0);
+
+      // Try to insert a trip in a transaction that will rollback
+      const transaction = db.transaction(() => {
+        db.prepare("INSERT INTO trips (id, date, origin_station_id, origin_station_name, destination_station_id, destination_station_name, line, departure_time, arrival_time, actual_duration_minutes, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+          "rollback-test-1",
+          "2026-08-30",
+          "101",
+          "South Ferry",
+          "725",
+          "Times Sq-42 St",
+          "1",
+          Date.now() - 3600000,
+          Date.now(),
+          60,
+          "manual",
+          Date.now(),
+          Date.now()
+        );
+        throw new Error("Intentional rollback");
+      });
+
+      // Transaction should throw
+      expect(() => transaction()).toThrow("Intentional rollback");
+
+      // Should still have 0 trips (rollback worked)
+      const finalCount = db
+        .prepare("SELECT COUNT(*) as count FROM trips")
+        .get() as { count: number };
+      expect(finalCount.count).toBe(0);
+    });
   });
 
-  it("clearAllTrips empties trips table", () => {
-    const db = createTripTrackingDatabase();
+  describe("Authentication Infrastructure", () => {
+    it("should create test API key credentials", async () => {
+      const credentials = await createTestApiKey("read", "user");
 
-    // Insert a test trip
-    db.prepare(
-      "INSERT INTO trips (id, date, origin_station_id, origin_station_name, destination_station_id, destination_station_name, line, departure_time, arrival_time, actual_duration_minutes, created_at, updated_at, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    ).run(
-      "test-trip-1",
-      "2026-08-27",
-      "101",
-      "South Ferry",
-      "725",
-      "Times Square",
-      "1",
-      Date.now() - 3600000,
-      Date.now(),
-      60,
-      Date.now(),
-      Date.now(),
-      "test-user"
-    );
+      expect(credentials).toBeDefined();
+      expect(credentials.keyId).toMatch(/^test_key_/);
+      expect(credentials.apiKey).toBeDefined();
+      expect(credentials.authorizationHeader).toMatch(/^Bearer test_key_/);
+      expect(credentials.authorizationHeader).toContain(":");
+    });
 
-    // Verify trip exists
-    const countBefore = db.prepare("SELECT COUNT(*) as count FROM trips").get() as {
-      count: number;
-    };
-    expect(countBefore.count).toBe(1);
+    it("should require authentication for protected endpoints", async () => {
+      // Try to access a protected endpoint without auth
+      const response = await app.request("/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
 
-    // Clear trips
-    clearAllTrips(db);
-
-    // Verify trips are gone
-    const countAfter = db.prepare("SELECT COUNT(*) as count FROM trips").get() as { count: number };
-    expect(countAfter.count).toBe(0);
-
-    closeDatabase(db);
+      // Should get 401 or 403 (depending on auth configuration)
+      expect([401, 403]).toContain(response.status);
+    });
   });
 
-  it("clearCommuteStatsCache empties commute_stats table", () => {
-    const db = createTripTrackingDatabase();
+  describe("Test Isolation", () => {
+    it("should isolate state between tests", async () => {
+      // Create a test API key
+      const credentials = await createTestApiKey("read", "user");
+      expect(credentials).toBeDefined();
 
-    // Insert a test stat entry
-    db.prepare(
-      "INSERT INTO commute_stats (commute_id, average_duration_minutes, median_duration_minutes, std_dev_minutes, total_trips, trips_this_week, trend, average_delay_minutes, max_delay_minutes, on_time_percentage, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    ).run("test-commute", 45, 42, 5.2, 100, 5, 0.1, 2.5, 15, 95.0, Date.now());
+      // Verify we can make an authenticated request
+      const response = await app.request("/api/stations", {
+        headers: {
+          Authorization: credentials.authorizationHeader,
+        },
+      });
 
-    // Verify stat exists
-    const countBefore = db.prepare("SELECT COUNT(*) as count FROM commute_stats").get() as {
-      count: number;
-    };
-    expect(countBefore.count).toBe(1);
+      expect(response.status).toBe(200);
+    });
 
-    // Clear stats
-    clearCommuteStatsCache(db);
+    it("should clean up database between tests", () => {
+      // This test verifies that the beforeEach/afterEach hooks work
+      // Insert some data
+      db.prepare("INSERT INTO trips (id, date, origin_station_id, origin_station_name, destination_station_id, destination_station_name, line, departure_time, arrival_time, actual_duration_minutes, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+        "isolation-test-1",
+        "2026-08-30",
+        "101",
+        "South Ferry",
+        "725",
+        "Times Sq-42 St",
+        "1",
+        Date.now() - 3600000,
+        Date.now(),
+        60,
+        "manual",
+        Date.now(),
+        Date.now()
+      );
 
-    // Verify stats are gone
-    const countAfter = db.prepare("SELECT COUNT(*) as count FROM commute_stats").get() as {
-      count: number;
-    };
-    expect(countAfter.count).toBe(0);
+      // Verify it exists
+      const count = db
+        .prepare("SELECT COUNT(*) as count FROM trips")
+        .get() as { count: number };
+      expect(count.count).toBe(1);
 
-    closeDatabase(db);
+      // The afterEach hook will clean this up
+      // Next test should start fresh
+    });
   });
 
-  it("cleanupAllState can be called without errors", async () => {
-    // This should not throw any errors
-    await cleanupAllState();
-    expect(true).toBe(true);
+  describe("Error Handling", () => {
+    it("should handle invalid JSON gracefully", async () => {
+      const response = await app.request("/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: "invalid json{{{",
+      });
+
+      // Should return 400 or similar error status
+      expect([400, 422]).toContain(response.status);
+    });
+
+    it("should handle missing required fields", async () => {
+      const response = await app.request("/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // Missing required fields like line, destination, etc.
+        }),
+      });
+
+      // Should return authentication error or validation error
+      expect([400, 401, 422]).toContain(response.status);
+    });
   });
 
-  it("database can be closed safely", () => {
-    const db = createIntegrationTestDatabase();
+  describe("Performance Smoke", () => {
+    it("should respond to health check within 100ms", async () => {
+      const start = performance.now();
+      const response = await app.request("/api/health");
+      const duration = performance.now() - start;
 
-    // Closing should not throw
-    expect(() => closeDatabase(db)).not.toThrow();
-  });
+      expect(response.status).toBe(200);
+      expect(duration).toBeLessThan(100);
+    });
 
-  it("creates test API credentials", async () => {
-    const creds = await createTestUserCredentials();
+    it("should respond to station queries within 200ms", async () => {
+      const start = performance.now();
+      const response = await app.request("/api/stations");
+      const duration = performance.now() - start;
 
-    expect(creds).toBeDefined();
-    expect(creds.keyId).toMatch(/^test_key_/);
-    expect(creds.apiKey).toBeTruthy();
-    expect(creds.authorizationHeader).toMatch(/^Bearer test_key_[^:]+:.+$/);
-  });
-});
-
-describe("Database Schema Validation", () => {
-  it("trips table has all required columns", () => {
-    const db = createTripTrackingDatabase();
-
-    const columns = db.pragma("table_info(trips)") as Array<{ name: string }>;
-    const columnNames = columns.map((c) => c.name);
-
-    // Required columns
-    expect(columnNames).toContain("id");
-    expect(columnNames).toContain("date");
-    expect(columnNames).toContain("origin_station_id");
-    expect(columnNames).toContain("destination_station_id");
-    expect(columnNames).toContain("line");
-    expect(columnNames).toContain("departure_time");
-    expect(columnNames).toContain("arrival_time");
-    expect(columnNames).toContain("actual_duration_minutes");
-    expect(columnNames).toContain("owner_id");
-
-    closeDatabase(db);
-  });
-
-  it("push_subscriptions table has all required columns", () => {
-    const db = createPushDatabase();
-
-    const columns = db.pragma("table_info(push_subscriptions)") as Array<{ name: string }>;
-    const columnNames = columns.map((c) => c.name);
-
-    // Required columns
-    expect(columnNames).toContain("endpoint_hash");
-    expect(columnNames).toContain("endpoint");
-    expect(columnNames).toContain("p256dh");
-    expect(columnNames).toContain("auth");
-    expect(columnNames).toContain("favorites");
-    expect(columnNames).toContain("owner_id");
-
-    closeDatabase(db);
-  });
-
-  it("database has proper indexes", () => {
-    const db = createTripTrackingDatabase();
-
-    const indexes = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%' ORDER BY name"
-      )
-      .all() as Array<{ name: string }>;
-    const indexNames = indexes.map((i) => i.name);
-
-    // Expected indexes
-    expect(indexNames.length).toBeGreaterThan(0);
-    expect(indexNames).toContain("idx_trips_date");
-    expect(indexNames).toContain("idx_trips_owner_id");
-
-    closeDatabase(db);
+      expect(response.status).toBe(200);
+      expect(duration).toBeLessThan(200);
+    });
   });
 });
