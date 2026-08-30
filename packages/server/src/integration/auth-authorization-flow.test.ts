@@ -758,6 +758,18 @@ describe("Authentication → Authorization Flow Integration Tests", () => {
         });
       });
 
+      // Permission check endpoint
+      app.get("/api/permission-check", (c) => {
+        const auth = getAuthContext(c);
+        if (!auth) {
+          return c.json({ error: "Not authenticated" }, 401);
+        }
+        const canReadAlerts = checkPermission(auth.role, "alerts:read" as Permission);
+        return c.json({
+          canReadAlerts: canReadAlerts.granted,
+        });
+      });
+
       // First verify guest authentication works
       const authRes = await app.request("/api/auth-check", {
         headers: {
@@ -772,17 +784,6 @@ describe("Authentication → Authorization Flow Integration Tests", () => {
       expect(authBody.keyId).toBe(testGuestCreds.keyId);
 
       // Now test that guests can read alerts using a direct permission check
-      app.get("/api/permission-check", (c) => {
-        const auth = getAuthContext(c);
-        if (!auth) {
-          return c.json({ error: "Not authenticated" }, 401);
-        }
-        const canReadAlerts = checkPermission(auth.role, "alerts:read" as Permission);
-        return c.json({
-          canReadAlerts: canReadAlerts.granted,
-        });
-      });
-
       const permRes = await app.request("/api/permission-check", {
         headers: {
           Authorization: testGuestCreds.authorizationHeader,
