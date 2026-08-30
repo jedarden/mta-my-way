@@ -37,6 +37,11 @@ Complete reference documentation for all testing helper functions with detailed 
    - [Authentication Helpers](#authentication-helpers)
    - [Test Cleanup](#test-cleanup)
    - [CSRF Request Helpers](#csrf-request-helpers)
+4. [⚠️ Edge Cases and Gotchas](#edge-cases-and-gotchas)
+   - [Override Merging Behavior](#override-merging-behavior)
+   - [Timestamp Handling](#timestamp-handling)
+   - [Unexpected Behaviors](#unexpected-behaviors)
+   - [Troubleshooting Guide](#troubleshooting-guide)
 
 ---
 
@@ -5171,6 +5176,831 @@ expect(noCsrfResponse.status).toBe(403); // CSRF violation
 - Merges auth headers, CSRF header, and provided headers - precedence: your headers > CSRF > auth
 - Both auth and CSRF must be valid - test 401 (no auth) and 403 (no CSRF) separately
 - `Authorization` header format must be `"Bearer {keyId}:{apiKey}"` - use `createTestApiKey` helper
+
+---
+
+## ⚠️ Edge Cases and Gotchas
+
+**CRITICAL:** This section documents common pitfalls, unexpected behaviors, and troubleshooting tips for all test helpers. Understanding these edge cases will prevent flaky tests and reduce debugging time.
+
+---
+
+### Override Merging Behavior
+
+**❗ CRITICAL: Shallow Merge, Not Deep Merge**
+
+All `createMock*` functions use JavaScript's spread operator (`...overrides`) which performs a **shallow merge**. This has profound implications for how overrides are applied.
+
+#### What Shallow Merge Means
+
+```typescript
+// ❌ INCORRECT: This does NOT merge the lines array
+const station = createMockStation({
+  lines: ["7"]  // Replaces entire array, not adds to it
+});
+// Result: lines = ["7"], NOT ["1", "2", "3", "7", "N", "Q", "R", "W", "7"]
+
+// ✅ CORRECT: Explicitly specify all lines you want
+const station = createMockStation({
+  lines: ["1", "2", "3", "7", "N", "Q", "R", "W"]  // Complete array
+});
+```
+
+#### Field Override Behavior Table
+
+| Field Type | Behavior | Example |
+|------------|----------|----------|
+| **Primitives** (`id`, `name`, `lat`, `lon`, `ada`, `borough`) | Replaced | `{ id: "101" }` → new id only |
+| **Arrays** (`lines`, `transfers`) | **Replaced entirely** | `{ lines: ["7"] }` → only line 7, not merged |
+| **Objects** (`origin`, `destination` in `createMockCommute`) | **Replaced entirely** | `{ origin: newStation }` → replaces whole object |
+| **Optional fields** (`complex`) | Added if provided | `{ complex: "D14" }` → now has complex ID |
+
+#### Array Override Gotcha
+
+```typescript
+// ❌ EXPECTATION: Add "7" to existing lines
+const station = createMockStation({
+  lines: ["7"]
+});
+expect(station.lines).toEqual(["1", "2", "3", "7", "N", "Q", "R", "W", "7"]); // FAILS!
+
+// ✅ REALITY: Lines array is completely replaced
+expect(station.lines).toEqual(["7"]); // PASSES
+```
+
+#### Merging Arrays Correctly
+
+```typescript
+// Pattern 1: Manually merge arrays
+const defaultStation = createMockStation();
+const stationWithExtraLine = {
+  ...defaultStation,
+  lines: [...defaultStation.lines, "7"]
+};
+
+// Pattern 2: Specify complete array
+const station = createMockStation({
+  lines: ["1", "2", "3", "7", "N", "Q", "R", "W"]
+});
+```
+
+#### Object Override Gotcha
+
+```typescript
+// ❌ INCORRECT: Partial object override replaces entire object
+const commute = createMockCommute({
+  origin: { id: "101" }  // Replaces entire origin, loses other fields
+});
+// Result: origin = { id: "101" } - missing name, lat, lon, lines, etc!
+
+// ✅ CORRECT: Use createMockStation for nested objects
+const commute = createMockCommute({
+  origin: createMockStation({ id: "101", name: "South Ferry" })
+});
+```
+
+---
+
+### Timestamp Handling
+
+**⚠️ CRITICAL: All Timestamps Use Millisecond Precision**
+
+Every timestamp field across all test helpers uses **milliseconds since epoch** (Unix timestamp × 1000), not seconds.
+
+#### Common Timestamp Mistakes
+
+```typescript
+// ❌ WRONG: Using seconds (typical Unix timestamp)
+const trip = createMockTripRecord({
+  departureTime: Math.floor(Date.now() / 1000),  // WRONG! Seconds, not ms
+  arrivalTime: Math.floor(Date.now() / 1000)
+});
+// Result: Timestamps appear 1000x too old in queries
+
+// ✅ CORRECT: Use milliseconds
+const trip = createMockTripRecord({
+  departureTime: Date.now() - 3600000,  // 1 hour ago in milliseconds
+  arrivalTime: Date.now() - 1800000     // 30 min ago in milliseconds
+});
+```
+
+#### Timezone Gotchas
+
+```typescript
+// ❌ GOTCHA: Date strings lose timezone context
+const trip = createMockTripRecord({
+  date: "2024-01-15",  // UTC midnight or local midnight?
+  // SQLite stores this as-is, comparisons become tricky
+});
+
+// ✅ BETTER: Use timestamps for precision, convert to date string later
+const timestamp = Date.now();
+const trip = createMockTripRecord({
+  departureTime: timestamp,
+  arrivalTime: timestamp + 1800000
+});
+const date = new Date(timestamp).toISOString().split("T")[0];  // Local date
+```
+
+#### Time Mocking Side Effects
+
+```typescript
+beforeEach(() => {
+  mockCurrentTime(new Date("2024-01-15T08:30:00").getTime());
+});
+
+test("uses mocked time", () => {
+  const now = Date.now();
+  expect(now).toBe(new Date("2024-01-15T08:30:00").getTime()); // ✅
+  
+  // ❌ GOTCHA: new Date() constructor is NOT mocked
+  const date = new Date();
+  expect(date.getTime()).not.toBe(now); // Actual current time
+  
+  // ✅ CORRECT: Use Date.now() or Date.parse() (both mocked)
+  const parsed = Date.parse("2024-01-15");
+  expect(parsed).toBe(now); // ✅
+});
+```
+
+#### Timestamp Comparison Gotchas
+
+```typescript
+// ❌ GOTCHA: Comparing timestamps with different precision
+const arrival = createMockArrival({
+  arrivalTime: Date.now() + 120000,  // 2 minutes from now (ms)
+  minutesAway: 2  // Calculated value, may be rounded
+});
+
+// Test may fail due to timing differences between creation and assertion
+expect(arrival.minutesAway).toBe(2); // Flaky!
+
+// ✅ BETTER: Use fixed timestamps
+const fixedTime = Date.now();
+const arrival = createMockArrival({
+  arrivalTime: fixedTime + 120000,
+  minutesAway: 2
+});
+
+// Mock time so Date.now() returns fixedTime
+mockCurrentTime(fixedTime);
+expect(arrival.minutesAway).toBe(2); // Stable
+```
+
+#### Expiration Time Calculations
+
+```typescript
+// ❌ GOTCHA: Off-by-one errors in expiration
+const apiKey = createMockApiKey({
+  expiresAt: Date.now() + 3600000  // 1 hour from now
+});
+
+// Test immediately - should be valid
+expect(Date.now() < apiKey.expiresAt).toBe(true); // ✅
+
+// But test 1ms later becomes flaky
+const later = Date.now() + 1;
+expect(later < apiKey.expiresAt).toBe(true); // Flaky near boundary!
+
+// ✅ BETTER: Use explicit time windows for testing
+const now = Date.now();
+const apiKey = createMockApiKey({
+  expiresAt: now + 3600000
+});
+const isExpired = (timestamp: number) => timestamp >= apiKey.expiresAt;
+
+expect(isExpired(now)).toBe(false);        // Valid now
+expect(isExpired(now + 3600000)).toBe(true); // Expired after 1 hour
+```
+
+#### Date String Format Gotchas
+
+```typescript
+// ❌ GOTCHA: Inconsistent date string formats
+const trip1 = createMockTripRecord({
+  date: "2024-01-15"  // ISO date (YYYY-MM-DD)
+});
+
+const trip2 = createMockTripRecord({
+  date: new Date().toISOString().split("T")[0]  // Also ISO date
+});
+
+// ❌ GOTCHA: This creates different formats
+const trip3 = createMockTripRecord({
+  date: new Date().toLocaleDateString()  // "1/15/2024" - NOT ISO!
+});
+
+// ✅ CORRECT: Always use ISO format for consistency
+const toIsoDate = (timestamp: number) => 
+  new Date(timestamp).toISOString().split("T")[0];
+
+const trip4 = createMockTripRecord({
+  date: toIsoDate(Date.now())  // Consistent ISO format
+});
+```
+
+---
+
+### Unexpected Behaviors
+
+#### 1. Stop ID Inconsistency
+
+**❗ The `id` Field Does NOT Auto-Update `northStopId` and `southStopId`**
+
+```typescript
+// ❌ INCONSISTENT: id is "101" but stop IDs reference "725"
+const inconsistentStation = createMockStation({
+  id: "101"
+});
+console.log(inconsistentStation.id);         // "101"
+console.log(inconsistentStation.northStopId); // "725N" ← Still references old ID!
+console.log(inconsistentStation.southStopId); // "725S" ← Still references old ID!
+
+// ✅ CONSISTENT: Update all related IDs together
+const consistentStation = createMockStation({
+  id: "999",
+  northStopId: "999N",
+  southStopId: "999S"
+});
+
+// ✅ HELPER: Create consistent stations
+function createConsistentStation(stationId: string) {
+  return createMockStation({
+    id: stationId,
+    northStopId: `${stationId}N`,
+    southStopId: `${stationId}S`
+  });
+}
+```
+
+#### 2. Complex ID Field is Optional
+
+**The `complex` field is `undefined` unless explicitly set**
+
+```typescript
+// Default: complex is undefined
+const defaultStation = createMockStation();
+console.log(defaultStation.complex); // undefined
+
+// ❌ GOTCHA: Checking undefined vs falsy
+if (!station.complex) {
+  // This runs for both undefined AND "0" or empty string
+}
+
+// ✅ CORRECT: Explicit check
+if (station.complex === undefined) {
+  // Only runs when truly undefined
+}
+
+// ✅ CORRECT: Null coalescing for fallback
+const complexId = station.complex ?? station.id;
+```
+
+#### 3. Borough Type Assertion Required
+
+**Borough overrides need type assertion for type safety**
+
+```typescript
+// ❌ WRONG: TypeScript error without type assertion
+const brooklynStation = createMockStation({
+  borough: "brooklyn"  // Type error!
+});
+
+// ✅ CORRECT: Use type assertion
+const brooklynStation = createMockStation({
+  borough: "brooklyn" as Borough
+});
+
+// ✅ ALSO CORRECT: Import and cast
+import type { Borough } from "@mta-my-way/shared/types/stations";
+const station = createMockStation({
+  borough: "queens" as Borough
+});
+```
+
+#### 4. Transfers Array Replacement
+
+**Like `lines`, `transfers` is replaced entirely, not merged**
+
+```typescript
+// ❌ EXPECTATION: Add transfer to defaults
+const station = createMockStation({
+  transfers: [
+    { toStationId: "727", toLines: ["A", "C", "E"], walkingSeconds: 180, accessible: true }
+  ]
+});
+// Result: Only one transfer (the one you specified), defaults lost
+
+// ✅ CORRECT: Specify all transfers explicitly
+const hubStation = createMockStation({
+  transfers: [
+    { toStationId: "727", toLines: ["A", "C", "E"], walkingSeconds: 180, accessible: true },
+    { toStationId: "728", toLines: ["N", "Q", "R", "W"], walkingSeconds: 240, accessible: false }
+  ]
+});
+```
+
+#### 5. No Built-in Validation
+
+**Test helpers do NOT validate inputs - they create objects with any values**
+
+```typescript
+// ❌ These will create objects without error (but are invalid!)
+const invalidStation = createMockStation({
+  id: "INVALID-ID-123",
+  lat: 999.999,  // Invalid latitude (outside -90 to 90)
+  lon: -999.999, // Invalid longitude (outside -180 to 180)
+  lines: ["INVALID-LINE"],  // Non-existent MTA line
+  northStopId: "not-a-number",  // Doesn't follow pattern
+  borough: "new-jersey"  // Not a valid NYC borough
+});
+
+// ✅ You must add your own validation if needed
+function validateStation(station: Station): boolean {
+  if (station.lat < -90 || station.lat > 90) return false;
+  if (station.lon < -180 || station.lon > 180) return false;
+  if (!/^\d+$/.test(station.id)) return false;
+  if (!/^\d+N$/.test(station.northStopId)) return false;
+  if (!/^\d+S$/.test(station.southStopId)) return false;
+  const validBoroughs: Borough[] = ["manhattan", "brooklyn", "queens", "bronx", "statenisland"];
+  if (!validBoroughs.includes(station.borough)) return false;
+  return true;
+}
+```
+
+#### 6. Direction Union Type Gotcha
+
+**Direction is literal `"N"` or `"S"` - TypeScript validates but runtime doesn't**
+
+```typescript
+// ❌ GOTCHA: Runtime doesn't catch invalid directions
+const arrival = createMockArrival({
+  direction: "north"  // TypeScript error, but if bypassed...
+});
+
+// ✅ CORRECT: Use exact literals
+const arrival = createMockArrival({
+  direction: "N"  // Correct
+});
+
+// ✅ HELPER: Type-safe direction
+function createNorthboundArrival() {
+  return createMockArrival({ direction: "N" });
+}
+```
+
+#### 7. Mock Database Transaction Not Real
+
+**`createMockDatabase().transaction` runs function synchronously, not as a real transaction**
+
+```typescript
+const db = createMockDatabase();
+
+// ❌ GOTCHA: This runs immediately, not transactionally
+db.transaction(() => {
+  db.exec("INSERT INTO stations VALUES (...)");
+  // If this throws, previous insert is NOT rolled back
+  db.exec("INSERT INTO stations VALUES (...)");
+});
+
+// ✅ For transaction testing, use real database
+const realDb = createTripTrackingDatabase();
+realDb.transaction(() => {
+  realDb.exec("INSERT INTO stations VALUES (...)");
+  // This IS transactional - rollback on error
+  realDb.exec("INSERT INTO stations VALUES (...)");
+});
+```
+
+#### 8. Cleanup Side Effects
+
+**`cleanupAllState()` is slow (~100ms) and doesn't reset database**
+
+```typescript
+// ❌ WRONG: Expecting fast cleanup
+beforeEach(async () => {
+  await cleanupAllState(); // Takes ~100ms
+  // Creates slow test suite
+});
+
+// ✅ CORRECT: Use only for tests that need it
+beforeEach(async () => {
+  if (testNeedsCleanState) {
+    await cleanupAllState();
+  }
+});
+
+// ❌ GOTCHA: cleanupAllState() doesn't clear database
+beforeEach(async () => {
+  await cleanupAllState();
+  const db = createTripTrackingDatabase();
+  db.prepare("INSERT INTO trips (...) VALUES (...)").run(...);
+});
+
+afterEach(() => {
+  // Database still has data! cleanupAllState doesn't touch it
+  // Must use clearAllTrips() or closeDatabase()
+});
+```
+
+#### 9. Mock Fetch URL Matching
+
+**`createMockFetch` uses substring matching, not exact URL matching**
+
+```typescript
+const mockFetch = createMockFetch([
+  {
+    url: "/api/stations",
+    response: createMockResponse({ id: "725" })
+  }
+]);
+
+// ❌ GOTCHA: Substring matches multiple URLs
+await mockFetch("/api/stations/725");  // Matches! (substring)
+await mockFetch("/api/stations/101");  // Also matches!
+
+// ✅ CORRECT: Use specific URLs
+const mockFetch = createMockFetch([
+  { url: "/api/stations/725", response: createMockResponse({ id: "725" }) },
+  { url: "/api/stations/101", response: createMockResponse({ id: "101" }) }
+]);
+```
+
+#### 10. Performance.now() Mock Resolution
+
+**Test environment's `performance.now()` returns `Date.now()`, not high-resolution time**
+
+```typescript
+beforeEach(() => {
+  setupTestEnvironment();
+});
+
+test("performance timing", () => {
+  // ❌ GOTCHA: Not actually high-resolution
+  const start = performance.now();
+  const end = performance.now();
+  expect(end - start).toBe(0); // Often 0, not microsecond precision
+  
+  // ✅ CORRECT: Use for relative timing only
+  const start = performance.now();
+  // ... do work ...
+  const duration = performance.now() - start;
+  expect(duration).toBeGreaterThan(0); // Rough measurement OK
+});
+```
+
+---
+
+### Troubleshooting Guide
+
+#### Problem: Tests Pass Individually But Fail in Suite
+
+**Symptoms:**
+- Test passes when run alone
+- Test fails when run with other tests
+- Error messages about duplicate IDs, missing data, or unexpected state
+
+**Root Cause:** Module-level state pollution between tests
+
+**Solution:**
+```typescript
+// ✅ ALWAYS call cleanupAllState in beforeEach for integration tests
+beforeEach(async () => {
+  await cleanupAllState();
+});
+
+// ✅ Use fresh mock instances per test
+test("test 1", () => {
+  const logger = createMockLogger(); // Fresh instance
+  // ...
+});
+
+test("test 2", () => {
+  const logger = createMockLogger(); // New fresh instance
+  // ...
+});
+```
+
+#### Problem: "Too Many Open Files" Error
+
+**Symptoms:**
+- Tests fail after running for a while
+- Error: `Error: SQLITE_CANTOPEN: too many open files`
+- Happens after 50-100 tests
+
+**Root Cause:** Database connections not being closed
+
+**Solution:**
+```typescript
+// ❌ WRONG: Forgetting to close database
+let db: Database.Database;
+beforeEach(() => {
+  db = createTripTrackingDatabase();
+});
+// No afterEach - connection leaks!
+
+// ✅ CORRECT: Always close in afterEach
+let db: Database.Database;
+beforeEach(() => {
+  db = createTripTrackingDatabase();
+});
+
+afterEach(() => {
+  closeDatabase(db);  // CRITICAL!
+});
+
+// ✅ ALSO CORRECT: Use try-finally for manual cleanup
+const db = createTripTrackingDatabase();
+try {
+  // ... test code ...
+} finally {
+  closeDatabase(db);  // Always runs, even if test fails
+}
+```
+
+#### Problem: Assertions Pass But Values Are Wrong
+
+**Symptoms:**
+- Test assertions pass
+- But logged/printed values don't match expectations
+-特别是在处理时间戳时
+
+**Root Cause:** Type coercion or silent failures in assertions
+
+**Solution:**
+```typescript
+// ❌ GOTCHA: Loose equality passes
+expect("123").toBe(123); // Fails (strict)
+expect(["7"]).toEqual(["1", "2", "3", "7", "N", "Q", "R", "W"]); // Fails (not merged)
+
+// ✅ CORRECT: Use strict assertions
+expect(station.lines).toBe(["7"]); // Strict equality
+expect(arrival.minutesAway).toBe(2); // Exact match
+
+// ✅ ALSO CORRECT: Check specific properties
+expect(station.lines).toHaveLength(1);
+expect(station.lines[0]).toBe("7");
+```
+
+#### Problem: Time-Dependent Tests Are Flaky
+
+**Symptoms:**
+- Tests pass sometimes, fail other times
+- Failures happen near minute/hour boundaries
+- Errors about "stale data" or "expired tokens"
+
+**Root Cause:** Using real time in tests, race conditions
+
+**Solution:**
+```typescript
+// ❌ WRONG: Using real time
+test("arrival time", () => {
+  const arrival = createMockArrival({
+    arrivalTime: Date.now() + 120000, // Changes every run
+    minutesAway: 2
+  });
+  expect(arrival.minutesAway).toBe(2); // Flaky!
+});
+
+// ✅ CORRECT: Mock time
+test("arrival time", () => {
+  const fixedTime = new Date("2024-01-15T08:30:00").getTime();
+  mockCurrentTime(fixedTime);
+  
+  const arrival = createMockArrival({
+    arrivalTime: fixedTime + 120000,
+    minutesAway: 2
+  });
+  expect(arrival.minutesAway).toBe(2); // Stable!
+});
+```
+
+#### Problem: Arrays Not Merging As Expected
+
+**Symptoms:**
+- Expected arrays to combine (default + override)
+- Got only override values
+- Particularly common with `lines` and `transfers`
+
+**Root Cause:** Shallow merge behavior (see "Override Merging Behavior" above)
+
+**Solution:**
+```typescript
+// ❌ EXPECTATION: Arrays merge
+const station = createMockStation({
+  lines: ["7"]
+});
+// Expected: ["1", "2", "3", "7", "N", "Q", "R", "W", "7"]
+// Got: ["7"]
+
+// ✅ SOLUTION: Manually merge
+const defaultStation = createMockStation();
+const customStation = {
+  ...defaultStation,
+  lines: [...defaultStation.lines, "7"]
+};
+```
+
+#### Problem: Stop ID Validation Fails
+
+**Symptoms:**
+- Tests expect stop IDs to match station ID
+- But stop IDs reference different station
+- Common in custom station mocks
+
+**Root Cause:** Overriding `id` doesn't update stop IDs
+
+**Solution:**
+```typescript
+// ❌ WRONG: Inconsistent IDs
+const station = createMockStation({
+  id: "101"
+  // northStopId still "725N", southStopId still "725S"
+});
+
+// ✅ CORRECT: Update all IDs together
+const station = createMockStation({
+  id: "101",
+  northStopId: "101N",
+  southStopId: "101S"
+});
+
+// ✅ HELPER: Function to maintain consistency
+function createStationWithId(id: string) {
+  return createMockStation({
+    id,
+    northStopId: `${id}N`,
+    southStopId: `${id}S`
+  });
+}
+```
+
+#### Problem: Authorization Tests Pass When They Should Fail
+
+**Symptoms:**
+- Test expects 403 Forbidden
+- But gets 200 OK
+- Authorization bypassed
+
+**Root Cause:** Forgot to call `cleanupAllState()` or using admin credentials
+
+**Solution:**
+```typescript
+// ❌ WRONG: State from previous test
+test("user cannot delete trips", async () => {
+  // No cleanup - previous test's admin key still registered!
+  const creds = await createTestUserCredentials();
+  const response = await fetch("/api/trips/123", {
+    method: "DELETE",
+    headers: { "Authorization": creds.authorizationHeader }
+  });
+  expect(response.status).toBe(403); // FAILS! Admin key from previous test
+});
+
+// ✅ CORRECT: Clean up first
+beforeEach(async () => {
+  await cleanupAllState();  // Reset all API keys
+});
+
+test("user cannot delete trips", async () => {
+  const creds = await createTestUserCredentials();
+  const response = await fetch("/api/trips/123", {
+    method: "DELETE",
+    headers: { "Authorization": creds.authorizationHeader }
+  });
+  expect(response.status).toBe(403); // PASSES!
+});
+```
+
+#### Problem: CSRF Tests Fail with 403
+
+**Symptoms:**
+- POST/PUT/DELETE requests return 403 Forbidden
+- CSRF token included in request
+- Tests failing unexpectedly
+
+**Root Cause:** Token expired, wrong format, or not fetched fresh
+
+**Solution:**
+```typescript
+// ❌ WRONG: Reusing CSRF token
+let csrfToken: string;
+beforeAll(async () => {
+  csrfToken = await getCsrfToken(app);  // Fetched once
+});
+
+test("create trip", async () => {
+  const response = await requestWithCsrf(app, "/api/trips", {
+    method: "POST",
+    body: JSON.stringify({ originId: "101", destinationId: "725" })
+  });
+  // Token expired - fails!
+});
+
+// ✅ CORRECT: Fetch fresh token per request
+test("create trip", async () => {
+  // requestWithCsrf fetches fresh token automatically
+  const response = await requestWithCsrf(app, "/api/trips", {
+    method: "POST",
+    body: JSON.stringify({ originId: "101", destinationId: "725" })
+  });
+  expect(response.status).toBe(201); // PASSES!
+});
+```
+
+#### Problem: Database Queries Return No Results
+
+**Symptoms:**
+- Inserted data into mock database
+- Queries return empty array
+- No error messages
+
+**Root Cause:** Forgetting to configure mock database or using wrong table name
+
+**Solution:**
+```typescript
+// ❌ WRONG: Not configuring prepared statement
+const db = createMockDatabase();
+db._setData("stations", [
+  { id: "725", name: "Times Square" }
+]);
+
+const stmt = db.prepare("SELECT * FROM stations WHERE id = ?");
+const station = stmt.get("725");
+// Returns undefined! Mock not configured
+
+// ✅ CORRECT: Configure mock behavior
+db.prepare.mockReturnValue({
+  all: vi.fn(() => db._getData("stations")),
+  get: vi.fn((id) => db._getData("stations").find(s => s.id === id)),
+  run: vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }))
+});
+
+const station = db.prepare("SELECT * FROM stations WHERE id = ?").get("725");
+// Returns { id: "725", name: "Times Square" } ✅
+```
+
+#### Problem: Async Tests Timeout or Hang
+
+**Symptoms:**
+- Tests hang indefinitely
+- Timeout after 5-10 seconds
+- No error messages
+
+**Root Cause:** Forgetting to await promises or not flushing async operations
+
+**Solution:**
+```typescript
+// ❌ WRONG: Not awaiting async operation
+test("async operation", () => {
+  fetch("/api/stations").then(r => r.json()).then(data => {
+    expect(data).toBeDefined(); // Never runs!
+  });
+  // Test ends before promise resolves
+});
+
+// ✅ CORRECT: Return the promise
+test("async operation", () => {
+  return fetch("/api/stations")
+    .then(r => r.json())
+    .then(data => {
+      expect(data).toBeDefined();
+    });
+});
+
+// ✅ ALSO CORRECT: Use async/await
+test("async operation", async () => {
+  const response = await fetch("/api/stations");
+  const data = await response.json();
+  expect(data).toBeDefined();
+});
+
+// ✅ FOR DOM UPDATES: Flush promises
+test("component update", async () => {
+  render(<MyComponent />);
+  await flushPromises(); // Wait for all async operations
+  expect(screen.getByText("Loaded")).toBeInTheDocument();
+});
+```
+
+---
+
+### Quick Reference: Common Gotchas Summary
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| **Array replacement** | Arrays don't merge | Manually merge or specify complete array |
+| **Stop ID inconsistency** | `northStopId`/`southStopId` don't match `id` | Update all IDs together |
+| **Missing complex ID** | `complex` is `undefined` | Set explicitly if needed |
+| **Type assertion needed** | TypeScript error on borough | Use `as Borough` |
+| **No validation** | Invalid values accepted | Add your own validation |
+| **State pollution** | Flaky tests in suite | Call `cleanupAllState()` in `beforeEach` |
+| **Database leaks** | "Too many open files" | Always `closeDatabase()` in `afterEach` |
+| **Time flakiness** | Time-dependent tests fail | Mock time with `mockCurrentTime()` |
+| **URL substring match** | Wrong URL matched in mock fetch | Use specific URLs |
+| **CSRF token reuse** | 403 on POST requests | Fetch fresh token per request |
+| **Transaction not real** | Rollback doesn't work | Use real database for transactions |
+| **Async hanging** | Tests timeout | Return promise or use async/await |
 
 ---
 
