@@ -515,14 +515,15 @@ export function clearPermissionOverrides(): number {
  * @returns true if permission was newly revoked
  */
 export function emergencyRevokePermission(permission: Permission): boolean {
-  const newlyRevoked = emergencyRevocations.add(permission);
+  const wasAlreadyRevoked = emergencyRevocations.has(permission);
+  emergencyRevocations.add(permission);
 
   // Clear entire cache to ensure revocation takes effect immediately
   clearCache();
 
   logger.warn("Permission emergency revoked", { permission });
 
-  return newlyRevoked;
+  return !wasAlreadyRevoked;
 }
 
 /**
@@ -730,7 +731,7 @@ export function getCacheSizeByRole(): Record<UserRole, number> {
 
   for (const key of permissionCache.keys()) {
     const role = key.split(":")[0] as UserRole;
-    if (role in sizes) {
+    if (role in sizes && sizes[role] !== undefined) {
       sizes[role]++;
     }
   }

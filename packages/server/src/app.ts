@@ -2941,13 +2941,22 @@ ${
     app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
 
     /** Initiate password reset request */
-    app.post("/api/auth/password/reset", ...passwordResetRoutes.requestPasswordReset);
+    const resetMiddleware = passwordResetRoutes.requestPasswordReset;
+    if (resetMiddleware.length >= 4) {
+      app.post("/api/auth/password/reset", resetMiddleware[0]!, resetMiddleware[1]!, resetMiddleware[2]!, resetMiddleware[3]!);
+    }
 
     /** Confirm password reset with token */
-    app.post("/api/auth/password/reset/confirm", ...passwordResetRoutes.confirmPasswordReset);
+    const confirmMiddleware = passwordResetRoutes.confirmPasswordReset;
+    if (confirmMiddleware.length >= 4) {
+      app.post("/api/auth/password/reset/confirm", confirmMiddleware[0]!, confirmMiddleware[1]!, confirmMiddleware[2]!, confirmMiddleware[3]!);
+    }
 
     /** Change password for authenticated user */
-    app.post("/api/auth/password/change", ...passwordResetRoutes.changePassword);
+    const changeMiddleware = passwordResetRoutes.changePassword;
+    if (changeMiddleware.length >= 3) {
+      app.post("/api/auth/password/change", changeMiddleware[0]!, changeMiddleware[1]!, changeMiddleware[2]!);
+    }
 
     /** Get user's synced preferences */
     app.get("/api/preferences", preferencesRoutes.getPreferences);

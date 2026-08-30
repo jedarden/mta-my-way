@@ -421,6 +421,9 @@ export function validateJwtStructure(
 
     // Decode payload (base64url)
     const payloadBase64 = parts[1];
+    if (!payloadBase64) {
+      return { valid: false, error: "Missing payload" };
+    }
     const paddedBase64 = payloadBase64 + "=".repeat((4 - (payloadBase64.length % 4)) % 4);
     const payloadJson = atob(paddedBase64.replace(/-/g, "+").replace(/_/g, "/"));
     const payload: Record<string, unknown> = JSON.parse(payloadJson);

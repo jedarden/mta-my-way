@@ -697,8 +697,9 @@ export function unrevokeToken(tokenId: string): boolean {
  * @returns true if newly flagged
  */
 export function flagSuspectedCompromise(tokenId: string): boolean {
-  const newlyFlagged = suspectedCompromises.add(tokenId);
-  if (newlyFlagged) {
+  const wasAlreadyFlagged = suspectedCompromises.has(tokenId);
+  suspectedCompromises.add(tokenId);
+  if (!wasAlreadyFlagged) {
     logger.warn("Token flagged as suspected compromise", { tokenId });
     securityLogger.logSuspiciousActivity(
       {
@@ -713,7 +714,7 @@ export function flagSuspectedCompromise(tokenId: string): boolean {
       `Token ${tokenId} flagged as suspected compromise`
     );
   }
-  return newlyFlagged;
+  return !wasAlreadyFlagged;
 }
 
 /**

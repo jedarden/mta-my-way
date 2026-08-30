@@ -148,7 +148,7 @@ export function httpResponseSplitting(
 
     // Check for CRLF injection in path parameters
     for (const [key, value] of Object.entries(c.req.param())) {
-      if (hasCrlfInjection(value)) {
+      if (typeof value === "string" && hasCrlfInjection(value)) {
         securityLogger.logBlockedAttack(
           c,
           "http_response_splitting",

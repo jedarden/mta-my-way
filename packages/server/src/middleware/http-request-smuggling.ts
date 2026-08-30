@@ -294,7 +294,7 @@ export function httpRequestSmuggling(options: HttpRequestSmugglingOptions = {}):
 
     // Check path parameters for smuggling patterns
     for (const [key, value] of Object.entries(c.req.param())) {
-      if (value && hasSmugglingPatterns(value)) {
+      if (value && typeof value === "string" && hasSmugglingPatterns(value)) {
         securityLogger.logBlockedAttack(
           c,
           "http_request_smuggling",
