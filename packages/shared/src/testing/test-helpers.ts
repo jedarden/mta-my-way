@@ -20,12 +20,159 @@ import { vi, expect } from "vitest";
  * @param overrides - Optional object to merge with default station data
  * @returns A mock {@link Station} object with all required fields
  *
- * @example
+ * @example Minimal station creation (uses all defaults)
  * ```typescript
- * const station = createMockStation({
+ * import { createMockStation } from "@mta-my-way/shared/testing";
+ *
+ * const station = createMockStation();
+ * // Returns Times Square-42 St with all default values
+ * console.log(station.name); // "Times Square-42 St"
+ * console.log(station.lines); // ["1", "2", "3", "7", "N", "Q", "R", "W"]
+ * ```
+ *
+ * @example Custom station with specific lines
+ * ```typescript
+ * const southFerry = createMockStation({
+ *   id: "101",
+ *   name: "South Ferry",
+ *   lines: ["1"],
+ *   ada: true,
+ *   borough: "manhattan"
+ * });
+ * ```
+ *
+ * @example Station with custom coordinates (Brooklyn bridge)
+ * ```typescript
+ * const bridgeStation = createMockStation({
+ *   id: "234",
+ *   name: "High St",
+ *   lat: 40.7022,
+ *   lon: -73.9894,
+ *   lines: ["A", "C"],
+ *   borough: "brooklyn"
+ * });
+ * ```
+ *
+ * @example Station with transfers (complex hub)
+ * ```typescript
+ * const pennStation = createMockStation({
+ *   id: "726",
+ *   name: "34 St-Penn Station",
+ *   lines: ["1", "2", "3"],
+ *   transfers: [
+ *     {
+ *       toStationId: "727",
+ *       toLines: ["A", "C", "E"],
+ *       walkingSeconds: 180,
+ *       accessible: true
+ *     },
+ *     {
+ *       toStationId: "728",
+ *       toLines: ["N", "Q", "R", "W"],
+ *       walkingSeconds: 240,
+ *       accessible: false
+ *     }
+ *   ]
+ * });
+ * ```
+ *
+ * @example Non-ADA accessible station
+ * ```typescript
+ * const oldStation = createMockStation({
+ *   id: "401",
+ *   name: "Smith St-9 St",
+ *   lines: ["F", "G"],
+ *   ada: false,
+ *   borough: "brooklyn"
+ * });
+ *
+ * // Test ADA filtering logic
+ * const adaStations = allStations.filter(s => s.ada);
+ * expect(adaStations).not.toContain(oldStation);
+ * ```
+ *
+ * @example Borough-specific stations
+ * ```typescript
+ * // Queens station
+ * const jamaica = createMockStation({
+ *   id: "501",
+ *   name: "Jamaica Center-Parsons/Archer",
+ *   lines: ["E", "J", "Z"],
+ *   borough: "queens",
+ *   ada: true
+ * });
+ *
+ * // Bronx station
+ * const yankeeStadium = createMockStation({
+ *   id: "601",
+ *   name: "161 St-Yankee Stadium",
+ *   lines: ["4", "B", "D"],
+ *   borough: "bronx",
+ *   ada: true
+ * });
+ * ```
+ *
+ * @example Common override patterns
+ * ```typescript
+ * // Pattern 1: Override only the identifier
+ * const station = createMockStation({ id: "999" });
+ * // All other fields use Times Square defaults
+ *
+ * // Pattern 2: ADA compliance testing
+ * const adaStation = createMockStation({ ada: true });
+ * const nonAdaStation = createMockStation({ ada: false });
+ *
+ * // Pattern 3: Line-specific stations
+ * const onlyTrain1 = createMockStation({
+ *   id: "101",
+ *   lines: ["1"],
+ *   northStopId: "101N",
+ *   southStopId: "101S"
+ * });
+ *
+ * // Pattern 4: Express vs local stops
+ * const expressStop = createMockStation({
  *   id: "725",
- *   name: "Times Square-42 St",
- *   lines: ["1", "2", "3"]
+ *   lines: ["1", "2", "3"],  // 2 and 3 are express
+ *   transfers: []
+ * });
+ *
+ * // Pattern 5: Complex ID for multi-entrance stations
+ * const complexStation = createMockStation({
+ *   id: "631",
+ *   name: "Court Sq",
+ *   complex: "D14",
+ *   lines: ["G", "E", "M", "7"],
+ *   borough: "queens"
+ * });
+ * ```
+ *
+ * @example Testing with multiple related stations
+ * ```typescript
+ * // Create a realistic route segment
+ * const timesSquare = createMockStation({ id: "725", name: "Times Square-42 St" });
+ * const pennStation = createMockStation({ id: "726", name: "34 St-Penn Station" });
+ * const heraldSquare = createMockStation({
+ *   id: "727",
+ *   name: "34 St-Herald Sq",
+ *   transfers: [
+ *     { toStationId: "728", toLines: ["N", "Q", "R"], walkingSeconds: 120, accessible: true }
+ *   ]
+ * });
+ *
+ * // Test route calculation
+ * const route = calculateRoute(timesSquare, heraldSquare);
+ * expect(route.stations).toHaveLength(2);
+ * ```
+ *
+ * @example Stop ID consistency pattern
+ * ```typescript
+ * const customStation = createMockStation({
+ *   id: "999",
+ *   name: "Custom Station",
+ *   // Ensure stop IDs match station ID pattern
+ *   northStopId: "999N",
+ *   southStopId: "999S"
  * });
  * ```
  *
@@ -36,6 +183,21 @@ import { vi, expect } from "vitest";
  * - {@link TransferConnection} - Transfer connection interface (line 15)
  *
  * Import types from: `@mta-my-way/shared/types/stations`
+ *
+ * @example Type-safe imports
+ * ```typescript
+ * import { createMockStation } from "@mta-my-way/shared/testing";
+ * import type { Station, Borough, TransferConnection } from "@mta-my-way/shared/types/stations";
+ *
+ * const station: Station = createMockStation();
+ * const borough: Borough = "brooklyn";
+ * const transfer: TransferConnection = {
+ *   toStationId: "726",
+ *   toLines: ["A", "C"],
+ *   walkingSeconds: 120,
+ *   accessible: true
+ * };
+ * ```
  */
 export function createMockStation(overrides = {}) {
   return {
