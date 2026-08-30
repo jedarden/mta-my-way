@@ -27,6 +27,8 @@ RUN npm ci
 COPY tsconfig.json tsconfig.base.json ./
 COPY packages/shared/ ./packages/shared/
 COPY packages/server/ ./packages/server/
+# Compile proto files before building (required for gtfs-realtime parsing)
+RUN npm run -w packages/server compile-proto
 RUN npm run build -w packages/server
 
 
