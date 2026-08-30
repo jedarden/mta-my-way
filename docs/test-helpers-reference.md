@@ -3087,34 +3087,110 @@ describe("Shared corridor routing", () => {
 
 #### `createMockArrival`
 
-Creates a mock train arrival object with default values.
+Creates a mock train arrival object with realistic MTA arrival defaults for testing real-time subway data.
 
 **Type Signature:**
 ```typescript
-function createMockArrival(overrides?: Partial<Arrival>): Arrival
+function createMockArrival(overrides?: Partial<ArrivalTime>): ArrivalTime
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides` (optional): `Partial<ArrivalTime>` - Partial object to merge with default arrival data using spread syntax
 
-**Returns:** `Arrival` object with:
-- `line: string` - Subway line (default: `"1"`)
-- `direction: "N" | "S"` - Direction (default: `"N"`)
-- `arrivalTime: number` - Arrival timestamp (default: 2 minutes from now)
-- `minutesAway: number` - Minutes until arrival (default: `2`)
-- `isAssigned: boolean` - Assignment status (default: `true`)
-- `isRerouted: boolean` - Reroute flag (default: `false`)
-- `tripId: string` - Trip ID (default: `"trip_123"`)
-- `destination: string` - Destination station (default: `"Van Cortlandt Park"`)
-- `confidence: "high" | "medium" | "low"` - Arrival confidence (default: `"high"`)
-- `feedName: string` - Feed source (default: `"gtfs"`)
-- `feedAge: number` - Feed age in seconds (default: `8`)
+**Type Definitions:**
+All types are defined in [`packages/shared/src/types/arrivals.ts`](../../packages/shared/src/types/arrivals.ts):
 
-**Usage Example:**
+- [`ArrivalTime`](../../packages/shared/src/types/arrivals.ts#L14) - Main arrival interface (lines 14-49)
+  - `line: string` - Route ID (e.g., `"1"`, `"A"`, `"F"`)
+  - `direction: Direction` - Northbound or Southbound (lines 5-6)
+  - `arrivalTime: number` - POSIX timestamp of predicted arrival
+  - `minutesAway: number` - Computed convenience field: minutes until arrival
+  - `isAssigned: boolean` - Whether a train is physically assigned to this trip
+  - `isRerouted: boolean` - Whether actual track differs from scheduled track
+  - `tripId: string` - GTFS trip ID for tracking across refreshes
+  - `destination: string` - Terminal station name (headsign)
+  - `confidence: ConfidenceLevel` - Confidence based on division + assignment (lines 8-9)
+  - `feedName: string` - Which GTFS-RT feed this arrival came from
+  - `feedAge: number` - Seconds since this feed was last successfully polled
+
+- [`Direction`](../../packages/shared/src/types/arrivals.ts#L6) - Direction type (line 6)
+  - Type: `"N" | "S"` (Northbound | Southbound)
+
+- [`ConfidenceLevel`](../../packages/shared/src/types/arrivals.ts#L9) - Confidence level type (line 9)
+  - Type: `"high" | "medium" | "low"`
+  - Logic: `high` = A Division + assigned, `medium` = A Division + unassigned or B Division + assigned, `low` = B Division + unassigned
+
+**Import Path:**
+```typescript
+// Import the helper function
+import { createMockArrival } from "@mta-my-way/shared/testing";
+
+// Import types for type checking
+import type { ArrivalTime, Direction, ConfidenceLevel } from "@mta-my-way/shared/types/arrivals";
+```
+
+**Important: No Separate "MockArrival" Type**
+
+There is **no separate `MockArrival` type** in this codebase. The `createMockArrival` function returns a regular `ArrivalTime` object - the same type used throughout the application for real arrival data. The "mock" aspect is simply that the function provides convenient default values that can be selectively overridden.
+
+**Return Type Structure**
+
+The function returns a complete `ArrivalTime` object with all required properties:
+
+```typescript
+interface ArrivalTime {
+  line: string;                  // Route ID (default: "1")
+  direction: Direction;          // "N" or "S" (default: "N")
+  arrivalTime: number;           // POSIX timestamp (default: now + 2 minutes)
+  minutesAway: number;           // Minutes until arrival (default: 2)
+  isAssigned: boolean;           // Assignment status (default: true)
+  isRerouted: boolean;           // Reroute flag (default: false)
+  tripId: string;                // GTFS trip ID (default: "trip_123")
+  destination: string;           // Terminal station (default: "Van Cortlandt Park")
+  confidence: ConfidenceLevel;   // Confidence level (default: "high")
+  feedName: string;              // Feed source (default: "gtfs")
+  feedAge: number;               // Feed age in seconds (default: 8)
+}
+```
+
+**Default Return Values**
+
+When called with no parameters, `createMockArrival()` returns:
+
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `line` | `string` | `"1"` | IRT Broadway-7th Ave Local |
+| `direction` | `Direction` | `"N"` | Northbound |
+| `arrivalTime` | `number` | `Date.now() + 120000` | 2 minutes from current time |
+| `minutesAway` | `number` | `2` | Minutes until arrival |
+| `isAssigned` | `boolean` | `true` | Train is physically assigned |
+| `isRerouted` | `boolean` | `false` | Not rerouted |
+| `tripId` | `string` | `"trip_123"` | GTFS trip identifier |
+| `destination` | `string` | `"Van Cortlandt Park"` | Bronx terminal for 1 train |
+| `confidence` | `ConfidenceLevel` | `"high"` | A Division + assigned |
+| `feedName` | `string` | `"gtfs"` | IRT Division feed |
+| `feedAge` | `number` | `8` | 8 seconds since last poll |
+
+---
+
+### Usage Examples
+
+#### Basic Arrival Creation
+
 ```typescript
 import { createMockArrival } from "@mta-my-way/shared/testing";
 
-const defaultArrival = createMockArrival();
+// Default arrival (1 train, northbound, arriving in 2 minutes)
+const arrival = createMockArrival();
+console.log(arrival.line); // "1"
+console.log(arrival.direction); // "N"
+console.log(arrival.minutesAway); // 2
+console.log(arrival.destination); // "Van Cortlandt Park"
+```
+
+#### Southbound Arrival
+
+```typescript
 const southboundArrival = createMockArrival({
   line: "2",
   direction: "S",
@@ -3122,25 +3198,1001 @@ const southboundArrival = createMockArrival({
   destination: "New Lots Avenue"
 });
 
+// Test southbound display
+expect(southboundArrival.direction).toBe("S");
+expect(southboundArrival.minutesAway).toBe(5);
+```
+
+#### Delayed Arrival with Low Confidence
+
+```typescript
 const delayedArrival = createMockArrival({
   minutesAway: 15,
   confidence: "low",
   feedAge: 45 // Stale data
 });
 
+// Test delay handling
+expect(delayedArrival.minutesAway).toBeGreaterThan(10);
+expect(delayedArrival.confidence).toBe("low");
+expect(delayedArrival.feedAge).toBeGreaterThan(30);
+```
+
+#### Rerouted Arrival
+
+```typescript
 const reroutedArrival = createMockArrival({
   isRerouted: true,
   line: "1",
-  destination: "14 St (via 2)"
+  destination: "14 St (via 2)",
+  tripId: "trip_reroute_456"
+});
+
+// Test reroute notification
+expect(reroutedArrival.isRerouted).toBe(true);
+expect(reroutedArrival.destination).toContain("via");
+```
+
+#### Unassigned Trip (B Division)
+
+```typescript
+const unassignedArrival = createMockArrival({
+  line: "A",              // B Division
+  direction: "N",
+  isAssigned: false,      // Unassigned
+  destination: "Inwood - 207 St",
+  feedName: "gtfs-ace",   // B Division feed
+  confidence: "low",      // B Division + unassigned = low
+  feedAge: 12
+});
+
+// Test confidence calculation
+expect(unassignedArrival.confidence).toBe("low");
+expect(unassignedArrival.isAssigned).toBe(false);
+```
+
+---
+
+### Common Override Patterns
+
+#### Pattern 1: Time-Based Testing
+
+```typescript
+// Immediate arrival
+const arrivingNow = createMockArrival({
+  arrivalTime: Date.now() + 30000,    // 30 seconds
+  minutesAway: 0
+});
+
+// Short-term arrivals
+const oneMinute = createMockArrival({
+  arrivalTime: Date.now() + 60000,
+  minutesAway: 1
+});
+
+const threeMinutes = createMockArrival({
+  arrivalTime: Date.now() + 180000,
+  minutesAway: 3
+});
+
+// Long-term arrival
+const tenMinutes = createMockArrival({
+  arrivalTime: Date.now() + 600000,
+  minutesAway: 10,
+  confidence: "medium"  // Far arrivals are less reliable
+});
+
+// Test sorting by arrival time
+const arrivals = [arrivingNow, threeMinutes, oneMinute];
+arrivals.sort((a, b) => a.arrivalTime - b.arrivalTime);
+expect(arrivals[0].minutesAway).toBe(0);
+expect(arrivals[2].minutesAway).toBe(3);
+```
+
+#### Pattern 2: Line-Specific Arrivals
+
+```typescript
+// IRT Division (A Division) - numbered trains
+const train1 = createMockArrival({
+  line: "1",
+  direction: "N",
+  destination: "Van Cortlandt Park",
+  feedName: "gtfs",
+  isAssigned: true,
+  confidence: "high"
+});
+
+const train4 = createMockArrival({
+  line: "4",
+  direction: "N",
+  destination: "Woodlawn",
+  feedName: "gtfs",
+  isAssigned: true,
+  confidence: "high"
+});
+
+// BMT/IND Division (B Division) - lettered trains
+const trainA = createMockArrival({
+  line: "A",
+  direction: "N",
+  destination: "Inwood - 207 St",
+  feedName: "gtfs-ace",
+  isAssigned: true,
+  confidence: "medium"  // B Division + assigned = medium
+});
+
+const trainF = createMockArrival({
+  line: "F",
+  direction: "S",
+  destination: "Coney Island - Stillwell Av",
+  feedName: "gtfs-bdfm",
+  isAssigned: false,
+  confidence: "low"  // B Division + unassigned = low
 });
 ```
 
-**Edge Cases:**
-- `arrivalTime` defaults to 2 minutes from now - use fixed timestamp for predictable tests
-- `confidence` affects display priority - test low confidence handling
-- `feedAge` indicates data freshness - test stale data rejection logic
-- `isRerouted` flag affects route display - test reroute notifications
-- Direction is literal `"N"` or `"S"` - TypeScript validates but runtime doesn't check
+#### Pattern 3: Confidence Level Scenarios
+
+```typescript
+// High confidence (A Division + assigned)
+const highConfidence = createMockArrival({
+  line: "1",
+  isAssigned: true,
+  confidence: "high",
+  feedAge: 5  // Fresh data
+});
+
+// Medium confidence (A Division + unassigned OR B Division + assigned)
+const mediumConfidenceA = createMockArrival({
+  line: "1",
+  isAssigned: false,  // Unassigned A Division
+  confidence: "medium"
+});
+
+const mediumConfidenceB = createMockArrival({
+  line: "A",          // B Division
+  isAssigned: true,   // Assigned B Division
+  feedName: "gtfs-ace",
+  confidence: "medium"
+});
+
+// Low confidence (B Division + unassigned)
+const lowConfidence = createMockArrival({
+  line: "F",
+  isAssigned: false,
+  feedName: "gtfs-bdfm",
+  confidence: "low",
+  feedAge: 20  // Stale data
+});
+
+// Test confidence-based filtering
+const reliableArrivals = [highConfidence, mediumConfidenceA, lowConfidence]
+  .filter(a => a.confidence === "high");
+expect(reliableArrivals).toHaveLength(1);
+```
+
+#### Pattern 4: Feed Age Testing
+
+```typescript
+// Fresh data
+const freshArrival = createMockArrival({
+  feedAge: 3,  // 3 seconds old
+  confidence: "high"
+});
+
+// Moderate staleness
+const moderateArrival = createMockArrival({
+  feedAge: 15,  // 15 seconds old
+  confidence: "medium"
+});
+
+// Stale data
+const staleArrival = createMockArrival({
+  feedAge: 45,  // 45 seconds old
+  confidence: "low"
+});
+
+// Very stale data
+const veryStaleArrival = createMockArrival({
+  feedAge: 90,  // 90 seconds old
+  confidence: "low"
+});
+
+// Test staleness filtering
+const MAX_FEED_AGE = 30;
+const freshArrivals = [freshArrival, moderateArrival, staleArrival]
+  .filter(a => a.feedAge <= MAX_FEED_AGE);
+expect(freshArrivals).toHaveLength(2);
+```
+
+#### Pattern 5: Direction-Specific Testing
+
+```typescript
+// Northbound arrivals
+const northbound1 = createMockArrival({
+  line: "1",
+  direction: "N",
+  destination: "Van Cortlandt Park"
+});
+
+const northbound2 = createMockArrival({
+  line: "2",
+  direction: "N",
+  destination: "Wakefield - 241 St"
+});
+
+// Southbound arrivals
+const southbound1 = createMockArrival({
+  line: "1",
+  direction: "S",
+  destination: "South Ferry"
+});
+
+const southbound2 = createMockArrival({
+  line: "2",
+  direction: "S",
+  destination: "New Lots Avenue"
+});
+
+// Test direction filtering
+const allArrivals = [northbound1, southbound1, northbound2, southbound2];
+const northboundOnly = allArrivals.filter(a => a.direction === "N");
+const southboundOnly = allArrivals.filter(a => a.direction === "S");
+
+expect(northboundOnly).toHaveLength(2);
+expect(southboundOnly).toHaveLength(2);
+```
+
+#### Pattern 6: Multiple Arrivals for Same Station
+
+```typescript
+// Create realistic arrival list for Times Square northbound
+const timesSquareNorth = [
+  createMockArrival({
+    line: "1",
+    direction: "N",
+    minutesAway: 2,
+    destination: "Van Cortlandt Park",
+    tripId: "trip_001"
+  }),
+  createMockArrival({
+    line: "2",
+    direction: "N",
+    minutesAway: 5,
+    destination: "Wakefield - 241 St",
+    tripId: "trip_002"
+  }),
+  createMockArrival({
+    line: "3",
+    direction: "N",
+    minutesAway: 8,
+    destination: "Harlem - 148 St",
+    tripId: "trip_003"
+  })
+];
+
+// Sort by arrival time
+timesSquareNorth.sort((a, b) => a.minutesAway - b.minutesAway);
+
+// Test arrival sequence
+expect(timesSquareNorth[0].line).toBe("1");
+expect(timesSquareNorth[0].minutesAway).toBe(2);
+expect(timesSquareNorth[2].line).toBe("3");
+expect(timesSquareNorth[2].minutesAway).toBe(8);
+```
+
+#### Pattern 7: Destination-Specific Testing
+
+```typescript
+// Bronx terminals
+const bronxTerminal1 = createMockArrival({
+  line: "1",
+  direction: "N",
+  destination: "Van Cortlandt Park"
+});
+
+const bronxTerminal4 = createMockArrival({
+  line: "4",
+  direction: "N",
+  destination: "Woodlawn"
+});
+
+// Brooklyn terminals
+const brooklynTerminal2 = createMockArrival({
+  line: "2",
+  direction: "S",
+  destination: "New Lots Avenue"
+});
+
+const brooklynTerminal5 = createMockArrival({
+  line: "5",
+  direction: "S",
+  destination: "Flatbush Av - Brooklyn College"
+});
+
+// Queens terminals
+const queensTerminal7 = createMockArrival({
+  line: "7",
+  direction: "S",
+  destination: "Flushing - Main St"
+});
+
+// Test destination filtering
+const bronxArrivals = [bronxTerminal1, bronxTerminal4];
+expect(bronxArrivals.every(a => 
+  a.destination.includes("Park") || a.destination === "Woodlawn"
+)).toBe(true);
+```
+
+---
+
+### Time-Based Scenarios
+
+#### Fixed Timestamp Testing
+
+```typescript
+import { createMockArrival } from "@mta-my-way/shared/testing";
+
+// Use fixed timestamp for predictable tests
+const fixedTime = 1704067200000; // 2024-01-01 00:00:00 UTC
+
+const arrival1 = createMockArrival({
+  arrivalTime: fixedTime + 60000,   // 1 minute after
+  minutesAway: 1
+});
+
+const arrival2 = createMockArrival({
+  arrivalTime: fixedTime + 300000,  // 5 minutes after
+  minutesAway: 5
+});
+
+const arrival3 = createMockArrival({
+  arrivalTime: fixedTime + 900000,  // 15 minutes after
+  minutesAway: 15
+});
+
+// Test sorting is deterministic
+const sorted = [arrival3, arrival1, arrival2].sort((a, b) => 
+  a.arrivalTime - b.arrivalTime
+);
+expect(sorted[0].minutesAway).toBe(1);
+expect(sorted[1].minutesAway).toBe(5);
+expect(sorted[2].minutesAway).toBe(15);
+```
+
+#### Arrival Countdown Testing
+
+```typescript
+// Test countdown display logic
+const createCountdown = (arrival: ArrivalTime) => {
+  const now = Date.now();
+  const msUntil = arrival.arrivalTime - now;
+  const minutes = Math.floor(msUntil / 60000);
+  const seconds = Math.floor((msUntil % 60000) / 1000);
+  
+  if (minutes === 0) return `${seconds}s`;
+  if (minutes < 1) return "< 1 min";
+  return `${minutes} min`;
+};
+
+const imminentArrival = createMockArrival({
+  arrivalTime: Date.now() + 30000,  // 30 seconds
+  minutesAway: 0
+});
+
+const shortArrival = createMockArrival({
+  arrivalTime: Date.now() + 90000,  // 90 seconds
+  minutesAway: 1
+});
+
+const regularArrival = createMockArrival({
+  arrivalTime: Date.now() + 300000,  // 5 minutes
+  minutesAway: 5
+});
+
+expect(createCountdown(imminentArrival)).toBe("30s");
+expect(createCountdown(shortArrival)).toBe("< 1 min");
+expect(createCountdown(regularArrival)).toBe("5 min");
+```
+
+#### Rush Hour Patterns
+
+```typescript
+// Simulate rush hour arrival density
+const rushHourNorth = [
+  createMockArrival({ line: "1", minutesAway: 2, tripId: "rush_001" }),
+  createMockArrival({ line: "2", minutesAway: 3, tripId: "rush_002" }),
+  createMockArrival({ line: "3", minutesAway: 4, tripId: "rush_003" }),
+  createMockArrival({ line: "1", minutesAway: 6, tripId: "rush_004" }),
+  createMockArrival({ line: "2", minutesAway: 8, tripId: "rush_005" }),
+  createMockArrival({ line: "3", minutesAway: 10, tripId: "rush_006" })
+];
+
+// Test arrival frequency
+const next5Minutes = rushHourNorth.filter(a => a.minutesAway <= 5);
+expect(next5Minutes).toHaveLength(3); // 3 arrivals in 5 minutes (high frequency)
+
+const next10Minutes = rushHourNorth.filter(a => a.minutesAway <= 10);
+expect(next10Minutes).toHaveLength(6); // 6 arrivals in 10 minutes
+```
+
+---
+
+### Real-World Testing Scenarios
+
+#### Scenario 1: Station Arrival Display
+
+```typescript
+// Create realistic arrival board for Times Square
+const timesSquareArrivals = {
+  northbound: [
+    createMockArrival({ 
+      line: "1", direction: "N", minutesAway: 2, 
+      destination: "Van Cortlandt Park", confidence: "high" 
+    }),
+    createMockArrival({ 
+      line: "2", direction: "N", minutesAway: 5, 
+      destination: "Wakefield - 241 St", confidence: "high" 
+    }),
+    createMockArrival({ 
+      line: "3", direction: "N", minutesAway: 8, 
+      destination: "Harlem - 148 St", confidence: "high" 
+    })
+  ],
+  southbound: [
+    createMockArrival({ 
+      line: "1", direction: "S", minutesAway: 3, 
+      destination: "South Ferry", confidence: "high" 
+    }),
+    createMockArrival({ 
+      line: "2", direction: "S", minutesAway: 7, 
+      destination: "New Lots Avenue", confidence: "medium" 
+    })
+  ]
+};
+
+// Test arrival display sorting
+timesSquareArrivals.northbound.sort((a, b) => a.minutesAway - b.minutesAway);
+expect(timesSquareArrivals.northbound[0].line).toBe("1");
+expect(timesSquareArrivals.northbound[0].minutesAway).toBe(2);
+```
+
+#### Scenario 2: Service Disruption Testing
+
+```typescript
+// Simulate service disruption with reroutes
+const disruptionScenarios = [
+  createMockArrival({
+    line: "1",
+    isRerouted: true,
+    destination: "14 St (via 2)",
+    tripId: "reroute_001",
+    confidence: "low"
+  }),
+  createMockArrival({
+    line: "1",
+    isRerouted: false,
+    destination: "South Ferry",
+    tripId: "normal_001",
+    confidence: "high",
+    minutesAway: 12
+  })
+];
+
+// Test reroute detection
+const reroutedArrivals = disruptionScenarios.filter(a => a.isRerouted);
+expect(reroutedArrivals).toHaveLength(1);
+expect(reroutedArrivals[0].destination).toContain("via");
+```
+
+#### Scenario 3: Low Confidence Filtering
+
+```typescript
+// Test hiding low-confidence arrivals from user-facing display
+const allArrivals = [
+  createMockArrival({ line: "1", confidence: "high", minutesAway: 2 }),
+  createMockArrival({ line: "2", confidence: "high", minutesAway: 5 }),
+  createMockArrival({ line: "A", confidence: "low", minutesAway: 8 }),  // Hidden
+  createMockArrival({ line: "3", confidence: "medium", minutesAway: 10 }),
+  createMockArrival({ line: "F", confidence: "low", minutesAway: 12 })   // Hidden
+];
+
+// User-facing display: show only high + medium confidence
+const displayArrivals = allArrivals.filter(a => 
+  a.confidence === "high" || a.confidence === "medium"
+);
+
+expect(displayArrivals).toHaveLength(3);
+expect(displayArrivals.every(a => a.confidence !== "low")).toBe(true);
+
+// Admin/debug display: show all
+const debugArrivals = allArrivals;
+expect(debugArrivals).toHaveLength(5);
+```
+
+#### Scenario 4: Trip ID Persistence Testing
+
+```typescript
+// Test tracking same train across refreshes
+const tripId = "MTA_ABC_123456";
+
+// Initial arrival
+const initialArrival = createMockArrival({
+  tripId,
+  line: "1",
+  direction: "N",
+  minutesAway: 10,
+  arrivalTime: Date.now() + 600000
+});
+
+// Updated arrival (2 minutes later)
+const updatedArrival = createMockArrival({
+  tripId,  // Same trip ID
+  line: "1",
+  direction: "N",
+  minutesAway: 8,
+  arrivalTime: Date.now() + 480000
+});
+
+// Test trip ID matching
+expect(initialArrival.tripId).toBe(updatedArrival.tripId);
+expect(initialArrival.line).toBe(updatedArrival.line);
+
+// Test arrival time progression
+expect(updatedArrival.minutesAway).toBeLessThan(initialArrival.minutesAway);
+expect(updatedArrival.arrivalTime).toBeLessThan(initialArrival.arrivalTime);
+```
+
+---
+
+### Edge Cases and Gotchas
+
+#### Arrival Time vs Minutes Away Consistency
+
+**CRITICAL: These Two Fields Must Stay in Sync**
+
+The `arrivalTime` (absolute POSIX timestamp) and `minutesAway` (relative countdown) represent the same moment in time. When overriding one, you **must** override the other to maintain consistency:
+
+```typescript
+import { createMockArrival } from "@mta-my-way/shared/testing";
+
+// ❌ INCORRECT: Inconsistent time values
+const inconsistentArrival = createMockArrival({
+  arrivalTime: Date.now() + 600000,  // 10 minutes from now
+  minutesAway: 2                      // But says 2 minutes away!
+});
+// BUG: UI shows "2 min" but train actually arrives in 10 minutes
+
+// ✅ CORRECT: Keep arrivalTime and minutesAway synchronized
+const consistentArrival = createMockArrival({
+  arrivalTime: Date.now() + 600000,  // 10 minutes from now
+  minutesAway: 10                     // Matches arrivalTime
+});
+
+// ✅ CORRECT: Helper function to ensure consistency
+function createArrivalInMinutes(minutes: number, overrides = {}) {
+  return createMockArrival({
+    arrivalTime: Date.now() + (minutes * 60000),
+    minutesAway: minutes,
+    ...overrides
+  });
+}
+
+const fiveMinuteArrival = createArrivalInMinutes(5, { line: "2" });
+expect(fiveMinuteArrival.minutesAway).toBe(5);
+expect(fiveMinuteArrival.arrivalTime).toBeCloseTo(Date.now() + 300000, -3);
+```
+
+**Testing Time Calculations:**
+
+```typescript
+// Verify the relationship between fields
+const arrival = createMockArrival({
+  arrivalTime: Date.now() + 300000  // 5 minutes
+});
+
+const now = Date.now();
+const actualMinutesUntil = Math.round((arrival.arrivalTime - now) / 60000);
+
+// This should pass if fields are consistent
+expect(actualMinutesUntil).toBe(arrival.minutesAway);
+```
+
+---
+
+#### Timestamp Precision and Time Zones
+
+**All Timestamps Are POSIX Milliseconds (UTC)**
+
+The `arrivalTime` field uses POSIX timestamps in milliseconds since Unix epoch (January 1, 1970, UTC). This is timezone-agnostic by design:
+
+```typescript
+// POSIX timestamp is always UTC
+const utcArrival = createMockArrival({
+  arrivalTime: 1704067200000  // 2024-01-01 00:00:00 UTC
+});
+
+// Same timestamp, different timezone display
+const toLocalDate = (timestamp: number) => new Date(timestamp).toLocaleString();
+console.log(toLocalDate(utcArrival.arrivalTime));
+// In New York (EST): "12/31/2023, 7:00:00 PM"
+// In London (GMT): "1/1/2024, 12:00:00 AM"
+// But the underlying timestamp is the same
+
+// ✅ CORRECT: Always work with UTC timestamps internally
+const isPastDue = Date.now() > arrival.arrivalTime;
+
+// ❌ AVOID: Timezone-dependent comparisons (fragile)
+const localDate = new Date(arrival.arrivalTime);
+const hours = localDate.getHours();  // Depends on server timezone
+```
+
+**Timestamp Precision:**
+
+```typescript
+// POSIX timestamps have millisecond precision
+const highPrecision = createMockArrival({
+  arrivalTime: 1704067200123  // Includes milliseconds
+});
+
+const now = Date.now();
+const msRemaining = highPrecision.arrivalTime - now;
+
+// Test sub-minute precision
+if (msRemaining < 60000 && msRemaining > 0) {
+  const seconds = Math.floor(msRemaining / 1000);
+  console.log(`Arriving in ${seconds} seconds`);
+}
+```
+
+---
+
+#### Confidence Level Calculation
+
+**Confidence Is Determined by Division + Assignment Status**
+
+The confidence level is not arbitrary - it follows specific rules based on the MTA's division structure and trip assignment:
+
+```typescript
+// Division A (IRT - numbered trains: 1-6, 7, 42 St Shuttle)
+// Division B (BMT/IND - lettered trains: A-Z, except S shuttles)
+
+// High confidence: A Division + assigned
+const highConfidence = createMockArrival({
+  line: "1",        // A Division
+  isAssigned: true,
+  confidence: "high",
+  feedName: "gtfs"   // A Division feed
+});
+
+// Medium confidence: Two paths to medium
+// Path 1: A Division + unassigned
+const mediumA = createMockArrival({
+  line: "1",
+  isAssigned: false,  // Unassigned A Division
+  confidence: "medium",
+  feedName: "gtfs"
+});
+
+// Path 2: B Division + assigned
+const mediumB = createMockArrival({
+  line: "A",         // B Division
+  isAssigned: true,  // Assigned B Division
+  confidence: "medium",
+  feedName: "gtfs-ace"  // B Division feed
+});
+
+// Low confidence: B Division + unassigned
+const lowConfidence = createMockArrival({
+  line: "F",         // B Division
+  isAssigned: false, // Unassigned B Division
+  confidence: "low",
+  feedName: "gtfs-bdfm"
+});
+```
+
+**Testing Confidence Logic:**
+
+```typescript
+// Helper function to calculate expected confidence
+function calculateConfidence(line: string, isAssigned: boolean): ConfidenceLevel {
+  const isADivision = /^[1-6]|7|GS$/.test(line);
+  
+  if (isADivision && isAssigned) return "high";
+  if (isADivision && !isAssigned) return "medium";
+  if (!isADivision && isAssigned) return "medium";
+  return "low";  // B Division + unassigned
+}
+
+// Test confidence calculation
+const testArrival = createMockArrival({
+  line: "A",
+  isAssigned: false
+});
+
+const expectedConfidence = calculateConfidence("A", false);
+expect(testArrival.confidence).toBe(expectedConfidence); // "low"
+```
+
+---
+
+#### Feed Name and Division Mapping
+
+**Feed Name Must Match the Line's Division**
+
+The `feedName` field indicates which GTFS-RT feed provided the arrival. Different feeds serve different divisions:
+
+```typescript
+// A Division feeds (numbered trains)
+const irtTrains = ["1", "2", "3", "4", "5", "6", "7", "GS"];
+
+// B Division feeds (lettered trains)
+const bmtIndTrains = {
+  "gtfs-ace": ["A", "C", "E"],
+  "gtfs-bdfm": ["B", "D", "F", "M"],
+  "gtfs-nqrw": ["N", "Q", "R", "W"],
+  "gtfs-jz": ["J", "Z"],
+  "gtfs-l": ["L"],
+  "gtfs-sir": ["SIR"]  // Staten Island Railway
+};
+
+// ✅ CORRECT: Feed name matches line division
+const correctFeed = createMockArrival({
+  line: "A",
+  feedName: "gtfs-ace"  // Correct feed for A train
+});
+
+// ❌ INCORRECT: Feed name doesn't match line
+const wrongFeed = createMockArrival({
+  line: "1",
+  feedName: "gtfs-ace"  // Wrong! 1 train is in "gtfs" feed
+});
+```
+
+**Testing Feed Validation:**
+
+```typescript
+// Validate feed name matches line
+function validateFeedForLine(line: string, feedName: string): boolean {
+  const validFeeds: Record<string, string[]> = {
+    "gtfs": ["1", "2", "3", "4", "5", "6", "7", "GS"],
+    "gtfs-ace": ["A", "C", "E"],
+    "gtfs-bdfm": ["B", "D", "F", "M"],
+    "gtfs-nqrw": ["N", "Q", "R", "W"],
+    "gtfs-jz": ["J", "Z"],
+    "gtfs-l": ["L"]
+  };
+  
+  return Object.values(validFeeds).some(lines => 
+    lines.includes(line) && validFeeds[feedName]?.includes(line)
+  );
+}
+
+const arrival = createMockArrival({ line: "A", feedName: "gtfs-ace" });
+expect(validateFeedForLine(arrival.line, arrival.feedName)).toBe(true);
+```
+
+---
+
+#### Direction Type Literal Gotcha
+
+**Direction Must Be Exactly `"N"` or `"S"` (Not `"north"` or `"south"`)**
+
+```typescript
+import type { Direction } from "@mta-my-way/shared/types/arrivals";
+
+// ✅ CORRECT: Use exact literals
+const northbound = createMockArrival({
+  direction: "N"  // TypeScript validates this
+});
+
+const southbound = createMockArrival({
+  direction: "S"  // TypeScript validates this
+});
+
+// ❌ INCORRECT: These fail TypeScript validation
+// const invalid1 = createMockArrival({ direction: "north" });
+// const invalid2 = createMockArrival({ direction: "North" });
+// const invalid3 = createMockArrival({ direction: "SOUTH" });
+
+// ✅ CORRECT: Type-safe direction helper
+function createDirectionalArrival(direction: Direction) {
+  return createMockArrival({ direction });
+}
+
+const nb = createDirectionalArrival("N");
+const sb = createDirectionalArrival("S");
+```
+
+---
+
+#### Trip ID Uniqueness
+
+**Trip IDs Must Be Unique Per Arrival (Even for Same Physical Train)**
+
+```typescript
+// ❌ INCORRECT: Reusing trip ID for different arrivals
+const arrival1 = createMockArrival({
+  tripId: "MTA_123",
+  line: "1",
+  minutesAway: 2
+});
+
+const arrival2 = createMockArrival({
+  tripId: "MTA_123",  // Same trip ID!
+  line: "2",
+  minutesAway: 5
+});
+// BUG: System thinks these are the same train
+
+// ✅ CORRECT: Unique trip IDs per arrival
+const unique1 = createMockArrival({
+  tripId: "MTA_001",
+  line: "1",
+  minutesAway: 2
+});
+
+const unique2 = createMockArrival({
+  tripId: "MTA_002",
+  line: "2",
+  minutesAway: 5
+});
+
+// ✅ CORRECT: Helper function to generate unique IDs
+let tripCounter = 0;
+function createUniqueTrip() {
+  return `MTA_${Date.now()}_${tripCounter++}`;
+}
+
+const auto1 = createMockArrival({ tripId: createUniqueTrip() });
+const auto2 = createMockArrival({ tripId: createUniqueTrip() });
+expect(auto1.tripId).not.toBe(auto2.tripId);
+```
+
+---
+
+#### Feed Age Calculation Gotcha
+
+**Feed Age Is in Seconds, Not Milliseconds**
+
+```typescript
+// ❌ INCORRECT: Treating feedAge as milliseconds
+const wrong = createMockArrival({
+  feedAge: 5000  // This is 5000 seconds, not 5000ms!
+});
+// BUG: 5000 seconds = 83 minutes, not 5 seconds
+
+// ✅ CORRECT: Feed age is in seconds
+const correct = createMockArrival({
+  feedAge: 5  // 5 seconds (fresh)
+});
+
+// ✅ CORRECT: Convert milliseconds to seconds
+const msToSeconds = (ms: number) => Math.floor(ms / 1000);
+const staleArrival = createMockArrival({
+  feedAge: msToSeconds(45000)  // 45 seconds = stale
+});
+
+// Test staleness threshold
+const MAX_STALE_SECONDS = 30;
+const isFresh = correct.feedAge <= MAX_STALE_SECONDS;
+const isStale = staleArrival.feedAge > MAX_STALE_SECONDS;
+
+expect(isFresh).toBe(true);
+expect(isStale).toBe(true);
+```
+
+---
+
+#### No Built-in Validation
+
+**`createMockArrival` Does Not Validate Inputs**
+
+The function accepts any values without validation. It will create arrivals with impossible combinations:
+
+```typescript
+// ❌ These create objects without error (but are invalid!)
+const impossibleArrival = createMockArrival({
+  line: "INVALID-LINE",      // Non-existent MTA line
+  direction: "X",            // Invalid direction (TypeScript won't catch without type)
+  arrivalTime: -1000000,     // Negative timestamp (before Unix epoch!)
+  minutesAway: -5,           // Negative minutes (arrived in the past)
+  isAssigned: false,         // Unassigned
+  confidence: "high",        // But confidence should be low for unassigned A Division!
+  feedName: "wrong-feed",    // Invalid feed name
+  feedAge: -10               // Negative feed age (impossible!)
+});
+
+// ✅ You must add your own validation if needed
+function validateArrival(arrival: ArrivalTime): boolean {
+  // Validate line format
+  if (!/^[1-6]|[A-Z]|[GS]$/.test(arrival.line)) return false;
+  
+  // Validate direction
+  if (!["N", "S"].includes(arrival.direction)) return false;
+  
+  // Validate timestamp
+  if (arrival.arrivalTime < 0) return false;
+  
+  // Validate minutesAway
+  if (arrival.minutesAway < 0) return false;
+  
+  // Validate feedAge
+  if (arrival.feedAge < 0) return false;
+  
+  // Validate confidence matches assignment logic
+  const isADivision = /^[1-6]|7|GS$/.test(arrival.line);
+  if (isADivision && arrival.isAssigned && arrival.confidence !== "high") return false;
+  
+  return true;
+}
+
+const validArrival = createMockArrival({ line: "1" });
+expect(validateArrival(validArrival)).toBe(true);
+```
+
+---
+
+### Common Pitfalls Summary
+
+1. **Time Inconsistency**: Overriding `arrivalTime` without updating `minutesAway` (or vice versa)
+2. **Timezone Confusion**: Assuming timestamps are in local time (they're always UTC)
+3. **Confidence Mismatch**: `confidence` field not matching division + assignment logic
+4. **Feed Name Mismatch**: `feedName` not matching the line's division feed
+5. **Direction Typos**: Using `"north"` instead of `"N"` (TypeScript catches this with types)
+6. **Non-Unique Trip IDs**: Reusing `tripId` for different arrivals
+7. **Feed Age Units**: Treating `feedAge` as milliseconds (it's seconds!)
+8. **No Validation**: Impossible values accepted without error
+9. **Missing Express Flag**: Current implementation doesn't include `isExpress` field (use overrides if needed)
+10. **Shallow Merge**: Like other mock generators, arrays aren't merged (though arrivals have no array fields)
+
+---
+
+### Quick Reference: Safe Override Patterns
+
+```typescript
+// ✅ SAFE: Override primitive values with consistent time
+const arrival1 = createMockArrival({
+  line: "2",
+  direction: "S",
+  arrivalTime: Date.now() + 300000,  // 5 minutes
+  minutesAway: 5                       // Must match!
+});
+
+// ✅ SAFE: Use helper for time-based arrivals
+const arrival2 = (() => {
+  const minutes = 10;
+  return createMockArrival({
+    line: "A",
+    direction: "N",
+    arrivalTime: Date.now() + (minutes * 60000),
+    minutesAway: minutes,
+    feedName: "gtfs-ace",
+    confidence: "medium"
+  });
+})();
+
+// ✅ SAFE: Maintain confidence logic
+const arrival3 = createMockArrival({
+  line: "F",         // B Division
+  isAssigned: false, // Unassigned
+  feedName: "gtfs-bdfm",
+  confidence: "low"   // B Division + unassigned = low
+});
+
+// ❌ UNSAFE: Inconsistent time values
+const arrival4 = createMockArrival({
+  arrivalTime: Date.now() + 600000,  // 10 min
+  minutesAway: 2                       // But says 2 min!
+});
+
+// ❌ UNSAFE: Confidence doesn't match logic
+const arrival5 = createMockArrival({
+  line: "1",         // A Division
+  isAssigned: true,  // Assigned
+  confidence: "low"  // WRONG! Should be "high"
+});
+```
 
 ---
 
