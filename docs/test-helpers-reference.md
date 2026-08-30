@@ -4198,65 +4198,761 @@ const arrival5 = createMockArrival({
 
 #### `createMockAlert`
 
-Creates a mock service alert object with default values.
+Creates a mock service alert object with default values for testing alert display, filtering, and notification logic.
 
 **Type Signature:**
 ```typescript
-function createMockAlert(overrides?: Partial<Alert>): Alert
+function createMockAlert(overrides?: Partial<StationAlert>): StationAlert
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides: Partial<StationAlert>` - Partial object to override default values (default: `{}`)
 
-**Returns:** `Alert` object with:
-- `id: string` - Alert ID (default: `"alert_123"`)
-- `severity: "info" | "warning" | "severe"` - Alert severity (default: `"warning"`)
-- `headline: string` - Alert headline (default: `"Delays on 1 train"`)
-- `description: string` - Full description (default: `"1 trains running with delays..."`)
-- `affectedLines: string[]` - Affected subway lines (default: `["1"]`)
-- `activePeriod: {start: number, end: number}` - Active time window (default: starts 1 hour ago, ends in 2 hours)
-- `cause: string` - Alert cause (default: `"SIGNAL_PROBLEM"`)
-- `effect: string` - Service effect (default: `"DELAY"`)
+**Type Definitions:**
+All types are defined in [`packages/shared/src/types/alerts.ts`](../packages/shared/src/types/alerts.ts):
 
-**Usage Example:**
+- [`StationAlert`](../packages/shared/src/types/alerts.ts#L15) - Main alert interface (lines 15-47)
+  - `id: string` - Unique alert identifier
+  - `severity: AlertSeverity` - Severity classification (default: `"warning"`)
+  - `source: AlertSource` - Alert source (optional in mock)
+  - `headline: string` - Simplified, plain-language headline
+  - `description: string` - Full description text
+  - `affectedLines: string[]` - Lines affected by this alert
+  - `activePeriod: {start: number, end?: number}` - When the alert is active
+  - `cause: string` - Cause of the disruption (from GTFS-RT)
+  - `effect: string` - Service effect type (from GTFS-RT)
+  - `isRaw?: boolean` - Whether this is a raw, unsimplified alert
+  - `shuttleInfo?: ShuttleBusInfo` - Shuttle bus information for suspended service
+
+- [`AlertSeverity`](../packages/shared/src/types/alerts.ts#L7) - Alert severity type (line 7)
+  - Type: `"info" | "warning" | "severe"`
+
+- [`AlertSource`](../packages/shared/src/types/alerts.ts#L10) - Alert source type (line 10)
+  - Type: `"official" | "predicted"`
+
+- [`ShuttleBusInfo`](../packages/shared/src/types/alerts.ts#L53) - Shuttle bus information (lines 53-66)
+  - `lineId: string` - Line ID with suspended service
+  - `fromStopId: string` - Where suspension begins
+  - `toStopId: string` - Where suspension ends
+  - `stops: ShuttleStop[]` - Shuttle bus stop locations
+  - `frequencyMinutes: string` - Approximate frequency (e.g., `"8-12"`)
+  - `lastVerified: string` - Last verification date (ISO format)
+
+**Import Path:**
+```typescript
+// Import the helper function
+import { createMockAlert } from "@mta-my-way/shared/testing";
+
+// Import types for type checking
+import type { StationAlert, AlertSeverity, AlertSource, ShuttleBusInfo } from "@mta-my-way/shared/types/alerts";
+```
+
+**Important: No Separate "MockAlert" Type**
+
+There is **no separate `MockAlert` type** in this codebase. The `createMockAlert` function returns a regular `StationAlert` object - the same type used throughout the application for real alert data. The "mock" aspect is simply that the function provides convenient default values (a warning-level delay on the 1 train) that can be selectively overridden.
+
+This design means:
+- **Type compatibility:** Mock alerts are 100% compatible with real alert data structures
+- **No conversion needed:** Mock alerts can be used anywhere real alerts are expected
+- **Type safety:** TypeScript ensures mock alerts have the exact same shape as real alerts
+- **Test realism:** Mock alerts match production data structures exactly
+
+**Return Type Structure**
+
+The function returns a complete `StationAlert` object with all required properties:
+
+```typescript
+interface StationAlert {
+  id: string;                  // Alert ID (default: "alert_123")
+  severity: AlertSeverity;     // Severity level (default: "warning")
+  source?: AlertSource;        // Source (optional, not set by default)
+  headline: string;           // Headline (default: "Delays on 1 train")
+  description: string;        // Full description (default: "1 trains running with delays due to signal problems")
+  affectedLines: string[];    // Affected lines (default: ["1"])
+  activePeriod: {              // Active time window
+    start: number;            // Start timestamp (default: 1 hour ago)
+    end?: number;              // End timestamp (default: 2 hours from now)
+  };
+  cause: string;               // GTFS-RT cause (default: "SIGNAL_PROBLEM")
+  effect: string;             // GTFS-RT effect (default: "DELAY")
+  isRaw?: boolean;            // Raw alert flag (optional, not set by default)
+  shuttleInfo?: ShuttleBusInfo; // Shuttle info (optional, not set by default)
+}
+```
+
+**Default Return Values**
+
+When called with no parameters, `createMockAlert()` returns:
+
+| Property | Type | Default Value |
+|----------|------|---------------|
+| `id` | `string` | `"alert_123"` |
+| `severity` | `AlertSeverity` | `"warning"` |
+| `source` | `AlertSource \| undefined` | `undefined` (not set by default) |
+| `headline` | `string` | `"Delays on 1 train"` |
+| `description` | `string` | `"1 trains running with delays due to signal problems"` |
+| `affectedLines` | `string[]` | `["1"]` |
+| `activePeriod.start` | `number` | `Date.now() - 3600000` (1 hour ago) |
+| `activePeriod.end` | `number \| undefined` | `Date.now() + 7200000` (2 hours from now) |
+| `cause` | `string` | `"SIGNAL_PROBLEM"` |
+| `effect` | `string` | `"DELAY"` |
+| `isRaw` | `boolean \| undefined` | `undefined` (not set by default) |
+| `shuttleInfo` | `ShuttleBusInfo \| undefined` | `undefined` (not set by default) |
+
+**Relationship to Real Alert Data**
+
+Mock alerts created with `createMockAlert` are structurally identical to alerts loaded from the GTFS-Realtime feed or generated by the delay detection system. They can be used interchangeably in tests, components, and utility functions.
+
+**Usage Examples**
+
+#### Example: Basic alert creation (uses all defaults)
 ```typescript
 import { createMockAlert } from "@mta-my-way/shared/testing";
 
-const defaultAlert = createMockAlert();
-const severeAlert = createMockAlert({
-  id: "alert_severe_1",
+const alert = createMockAlert();
+// Returns warning-level 1 train delay with all default values
+console.log(alert.severity); // "warning"
+console.log(alert.affectedLines); // ["1"]
+console.log(alert.headline); // "Delays on 1 train"
+```
+
+#### Example: Severe alert with service suspension
+```typescript
+const suspensionAlert = createMockAlert({
+  id: "alert_suspension_1",
   severity: "severe",
   headline: "Suspension of 1 Train Service",
-  description: "No 1 train service due to major incident",
+  description: "No 1 train service due to major incident - expect extensive delays",
   affectedLines: ["1"],
   cause: "MAJOR_INCIDENT",
-  effect: "SUSPENDED"
+  effect: "NO_SERVICE"
 });
 
-const multiLineAlert = createMockAlert({
+// Test suspension handling
+const isSuspended = suspensionAlert.effect === "NO_SERVICE";
+expect(isSuspended).toBe(true);
+```
+
+#### Example: Multi-line alert
+```typescript
+const broadwayDelays = createMockAlert({
+  id: "alert_broadway",
   severity: "warning",
   affectedLines: ["1", "2", "3"],
   headline: "Delays on Broadway Lines",
+  description: "Broadway-7th Ave lines running with delays due to signal problems at Times Square",
+  cause: "SIGNAL_PROBLEM",
+  effect: "DELAY"
+});
+
+// Test multi-line filtering
+const affectsLine1 = broadwayDelays.affectedLines.includes("1");
+expect(affectsLine1).toBe(true);
+```
+
+#### Example: Info-level advisory
+```typescript
+const advisoryAlert = createMockAlert({
+  id: "alert_advisory",
+  severity: "info",
+  headline: " Planned Work - 1 Train",
+  description: "1 trains run local in both directions due to track maintenance",
+  affectedLines: ["1"],
+  cause: "CONSTRUCTION",
+  effect: "DETOUR"
+});
+
+// Test advisory display (info-level may not show warning banner)
+const needsWarning = advisoryAlert.severity !== "info";
+expect(needsWarning).toBe(false);
+```
+
+#### Example: Expired alert
+```typescript
+const expiredAlert = createMockAlert({
+  id: "alert_expired",
+  activePeriod: {
+    start: Date.now() - 7200000, // 2 hours ago
+    end: Date.now() - 3600000   // Ended 1 hour ago
+  }
+});
+
+// Test expired alert filtering
+const now = Date.now();
+const isActive = now >= expiredAlert.activePeriod.start && 
+                (!expiredAlert.activePeriod.end || now <= expiredAlert.activePeriod.end);
+expect(isActive).toBe(false);
+```
+
+#### Example: Future alert
+```typescript
+const futureAlert = createMockAlert({
+  id: "alert_future",
+  severity: "warning",
+  headline: "Upcoming Planned Work",
+  activePeriod: {
+    start: Date.now() + 3600000, // Starts in 1 hour
+    end: Date.now() + 10800000    // Ends in 3 hours
+  }
+});
+
+// Test future alert handling
+const isFuture = Date.now() < futureAlert.activePeriod.start;
+expect(isFuture).toBe(true);
+```
+
+#### Example: Alert with source (predicted vs official)
+```typescript
+const officialAlert = createMockAlert({
+  id: "alert_official",
+  source: "official",
+  severity: "warning",
+  headline: "Delays on 1 train",
+  cause: "SIGNAL_PROBLEM",
+  effect: "DELAY"
+});
+
+const predictedAlert = createMockAlert({
+  id: "alert_predicted",
+  source: "predicted",
+  severity: "warning",
+  headline: "Predicted Delays on 1 train",
+  description: "Delays predicted based on historical patterns",
+  cause: "UNKNOWN",
+  effect: "DELAY"
+});
+
+// Test source-based filtering
+const showOfficial = officialAlert.source === "official";
+expect(showOfficial).toBe(true);
+```
+
+#### Example: Raw alert (unsimplified MTA text)
+```typescript
+const rawAlert = createMockAlert({
+  id: "alert_raw",
+  isRaw: true,
+  severity: "warning",
+  headline: "1 TRAINS RUNNING WITH DELAYS",
+  description: "DUE TO SIGNAL PROBLEMS AT TIMES SQUARE-42ND ST, 1 TRAINS ARE RUNNING WITH DELAYS IN BOTH DIRECTIONS",
+  affectedLines: ["1"],
+  cause: "SIGNAL_PROBLEM",
+  effect: "DELAY"
+});
+
+// Test raw alert styling
+const showDashedBorder = rawAlert.isRaw === true;
+expect(showDashedBorder).toBe(true);
+```
+
+#### Example: Alert with shuttle bus information
+```typescript
+const shuttleAlert = createMockAlert({
+  id: "alert_shuttle",
+  severity: "severe",
+  headline: "1 Train Suspended - Shuttle Bus Service",
+  description: "No 1 train service between South Ferry and Times Square - shuttle buses provided",
+  affectedLines: ["1"],
+  cause: "TRACK_MAINTENANCE",
+  effect: "SUSPENDED",
+  shuttleInfo: {
+    lineId: "1",
+    fromStopId: "101",
+    toStopId: "725",
+    stops: [
+      { nearStationId: "101", description: "South Ferry" },
+      { nearStationId: "103", description: "Rector St" },
+      { nearStationId: "725", description: "Times Square-42 St", lat: 40.7589, lon: -73.9851 }
+    ],
+    frequencyMinutes: "8-12",
+    lastVerified: "2024-08-30"
+  }
+});
+
+// Test shuttle bus display
+const hasShuttle = shuttleAlert.shuttleInfo !== undefined;
+expect(hasShuttle).toBe(true);
+```
+
+### Common Testing Patterns
+
+#### Pattern 1: Severity Level Testing
+
+Test how alerts display and behave at different severity levels:
+
+```typescript
+const infoAlert = createMockAlert({ severity: "info" });
+const warningAlert = createMockAlert({ severity: "warning" });
+const severeAlert = createMockAlert({ severity: "severe" });
+
+// Test severity-based filtering
+const alertsRequiringNotification = [warningAlert, severeAlert];
+const alertsToShow = [infoAlert, warningAlert, severeAlert];
+
+// Test color coding
+const getColorForSeverity = (severity: AlertSeverity) => {
+  switch (severity) {
+    case "severe": return "red";
+    case "warning": return "yellow";
+    case "info": return "blue";
+  }
+};
+
+expect(getColorForSeverity(severeAlert.severity)).toBe("red");
+expect(getColorForSeverity(warningAlert.severity)).toBe("yellow");
+expect(getColorForSeverity(infoAlert.severity)).toBe("blue");
+```
+
+#### Pattern 2: Active Period Filtering
+
+Test filtering alerts based on their active time window:
+
+```typescript
+const pastAlert = createMockAlert({
+  activePeriod: {
+    start: Date.now() - 7200000,
+    end: Date.now() - 3600000
+  }
+});
+
+const activeAlert = createMockAlert({
   activePeriod: {
     start: Date.now() - 3600000,
     end: Date.now() + 7200000
   }
 });
 
-const expiredAlert = createMockAlert({
+const futureAlert = createMockAlert({
   activePeriod: {
-    start: Date.now() - 7200000,
-    end: Date.now() - 3600000 // Ended 1 hour ago
+    start: Date.now() + 3600000,
+    end: Date.now() + 10800000
+  }
+});
+
+// Test active period filtering
+const isActiveNow = (alert: StationAlert) => {
+  const now = Date.now();
+  return now >= alert.activePeriod.start && 
+         (!alert.activePeriod.end || now <= alert.activePeriod.end);
+};
+
+expect(isActiveNow(pastAlert)).toBe(false);
+expect(isActiveNow(activeAlert)).toBe(true);
+expect(isActiveNow(futureAlert)).toBe(false);
+```
+
+#### Pattern 3: Line-Specific Alert Testing
+
+Test filtering alerts for specific subway lines:
+
+```typescript
+const line1Alert = createMockAlert({
+  affectedLines: ["1"],
+  headline: "Delays on 1 train"
+});
+
+const line123Alert = createMockAlert({
+  affectedLines: ["1", "2", "3"],
+  headline: "Broadway line delays"
+});
+
+const lineAAlert = createMockAlert({
+  affectedLines: ["A"],
+  headline: "8th Ave delays"
+});
+
+// Test line-based filtering
+const getAlertsForLine = (alerts: StationAlert[], line: string) => {
+  return alerts.filter(alert => alert.affectedLines.includes(line));
+};
+
+const line1Alerts = getAlertsForLine([line1Alert, line123Alert, lineAAlert], "1");
+expect(line1Alerts).toHaveLength(2); // line1Alert and line123Alert
+expect(line1Alerts).toContain(line1Alert);
+expect(line1Alerts).toContain(line123Alert);
+```
+
+#### Pattern 4: Effect-Based Behavior
+
+Test different service effect types:
+
+```typescript
+const delayAlert = createMockAlert({
+  effect: "DELAY",
+  headline: "Delays on 1 train"
+});
+
+const suspensionAlert = createMockAlert({
+  effect: "NO_SERVICE",
+  severity: "severe",
+  headline: "1 Train Suspended"
+});
+
+const detourAlert = createMockAlert({
+  effect: "DETOUR",
+  headline: "1 Train Rerouted"
+});
+
+// Test effect-based handling
+const isServiceDisruption = (alert: StationAlert) => {
+  return ["NO_SERVICE", "SUSPENDED", "DELAY"].includes(alert.effect);
+};
+
+expect(isServiceDisruption(delayAlert)).toBe(true);
+expect(isServiceDisruption(suspensionAlert)).toBe(true);
+expect(isServiceDisruption(detourAlert)).toBe(false);
+```
+
+#### Pattern 5: Multi-Line Corridor Testing
+
+Test alerts affecting multiple lines in a shared corridor:
+
+```typescript
+const broadwayCorridorAlert = createMockAlert({
+  id: "alert_broadway_corridor",
+  severity: "warning",
+  affectedLines: ["1", "2", "3"],
+  headline: "Signal Problems - Broadway Corridor",
+  description: "Broadway-7th Ave lines experiencing delays due to signal problems at Times Square",
+  cause: "SIGNAL_PROBLEM",
+  effect: "DELAY",
+  activePeriod: {
+    start: Date.now() - 1800000,
+    end: Date.now() + 5400000
+  }
+});
+
+// Test corridor-wide impact
+const affectedStations = [
+  "725", // Times Square
+  "726", // Penn Station
+  "727"  // Herald Square
+];
+
+// All affected lines share these stations
+const linesThroughTimesSquare = broadwayCorridorAlert.affectedLines.filter(line => 
+  linesThroughTimesSquare.includes(line)
+);
+
+expect(linesThroughTimesSquare).toHaveLength(3);
+```
+
+#### Pattern 6: Alert Priority Testing
+
+Test alert sorting and priority based on severity and recency:
+
+```typescript
+const lowPriority = createMockAlert({
+  id: "alert_001",
+  severity: "info",
+  activePeriod: { start: Date.now() - 7200000, end: Date.now() + 3600000 }
+});
+
+const mediumPriority = createMockAlert({
+  id: "alert_002",
+  severity: "warning",
+  activePeriod: { start: Date.now() - 1800000, end: Date.now() + 7200000 }
+});
+
+const highPriority = createMockAlert({
+  id: "alert_003",
+  severity: "severe",
+  activePeriod: { start: Date.now() - 600000, end: Date.now() + 3600000 }
+});
+
+// Test priority sorting
+const getAlertPriority = (alert: StationAlert) => {
+  const severityScore = { info: 1, warning: 2, severe: 3 };
+  return severityScore[alert.severity];
+};
+
+const alerts = [lowPriority, mediumPriority, highPriority];
+alerts.sort((a, b) => getAlertPriority(b) - getAlertPriority(a));
+
+expect(alerts[0]).toBe(highPriority);
+expect(alerts[1]).toBe(mediumPriority);
+expect(alerts[2]).toBe(lowPriority);
+```
+
+### Edge Cases and Gotchas
+
+#### Gotcha 1: Override Merging for Nested Objects
+
+The `overrides` parameter uses shallow merging, not deep merging. When overriding `activePeriod`, you must provide the complete object:
+
+```typescript
+// BAD: This tries to merge but fails
+const alert = createMockAlert({
+  activePeriod: { end: Date.now() + 14400000 } // Missing 'start'
+  // activePeriod.start is undefined, not the default!
+});
+
+// GOOD: Provide the complete object
+const alert = createMockAlert({
+  activePeriod: {
+    start: Date.now() - 3600000,    // Must include start
+    end: Date.now() + 14400000      // Override end
   }
 });
 ```
 
-**Edge Cases:**
-- Severity affects display priority - test all three levels
-- `activePeriod` uses timestamps - test expired, active, and future alerts
-- Multi-line alerts affect filtering - test line-specific vs multi-line scenarios
-- `cause` and `effect` are free-form strings - use standard GTFS values for consistency
-- Alert filtering tests should use active period boundaries
+#### Gotcha 2: Timestamp Precision and Timezones
+
+Alert timestamps use POSIX milliseconds (Unix timestamp × 1000). Ensure consistent timezone handling:
+
+```typescript
+// GOOD: Use Date.now() for consistent UTC timestamps
+const alert = createMockAlert({
+  activePeriod: {
+    start: Date.now() - 3600000,  // 1 hour ago in UTC
+    end: Date.now() + 7200000      // 2 hours from now in UTC
+  }
+});
+
+// BAD: Don't mix timezone-specific dates
+const alert = createMockAlert({
+  activePeriod: {
+    start: new Date("2024-08-30T10:00:00-04:00").getTime(),  // Eastern time
+    end: new Date("2024-08-30T12:00:00-04:00").getTime()     // May not work in other timezones
+  }
+});
+
+// GOOD: If you need specific times, use UTC ISO strings
+const specificStart = new Date("2024-08-30T14:00:00Z").getTime();  // UTC
+const alert = createMockAlert({
+  activePeriod: { start: specificStart, end: specificStart + 7200000 }
+});
+```
+
+#### Gotcha 3: Active Period Boundaries
+
+Alerts can be active at `start` but not at `end` (the end is exclusive):
+
+```typescript
+const alert = createMockAlert({
+  activePeriod: {
+    start: 1693400000000,
+    end: 1693403600000  // 1 hour later
+  }
+});
+
+// At exactly start time, alert is active
+const atStart = alert.activePeriod.start === 1693400000000;  
+const isActiveAtStart = Date.now() === alert.activePeriod.start;  // true
+
+// At exactly end time, alert is NOT active
+const atEnd = Date.now() === alert.activePeriod.end;  
+const isActiveAtEnd = false;  // end is exclusive
+
+// Correct active check
+const now = Date.now();
+const isActive = now >= alert.activePeriod.start && 
+                (!alert.activePeriod.end || now < alert.activePeriod.end);
+```
+
+#### Gotcha 4: Optional `end` in `activePeriod`
+
+The `end` property is optional and represents an open-ended alert if not set:
+
+```typescript
+// Alert with no end time (open-ended)
+const openEndedAlert = createMockAlert({
+  activePeriod: {
+    start: Date.now() - 3600000,
+    end: undefined  // or just don't set 'end'
+  }
+});
+
+// Always check for undefined end
+const isActiveNow = (alert: StationAlert) => {
+  const now = Date.now();
+  if (!alert.activePeriod.end) {
+    // No end time - active if started
+    return now >= alert.activePeriod.start;
+  }
+  // Has end time - check both boundaries
+  return now >= alert.activePeriod.start && now < alert.activePeriod.end;
+};
+```
+
+#### Gotcha 5: Severity Display Priority
+
+Severity affects UI display order and visual prominence. Test all three levels:
+
+```typescript
+const infoAlert = createMockAlert({ severity: "info" });
+const warningAlert = createMockAlert({ severity: "warning" });
+const severeAlert = createMockAlert({ severity: "severe" });
+
+// Test severity-based display order
+const sortBySeverity = (alerts: StationAlert[]) => {
+  const severityOrder = { severe: 0, warning: 1, info: 2 };
+  return alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+};
+
+const [first, second, third] = sortBySeverity([infoAlert, warningAlert, severeAlert]);
+expect(first.severity).toBe("severe");
+expect(second.severity).toBe("warning");
+expect(third.severity).toBe("info");
+```
+
+#### Gotcha 6: `affectedLines` Array Replacement
+
+When overriding `affectedLines`, you provide the complete array (not merged with defaults):
+
+```typescript
+// BAD: This adds to the default ["1"]
+const alert = createMockAlert({
+  affectedLines: ["2", "3"]  // Replaces ["1"], doesn't merge
+});
+// alert.affectedLines is ["2", "3"], NOT ["1", "2", "3"]
+
+// GOOD: Explicitly provide all affected lines
+const alert = createMockAlert({
+  affectedLines: ["1", "2", "3", "A", "C", "E"]  // All lines you want
+});
+
+// GOOD: For multi-line alerts, use array spread
+const baseLines = ["1", "2", "3"];
+const alert = createMockAlert({
+  affectedLines: [...baseLines, "A", "C"]  // Combine lines
+});
+```
+
+#### Gotcha 7: `cause` and `effect` Are Free-Form Strings
+
+The `cause` and `effect` fields come from GTFS-RT but are stored as strings, not enums. Use standard GTFS values for consistency:
+
+```typescript
+// Standard GTFS-RT cause codes (examples)
+const CAUSES = [
+  "UNKNOWN_CAUSE",
+  "OTHER_CAUSE",
+  "TECHNICAL_PROBLEM",
+  "STRIKE",
+  "DEMONSTRATION",
+  "ACCIDENT",
+  "HOLIDAY",
+  "WEATHER",
+  "MAINTENANCE",
+  "CONSTRUCTION",
+  "POLICE_ACTIVITY",
+  "MEDICAL_EMERGENCY"
+];
+
+// Standard GTFS-RT effect codes (examples)
+const EFFECTS = [
+  "NO_SERVICE",
+  "REDUCED_SERVICE",
+  "SIGNIFICANT_DELAYS",
+  "DETOUR",
+  "ADDITIONAL_SERVICE",
+  "MODIFIED_SERVICE",
+  "OTHER_EFFECT",
+  "UNKNOWN_EFFECT"
+];
+
+// GOOD: Use standard codes
+const alert = createMockAlert({
+  cause: "SIGNAL_PROBLEM",  // Standard cause
+  effect: "DELAY"           // Standard effect
+});
+
+// AVOID: Custom codes unless documenting them clearly
+const alert = createMockAlert({
+  cause: "SIGNAL_PROBLEM",  // OK
+  effect: "REALLY_BAD_DELAY"  // Non-standard - avoid
+});
+```
+
+#### Gotcha 8: `source` and `isRaw` Are Not Set by Default
+
+The mock does not include `source` or `isRaw` fields unless you explicitly provide them:
+
+```typescript
+const defaultAlert = createMockAlert();
+console.log(defaultAlert.source);    // undefined
+console.log(defaultAlert.isRaw);     // undefined
+
+// GOOD: Explicitly set if needed
+const officialAlert = createMockAlert({
+  source: "official"
+});
+
+const rawAlert = createMockAlert({
+  isRaw: true,
+  source: "official"
+});
+
+// Test for undefined when filtering
+const officialAlerts = alerts.filter(alert => alert.source === "official");
+const rawAlerts = alerts.filter(alert => alert.isRaw === true);
+
+// GOOD: Use optional chaining
+const isOfficial = alert.source === "official";      // false if undefined
+const isRaw = alert.isRaw === true;                   // false if undefined
+```
+
+#### Gotcha 9: `shuttleInfo` Requires Complete Object Structure
+
+When adding shuttle bus information, provide the complete `ShuttleBusInfo` structure:
+
+```typescript
+// BAD: Partial shuttle info
+const alert = createMockAlert({
+  shuttleInfo: {
+    lineId: "1",
+    fromStopId: "101",
+    toStopId: "725"
+    // Missing: stops, frequencyMinutes, lastVerified
+  }
+});
+
+// GOOD: Complete shuttle info structure
+const alert = createMockAlert({
+  shuttleInfo: {
+    lineId: "1",
+    fromStopId: "101",
+    toStopId: "725",
+    stops: [
+      { nearStationId: "101", description: "South Ferry" },
+      { nearStationId: "725", description: "Times Square", lat: 40.7589, lon: -73.9851 }
+    ],
+    frequencyMinutes: "8-12",
+    lastVerified: new Date().toISOString().split("T")[0]  // Today's date
+  }
+});
+```
+
+#### Gotcha 10: Alert ID Uniqueness
+
+Alert IDs should be unique for proper tracking and deduplication:
+
+```typescript
+// GOOD: Use unique IDs for each alert
+const alert1 = createMockAlert({ id: "alert_delay_1" });
+const alert2 = createMockAlert({ id: "alert_suspension_2" });
+const alert3 = createMockAlert({ id: "alert_work_3" });
+
+// GOOD: Generate IDs programmatically for tests
+let alertCounter = 0;
+const createUniqueAlert = () => {
+  alertCounter++;
+  return createMockAlert({
+    id: `alert_test_${alertCounter}_${Date.now()}`
+  });
+};
+
+// Test deduplication
+const alertMap = new Map(alerts.map(a => [a.id, a]));
+expect(alertMap.size).toBe(alerts.length);  // All IDs unique
+```
+
+### See Also
+
+- {@link createMockStation} - For testing alert-to-station relationships
+- {@link createMockRoute} - For testing line-specific alert filtering
+- {@link createMockArrival} - For testing alert impact on arrival predictions
 
 ---
 
