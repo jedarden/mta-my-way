@@ -581,7 +581,9 @@ export function createApp(
         "/api/journal",
         "/api/auth/oauth", // OAuth authorize/callback flows require redirects
         // "/api/auth/mfa", // DISABLED: Feature not used by frontend
-        "/api/auth/session", // Session management (get/revoke) - active via preferencesRoutes
+        // NOTE: /api/auth/session (GET) is safe (read-only), /api/auth/session/revoke (POST) requires CSRF
+        // The CSRF middleware only validates on unsafe methods, so GET requests are auto-excluded
+        // "/api/auth/session", // Removed from exclusions - POST /api/auth/session/revoke needs CSRF
         "/api/auth/password", // Password reset functionality
         "/api/csrf-token",
         "/api/security/csp-report", // CSP violation reports (browser-initiated)

@@ -2678,6 +2678,25 @@ const RISK_BASED_EXPIRATION: Record<string, number> = {
 };
 
 /**
+ * Reset all password state (for test isolation).
+ *
+ * Clears all module-level Maps used for password tracking:
+ * - passwordHistory: tracks previous passwords for history enforcement
+ * - passwordResetTokens: stores active password reset tokens
+ * - passwordResetAttempts: tracks failed reset attempts per identifier
+ * - accountLockouts: stores account lockout state
+ *
+ * This function should be called in test beforeEach hooks to ensure
+ * clean state between tests.
+ */
+export function resetPasswordStateForTesting(): void {
+  passwordHistory.clear();
+  passwordResetTokens.clear();
+  passwordResetAttempts.clear();
+  accountLockouts.clear();
+}
+
+/**
  * Get password expiration days based on user role.
  *
  * This implements risk-based authentication where higher-privilege

@@ -5,7 +5,7 @@
  * Run with: npm test middleware-fixtures-demo
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, afterEach } from "vitest";
 import type Database from "better-sqlite3";
 import {
   createAuthTestDatabase,
@@ -23,6 +23,12 @@ import {
 import { setSecurityDb, loadApiKeyRegistry } from "../../security/security-db.js";
 
 describe("Middleware Fixtures Demo", () => {
+  // File-level beforeEach to ensure security-db singleton is reset before all tests
+  // This prevents state leakage between describe blocks when tests run in different orders
+  beforeEach(() => {
+    setSecurityDb(null as unknown as Database.Database);
+  });
+
   describe("Basic Usage", () => {
     it("should create a test database with standard fixtures", async () => {
       const db = await createTestDatabaseWithFixtures();
@@ -169,6 +175,8 @@ describe("Middleware Fixtures Demo", () => {
 
     afterEach(() => {
       db.close();
+      // Ensure security-db singleton is reset to prevent leakage to other tests
+      setSecurityDb(null as unknown as Database.Database);
     });
   });
 

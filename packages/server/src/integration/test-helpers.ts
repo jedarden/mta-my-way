@@ -536,6 +536,12 @@ export async function cleanupAllState(): Promise<void> {
   // ---- oauth/index.ts ------------------------------------------------------
   await tryReset("../oauth/index.js", "resetOAuthForTesting");
 
+  // ---- password-management.ts ---------------------------------------------
+  await tryReset("../middleware/password-management.js", "resetPasswordStateForTesting");
+
+  // ---- security/security-db.ts -------------------------------------------
+  await tryReset("../security/security-db.js", "resetSecurityDbForTesting");
+
   // ---- context-service.ts -------------------------------------------------
   // REMOVED: context-service was deleted in 2026-08 as part of client-side-only context design
   // await tryReset("../context-service.js", "resetContextService");

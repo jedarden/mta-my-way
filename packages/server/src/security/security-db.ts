@@ -33,6 +33,17 @@ export function isSecurityDbReady(): boolean {
   return _db !== null;
 }
 
+/**
+ * Reset the security DB singleton (for test isolation).
+ *
+ * Clears the global security-db reference so that subsequent tests
+ * can start with a fresh database instance. This prevents state leakage
+ * between test files that use setSecurityDb().
+ */
+export function resetSecurityDbForTesting(): void {
+  _db = null;
+}
+
 function db(): Database.Database {
   if (!_db) throw new Error("Security DB not initialised — call setSecurityDb() first");
   return _db;

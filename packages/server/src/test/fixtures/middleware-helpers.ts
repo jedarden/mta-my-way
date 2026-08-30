@@ -252,9 +252,7 @@ export function setupMiddlewareTestDatabase() {
     async setup(scenario?: Parameters<typeof resetToScenario>[1]): Promise<Database.Database> {
       if (db) {
         // If database already exists, just reset to the desired scenario
-        if (cleanup) {
-          resetToScenario(db, scenario ?? "standard");
-        }
+        resetToScenario(db, scenario ?? "standard");
         return db;
       }
 
@@ -267,6 +265,9 @@ export function setupMiddlewareTestDatabase() {
       } else {
         seedStandardSecurityFixtures(db);
       }
+
+      // Mark that database has been created (for teardown logic)
+      cleanup = () => {}; // Dummy cleanup to indicate db is ready
 
       return db;
     },
