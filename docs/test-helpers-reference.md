@@ -1493,11 +1493,11 @@ Creates a mock subway station object with default values.
 
 **Type Signature:**
 ```typescript
-function createMockStation(overrides?: Partial<Station>): Station
+function createMockStation(overrides: Partial<Station> = {}): Station
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides: Partial<Station>` - Partial object to override default values (default: `{}`)
 
 **Type Definitions:**
 All types are defined in [`packages/shared/src/types/stations.ts`](../packages/shared/src/types/stations.ts):
