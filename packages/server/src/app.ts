@@ -581,7 +581,7 @@ export function createApp(
         "/api/journal",
         "/api/auth/oauth", // OAuth authorize/callback flows require redirects
         // "/api/auth/mfa", // DISABLED: Feature not used by frontend
-        // "/api/auth/session", // DISABLED: Feature not used by frontend
+        "/api/auth/session", // Session management (get/revoke) - active via preferencesRoutes
         "/api/auth/password", // Password reset functionality
         "/api/csrf-token",
         "/api/security/csp-report", // CSP violation reports (browser-initiated)
