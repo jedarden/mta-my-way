@@ -17,6 +17,7 @@ import type { MorningScoreMap, ParsedAlert, PushFavoriteTuple } from "@mta-my-wa
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAllAlerts, setAlertsForTesting } from "../alerts-poller.js";
 import {
+  closePushDatabase,
   getAllSubscriptions,
   initPushDatabase,
   upsertSubscription,
@@ -94,6 +95,9 @@ describe("Push Briefing Integration Tests", () => {
     });
   });
 
+  // The subscription store initializes lazily and its helpers are async.
+  // Awaiting them and closing the database before removing its file prevents
+  // pending work from racing with the next test's fake timers and DB path.
   beforeEach(() => {
     vi.clearAllMocks();
     // Use frozen time for consistent test behavior
@@ -109,6 +113,7 @@ describe("Push Briefing Integration Tests", () => {
   });
 
   afterEach(() => {
+    closePushDatabase();
     vi.useRealTimers();
     vi.restoreAllMocks();
 
@@ -361,7 +366,7 @@ describe("Push Briefing Integration Tests", () => {
   });
 
   describe("Subscription Integration", () => {
-    it("stores and retrieves subscription data", () => {
+    it("stores and retrieves subscription data", async () => {
       const sub = createTestSubscription({
         endpoint: "https://example.com/push/briefing-test",
         favorites: [
@@ -375,15 +380,15 @@ describe("Push Briefing Integration Tests", () => {
         },
       });
 
-      const result = upsertSubscription(sub);
+      const result = await upsertSubscription(sub);
       expect(result.success).toBe(true);
 
-      const all = getAllSubscriptions();
+      const all = await getAllSubscriptions();
       expect(all.length).toBe(1);
       expect(all[0]?.endpoint).toBe("https://example.com/push/briefing-test");
     });
 
-    it("parses favorites from JSON", () => {
+    it("parses favorites from JSON", async () => {
       const favorites: PushFavoriteTuple[] = [
         { id: "fav-1", stationId: "101", lines: ["1"], direction: "both" },
         { id: "fav-2", stationId: "725", lines: ["A", "C"], direction: "north" },
@@ -394,9 +399,9 @@ describe("Push Briefing Integration Tests", () => {
         favorites,
       });
 
-      upsertSubscription(sub);
+      await upsertSubscription(sub);
 
-      const all = getAllSubscriptions();
+      const all = await getAllSubscriptions();
       const retrieved = all.find((s) => s.endpoint === "https://example.com/push/parse-test");
 
       expect(retrieved).toBeDefined();
@@ -405,7 +410,7 @@ describe("Push Briefing Integration Tests", () => {
       expect(parsedFavorites).toEqual(favorites);
     });
 
-    it("parses morning scores from JSON", () => {
+    it("parses morning scores from JSON", async () => {
       const morningScores: MorningScoreMap = {
         "fav-1": { line: "1", scores: [0.8, 0.7, 0.6] },
         "fav-2": { line: "A", scores: [0.5, 0.4, 0.3] },
@@ -416,9 +421,9 @@ describe("Push Briefing Integration Tests", () => {
         morningScores,
       });
 
-      upsertSubscription(sub);
+      await upsertSubscription(sub);
 
-      const all = getAllSubscriptions();
+      const all = await getAllSubscriptions();
       const retrieved = all.find((s) => s.endpoint === "https://example.com/push/scores-test");
 
       expect(retrieved).toBeDefined();
@@ -427,7 +432,7 @@ describe("Push Briefing Integration Tests", () => {
       expect(parsedScores).toEqual(morningScores);
     });
 
-    it("parses quiet hours from JSON", () => {
+    it("parses quiet hours from JSON", async () => {
       const quietHours = { enabled: true, startHour: 23, endHour: 6 };
 
       const sub = createTestSubscription({
@@ -435,9 +440,9 @@ describe("Push Briefing Integration Tests", () => {
         quietHours,
       });
 
-      upsertSubscription(sub);
+      await upsertSubscription(sub);
 
-      const all = getAllSubscriptions();
+      const all = await getAllSubscriptions();
       const retrieved = all.find((s) => s.endpoint === "https://example.com/push/quiet-test");
 
       expect(retrieved).toBeDefined();
@@ -446,15 +451,15 @@ describe("Push Briefing Integration Tests", () => {
       expect(parsedQuietHours).toEqual(quietHours);
     });
 
-    it("handles malformed JSON gracefully", () => {
+    it("handles malformed JSON gracefully", async () => {
       const sub = createTestSubscription({
         endpoint: "https://example.com/push/malformed-test",
       });
 
-      upsertSubscription(sub);
+      await upsertSubscription(sub);
 
       // Manually corrupt the data
-      const all = getAllSubscriptions();
+      const all = await getAllSubscriptions();
       const retrieved = all.find((s) => s.endpoint === "https://example.com/push/malformed-test");
 
       expect(retrieved).toBeDefined();
@@ -536,7 +541,7 @@ describe("Push Briefing Integration Tests", () => {
       expect(matchingAlerts.length).toBeGreaterThan(0);
     });
 
-    it("integrates with subscription database for user data", () => {
+    it("integrates with subscription database for user data", async () => {
       const sub1 = createTestSubscription({
         endpoint: "https://example.com/push/user1",
         favorites: [{ id: "fav-1", stationId: "101", lines: ["1"], direction: "both" }],
@@ -547,10 +552,10 @@ describe("Push Briefing Integration Tests", () => {
         favorites: [{ id: "fav-2", stationId: "725", lines: ["A"], direction: "north" }],
       });
 
-      upsertSubscription(sub1);
-      upsertSubscription(sub2);
+      await upsertSubscription(sub1);
+      await upsertSubscription(sub2);
 
-      const all = getAllSubscriptions();
+      const all = await getAllSubscriptions();
       expect(all.length).toBe(2);
 
       const user1 = all.find((s) => s.endpoint === "https://example.com/push/user1");

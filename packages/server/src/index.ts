@@ -218,7 +218,10 @@ async function main(): Promise<void> {
   process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
-main().catch((err) => {
+void main().catch((err) => {
   logger.error("Server startup failed", err);
-  process.exit(1);
+  // Keep the rejection handled so startup failures do not surface as an
+  // unhandled error in tests or callers importing the entry point. Node exits
+  // naturally once the failed startup has no remaining handles.
+  process.exitCode = 1;
 });

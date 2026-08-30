@@ -606,8 +606,20 @@ export async function createMigration(
   includeValidation = false,
   migrationsDir = MIGRATIONS_DIR
 ): Promise<string> {
-  const migrations = await loadMigrations(migrationsDir);
-  const nextVersion = migrations.length > 0 ? Math.max(...migrations.map((m) => m.version)) + 1 : 1;
+  // Version allocation only needs filenames. Importing temporary migration
+  // files through Vite can fail before they are part of the module graph,
+  // which previously made every second file reuse version 001.
+  let highestVersion = 0;
+  try {
+    const files = await readdir(migrationsDir);
+    for (const file of files) {
+      const match = file.match(/^(\d+)-.+\.ts$/);
+      if (match) highestVersion = Math.max(highestVersion, Number(match[1]));
+    }
+  } catch {
+    // The directory is created below when no migrations exist yet.
+  }
+  const nextVersion = highestVersion + 1;
   const filename = `${String(nextVersion).padStart(3, "0")}-${name}.ts`;
   const filepath = join(migrationsDir, filename);
 

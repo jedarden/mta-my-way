@@ -16,6 +16,7 @@
 import { afterEach, beforeEach, vi } from "vitest";
 
 import { cleanupAllState } from "../integration/test-helpers.js";
+import { closePushDatabase, initPushDatabase } from "../push/subscriptions.js";
 
 // Enable test mode for rate limiter (disables rate limiting in tests)
 const { setRateLimiterTestMode } = await import("../middleware/rate-limiter.js");
@@ -31,11 +32,18 @@ beforeEach(async () => {
   vi.clearAllTimers();
 
   await cleanupAllState();
+
+  // The app's trip and push routes share a readiness gate, while many
+  // integration fixtures use their own standalone trip database. Recreate
+  // the push singleton after cleanup so a prior test's close/reconfigure
+  // cannot make the next test fail with a false 503.
+  initPushDatabase(":memory:");
 });
 
 // Restore mocks after each test
 // This restores all mocked functions to their original implementations
 afterEach(() => {
+  closePushDatabase();
   vi.restoreAllMocks();
   vi.clearAllTimers();
 });

@@ -113,6 +113,7 @@ describe("Middleware Chain Integration", () => {
                 auth: "test-auth",
               },
             },
+            favorites: [],
           }),
         }
       );
@@ -437,6 +438,7 @@ describe("Middleware Chain Integration", () => {
               endpoint: "https://fcm.googleapis.com/fcm/send/test",
               keys: { p256dh: "test", auth: "test" },
             },
+            favorites: [],
           }),
         }
       );

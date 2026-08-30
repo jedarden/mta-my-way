@@ -322,10 +322,16 @@ export function ssrfProtection(
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
   return async (c, next) => {
+    // Web Push endpoints are supplied by the browser and must be public HTTPS
+    // URLs. They still go through validateUrl, so private and link-local
+    // destinations remain blocked while the generic API policy stays strict.
+    const acceptsPushEndpoint = c.req.path.startsWith("/api/push/");
+    const allowUserProvidedUrls = mergedOptions.allowUserProvidedUrls || acceptsPushEndpoint;
+
     // Check query parameters for URLs
     for (const [key, value] of Object.entries(c.req.query())) {
       if (isUrlLike(value)) {
-        if (!mergedOptions.allowUserProvidedUrls) {
+        if (!allowUserProvidedUrls) {
           // Block any URL in query parameters when user-provided URLs are not allowed
           securityLogger.logSuspiciousRequest(
             c,
@@ -366,7 +372,7 @@ export function ssrfProtection(
         if (body && typeof body === "object") {
           for (const [key, value] of Object.entries(body)) {
             if (typeof value === "string" && isUrlLike(value)) {
-              if (!mergedOptions.allowUserProvidedUrls) {
+              if (!allowUserProvidedUrls) {
                 // Block any URL in body when user-provided URLs are not allowed
                 securityLogger.logSuspiciousRequest(
                   c,

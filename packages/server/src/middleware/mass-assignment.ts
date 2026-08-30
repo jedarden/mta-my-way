@@ -39,6 +39,8 @@ export interface MassAssignmentOptions {
   fieldPattern?: RegExp;
   /** Strip unknown fields instead of rejecting (default: false) */
   stripUnknown?: boolean;
+  /** Sensitive fields that are valid for the endpoint's own schema. */
+  allowedSensitiveFields?: string[];
 }
 
 /**
@@ -140,7 +142,11 @@ export function validateMassAssignment(
     maxDepth = 1,
     fieldPattern = DEFAULT_FIELD_PATTERN,
     stripUnknown = false,
+    allowedSensitiveFields = [],
   } = options;
+  const allowedSensitiveFieldNames = new Set(
+    allowedSensitiveFields.map((fieldName) => fieldName.toLowerCase())
+  );
 
   const violations: MassAssignmentViolation[] = [];
   const sanitized: Record<string, unknown> = {};
@@ -171,7 +177,10 @@ export function validateMassAssignment(
       }
 
       // Check for sensitive fields
-      if (isSensitiveField(fieldName)) {
+      if (
+        isSensitiveField(fieldName) &&
+        !allowedSensitiveFieldNames.has(fieldName.toLowerCase())
+      ) {
         objViolations.push({
           type: "blocked_field",
           field: fullPath,

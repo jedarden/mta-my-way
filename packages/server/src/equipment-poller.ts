@@ -425,11 +425,17 @@ export function getEquipmentStatus(): {
   lastSuccessAt: string | null;
   outages: number;
   consecutiveFailures: number;
+  lastFetchAt: string | null;
+  outageCount: number;
+  circuitOpen: boolean;
 } {
   return {
+    lastFetchAt: status.lastFetchAt ? new Date(status.lastFetchAt).toISOString() : null,
     lastSuccessAt: status.lastSuccessAt ? new Date(status.lastSuccessAt).toISOString() : null,
     outages: equipmentByStation.size,
+    outageCount: equipmentByStation.size,
     consecutiveFailures: status.consecutiveFailures,
+    circuitOpen: status.circuitOpen,
   };
 }
 

@@ -775,11 +775,19 @@ export function getDelayPredictorStatus(): {
   enabled: boolean;
   modelAccuracy: number;
   lastTrainedAt: string | null;
+  totalRecords: number;
+  aggregatedPatterns: number;
+  minObservations: number;
+  currentWeather: WeatherCondition;
 } {
   return {
-    enabled: config !== null,
+    enabled: config !== undefined,
     modelAccuracy: 0, // Not tracked in current implementation
     lastTrainedAt: null, // Not tracked in current implementation
+    totalRecords: delayRecords.length,
+    aggregatedPatterns: aggregatedStats.size,
+    minObservations: config?.minObservations ?? MIN_OBSERVATIONS_FOR_PREDICTION,
+    currentWeather: weatherOverride ?? currentWeather,
   };
 }
 

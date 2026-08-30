@@ -614,7 +614,7 @@ describe("API Integration Tests", () => {
   describe("Push notification API integration", () => {
     describe("POST /api/push/subscribe", () => {
       it("stores subscription in database", async () => {
-        const beforeCount = getSubscriptionCount();
+        const beforeCount = await getSubscriptionCount();
 
         const res = await requestWithAuthAndCsrf(app, "/api/push/subscribe", authHeaders, {
           method: "POST",
@@ -637,10 +637,10 @@ describe("API Integration Tests", () => {
         expect(body.success).toBe(true);
 
         // Verify stored in database
-        const afterCount = getSubscriptionCount();
+        const afterCount = await getSubscriptionCount();
         expect(afterCount).toBe(beforeCount + 1);
 
-        const all = getAllSubscriptions();
+        const all = await getAllSubscriptions();
         const created = all.find(
           (s) => s.endpoint === "https://fcm.googleapis.com/fcm/send/test-endpoint"
         );

@@ -15,12 +15,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { z } from "zod";
 import { createApp } from "../app.js";
 import { initDelayPredictor } from "../delay-predictor.js";
+import { initTripTracking } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestApiKey,
   createTestTrip,
+  requestWithAuthAndCsrf,
 } from "./test-helpers.js";
 
 // Minimal fixtures
@@ -135,6 +137,9 @@ describe("End-to-End User Workflow Integration Tests", () => {
 
     beforeEach(() => {
       db = createIntegrationTestDatabase();
+      // This workflow owns a standalone trip database; initialize the module
+      // explicitly so route requests do not fall through to a missing DB.
+      initTripTracking(db, STATIONS);
     });
 
     afterEach(() => {
@@ -224,17 +229,21 @@ describe("End-to-End User Workflow Integration Tests", () => {
 
   describe("Commute analysis workflow", () => {
     it("analyzes commute between two stations", async () => {
-      const analyzeRes = await app.request("/api/commute/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: authCredentials.authorizationHeader,
-        },
-        body: JSON.stringify({
-          originId: "101",
-          destinationId: "725",
-        }),
-      });
+      // State-changing routes require CSRF protection; use the same helper as
+      // the other commute integration tests so this workflow is self-contained.
+      const analyzeRes = await requestWithAuthAndCsrf(
+        app,
+        "/api/commute/analyze",
+        { Authorization: authCredentials.authorizationHeader },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            originId: "101",
+            destinationId: "725",
+          }),
+        }
+      );
 
       // Valid credentials should succeed - endpoint requires write scope for commute analysis
       expect(analyzeRes.status).toBe(200);

@@ -712,11 +712,22 @@ export function getDelayDetectorStatus(): {
   enabled: boolean;
   activePredictions: number;
   lastRunAt: string | null;
+  trackedTrips: number;
+  activeAlerts: number;
+  thresholdMultiplier: number;
+  minTrainsForLineAlert: number;
 } {
   return {
-    enabled: config !== null,
+    enabled: config !== undefined,
     activePredictions: activePredictedAlerts.size,
     lastRunAt: null, // Not tracked in current implementation
+    // Keep the detailed fields used by the health contract alongside the
+    // compact fields used by newer callers.
+    trackedTrips: trackedTrips.size,
+    activeAlerts: activePredictedAlerts.size,
+    thresholdMultiplier: config?.thresholdMultiplier ?? DEFAULT_THRESHOLD_MULTIPLIER,
+    minTrainsForLineAlert:
+      config?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
   };
 }
 

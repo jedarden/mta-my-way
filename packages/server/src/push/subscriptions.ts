@@ -45,6 +45,12 @@ const DEFAULT_OWNER_ID = "anonymous";
  * @param dbPath  Path to the SQLite database file (or ":memory:" for tests)
  */
 export function configurePushDatabase(dbPath: string): void {
+  if (pushDbPath !== null && pushDbPath !== dbPath) {
+    // Reconfiguration starts a new lifecycle. Leaving the old connection
+    // marked ready made failure tests (and real recovery) continue using the
+    // previous database after switching paths.
+    closePushDatabase();
+  }
   pushDbPath = dbPath;
   logger.info("Push database path configured", { path: dbPath });
 }
@@ -89,41 +95,7 @@ async function initPushDatabaseWithRetry(
     }
 
     try {
-      db = new Database(pushDbPath);
-
-      // WAL mode for better concurrent read performance
-      db.pragma("journal_mode = WAL");
-
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS push_subscriptions (
-          endpoint_hash TEXT PRIMARY KEY,
-          endpoint TEXT NOT NULL,
-          p256dh TEXT NOT NULL,
-          auth TEXT NOT NULL,
-          favorites TEXT NOT NULL DEFAULT '[]',
-          quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
-          morning_scores TEXT NOT NULL DEFAULT '{}',
-          briefing_hour INTEGER NOT NULL DEFAULT 7,
-          created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-          owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
-          ON push_subscriptions(updated_at);
-
-        CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
-          ON push_subscriptions(owner_id);
-      `);
-
-      // Migration: add briefing_hour column to existing tables
-      try {
-        db.exec(
-          "ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7"
-        );
-      } catch {
-        // Column already exists — ignore
-      }
+      db = openPushDatabase(pushDbPath);
 
       pushDbReady = true;
       pushDbInitError = null;
@@ -166,6 +138,52 @@ async function initPushDatabaseWithRetry(
   initPromiseGeneration = generation;
 
   return initPromise;
+}
+
+/** Open a push database and create its schema. */
+function openPushDatabase(dbPath: string): Database.Database {
+  const database = new Database(dbPath);
+
+  try {
+    // WAL mode for better concurrent read performance
+    database.pragma("journal_mode = WAL");
+
+    database.exec(`
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          endpoint_hash TEXT PRIMARY KEY,
+          endpoint TEXT NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          favorites TEXT NOT NULL DEFAULT '[]',
+          quiet_hours TEXT NOT NULL DEFAULT '{"enabled":false,"startHour":22,"endHour":7}',
+          morning_scores TEXT NOT NULL DEFAULT '{}',
+          briefing_hour INTEGER NOT NULL DEFAULT 7,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          owner_id TEXT NOT NULL DEFAULT '${DEFAULT_OWNER_ID}'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated
+          ON push_subscriptions(updated_at);
+
+        CREATE INDEX IF NOT EXISTS idx_push_subscriptions_owner_id
+          ON push_subscriptions(owner_id);
+    `);
+
+    // Migration: add briefing_hour column to existing tables
+    try {
+      database.exec(
+        "ALTER TABLE push_subscriptions ADD COLUMN briefing_hour INTEGER NOT NULL DEFAULT 7"
+      );
+    } catch {
+      // Column already exists — ignore
+    }
+
+    return database;
+  } catch (error) {
+    database.close();
+    throw error;
+  }
 }
 
 /**
@@ -211,19 +229,29 @@ async function ensureDbInitialized(): Promise<void> {
 }
 
 /**
- * Initialize the push subscriptions database (synchronous, for backward compatibility).
- * This is now a no-op; use configurePushDatabase() instead.
- * The database will be opened lazily on first use.
+ * Initialize the push subscriptions database synchronously for legacy callers.
+ * Production startup uses configurePushDatabase() and keeps initialization
+ * lazy. Explicit initPushDatabase() calls are retained for tests and callers
+ * that need readiness immediately; otherwise route-level readiness checks can
+ * report a false 503 before the first lazy operation runs.
  *
- * @deprecated Use configurePushDatabase() instead. Database is now initialized lazily.
+ * @deprecated Use configurePushDatabase() for production's lazy path.
  */
 export function initPushDatabase(dbPath: string): void {
-  // Each legacy initialization call represents a fresh test/application
-  // lifecycle. Closing first prevents a prior lazy initialization from
-  // retaining its connection when the path is reconfigured.
   closePushDatabase();
   configurePushDatabase(dbPath);
-  logger.info("initPushDatabase called (now a no-op, DB will initialize lazily)", { path: dbPath });
+
+  try {
+    db = openPushDatabase(dbPath);
+    pushDbReady = true;
+    pushDbInitError = null;
+    logger.info("Push database initialized", { path: dbPath });
+  } catch (error) {
+    db = null;
+    pushDbReady = false;
+    pushDbInitError = error as Error;
+    logger.error("Failed to initialize push database", error as Error, { path: dbPath });
+  }
 }
 
 /**

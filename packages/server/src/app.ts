@@ -536,7 +536,17 @@ export function createApp(
   // Mass assignment protection for API routes (OWASP A01)
   // Prevents mass assignment attacks by filtering writable fields
   // NOTE: /api/security/csp-report is exempt (registered above)
-  app.use("/api/*", massAssignmentProtection());
+  app.use(
+    "/api/*",
+    massAssignmentProtection({
+      // Route handlers validate their complete request schemas. The global
+      // guard should block privileged fields without rejecting legitimate
+      // nested trip/preferences payloads or password-reset data.
+      allowNested: true,
+      maxDepth: 2,
+      allowedSensitiveFields: ["email", "password", "newPassword", "token"],
+    })
+  );
 
   // Optional authentication for all API routes
   // Parses Authorization header and sets auth context if present
@@ -588,7 +598,14 @@ export function createApp(
   // Mass assignment protection for state-changing API routes (OWASP A08:2013)
   // Prevents overposting/mass assignment attacks on write operations
   // Applied to POST, PATCH, PUT requests
-  app.use("/api/*", massAssignmentProtection());
+  app.use(
+    "/api/*",
+    massAssignmentProtection({
+      allowNested: true,
+      maxDepth: 2,
+      allowedSensitiveFields: ["email", "password", "newPassword", "token"],
+    })
+  );
 
   // HTTP metrics collection for all API routes
   app.use("/api/*", httpMetrics());
@@ -1164,14 +1181,17 @@ ${
           lastError: f.lastErrorMessage
             ? f.lastErrorMessage.slice(0, 100).replace(/[\r\n]/g, " ")
             : null,
-          tripReplacementPeriod: f.tripReplacementPeriod,
+          tripReplacementPeriod:
+            f.tripReplacementPeriod === null ? null : String(f.tripReplacementPeriod),
           avgLatencyMs: avgLatency(f.latencyHistory),
           errorCount24h: errorCount24h(f.errorTimestamps),
           parseErrors: f.parseErrors,
         })),
         alerts: {
           count: alertsStatus.alertCount,
-          lastSuccessAt: alertsStatus.lastSuccessAt,
+          lastSuccessAt: alertsStatus.lastSuccessAt
+            ? new Date(alertsStatus.lastSuccessAt).getTime()
+            : null,
           matchRate: alertsStatus.matchRate,
           consecutiveFailures: alertsStatus.consecutiveFailures,
           circuitOpen: alertsStatus.circuitOpen,
@@ -2941,14 +2961,21 @@ ${
       }
 
       // Protect against open redirect vulnerabilities
-      const validationResult = validateRedirectUrl(authorization.url, {
-        allowedHostnames: OAUTH_ALLOWED_HOSTNAMES,
-      });
+      const authorizationUrl = new URL(authorization.url);
+      const validationResult = validateRedirectUrl(
+        `${authorizationUrl.origin}${authorizationUrl.pathname}`,
+        {
+          // The URL is generated from a registered provider, so its host is
+          // the intended external redirect target. Validate the origin/path
+          // separately because normal OAuth query parameters are encoded.
+          allowedHostnames: [...OAUTH_ALLOWED_HOSTNAMES, authorizationUrl.hostname],
+        }
+      );
       if (!validationResult.valid) {
         return c.json({ error: "Invalid redirect URL" }, 400);
       }
 
-      return c.redirect(validationResult.url!);
+      return c.redirect(authorization.url);
     };
 
     const finishOAuth = async (c: Context) => {
@@ -3074,21 +3101,25 @@ ${
     app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
 
     /** Initiate password reset request */
-    app.post(
-      "/api/auth/password/reset",
-      ...(passwordResetRoutes.requestPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    app.post("/api/auth/password/reset", passwordResetRoutes.requestPasswordReset[0],
+      passwordResetRoutes.requestPasswordReset[1],
+      passwordResetRoutes.requestPasswordReset[2],
+      passwordResetRoutes.requestPasswordReset[3]
     );
 
     /** Confirm password reset with token */
-    app.post(
-      "/api/auth/password/reset/confirm",
-      ...(passwordResetRoutes.confirmPasswordReset as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    app.post("/api/auth/password/reset/confirm",
+      passwordResetRoutes.confirmPasswordReset[0],
+      passwordResetRoutes.confirmPasswordReset[1],
+      passwordResetRoutes.confirmPasswordReset[2],
+      passwordResetRoutes.confirmPasswordReset[3]
     );
 
     /** Change password for authenticated user */
-    app.post(
-      "/api/auth/password/change",
-      ...(passwordResetRoutes.changePassword as any) // eslint-disable-line @typescript-eslint/no-explicit-any,
+    app.post("/api/auth/password/change",
+      passwordResetRoutes.changePassword[0],
+      passwordResetRoutes.changePassword[1],
+      passwordResetRoutes.changePassword[2]
     );
 
     /** Get user's synced preferences */

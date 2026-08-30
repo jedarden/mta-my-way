@@ -26,6 +26,7 @@ const DEFAULT_COMMUTE_ID = "default";
 let db: Database.Database | null = null;
 let stations: StationIndex | null = null;
 let tripTrackingInitialized = false;
+let tripTrackingUsesSharedDatabase = false;
 
 // Default owner ID for unauthenticated or legacy data
 export const DEFAULT_OWNER_ID = "anonymous";
@@ -40,6 +41,7 @@ export function initTripTracking(
   stationData: StationIndex
 ): void {
   db = database;
+  tripTrackingUsesSharedDatabase = database === null;
   stations = stationData;
   tripTrackingInitialized = true;
 
@@ -53,21 +55,10 @@ export function initTripTracking(
   }
 }
 
-/**
- * Ensure the trip tracking tables are created (called on first use).
- */
-async function ensureTripTrackingTables(): Promise<void> {
-  // Import getPushDatabase to get the shared database instance
-  const { getPushDatabase, isPushDatabaseReady } = await import("./push/subscriptions.js");
-
-  if (!isPushDatabaseReady()) {
-    throw new Error("Push database not available for trip tracking");
-  }
-
-  db = getPushDatabase();
-
+/** Create the trip-tracking tables in an already-open database. */
+function createTripTrackingTables(database: Database.Database): void {
   try {
-    db.exec(`
+    database.exec(`
       CREATE TABLE IF NOT EXISTS trips (
         id TEXT PRIMARY KEY,
         date TEXT NOT NULL,
@@ -76,6 +67,7 @@ async function ensureTripTrackingTables(): Promise<void> {
         destination_station_id TEXT NOT NULL,
         destination_station_name TEXT NOT NULL,
         line TEXT NOT NULL,
+        direction TEXT NOT NULL DEFAULT 'N',
         departure_time INTEGER NOT NULL,
         arrival_time INTEGER NOT NULL,
         actual_duration_minutes INTEGER NOT NULL,
@@ -117,24 +109,25 @@ async function ensureTripTrackingTables(): Promise<void> {
 }
 
 /**
- * Get the database instance, throwing if not available.
- * @deprecated Use push subscriptions database directly via getPushDatabase()
+ * Ensure the trip tracking tables are created (called on first use).
+ *
+ * A standalone database supplied to initTripTracking is already the source of
+ * truth and must not depend on the lazy push database. The shared push store
+ * is resolved only for the production path, where initTripTracking receives
+ * null and the database is intentionally opened on demand.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function _getDb(): Promise<Database.Database> {
-  if (!db) {
-    // Try to get the database from push subscriptions
+async function ensureTripTrackingTables(): Promise<void> {
+  if (!db?.open) {
     const { getPushDatabase, isPushDatabaseReady } = await import("./push/subscriptions.js");
+
     if (!isPushDatabaseReady()) {
-      throw new Error("Trip tracking database not available - push DB not ready");
+      throw new Error("Push database not available for trip tracking");
     }
+
     db = getPushDatabase();
   }
 
-  if (!db?.open) {
-    throw new Error("Trip tracking database not available");
-  }
-  return db;
+  createTripTrackingTables(db);
 }
 
 // ============================================================================
@@ -147,27 +140,12 @@ async function _getDb(): Promise<Database.Database> {
  * @param trip - Trip data to record
  * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export async function recordTrip(
+/** Insert a trip into an already-open database. */
+function insertTrip(
   trip: Omit<TripRecord, "id">,
   ownerId: string = DEFAULT_OWNER_ID
-): Promise<TripRecord | null> {
-  // Ensure tables exist on first use
-  if (!tripTrackingInitialized) {
-    throw new Error("Trip tracking not initialized. Call initTripTracking() first.");
-  }
-
-  // Initialize tables lazily if needed
-  if (db) {
-    try {
-      await ensureTripTrackingTables();
-    } catch (err) {
-      logger.error("Cannot record trip: failed to initialize tables", err as Error);
-      return null;
-    }
-  } else {
-    logger.error("Cannot record trip: database connection is not open");
-    return null;
-  }
+): TripRecord | null {
+  if (!db?.open) return null;
 
   const id = crypto.randomUUID();
   const now = Date.now();
@@ -223,12 +201,64 @@ export async function recordTrip(
 }
 
 /**
+ * Record a trip in the journal.
+ *
+ * Callers that provide an already-open database retain the historical
+ * synchronous result. The production lazy-database path returns a promise so
+ * the existing `await recordTrip(...)` call site can wait for initialization.
+ */
+export function recordTrip(
+  trip: Omit<TripRecord, "id">,
+  ownerId: string = DEFAULT_OWNER_ID
+): TripRecord | null | Promise<TripRecord | null> {
+  if (!tripTrackingInitialized) {
+    throw new Error("Trip tracking not initialized. Call initTripTracking() first.");
+  }
+
+  if (!db?.open && tripTrackingUsesSharedDatabase) {
+    return recordTripAsync(trip, ownerId);
+  }
+
+  if (!db?.open) {
+    logger.error("Cannot record trip: database connection is not open");
+    return null;
+  }
+
+  try {
+    createTripTrackingTables(db);
+    return insertTrip(trip, ownerId);
+  } catch (error) {
+    logger.error("Cannot record trip: failed to initialize tables", error as Error);
+    return null;
+  }
+}
+
+/** Record a trip through the production lazy database path. */
+export async function recordTripAsync(
+  trip: Omit<TripRecord, "id">,
+  ownerId: string = DEFAULT_OWNER_ID
+): Promise<TripRecord | null> {
+  if (!tripTrackingInitialized) {
+    throw new Error("Trip tracking not initialized. Call initTripTracking() first.");
+  }
+
+  try {
+    await ensureTripTrackingTables();
+  } catch (err) {
+    logger.error("Cannot record trip: failed to initialize tables", err as Error);
+    return null;
+  }
+
+  return insertTrip(trip, ownerId);
+}
+
+/**
  * Record a trip from GTFS-RT data (inferred).
  *
  * @param params - Trip parameters
  * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export async function recordInferredTrip(
+export function recordInferredTrip(
   params: {
     tripId: string;
     routeId: string;
@@ -239,7 +269,7 @@ export async function recordInferredTrip(
     arrivalTime: number;
   },
   ownerId: string = DEFAULT_OWNER_ID
-): Promise<TripRecord | null> {
+): TripRecord | null | Promise<TripRecord | null> {
   if (!stations || !db?.open) return null;
 
   const originStation = stations[params.originId];
@@ -260,7 +290,7 @@ export async function recordInferredTrip(
     source: "inferred",
   };
 
-  return await recordTrip(trip, ownerId);
+  return recordTrip(trip, ownerId);
 }
 
 /**
@@ -828,4 +858,5 @@ export function cleanupOldTrips(): number {
 export function resetTripTrackingForTesting(): void {
   db = null;
   stations = null;
+  tripTrackingUsesSharedDatabase = false;
 }

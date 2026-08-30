@@ -2051,7 +2051,12 @@ describe("Authentication Middleware", () => {
       const newSession = newSessions.find((s) => s.sessionId === newSessionId);
       expect(newSession).toBeDefined();
       expect(newSession?.active).toBe(true);
-      expect(newSession?.lastActivityAt).toBeGreaterThan(initialSession!.lastActivityAt);
+      // Fix for test flakiness: Use toBeGreaterThanOrEqual instead of toBeGreaterThan
+      // Root cause: When refreshSession executes very quickly (within the same millisecond
+      // as the initial session creation), both lastActivityAt timestamps are identical,
+      // causing the strict inequality check to fail. The session is still correctly refreshed
+      // with extended expiration, so >= is the correct assertion.
+      expect(newSession?.lastActivityAt).toBeGreaterThanOrEqual(initialSession!.lastActivityAt);
       expect(newSession?.expiresAt).toBeGreaterThan(initialSession!.expiresAt);
 
       // 8. Verify old refresh token is now invalid (single-use)

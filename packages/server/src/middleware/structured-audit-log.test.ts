@@ -469,7 +469,9 @@ describe("Structured Audit Logging", () => {
       const bruteForce = incidents.find((i) => i.type === "brute_force");
 
       expect(bruteForce).toBeDefined();
-      expect(bruteForce?.severity).toBe("high");
+      // AuditSeverity has four levels; brute-force incidents are emitted at
+      // the supported error level rather than the obsolete "high" label.
+      expect(bruteForce?.severity).toBe("error");
     });
 
     it("should detect privilege escalation attempts", () => {

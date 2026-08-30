@@ -3,7 +3,9 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { dirname } from "node:path";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("filesystem directory existence", () => {
@@ -99,23 +101,24 @@ describe("filesystem directory existence", () => {
   });
 
   describe("project root directory", () => {
+    const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+
     it("verifies project root exists", () => {
-      const projectRoot = process.cwd();
       expect(existsSync(projectRoot)).toBe(true);
     });
 
     it("verifies packages directory exists", () => {
-      const packagesDir = join(process.cwd(), "packages");
+      const packagesDir = join(projectRoot, "packages");
       expect(existsSync(packagesDir)).toBe(true);
     });
 
     it("verifies server package directory exists", () => {
-      const serverDir = join(process.cwd(), "packages", "server");
+      const serverDir = join(projectRoot, "packages", "server");
       expect(existsSync(serverDir)).toBe(true);
     });
 
     it("verifies src directory exists", () => {
-      const srcDir = join(process.cwd(), "packages", "server", "src");
+      const srcDir = join(projectRoot, "packages", "server", "src");
       expect(existsSync(srcDir)).toBe(true);
     });
   });

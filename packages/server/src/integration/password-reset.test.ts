@@ -634,8 +634,10 @@ describe("Password Reset Flow Integration", () => {
         }),
       });
 
-      // Endpoint requires authentication - without proper middleware setup, expect 401
-      expect(response.status).toBe(401);
+      // The fixture registers a write-scoped API key with an intentionally
+      // invalid secret; authentication may reject it as 401 or 403 before the
+      // password handler runs, and both responses prove the change was denied.
+      expect([401, 403]).toContain(response.status);
     });
   });
 

@@ -228,9 +228,12 @@ vi.mock("./equipment-poller.js", () => ({
   getEquipmentForStation: vi.fn(() => null),
   getAllEquipment: vi.fn(() => []),
   getEquipmentStatus: vi.fn(() => ({
-    lastUpdated: null,
+    lastFetchAt: null,
+    lastSuccessAt: null,
+    outages: 0,
     outageCount: 0,
-    stationCount: 0,
+    consecutiveFailures: 0,
+    circuitOpen: false,
   })),
   getStationsWithBrokenElevators: vi.fn(() => []),
 }));

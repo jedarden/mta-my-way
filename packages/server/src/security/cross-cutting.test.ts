@@ -1153,9 +1153,15 @@ describe("Cross-Cutting Security Tests", () => {
   // ===========================================================================
 
   describe("Full Authenticated Request Flow", () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       resetAuthenticationState();
       resetRateLimiter();
+      // Ensure rate limiting is enabled for tests in this suite
+      // Fix for test isolation: Global setup.ts disables rate limiting (setRateLimiterTestMode(true))
+      // We need to explicitly re-enable it here since resetRateLimiter() might not be enough
+      // when tests run in different orders or with parallel execution
+      const { setRateLimiterTestMode } = await import("../middleware/rate-limiter.js");
+      setRateLimiterTestMode(false);
     });
 
     it("should complete full flow: headers → auth → CSRF → rate limit → response with security headers", async () => {
@@ -1316,13 +1322,14 @@ describe("Cross-Cutting Security Tests", () => {
         expiresAt: 0,
       });
 
-      // Generate a valid CSRF token and reuse it for rate limit testing
-      // (CSRF tokens are single-use by default, but for rate limit testing we need to bypass this)
-      const csrfToken = generateCsrfToken();
-
-      // Exhaust rate limit
-      for (let i = 0; i < 60; i++) {
-        await app.request("/api/protected", {
+      // Generate a new CSRF token for each request
+      // CSRF tokens are single-use by default, so we need a fresh token for each request
+      // to ensure all requests pass CSRF validation and reach the rate limiter
+      // Root cause: Reusing a single token causes requests 2-60 to fail CSRF (403)
+      // before reaching the rate limiter, so the limiter never sees 60+ requests
+      const makeRequest = async () => {
+        const csrfToken = generateCsrfToken();
+        return await app.request("/api/protected", {
           method: "POST",
           headers: {
             "x-forwarded-proto": "https",
@@ -1333,20 +1340,18 @@ describe("Cross-Cutting Security Tests", () => {
           },
           body: JSON.stringify({ data: "test" }),
         });
+      };
+
+      // Exhaust rate limit (60 requests per minute allowed, tier 1)
+      // Make 75 requests to account for token refill during test execution
+      // The rate limiter refills 1 token per second, so sequential requests
+      // may not exhaust the bucket if the test loop takes more than a few seconds
+      for (let i = 0; i < 75; i++) {
+        await makeRequest();
       }
 
       // Next request should fail at rate limit stage
-      const response = await app.request("/api/protected", {
-        method: "POST",
-        headers: {
-          "x-forwarded-proto": "https",
-          "CF-Connecting-IP": "127.0.0.1",
-          Authorization: `Bearer write_key:${apiKey}`,
-          "X-CSRF-Token": csrfToken,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ data: "test" }),
-      });
+      const response = await makeRequest();
 
       // Should fail at rate limit stage
       expect(response.status).toBe(429);
