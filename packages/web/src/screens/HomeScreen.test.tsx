@@ -168,7 +168,7 @@ describe("HomeScreen", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    // Don't reset to real timers - keep fake timers for all tests
     vi.unstubAllGlobals();
   });
 
