@@ -513,7 +513,13 @@ export async function cleanupAllState(): Promise<void> {
   await tryReset("../delay-predictor.js", "resetDelayPredictor");
 
   // ---- dynamic-rbac-cache.ts ----------------------------------------------
-  await tryReset("../middleware/dynamic-rbac-cache.js", "clearCache", "clearPermissionOverrides", "clearEmergencyRevocations", "resetCacheStats");
+  await tryReset(
+    "../middleware/dynamic-rbac-cache.js",
+    "clearCache",
+    "clearPermissionOverrides",
+    "clearEmergencyRevocations",
+    "resetCacheStats"
+  );
 
   // ---- password-reset.routes.ts --------------------------------------------
   await tryReset("../routes/password-reset.routes.js", "clearAllUsers");

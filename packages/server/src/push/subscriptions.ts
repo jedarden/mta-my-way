@@ -28,6 +28,8 @@ let pushDbReady = false;
 let pushDbInitError: Error | null = null;
 let pushDbPath: string | null = null;
 let initPromise: Promise<void> | null = null;
+let initPromiseGeneration: number | null = null;
+let initializationGeneration = 0;
 
 // Retry configuration
 const MAX_INIT_RETRIES = 3;
@@ -56,16 +58,27 @@ export function configurePushDatabase(dbPath: string): void {
  * and the server continues starting. DB-dependent endpoints will return
  * 503 Service Unavailable in degraded mode.
  */
-async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
+async function initPushDatabaseWithRetry(
+  retryCount = 0,
+  generation = initializationGeneration
+): Promise<void> {
+  if (generation !== initializationGeneration) {
+    return;
+  }
+
   if (pushDbReady) {
     return; // Already initialized successfully
   }
 
-  if (initPromise) {
+  if (initPromise && initPromiseGeneration === generation) {
     return initPromise; // Already in progress
   }
 
   initPromise = (async () => {
+    if (generation !== initializationGeneration) {
+      return;
+    }
+
     if (!pushDbPath) {
       const error = new Error(
         "Push database path not configured. Call configurePushDatabase() first."
@@ -132,8 +145,10 @@ async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
         );
 
         await new Promise((resolve) => setTimeout(resolve, delay));
-        initPromise = null;
-        return initPushDatabaseWithRetry(retryCount + 1);
+        if (generation !== initializationGeneration) {
+          return;
+        }
+        return initPushDatabaseWithRetry(retryCount + 1, generation);
       }
 
       logger.error("Failed to initialize push database — running in degraded mode", error, {
@@ -142,9 +157,13 @@ async function initPushDatabaseWithRetry(retryCount = 0): Promise<void> {
         hint: "DB-dependent endpoints will return 503. Stateless endpoints remain available.",
       });
     } finally {
-      initPromise = null;
+      if (initPromiseGeneration === generation) {
+        initPromise = null;
+        initPromiseGeneration = null;
+      }
     }
   })();
+  initPromiseGeneration = generation;
 
   return initPromise;
 }
@@ -199,6 +218,10 @@ async function ensureDbInitialized(): Promise<void> {
  * @deprecated Use configurePushDatabase() instead. Database is now initialized lazily.
  */
 export function initPushDatabase(dbPath: string): void {
+  // Each legacy initialization call represents a fresh test/application
+  // lifecycle. Closing first prevents a prior lazy initialization from
+  // retaining its connection when the path is reconfigured.
+  closePushDatabase();
   configurePushDatabase(dbPath);
   logger.info("initPushDatabase called (now a no-op, DB will initialize lazily)", { path: dbPath });
 }
@@ -207,11 +230,18 @@ export function initPushDatabase(dbPath: string): void {
  * Close the database connection.
  */
 export function closePushDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
-    pushDbReady = false;
-    pushDbInitError = null;
+  initializationGeneration += 1;
+
+  const currentDb = db;
+  db = null;
+  pushDbReady = false;
+  pushDbInitError = null;
+  pushDbPath = null;
+  initPromise = null;
+  initPromiseGeneration = null;
+
+  if (currentDb) {
+    currentDb.close();
   }
 }
 
