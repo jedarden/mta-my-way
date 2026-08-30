@@ -584,6 +584,341 @@ The middleware is registered in strict security order:
 
 ---
 
+## Key Middleware Functions
+
+### optionalAuth
+
+**File:** `packages/server/src/middleware/authentication.ts:3025-3104`
+
+**Purpose:** Extract and attach authentication context if credentials are present, but don't require them. This enables endpoints to work for both authenticated and unauthenticated users.
+
+**Signature:**
+```typescript
+export function optionalAuth(options: { allowSessions?: boolean } = {}): MiddlewareHandler
+```
+
+**Configuration:**
+```typescript
+app.use("/api/*", optionalAuth({ allowSessions: true }));
+```
+
+**Behavior:**
+1. **Session Authentication First (if allowSessions: true):**
+   - Extracts session token from cookie/header
+   - Validates session against session store
+   - Checks session IP binding and validity
+   - Retrieves associated API key
+   - Attaches `auth` context to request with session details
+   - Logs successful login via session
+
+2. **API Key Authentication Fallback:**
+   - Extracts API key from Authorization header
+   - Verifies API key secret
+   - Attaches `auth` context to request with API key details
+   - Logs successful login via API key
+
+3. **No Authentication:**
+   - Continues without auth if both methods fail
+   - Request proceeds without auth context
+
+**AuthContext Structure:**
+```typescript
+interface AuthContext {
+  keyId: string;                    // API key identifier
+  scope: ApiKeyScope;              // Permission scope
+  role: string;                    // User role
+  additionalPermissions: string[]; // Extra permissions
+  sessionId?: string;             // Session ID (if session auth)
+  rateLimitTier: string;          // Rate limiting tier
+  authMethod: "session" | "api_key"; // Authentication method
+  oauthProvider?: string;          // OAuth provider (if OAuth session)
+  mfaVerified?: boolean;          // MFA verification status
+}
+```
+
+**Use Cases:**
+- Public endpoints with enhanced features for authenticated users
+- Personalized content delivery
+- Gradual authentication rollout
+- A/B testing authentication flows
+
+**Related Middleware:**
+- `sessionSecurity` - Validates session security after optionalAuth attaches context
+- `authentication.ts` - Core authentication utilities
+
+---
+
+### sessionSecurity
+
+**File:** `packages/server/src/middleware/session-security.ts:833-935`
+
+**Purpose:** Assess session risk and enforce IP binding, user agent validation, and impossible travel detection to prevent session hijacking.
+
+**Signature:**
+```typescript
+export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {})
+```
+
+**Configuration:**
+```typescript
+app.use("/api/*", sessionSecurity());  // All defaults enabled
+```
+
+**Default Options:**
+```typescript
+interface SessionSecurityMiddlewareOptions {
+  enforceIpBinding?: boolean;     // Default: true - Validate IP hasn't changed
+  checkUserAgent?: boolean;       // Default: true - Detect suspicious UA changes
+  riskThreshold?: number;         // Default: 70 - Risk threshold (0-100)
+  reauthOnHighRisk?: boolean;     // Default: true - Require re-auth on high risk
+}
+```
+
+**Security Features:**
+
+1. **IP Binding Enforcement:**
+   - Validates IP address hasn't changed between requests
+   - For IPv4: Allows /24 subnet (first 3 octets must match)
+   - For IPv6: Allows /64 subnet
+   - Terminates session on IP binding violation
+   - Logs suspicious activity on IP changes
+
+2. **User Agent Validation:**
+   - Detects significant User-Agent changes
+   - Calculates similarity score between current and stored UA
+   - Allows legitimate browser updates
+   - Logs but doesn't block minor UA changes
+
+3. **Risk Assessment:**
+   - Scores session risk from 0-100
+   - Factors: IP changes, UA changes, impossible travel, device trust
+   - Risk levels: low, medium, high, critical
+   - Actions: allow, monitor, challenge, block
+
+4. **Impossible Travel Detection:**
+   - Detects unrealistic travel speeds (>900 km/h)
+   - Calculates distance between session locations
+   - Flags sessions with impossible travel patterns
+   - Uses Haversine formula for distance calculation
+
+5. **Device Trust Tracking:**
+   - Tracks device fingerprints across sessions
+   - Maintains trust levels: unknown, untrusted, trusted, highly_trusted
+   - Records successful authentications per device
+   - Allows trusted devices to bypass certain checks
+
+**Risk Assessment Output:**
+```typescript
+interface SessionRiskAssessment {
+  riskScore: number;                      // 0-100
+  riskLevel: "low" | "medium" | "high" | "critical";
+  riskFactors: string[];                  // Identified risk factors
+  recommendedAction: "allow" | "monitor" | "challenge" | "block";
+  events: SecurityEvent[];                // Contributing security events
+}
+```
+
+**Actions Taken:**
+- **allow** - Proceed normally
+- **monitor** - Log activity but allow
+- **challenge** - Require re-authentication
+- **block** - Terminate session immediately
+
+**Utility Functions:**
+- `parseIpAddress()` - Parse IPv4/IPv6 addresses
+- `areIpsInSameSubnet()` - Check subnet membership
+- `calculateIpDistance()` - Calculate distance between IPs
+- `analyzeUserAgent()` - Parse and analyze UA strings
+- `calculateUserAgentSimilarity()` - Compare UA strings
+- `detectImpossibleTravel()` - Detect unrealistic travel
+- `calculateDistance()` - Haversine distance calculation
+- `getOrCreateDeviceTrust()` - Device trust management
+- `assessSessionRisk()` - Main risk assessment function
+
+**Related Middleware:**
+- `optionalAuth` - Must run before sessionSecurity to attach auth context
+- `authentication.ts` - Core session management
+- `concurrent-session-management.ts` - Multi-session handling
+
+---
+
+## Middleware Initialization Chain
+
+### Startup Sequence
+
+The middleware system initializes in the following order during server startup:
+
+#### Phase 1: Server Initialization (`packages/server/src/index.ts`)
+1. Load GTFS static data
+2. Initialize observability (OTel tracing, Prometheus metrics)
+3. Initialize logging infrastructure
+4. Validate security configuration
+
+#### Phase 2: App Creation (`packages/server/src/app.ts`)
+1. Create Hono app instance
+2. Register health check endpoint (pre-middleware)
+3. Register global middleware (all routes)
+4. Register API-specific middleware (/api/* routes)
+5. Register route handlers
+6. Return configured app
+
+#### Phase 3: HTTP Server Start
+1. Start HTTP server on configured port
+2. Begin background pollers (GTFS data, alerts)
+3. Register signal handlers (graceful shutdown)
+
+### Deferred Initialization
+
+Some middleware features are **lazy-loaded** on first use:
+- Push notification database connection
+- Trip tracking database connection  
+- Session cleanup scheduler
+- Password reset token cleanup
+- Device fingerprint cache
+- RBAC permission cache
+
+This allows core API endpoints to function even if optional databases are unavailable.
+
+### Middleware Dependencies
+
+```
+requestId
+    ↓
+securityHeaders
+    ↓
+securityLogging
+    ↓
+httpMethodRestrictions → httpRequestSmuggling → httpResponseSplitting
+    ↓
+hostHeaderProtection
+    ↓
+tracingMiddleware
+    ↓
+requestSizeLimits → pathTraversalPrevention
+    ↓
+inputSanitization → ssrfProtection → validateContentType
+    ↓
+jsonDepthProtection
+    ↓
+massAssignmentProtection
+    ↓
+optionalAuth ← [Must run before sessionSecurity]
+    ↓
+sessionSecurity ← [Depends on optionalAuth for auth context]
+    ↓
+csrfProtection
+    ↓
+hppProtection → openRedirectProtection
+    ↓
+massAssignmentProtection (duplicate application)
+    ↓
+httpMetrics
+    ↓
+rateLimiter
+    ↓
+responseSizeLimits → compressionMiddleware
+```
+
+**Key Dependency Rules:**
+1. `optionalAuth` MUST run before `sessionSecurity` - sessionSecurity requires the auth context
+2. `requestId` must run first for request correlation
+3. Input validation must run before authentication
+4. Security headers must run before response processing
+5. Rate limiting runs near the end as the final gate
+
+---
+
+## Middleware Relationships and Interactions
+
+### Authentication Chain
+
+```
+optionalAuth
+    ├─→ Session Token Validation
+    │   ├─→ extractSessionToken()
+    │   ├─→ getSession()
+    │   ├─→ validateSession()
+    │   └─→ getApiKey()
+    └─→ API Key Authentication
+        ├─→ extractApiKey()
+        ├─→ getApiKey()
+        └─→ verifyApiKeySecret()
+            ↓
+        [Attaches auth context to request]
+            ↓
+sessionSecurity
+    ├─→ IP Binding Validation
+    ├─→ User Agent Analysis
+    ├─→ Risk Assessment
+    └─→ Device Trust Check
+```
+
+### Authorization Chain
+
+```
+[After authentication]
+    ↓
+requirePermission / requireRole
+    ├─→ checkPermission()
+    ├─→ getRolePermissions()
+    └─→ hasPermission()
+        ↓
+requireResourceAccess
+    ├─→ checkResourceAuthorization()
+    ├─→ validateDataAccess()
+    └─→ auditLogAccess()
+        ↓
+[Route Handler executes]
+```
+
+### Security Event Flow
+
+```
+[Any middleware detects security issue]
+    ↓
+securityLogger.logSuspiciousActivity()
+    ↓
+audit-log.ts
+    ├─→ addAuditEvent()
+    ├─→ logAuthorizationFailure()
+    └─→ logSecurityEvent()
+        ↓
+structured-audit-log.ts
+    ├─→ logAuditEventFromContext()
+    ├─→ redactSensitiveData()
+    └─→ generateComplianceReport()
+        ↓
+suspicious-activity-notifications.ts
+    ├─→ notifySecurityEvent()
+    ├─→ createSecurityEvent()
+    └─→ getNotificationHistory()
+```
+
+### Session Management Flow
+
+```
+[User authenticates]
+    ↓
+authentication.ts
+    ├─→ createSession()
+    ├─→ registerApiKey()
+    └─→ generateApiKey()
+        ↓
+session-security.ts
+    ├─→ getOrCreateDeviceTrust()
+    ├─→ recordSecurityEvent()
+    └─→ assessSessionRisk()
+        ↓
+concurrent-session-management.ts
+    ├─→ registerSession()
+    ├─→ detectConflict()
+    └─→ manageConcurrentSessions()
+        ↓
+[Session active and monitored]
+```
+
+---
+
 ## Appendix: Export Statistics
 
 **Total Exports from `middleware/index.ts`: 481**
@@ -609,6 +944,10 @@ The middleware is registered in strict security order:
 
 ---
 
-**Document Version:** 1.0.0  
+**Document Version:** 2.0.0  
 **Last Reviewed:** 2026-08-30  
-**Next Review:** 2026-09-30
+**Next Review:** 2026-09-30  
+**Related Beads:** 
+- mtamyway-6920afa1 (comprehensive catalog update)
+- mtamyway-7c0d0835 (original catalog)
+- mtamyway-f657f114 (session verification)
