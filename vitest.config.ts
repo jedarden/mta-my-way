@@ -30,6 +30,22 @@ export default defineConfig({
       TEST_MODE: "true",
     },
     setupFiles: [],
+    // Global hooks for all test projects to ensure proper isolation
+    poolOptions: {
+      forks: {
+        singleFork: false, // Run tests in parallel for speed
+        minForks: 1,
+        maxForks: 4,
+      },
+    },
+    // Ensure proper test isolation across all projects
+    sequence: {
+      shuffle: false, // Run tests in order for reproducibility
+      concurrent: true, // Allow concurrent test execution
+    },
+    // Timeout for hooks to avoid hanging tests
+    hookTimeout: 10000,
+    testTimeout: 10000,
     resolve: {
       alias: {
         "virtual:pwa-register": path.resolve(

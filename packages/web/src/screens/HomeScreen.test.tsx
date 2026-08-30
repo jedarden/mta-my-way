@@ -98,6 +98,7 @@ describe("HomeScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    vi.clearAllTimers();
 
     // Mock store functions
     vi.mocked(useFavoritesStore).mockImplementation((selector) => {

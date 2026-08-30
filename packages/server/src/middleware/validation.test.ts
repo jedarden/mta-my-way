@@ -17,7 +17,14 @@ describe("validateBody middleware", () => {
   let app: Hono;
 
   beforeEach(() => {
+    // Create a completely fresh Hono instance for each test
+    // This ensures no route state is shared between tests
     app = new Hono();
+  });
+
+  afterEach(() => {
+    // Clear any references to allow garbage collection
+    app = null as unknown as Hono;
   });
 
   it("validates and passes valid request bodies", async () => {
@@ -268,18 +275,30 @@ describe("validateBody middleware", () => {
   });
 
   describe("Body sanitization", () => {
+    let sanitizationApp: Hono;
+
+    beforeEach(() => {
+      // Create a fresh Hono instance specifically for sanitization tests
+      // This prevents route conflicts with parent describe block tests
+      sanitizationApp = new Hono();
+    });
+
+    afterEach(() => {
+      sanitizationApp = null as unknown as Hono;
+    });
+
     it("sanitizes HTML tags in request body", async () => {
       const schema = z.object({
         comment: z.string(),
       });
 
-      app.post("/test", async (c, _next) => {
+      sanitizationApp.post("/test", async (c, _next) => {
         const body = await validateBody(c, schema);
         if (body instanceof Response) return body;
         return c.json({ validated: true, data: body });
       });
 
-      const res = await app.request("/test", {
+      const res = await sanitizationApp.request("/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comment: "<script>alert('xss')</script>Hello" }),
@@ -296,13 +315,13 @@ describe("validateBody middleware", () => {
         search: z.string(),
       });
 
-      app.post("/test", async (c, _next) => {
+      sanitizationApp.post("/test", async (c, _next) => {
         const body = await validateBody(c, schema);
         if (body instanceof Response) return body;
         return c.json({ validated: true, data: body });
       });
 
-      const res = await app.request("/test", {
+      const res = await sanitizationApp.request("/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ search: "test' OR '1'='1" }),

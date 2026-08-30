@@ -4,14 +4,28 @@
 
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { cleanup } from "@testing-library/react";
-import { afterEach, expect, vi } from "vitest";
+import { afterEach, beforeEach, expect, vi } from "vitest";
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
 
+// Reset ALL mocks before each test to prevent state leakage
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.clearAllTimers();
+
+  // Reset the cache storage mock to clear any cached data from previous tests
+  mockCacheStorage.reset();
+
+  // Reset the PWA registration mock
+  mockRegisterSW.mockClear();
+});
+
 // Cleanup after each test
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
+  vi.clearAllTimers();
 });
 
 // Create a shared mock for registerSW that tests can import and spy on
@@ -91,6 +105,19 @@ class MockCacheStorage {
   async keys(): Promise<string[]> {
     return Array.from(this.caches.keys());
   }
+
+  /**
+   * Reset all cache state (for test isolation).
+   * Call this in beforeEach hooks to ensure clean state.
+   */
+  reset(): void {
+    this.caches.clear();
+    cacheStore.clear();
+  }
 }
 
-global.caches = new MockCacheStorage() as unknown as CacheStorage;
+const mockCacheStorage = new MockCacheStorage();
+global.caches = mockCacheStorage as unknown as CacheStorage;
+
+// Export for test cleanup
+export { mockCacheStorage };
