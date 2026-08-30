@@ -6488,7 +6488,7 @@ describe("Trip Persistence", () => {
 
 #### `createMockPushSubscription`
 
-Creates a mock web push subscription object for testing push notifications.
+Creates a mock web push subscription object for testing push notification functionality.
 
 **Type Signature:**
 ```typescript
@@ -6496,41 +6496,232 @@ function createMockPushSubscription(overrides?: Partial<PushSubscription>): Push
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides` (optional): `Partial<PushSubscription>` - Partial object to override default values
 
-**Returns:** `PushSubscription` object with:
-- `endpoint: string` - Push endpoint URL (default: FCM test endpoint)
-- `keys: {p256dh: string, auth: string}` - VAPID keys (default: test values)
-- `expirationTime: number | null` - Subscription expiration (default: `null`)
+**Returns:** `PushSubscription` object representing a web push subscription with:
+- `endpoint: string` - Push service endpoint URL (default: FCM test endpoint)
+- `keys: {p256dh: string, auth: string}` - VAPID authentication keys for encryption
+- `expirationTime: number | null` - Subscription expiration timestamp or null for no expiration
 
-**Usage Example:**
+**Default Return Values:**
+
+| Property | Type | Default Value |
+|----------|------|---------------|
+| `endpoint` | `string` | `"https://fcm.googleapis.com/fcm/send/test_endpoint"` |
+| `keys.p256dh` | `string` | `"test_p256dh_key"` |
+| `keys.auth` | `string` | `"test_auth_key"` |
+| `expirationTime` | `number \| null` | `null` (no expiration) |
+
+**Usage Examples:**
+
+**Basic usage with defaults:**
 ```typescript
 import { createMockPushSubscription } from "@mta-my-way/shared/testing";
 
-const defaultSub = createMockPushSubscription();
+const subscription = createMockPushSubscription();
+// Returns FCM test endpoint with no expiration
+console.log(subscription.endpoint); // "https://fcm.googleapis.com/fcm/send/test_endpoint"
+console.log(subscription.expirationTime); // null
+```
+
+**Custom endpoint for different push services:**
+```typescript
+// Custom endpoint for testing
 const customSub = createMockPushSubscription({
-  endpoint: "https://fcm.googleapis.com/fcm/send/custom_endpoint",
-  keys: {
-    p256dh: "custom_p256dh_key",
-    auth: "custom_auth_key"
-  }
+  endpoint: "https://example.test/push/TEST_ENDPOINT_123"
 });
 
+// Endpoint with user identifier
+const userSub = createMockPushSubscription({
+  endpoint: "https://example.test/subscribe/MOCK_USER_456"
+});
+```
+
+**Testing subscription expiration logic:**
+```typescript
+// Non-expiring subscription (default)
+const nonExpiring = createMockPushSubscription();
+expect(nonExpiring.expirationTime).toBeNull();
+
+// Already expired subscription
 const expiredSub = createMockPushSubscription({
   expirationTime: Date.now() - 3600000 // Expired 1 hour ago
 });
 
-const futureExpiring = createMockPushSubscription({
-  expirationTime: Date.now() + 86400000 // Expires in 24 hours
+// Subscription expiring soon
+const expiringSoon = createMockPushSubscription({
+  expirationTime: Date.now() + 300000 // Expires in 5 minutes
+});
+
+// Subscription with long expiry
+const longExpiry = createMockPushSubscription({
+  expirationTime: Date.now() + 31536000000 // Expires in 1 year
 });
 ```
 
-**Edge Cases:**
-- `expirationTime` can be `null` (no expiration) - test both null and timestamp
-- Endpoint URL must be valid - test invalid URL handling
-- VAPID keys are base64-encoded - use realistic encoding for validation tests
-- Expired subscriptions should be cleaned up - test expiration logic
-- Endpoint format depends on push service - FCM vs VAPID vs Web Push
+**Testing VAPID key validation:**
+```typescript
+// Mock keys for format validation tests
+const mockKeys = createMockPushSubscription({
+  keys: {
+    p256dh: "MOCK_P256DH_KEY_FOR_TESTING_ABC123",
+    auth: "MOCK_AUTH_KEY_XYZ789"
+  }
+});
+
+// Invalid keys for error handling tests
+const invalidP256dh = createMockPushSubscription({
+  keys: {
+    p256dh: "invalid_key_format",
+    auth: "test_auth_key"
+  }
+});
+
+const missingAuth = createMockPushSubscription({
+  keys: {
+    p256dh: "test_p256dh_key",
+    auth: ""
+  }
+});
+```
+
+**Common override patterns:**
+```typescript
+// Pattern 1: Override only endpoint
+const sub1 = createMockPushSubscription({
+  endpoint: "https://test.example.com/push/MOCK_ENDPOINT"
+});
+
+// Pattern 2: Override both keys together
+const sub2 = createMockPushSubscription({
+  keys: {
+    p256dh: "MOCK_P256DH_ABC",
+    auth: "MOCK_AUTH_XYZ"
+  }
+});
+
+// Pattern 3: Set expiration while keeping defaults
+const sub3 = createMockPushSubscription({
+  expirationTime: Date.now() + 86400000
+});
+
+// Pattern 4: Complete custom subscription
+const customSub = createMockPushSubscription({
+  endpoint: "https://test.example.com/push/MOCK_ENDPOINT",
+  keys: {
+    p256dh: "MOCK_KEY_123",
+    auth: "MOCK_AUTH_456"
+  },
+  expirationTime: Date.now() + 172800000
+});
+```
+
+**Testing push notification workflows:**
+```typescript
+test("sends notification to active subscription", async () => {
+  const subscription = createMockPushSubscription();
+  const result = await sendPushNotification(subscription, {
+    title: "Service Alert",
+    body: "1 train delays"
+  });
+  expect(result.success).toBe(true);
+});
+
+test("rejects invalid endpoint URL", async () => {
+  const invalidSub = createMockPushSubscription({
+    endpoint: "not-a-url"
+  });
+  const result = await sendPushNotification(invalidSub, { title: "Test" });
+  expect(result.error).toBe("Invalid endpoint URL");
+});
+
+test("cleans up expired subscriptions", async () => {
+  const expired = createMockPushSubscription({
+    expirationTime: Date.now() - 7200000 // 2 hours ago
+  });
+  await cleanupExpiredSubscriptions();
+  expect(await getSubscription(expired.endpoint)).toBeNull();
+});
+```
+
+**Edge Cases and Gotchas:**
+
+**Override merging behavior:**
+The `overrides` parameter uses spread syntax, so nested objects are replaced, not merged:
+
+```typescript
+// ❌ WRONG: This replaces the entire keys object
+const sub = createMockPushSubscription({
+  keys: { p256dh: "custom_p256dh" }
+});
+// sub.keys.auth is now undefined!
+
+// ✅ CORRECT: Override both keys together
+const sub = createMockPushSubscription({
+  keys: {
+    p256dh: "custom_p256dh",
+    auth: "custom_auth"
+  }
+});
+```
+
+**Expiration time null vs timestamp:**
+```typescript
+// Test both null and timestamp expiration
+const noExpiry = createMockPushSubscription({ expirationTime: null });
+const withExpiry = createMockPushSubscription({ expirationTime: Date.now() + 3600000 });
+
+// Check expiration logic
+if (noExpiry.expirationTime === null || noExpiry.expirationTime > Date.now()) {
+  // Subscription is valid
+}
+```
+
+**Endpoint URL format variations:**
+```typescript
+// Different push services use different endpoint formats
+const fcmFormat = "https://fcm.googleapis.com/fcm/send/{token}";
+const webPushFormat = "https://{domain}/push/{user}";
+const safariFormat = "https://push.apple.com/webpush/{token}";
+
+// Ensure tests cover all formats your app supports
+```
+
+**VAPID key encoding:**
+```typescript
+// VAPID keys must be base64-encoded (URL-safe)
+// Test with realistic key lengths:
+// - p256dh: 65 bytes (standard ECDH P-256 public key)
+// - auth: 16 bytes (authentication secret)
+
+const realisticKeys = createMockPushSubscription({
+  keys: {
+    p256dh: "B" + "x".repeat(87), // 88 chars with 'B' prefix
+    auth: "x".repeat(16) // 16 chars
+  }
+});
+```
+
+**Setup and teardown considerations:**
+```typescript
+// Clean up test subscriptions after each test
+afterEach(() => {
+  vi.clearAllMocks();
+  // Reset any subscription stores
+  mockSubscriptionStore.clear();
+});
+
+// Isolate subscription tests - don't share state between tests
+test("user A receives notifications", async () => {
+  const userASub = createMockPushSubscription({ endpoint: "user_a_endpoint" });
+  // test user A
+});
+
+test("user B receives notifications", async () => {
+  const userBSub = createMockPushSubscription({ endpoint: "user_b_endpoint" });
+  // test user B independently
+});
+```
 
 ---
 
@@ -6538,7 +6729,7 @@ const futureExpiring = createMockPushSubscription({
 
 #### `createTestFixture`
 
-Creates a complete test fixture set with related stations, routes, arrivals, alerts, favorites, and commutes.
+Creates a complete test fixture set with related stations, routes, arrivals, alerts, favorites, and commutes. This helper provides a consistent, interconnected dataset for integration tests and component testing.
 
 **Type Signature:**
 ```typescript
@@ -6547,43 +6738,354 @@ function createTestFixture(): TestFixture
 
 **Parameters:** None
 
-**Returns:** `TestFixture` object with:
-- `stations: {timesSquare, pennStation}` - Station objects
-- `routes: {"1": route}` - Route objects keyed by line
-- `arrivals: {timesSquareNorth, timesSquareSouth}` - Arrival arrays by location/direction
-- `alerts: Alert[]` - Array of alerts
-- `favorites: Favorite[]` - Array of favorites
-- `commutes: Commute[]` - Array of commutes
+**Returns:** `TestFixture` object containing:
 
-**Usage Example:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `stations` | `{timesSquare: Station, pennStation: Station}` | Pre-configured station objects with realistic relationships |
+| `routes` | `{"1": Route}` | Route objects keyed by line identifier |
+| `arrivals` | `{timesSquareNorth: ArrivalTime[], timesSquareSouth: ArrivalTime[]}` | Arrival arrays grouped by station and direction |
+| `alerts` | `Alert[]` | Array of service alerts affecting fixture routes |
+| `favorites` | `Favorite[]` | User favorite stops |
+| `commutes` | `Commute[]` | User commute profiles with origin/destination stations |
+
+**Fixture Structure:**
+
+The fixture creates internally consistent data:
+- **Stations**: Times Square-42 St (ID: `725`) and 34 St-Penn Station (ID: `726`)
+- **Routes**: Line 1 (Broadway-7th Ave Local)
+- **Arrivals**: 5 arrivals total (3 northbound, 2 southbound) at Times Square
+- **Alerts**: 1 warning alert affecting Line 1
+- **Favorites**: 1 favorite (Times Square, labeled "Work")
+- **Commutes**: 1 commute (Times Square → Penn Station)
+
+**Usage Examples:**
+
+**Basic fixture usage:**
 ```typescript
 import { createTestFixture } from "@mta-my-way/shared/testing";
 
 const fixture = createTestFixture();
 
-// Access related data
-const timesSquare = fixture.stations.timesSquare;
-const route1 = fixture.routes["1"];
-const northboundArrivals = fixture.arrivals.timesSquareNorth;
-const alerts = fixture.alerts;
-const workCommute = fixture.commutes[0];
+// Access individual components
+const { stations, routes, arrivals, alerts, favorites, commutes } = fixture;
 
-// Test with realistic relationships
-expect(northboundArrivals[0].line).toBe("1");
-expect(alerts[0].affectedLines).toContain("1");
-expect(workCommute.origin.id).toBe(timesSquare.id);
-
-// Use in component tests
-const { stations, arrivals, alerts } = fixture;
-render(<StationBoard station={stations.timesSquare} arrivals={arrivals.timesSquareNorth} alerts={alerts} />);
+// All data is internally consistent
+expect(arrivals.timesSquareNorth[0].line).toBe("1"); // Arrival references Line 1
+expect(alerts[0].affectedLines).toContain("1"); // Alert affects Line 1
+expect(commutes[0].origin.id).toBe(stations.timesSquare.id); // Commute uses fixture station
 ```
 
-**Edge Cases:**
-- All fixture data is internally consistent - arrivals reference fixture routes, alerts reference fixture lines
-- Fixture is immutable by design - create new fixture for each test variation
-- Relationships are hardcoded - ensure they match your test scenarios
-- Fixture includes both directions - test northbound/southbound separately
-- Single route (line 1) - override for multi-route tests
+**Testing station board components:**
+```typescript
+test("renders station board with arrivals and alerts", () => {
+  const fixture = createTestFixture();
+  const { stations, arrivals, alerts } = fixture;
+
+  render(
+    <StationBoard
+      station={stations.timesSquare}
+      arrivals={arrivals.timesSquareNorth}
+      alerts={alerts}
+    />
+  );
+
+  expect(screen.getByText("Times Square-42 St")).toBeInTheDocument();
+  expect(screen.getByText(/1 train/)).toBeInTheDocument();
+  expect(screen.getByText(/delays/)).toBeInTheDocument(); // Alert message
+});
+```
+
+**Testing route calculation:**
+```typescript
+test("calculates route between fixture stations", () => {
+  const fixture = createTestFixture();
+  const { stations, routes } = fixture;
+
+  const route = calculateRoute(
+    stations.timesSquare,
+    stations.pennStation,
+    routes["1"]
+  );
+
+  expect(route.stations).toHaveLength(2);
+  expect(route.stations[0].id).toBe("725");
+  expect(route.stations[1].id).toBe("726");
+  expect(route.line).toBe("1");
+});
+```
+
+**Testing commute workflows:**
+```typescript
+test("tracks commute time between fixture stations", () => {
+  const fixture = createTestFixture();
+  const commute = fixture.commutes[0];
+
+  const trip = startCommute(commute);
+  expect(trip.origin.id).toBe(commute.origin.id); // Times Square
+  expect(trip.destination.id).toBe(commute.destination.id); // Penn Station
+
+  // Complete trip
+  trip.complete();
+  expect(trip.duration).toBeGreaterThan(0);
+});
+```
+
+**Testing arrival filtering:**
+```typescript
+test("filters arrivals by direction", () => {
+  const fixture = createTestFixture();
+  const { arrivals } = fixture;
+
+  // Northbound arrivals (3 arrivals)
+  expect(arrivals.timesSquareNorth).toHaveLength(3);
+  expect(arrivals.timesSquareNorth.every(a => a.direction === "N")).toBe(true);
+
+  // Southbound arrivals (2 arrivals)
+  expect(arrivals.timesSquareSouth).toHaveLength(2);
+  expect(arrivals.timesquareSouth.every(a => a.direction === "S")).toBe(true);
+});
+```
+
+**Testing alert impact on routes:**
+```typescript
+test("identifies affected routes from alerts", () => {
+  const fixture = createTestFixture();
+  const { alerts, routes } = fixture;
+
+  const affectedLines = getAffectedLines(alerts);
+  expect(affectedLines).toContain("1");
+
+  const route1 = routes["1"];
+  const hasAlerts = checkRouteForAlerts(route1, alerts);
+  expect(hasAlerts).toBe(true);
+});
+```
+
+**Common override patterns:**
+```typescript
+// Pattern 1: Add more stations to the fixture
+const fixture = createTestFixture();
+fixture.stations.heraldSquare = createMockStation({
+  id: "727",
+  name: "34 St-Herald Sq"
+});
+
+// Pattern 2: Add additional routes
+const fixture = createTestFixture();
+fixture.routes["2"] = createMockRoute({
+  id: "2",
+  shortName: "2",
+  isExpress: true
+});
+
+// Pattern 3: Create multi-route fixtures
+const multiLineFixture = {
+  ...createTestFixture(),
+  routes: {
+    "1": createMockRoute({ id: "1", shortName: "1" }),
+    "2": createMockRoute({ id: "2", shortName: "2", isExpress: true }),
+    "A": createMockRoute({ id: "A", shortName: "A", division: "B" })
+  }
+};
+```
+
+**Setup and teardown patterns:**
+```typescript
+// ✅ CORRECT: Create fresh fixture per test
+test("test A", () => {
+  const fixture = createTestFixture();
+  // test with isolated fixture
+});
+
+test("test B", () => {
+  const fixture = createTestFixture();
+  // fresh fixture, no state from test A
+});
+
+// ❌ WRONG: Share fixture across tests (state leakage)
+let sharedFixture: TestFixture;
+beforeAll(() => {
+  sharedFixture = createTestFixture(); // Shared across all tests!
+});
+
+test("test A", () => {
+  sharedFixture.arrivals.timesSquareNorth.push(createMockArrival());
+  // This modification persists to test B!
+});
+```
+
+**Testing with realistic data volumes:**
+```typescript
+// Scale up arrivals for performance testing
+const fixture = createTestFixture();
+fixture.arrivals.timesSquareNorth = Array.from({ length: 50 }, (_, i) =>
+  createMockArrival({
+    line: "1",
+    direction: "N",
+    minutesAway: i + 1
+  })
+);
+
+// Test component handles large arrival lists
+test("renders 50 arrivals efficiently", () => {
+  render(<StationBoard arrivals={fixture.arrivals.timesSquareNorth} />);
+  expect(screen.getAllByTestId(/arrival-\d+/)).toHaveLength(50);
+});
+```
+
+**Testing error scenarios:**
+```typescript
+test("handles missing station gracefully", () => {
+  const fixture = createTestFixture();
+  const invalidId = "999"; // Not in fixture
+
+  const station = findStation(invalidId, Object.values(fixture.stations));
+  expect(station).toBeUndefined();
+});
+
+test("handles empty arrivals", () => {
+  const fixture = createTestFixture();
+  fixture.arrivals.timesSquareNorth = [];
+
+  render(<StationBoard arrivals={fixture.arrivals.timesSquareNorth} />);
+  expect(screen.getByText(/no upcoming trains/)).toBeInTheDocument();
+});
+```
+
+**Edge Cases and Gotchas:**
+
+**Fixture immutability:**
+```typescript
+// The fixture object itself is NOT immutable
+const fixture = createTestFixture();
+fixture.arrivals.timesSquareNorth.push(createMockArrival()); // ✅ Allowed, but leaks state
+
+// ❌ WRONG: Mutating shared fixture
+beforeAll(() => {
+  const fixture = createTestFixture();
+  fixture.routes["A"] = createMockRoute({ id: "A" }); // Mutation persists
+});
+
+// ✅ CORRECT: Create fresh fixtures for variations
+test("with line A", () => {
+  const fixture = createTestFixture();
+  const extendedFixture = {
+    ...fixture,
+    routes: {
+      ...fixture.routes,
+      "A": createMockRoute({ id: "A" })
+    }
+  };
+});
+```
+
+**Relationship consistency:**
+```typescript
+// The fixture maintains internal consistency
+const fixture = createTestFixture();
+
+// ✅ These relationships are guaranteed
+fixture.commutes[0].origin.id === fixture.stations.timesSquare.id;
+fixture.arrivals.timesSquareNorth[0].line === fixture.routes["1"].id;
+fixture.alerts[0].affectedLines.includes(fixture.routes["1"].id);
+
+// ❌ Don't break relationships when customizing
+const fixture = createTestFixture();
+fixture.routes["1"].id = "2"; // Breaks consistency with arrivals/alerts!
+// Now arrivals.timesSquareNorth[0].line === "1" but route is "2"
+
+// ✅ CORRECT: Customize consistently
+const fixture = createTestFixture();
+const newRoute = createMockRoute({ id: "2", shortName: "2" });
+fixture.routes["2"] = newRoute;
+fixture.arrivals.timesSquareNorth = [
+  createMockArrival({ line: "2", direction: "N" })
+];
+```
+
+**Direction-specific testing:**
+```typescript
+// Fixture includes both directions for comprehensive testing
+const fixture = createTestFixture();
+
+// Test northbound behavior
+test("northbound arrivals", () => {
+  const northbound = filterByDirection(
+    fixture.arrivals.timesSquareNorth,
+    "N"
+  );
+  expect(northbound).toHaveLength(3);
+});
+
+// Test southbound behavior
+test("southbound arrivals", () => {
+  const southbound = filterByDirection(
+    fixture.arrivals.timesSquareSouth,
+    "S"
+  );
+  expect(southbound).toHaveLength(2);
+});
+
+// Test combined arrivals
+test("all arrivals at Times Square", () => {
+  const allArrivals = [
+    ...fixture.arrivals.timesSquareNorth,
+    ...fixture.arrivals.timesSquareSouth
+  ];
+  expect(allArrivals).toHaveLength(5);
+});
+```
+
+**Single-route limitation:**
+```typescript
+// By default, fixture only includes Line 1
+const fixture = createTestFixture();
+expect(Object.keys(fixture.routes)).toEqual(["1"]);
+
+// For multi-route testing, extend the fixture:
+const multiRouteFixture = {
+  ...createTestFixture(),
+  routes: {
+    "1": createMockRoute({ id: "1", shortName: "1" }),
+    "2": createMockRoute({ id: "2", shortName: "2", isExpress: true }),
+    "A": createMockRoute({ id: "A", shortName: "A", division: "B" })
+  },
+  arrivals: {
+    ...createTestFixture().arrivals,
+    timesSquareNorth: [
+      createMockArrival({ line: "1", direction: "N", minutesAway: 2 }),
+      createMockArrival({ line: "2", direction: "N", minutesAway: 5 }),
+      createMockArrival({ line: "A", direction: "N", minutesAway: 8 })
+    ]
+  }
+};
+```
+
+**Setup/teardown with cleanup:**
+```typescript
+// Clean up any external state after fixture tests
+afterEach(() => {
+  // Clear mock databases
+  mockDatabase.clear();
+
+  // Reset API mocks
+  vi.clearAllMocks();
+
+  // Clear in-memory caches
+  arrivalCache.clear();
+  stationCache.clear();
+});
+
+// Isolate fixture creation in test helpers
+function createCustomFixture(overrides?: Partial<TestFixture>): TestFixture {
+  const base = createTestFixture();
+  return {
+    ...base,
+    ...overrides
+  };
+}
+```
 
 ---
 
