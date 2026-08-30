@@ -990,7 +990,7 @@ const stations = stmt.all();
 
 #### `createMockResponse(data, status?)`
 
-Creates a mock HTTP response object.
+Creates a mock HTTP response object with fetch-like interface for testing API interactions, error handling, and response validation.
 
 **Signature:**
 ```typescript
@@ -999,65 +999,695 @@ function createMockResponse(data: unknown, status?: number): MockResponse
 
 **Parameters:**
 - `data: unknown` - Response body data
-- `status` (optional): HTTP status code (default: `200`)
+  - Type: `unknown` (accepts any JSON-serializable value)
+  - Can be object, array, string, number, boolean, null
+  - Used for both `json()` and `text()` response methods
+  - Stored internally and returned from both methods
+- `status` (optional): HTTP status code
+  - Type: `number`
+  - Default: `200`
+  - Valid range: 100-599 (standard HTTP status codes)
+  - Determines `ok` property: `status >= 200 && status < 300`
+  - Common values: 200 (OK), 201 (Created), 204 (No Content), 400 (Bad Request), 404 (Not Found), 500 (Server Error)
 
 **Returns:**
 - `MockResponse` object with properties:
-  - `ok: boolean` - `status >= 200 && status < 300`
-  - `status: number` - HTTP status code
-  - `json(): Promise<unknown>` - Async JSON parser
-  - `text(): Promise<string>` - Async text parser
-  - `headers: Headers` - Response headers
+  - `ok: boolean` - `true` if `status >= 200 && status < 300` (2xx status codes)
+  - `status: number` - HTTP status code (the value passed in or default 200)
+  - `json(): Promise<unknown>` - Async method that resolves to the `data` parameter
+  - `text(): Promise<string>` - Async method that resolves to `JSON.stringify(data)`
+  - `headers: Headers` - Browser `Headers` object with `content-type: application/json`
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic success response
 const response = createMockResponse({ arrivals: [] }, 200);
 expect(response.ok).toBe(true);
+expect(response.status).toBe(200);
 const data = await response.json();
+expect(data).toEqual({ arrivals: [] });
+
+// 2. Error response (404 Not Found)
+const notFound = createMockResponse({ error: "Station not found" }, 404);
+expect(notFound.ok).toBe(false);
+expect(notFound.status).toBe(404);
+
+// 3. Server error response (500 Internal Server Error)
+const serverError = createMockResponse({ error: "Database connection failed" }, 500);
+expect(serverError.ok).toBe(false);
+expect(serverError.status).toBe(500);
+
+// 4. Created response (201)
+const created = createMockResponse({ id: "123", name: "Test" }, 201);
+expect(created.ok).toBe(true);
+expect(created.status).toBe(201);
+
+// 5. Array response
+const arrayResponse = createMockResponse([
+  { id: "1", name: "Item 1" },
+  { id: "2", name: "Item 2" }
+], 200);
+const items = await arrayResponse.json();
+expect(items).toHaveLength(2);
+
+// 6. Text response using text() method
+const textResponse = createMockResponse({ message: "Hello" }, 200);
+const text = await textResponse.text();
+expect(text).toBe('{"message":"Hello"}');
+
+// 7. Null response body
+const nullResponse = createMockResponse(null, 204);
+const data = await nullResponse.json();
+expect(data).toBeNull();
+
+// 8. String response
+const stringResponse = createMockResponse("Plain text response", 200);
+const text = await stringResponse.text();
+expect(text).toBe('"Plain text response"'); // JSON-encoded string
+
+// 9. Number response
+const numberResponse = createMockResponse(42, 200);
+const num = await numberResponse.json();
+expect(num).toBe(42);
+
+// 10. Boolean response
+const boolResponse = createMockResponse(true, 200);
+const bool = await boolResponse.json();
+expect(bool).toBe(true);
 ```
 
-**Edge Cases:**
-- `json()` returns `Promise` - must be awaited
-- `text()` returns `JSON.stringify(data)`
-- `headers` always includes `content-type: application/json`
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing API error handling
+test("handles 404 errors gracefully", async () => {
+  const mockFetch = vi.fn().mockResolvedValue(
+    createMockResponse({ error: "Not found" }, 404)
+  );
+
+  const result = await fetchArrivals(mockFetch, "999");
+  expect(result.error).toBe("Not found");
+  expect(result.success).toBe(false);
+});
+
+// 2. Testing success/error paths
+test("distinguishes success from failure", async () => {
+  const success = createMockResponse({ data: "value" }, 200);
+  const failure = createMockResponse({ error: "Failed" }, 500);
+
+  expect(success.ok).toBe(true);
+  expect(failure.ok).toBe(false);
+});
+
+// 3. Testing response header inspection
+test("response has correct headers", async () => {
+  const response = createMockResponse({ data: "test" }, 200);
+  
+  expect(response.headers.get("content-type")).toBe("application/json");
+});
+
+// 4. Testing with different content types (via override)
+test("can create custom content type responses", async () => {
+  const baseResponse = createMockResponse("text content", 200);
+  const customHeaders = new Headers({
+    "content-type": "text/plain"
+  });
+  const response = { ...baseResponse, headers: customHeaders };
+  
+  expect(response.headers.get("content-type")).toBe("text/plain");
+});
+
+// 5. Testing JSON parsing errors (mocked)
+test("handles JSON parsing gracefully", async () => {
+  const response = createMockResponse({ invalid: "data" }, 200);
+  const data = await response.json();
+  // Mock always returns data, no parsing errors
+  expect(data).toEqual({ invalid: "data" });
+});
+
+// 6. Testing response status codes
+test("validates status code ranges", async () => {
+  const ok = createMockResponse({}, 200);
+  const redirect = createMockResponse({}, 301);
+  const clientError = createMockResponse({}, 400);
+  const serverError = createMockResponse({}, 500);
+
+  expect(ok.ok).toBe(true); // 2xx
+  expect(redirect.ok).toBe(false); // 3xx
+  expect(clientError.ok).toBe(false); // 4xx
+  expect(serverError.ok).toBe(false); // 5xx
+});
+
+// 7. Testing response body validation
+test("validates response body structure", async () => {
+  const response = createMockResponse({
+    arrivals: [],
+    alerts: [],
+    timestamp: Date.now()
+  }, 200);
+
+  const data = await response.json();
+  assertHasProperties(data, ["arrivals", "alerts", "timestamp"]);
+});
+
+// 8. Testing empty responses
+test("handles empty object response", async () => {
+  const response = createMockResponse({}, 204);
+  const data = await response.json();
+  expect(data).toEqual({});
+});
+
+// 9. Testing chained API calls
+test("simulates multiple API responses", async () => {
+  const mockFetch = vi.fn()
+    .mockResolvedValueOnce(createMockResponse({ arrivals: [] }, 200))
+    .mockResolvedValueOnce(createMockResponse({ alerts: [] }, 200))
+    .mockResolvedValueOnce(createMockResponse({ stations: [] }, 200));
+
+  const arrivals = await mockFetch("/api/arrivals");
+  const alerts = await mockFetch("/api/alerts");
+  const stations = await mockFetch("/api/stations");
+
+  expect(mockFetch).toHaveBeenCalledTimes(3);
+  expect((await arrivals.json()).arrivals).toEqual([]);
+  expect((await alerts.json()).alerts).toEqual([]);
+  expect((await stations.json()).stations).toEqual([]);
+});
+
+// 10. Testing with realistic data structures
+test("handles complex nested objects", async () => {
+  const complexData = {
+    stations: [
+      { id: "725", name: "Times Square", lines: ["1", "2", "3"] },
+      { id: "726", name: "Penn Station", lines: ["A", "C", "E"] }
+    ],
+    metadata: {
+      timestamp: Date.now(),
+      version: "1.0",
+      source: "gtfs"
+    },
+    alerts: [
+      { id: "1", severity: "warning", affectedLines: ["1"] }
+    ]
+  };
+
+  const response = createMockResponse(complexData, 200);
+  const data = await response.json();
+
+  expect(data.stations).toHaveLength(2);
+  expect(data.metadata.version).toBe("1.0");
+  expect(data.alerts).toHaveLength(1);
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **`ok` property calculation**: Based on status code range, not data content
+  ```typescript
+  const okStatus = createMockResponse({ error: "Internal error" }, 200);
+  expect(okStatus.ok).toBe(true); // true even though error in data
+
+  const notOkStatus = createMockResponse({ success: true }, 500);
+  expect(notOkStatus.ok).toBe(false); // false even though success in data
+  ```
+
+- **`json()` and `text()` return Promises**: Must be awaited, cannot access synchronously
+  ```typescript
+  const response = createMockResponse({ data: "test" }, 200);
+  const data = response.json(); // Returns Promise, not data
+  // Need: await response.json()
+  ```
+
+- **`text()` returns JSON-encoded string**: Always JSON.stringify, even for strings
+  ```typescript
+  const response = createMockResponse("plain text", 200);
+  const text = await response.text();
+  expect(text).toBe('"plain text"'); // JSON-encoded, not "plain text"
+  ```
+
+- **`data` parameter is stored directly**: No deep cloning, modifications affect response
+  ```typescript
+  const mutableData = { items: [] };
+  const response = createMockResponse(mutableData, 200);
+  mutableData.items.push("new item"); // Affects response data
+  const data = await response.json();
+  expect(data.items).toEqual(["new item"]);
+  ```
+
+- **Status code defaults to 200**: Omitting status gives successful response
+  ```typescript
+  const response = createMockResponse({ data: "test" });
+  expect(response.status).toBe(200); // Default
+  expect(response.ok).toBe(true);
+  ```
+
+- **Headers are always `content-type: application/json`**: Cannot override via parameter
+  ```typescript
+  const response = createMockResponse({ data: "test" }, 200);
+  expect(response.headers.get("content-type")).toBe("application/json");
+  // Must manually create Headers object for other content types
+  ```
+
+- **Non-2xx status codes are `not ok`**: Includes redirects (3xx), client errors (4xx), server errors (5xx)
+  ```typescript
+  const redirect = createMockResponse({}, 301);
+  const clientError = createMockResponse({}, 400);
+  const serverError = createMockResponse({}, 500);
+
+  expect(redirect.ok).toBe(false);
+  expect(clientError.ok).toBe(false);
+  expect(serverError.ok).toBe(false);
+  ```
+
+- **`data` can be any JSON-serializable value**: Including null, primitives, arrays
+  ```typescript
+  const nullResp = createMockResponse(null);
+  const numResp = createMockResponse(42);
+  const strResp = createMockResponse("text");
+  const boolResp = createMockResponse(true);
+  const arrResp = createMockResponse([1, 2, 3]);
+  const objResp = createMockResponse({ key: "value" });
+
+  expect(await nullResp.json()).toBeNull();
+  expect(await numResp.json()).toBe(42);
+  expect(await strResp.json()).toBe("text");
+  expect(await boolResp.json()).toBe(true);
+  expect(await arrResp.json()).toEqual([1, 2, 3]);
+  expect(await objResp.json()).toEqual({ key: "value" });
+  ```
+
+- **Response object is plain object**: Not a real Response instance
+  ```typescript
+  const response = createMockResponse({ data: "test" }, 200);
+  expect(response).not.toBeInstanceOf(Response); // Plain object
+  // But has compatible interface for testing
+  expect(response.json).toBeDefined();
+  expect(response.ok).toBeDefined();
+  ```
+
+- **No automatic body encoding**: Assumes data is already JSON-serializable
+  ```typescript
+  // This works (JSON-serializable)
+  const response1 = createMockResponse({ date: new Date() }); // Date loses type info
+  
+  // This also works but Date becomes ISO string
+  const data = await response1.json();
+  expect(typeof data.date).toBe("string"); // "2026-08-30T..."
+  ```
+
+**Performance Considerations:**
+
+- Response creation is O(1) - just object creation
+- `json()` and `text()` resolve immediately (no actual parsing)
+- No network overhead - purely in-memory
+- Suitable for high-frequency testing (1000s of calls per test)
+- No streaming - entire response always in memory
 
 ---
 
 #### `createMockFetch(responses)`
 
-Creates a mock `fetch` function with predefined responses.
+Creates a mock `fetch` function with predefined responses for testing HTTP clients, API interactions, and network failure scenarios without real network calls.
 
 **Signature:**
 ```typescript
-function createMockFetch(responses: Array<{ url: string, response: MockResponse }>): vi.fn
+function createMockFetch(
+  responses: Array<{ url: string, response: ReturnType<typeof createMockResponse> }>
+): vi.fn
 ```
 
 **Parameters:**
-- `responses`: Array of URL-response mappings
+- `responses: Array<{ url: string, response: MockResponse }>` - Array of URL-response mappings
+  - `url: string` - URL or URL substring to match (uses `url.includes()` matching)
+  - `response: MockResponse` - Response object from `createMockResponse()`
+  - Array can be empty (returns 404 for all requests)
+  - Order doesn't matter - matches any URL in responses array
+  - Multiple URLs can match the same request (first match wins)
 
 **Returns:**
-- `vi.fn` - Mocked fetch function that matches URLs
+- `vi.fn` - Vitest mock function with fetch-like interface
+  - Accepts `(url: string)` or `(url: string, options: RequestInit)`
+  - Returns `Promise<MockResponse>` matching the URL
+  - Returns 404 response if no URL match found
+  - Can assert on calls with `expect(mockFetch).toHaveBeenCalledWith(url)`
+  - Can inspect call history with `mockFetch.mock.calls`
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic mock fetch with single endpoint
 const mockFetch = createMockFetch([
-  { url: "/api/arrivals", response: createMockResponse({ data: [] }) },
-  { url: "/api/alerts", response: createMockResponse({ alerts: [] }) }
+  { url: "/api/arrivals", response: createMockResponse({ arrivals: [] }) }
 ]);
 
 const result = await mockFetch("/api/arrivals");
+const data = await result.json();
+expect(data.arrivals).toEqual([]);
+
+// 2. Multiple endpoints
+const mockFetch = createMockFetch([
+  { url: "/api/arrivals", response: createMockResponse({ arrivals: [] }) },
+  { url: "/api/alerts", response: createMockResponse({ alerts: [] }) },
+  { url: "/api/stations", response: createMockResponse({ stations: [] }) }
+]);
+
+const arrivals = await mockFetch("/api/arrivals");
+const alerts = await mockFetch("/api/alerts");
+const stations = await mockFetch("/api/stations");
+
+// 3. Error responses
+const mockFetch = createMockFetch([
+  { url: "/api/arrivals/999", response: createMockResponse({ error: "Not found" }, 404) },
+  { url: "/api/error", response: createMockResponse({ error: "Server error" }, 500) }
+]);
+
+const notFound = await mockFetch("/api/arrivals/999");
+expect(notFound.status).toBe(404);
+
+// 4. URL substring matching
+const mockFetch = createMockFetch([
+  { url: "/api/arrivals", response: createMockResponse({ data: "arrivals" }) }
+]);
+
+// All these match the same response
+await mockFetch("/api/arrivals");         // Exact match
+await mockFetch("/api/arrivals/725");     // Substring match
+await mockFetch("https://example.com/api/arrivals"); // Substring match
+
+// 5. Empty responses array (404 for everything)
+const mockFetch = createMockFetch([]);
+const result = await mockFetch("/api/anything");
+expect(result.status).toBe(404);
+
+// 6. Asserting on fetch calls
+const mockFetch = createMockFetch([
+  { url: "/api/arrivals", response: createMockResponse({ arrivals: [] }) }
+]);
+
+await mockFetch("/api/arrivals");
+expect(mockFetch).toHaveBeenCalledWith("/api/arrivals");
+expect(mockFetch).toHaveBeenCalledTimes(1);
 ```
 
-**Edge Cases:**
-- URL matching is substring-based (`url.includes()`)
-- Returns 404 if no URL match found
-- Order doesn't matter - matches any URL in array
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing API client with error handling
+test("API client handles 404 gracefully", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/arrivals/999", response: createMockResponse({ error: "Not found" }, 404) }
+  ]);
+
+  const client = new ApiClient(mockFetch);
+  const result = await client.getArrivals("999");
+
+  expect(result.success).toBe(false);
+  expect(result.error).toBe("Not found");
+});
+
+// 2. Testing retry logic with multiple responses
+test("retries on failure", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/data", response: createMockResponse({ error: "Timeout" }, 500) },
+    { url: "/api/data", response: createMockResponse({ data: "success" }, 200) }
+  ]);
+
+  let attempts = 0;
+  const result = await retryFetch(mockFetch, "/api/data", {
+    maxAttempts: 2,
+    onAttempt: () => { attempts++; }
+  });
+
+  expect(attempts).toBe(2);
+  expect((await result.json()).data).toBe("success");
+});
+
+// 3. Testing request method and options
+test("passes fetch options correctly", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/data", response: createMockResponse({ success: true }) }
+  ]);
+
+  await mockFetch("/api/data", { method: "POST", body: JSON.stringify({ test: true }) });
+
+  expect(mockFetch).toHaveBeenCalledWith(
+    "/api/data",
+    expect.objectContaining({ method: "POST" })
+  );
+});
+
+// 4. Testing sequential vs parallel requests
+test("handles parallel requests", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/1", response: createMockResponse({ id: 1 }) },
+    { url: "/api/2", response: createMockResponse({ id: 2 }) },
+    { url: "/api/3", response: createMockResponse({ id: 3 }) }
+  ]);
+
+  const results = await Promise.all([
+    mockFetch("/api/1"),
+    mockFetch("/api/2"),
+    mockFetch("/api/3")
+  ]);
+
+  expect(results).toHaveLength(3);
+  expect(mockFetch).toHaveBeenCalledTimes(3);
+});
+
+// 5. Testing URL matching behavior
+test("matches URLs by substring", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/arrivals", response: createMockResponse({ matched: "arrivals" }) }
+  ]);
+
+  const result1 = await mockFetch("/api/arrivals");
+  const result2 = await mockFetch("/api/arrivals/725");
+  const result3 = await mockFetch("https://example.com/api/arrivals");
+
+  expect((await result1.json()).matched).toBe("arrivals");
+  expect((await result2.json()).matched).toBe("arrivals");
+  expect((await result3.json()).matched).toBe("arrivals");
+});
+
+// 6. Testing 404 for unmatched URLs
+test("returns 404 for unmatched URLs", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/arrivals", response: createMockResponse({ data: "matched" }) }
+  ]);
+
+  const matched = await mockFetch("/api/arrivals");
+  const unmatched = await mockFetch("/api/other");
+
+  expect(matched.status).toBe(200);
+  expect(unmatched.status).toBe(404);
+});
+
+// 7. Testing with query parameters
+test("matches URLs with query parameters", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/arrivals", response: createMockResponse({ data: "test" }) }
+  ]);
+
+  const result = await mockFetch("/api/arrivals?station=725&direction=N");
+  const data = await result.json();
+
+  expect(data.data).toBe("test");
+});
+
+// 8. Testing call history inspection
+test("tracks all fetch calls", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/1", response: createMockResponse({ id: 1 }) },
+    { url: "/api/2", response: createMockResponse({ id: 2 }) }
+  ]);
+
+  await mockFetch("/api/1");
+  await mockFetch("/api/2");
+  await mockFetch("/api/1");
+
+  expect(mockFetch.mock.calls.length).toBe(3);
+  expect(mockFetch.mock.calls[0][0]).toBe("/api/1");
+  expect(mockFetch.mock.calls[1][0]).toBe("/api/2");
+  expect(mockFetch.mock.calls[2][0]).toBe("/api/1");
+});
+
+// 9. Testing authentication headers
+test("passes auth headers in fetch options", async () => {
+  const mockFetch = createMockFetch([
+    { url: "/api/data", response: createMockResponse({ authenticated: true }) }
+  ]);
+
+  await mockFetch("/api/data", {
+    headers: { "Authorization": "Bearer token123" }
+  });
+
+  expect(mockFetch).toHaveBeenCalledWith("/api/data", expect.objectContaining({
+    headers: expect.objectContaining({ "Authorization": "Bearer token123" })
+  }));
+});
+
+// 10. Testing progressive responses
+test("simulates changing data over time", async () => {
+  const responses = [
+    createMockResponse({ count: 1 }),
+    createMockResponse({ count: 2 }),
+    createMockResponse({ count: 3 })
+  ];
+
+  let callCount = 0;
+  const mockFetch = vi.fn((url: string) => Promise.resolve(responses[callCount++]));
+
+  const result1 = await mockFetch("/api/arrivals");
+  const result2 = await mockFetch("/api/arrivals");
+  const result3 = await mockFetch("/api/arrivals");
+
+  expect((await result1.json()).count).toBe(1);
+  expect((await result2.json()).count).toBe(2);
+  expect((await result3.json()).count).toBe(3);
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **URL matching is substring-based**: Matches any URL containing the pattern
+  ```typescript
+  const mockFetch = createMockFetch([
+    { url: "/api/arrivals", response: createMockResponse({ matched: true }) }
+  ]);
+
+  // All these match!
+  await mockFetch("/api/arrivals");         // Exact match
+  await mockFetch("/api/arrivals/725");     // Substring match
+  await mockFetch("/api/arrivals?page=1");  // Query string match
+  await mockFetch("https://example.com/api/arrivals"); // Full URL match
+
+  // Even this matches (substring)
+  await mockFetch("/api/arrivals-and-alerts"); // Matches "arrivals" substring
+  ```
+
+- **Returns 404 if no match found**: Always returns `{ error: "Not found" }` with status 404
+  ```typescript
+  const mockFetch = createMockFetch([
+    { url: "/api/arrivals", response: createMockResponse({ data: "test" }) }
+  ]);
+
+  const unmatched = await mockFetch("/api/other");
+  expect(unmatched.status).toBe(404);
+  expect((await unmatched.json()).error).toBe("Not found");
+  ```
+
+- **Order doesn't matter for matching**: Matches any URL in responses array
+  ```typescript
+  const mockFetch = createMockFetch([
+    { url: "/api/2", response: createMockResponse({ id: 2 }) },
+    { url: "/api/1", response: createMockResponse({ id: 1 }) },
+    { url: "/api/3", response: createMockResponse({ id: 3 }) }
+  ]);
+
+  // All work regardless of order in array
+  const r1 = await mockFetch("/api/1");
+  const r2 = await mockFetch("/api/2");
+  const r3 = await mockFetch("/api/3");
+  ```
+
+- **First match wins for overlapping URLs**: If multiple patterns match, first in array wins
+  ```typescript
+  const mockFetch = createMockFetch([
+    { url: "/api", response: createMockResponse({ match: "general" }) },
+    { url: "/api/arrivals", response: createMockResponse({ match: "specific" }) }
+  ]);
+
+  // Matches first pattern (/api), not second (/api/arrivals)
+  const result = await mockFetch("/api/arrivals");
+  expect((await result.json()).match).toBe("general"); // Not "specific"
+  ```
+
+- **Empty responses array**: All requests return 404
+  ```typescript
+  const mockFetch = createMockFetch([]);
+  const result = await mockFetch("/api/anything");
+  expect(result.status).toBe(404);
+  ```
+
+- **Vitest mock function**: Has all Vitest mock features
+  ```typescript
+  const mockFetch = createMockFetch([
+    { url: "/api/test", response: createMockResponse({ data: "test" }) }
+  ]);
+
+  await mockFetch("/api/test");
+
+  // Can inspect calls
+  expect(mockFetch).toHaveBeenCalled();
+  expect(mockFetch).toHaveBeenCalledTimes(1);
+  expect(mockFetch).toHaveBeenCalledWith("/api/test");
+
+  // Can clear calls
+  mockFetch.mockClear();
+  expect(mockFetch).not.toHaveBeenCalled();
+
+  // Can mock reset
+  mockFetch.mockReset();
+  ```
+
+- **Accepts fetch options**: Second parameter passed to mock function
+  ```typescript
+  const mockFetch = createMockFetch([
+    { url: "/api/data", response: createMockResponse({ received: true }) }
+  ]);
+
+  await mockFetch("/api/data", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ test: true })
+  });
+
+  expect(mockFetch).toHaveBeenCalledWith("/api/data", expect.objectContaining({
+    method: "POST"
+  }));
+  ```
+
+- **No actual network calls**: Purely in-memory, no network overhead
+  ```typescript
+  const mockFetch = createMockFetch([
+    { url: "/api/slow", response: createMockResponse({ data: "fast" }) }
+  ]);
+
+  // Returns immediately, no network delay
+  const start = Date.now();
+  await mockFetch("/api/slow");
+  const elapsed = Date.now() - start;
+
+  expect(elapsed).toBeLessThan(10); // Very fast, no network
+  ```
+
+- **Response objects are not cloned**: Same object returned for matching URLs
+  ```typescript
+  const response = createMockResponse({ data: "test" });
+  const mockFetch = createMockFetch([
+    { url: "/api/test", response }
+  ]);
+
+  const r1 = await mockFetch("/api/test");
+  const r2 = await mockFetch("/api/test");
+
+  expect(r1).toBe(r2); // Same object reference
+  ```
+
+**Performance Considerations:**
+
+- Matching is O(n) where n = number of response mappings
+- For large response arrays (>100), consider using more specific URLs
+- No network overhead - suitable for high-frequency testing
+- Mock function call tracking adds minimal overhead
+- Response objects created once at setup, not per call
 
 ---
 
 #### `createMockHeaders(overrides?)`
 
-Creates mock HTTP headers.
+Creates mock HTTP headers with standard defaults for testing request/response headers, authentication, content negotiation, and custom header validation.
 
 **Signature:**
 ```typescript
@@ -1066,65 +1696,706 @@ function createMockHeaders(overrides?: Record<string, string>): Headers
 
 **Parameters:**
 - `overrides` (optional): Header key-value pairs to add/override
+  - Type: `Record<string, string>`
+  - Keys are case-insensitive (per HTTP spec)
+  - Values are always strings
+  - Empty object `{}` returns only default headers
+  - Can override default headers by using same key
+  - Can add new headers not in defaults
 
 **Returns:**
-- `Headers` object with:
-  - `content-type: application/json` (default)
-  - `user-agent: test-agent` (default)
-  - Any additional headers from `overrides`
+- `Headers` object (real browser Headers, not a mock)
+  - Default headers:
+    - `content-type: application/json`
+    - `user-agent: test-agent`
+  - Includes all headers from `overrides` parameter
+  - Overridden defaults: same key in `overrides` replaces default value
+  - Methods: `get()`, `set()`, `has()`, `delete()`, `entries()`, `keys()`, `values()`, `forEach()`
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic usage with default headers
+const headers = createMockHeaders();
+expect(headers.get("content-type")).toBe("application/json");
+expect(headers.get("user-agent")).toBe("test-agent");
+
+// 2. Adding custom headers
 const headers = createMockHeaders({
   "authorization": "Bearer token123",
   "x-custom-header": "value"
 });
+expect(headers.get("authorization")).toBe("Bearer token123");
+expect(headers.get("x-custom-header")).toBe("value");
+
+// 3. Overriding default headers
+const headers = createMockHeaders({
+  "content-type": "text/plain",
+  "user-agent": "custom-agent"
+});
+expect(headers.get("content-type")).toBe("text/plain"); // Overridden
+expect(headers.get("user-agent")).toBe("custom-agent"); // Overridden
+
+// 4. Authentication headers
+const authHeaders = createMockHeaders({
+  "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+});
+expect(authHeaders.get("authorization")).toContain("Bearer");
+
+// 5. API key headers
+const apiKeyHeaders = createMockHeaders({
+  "x-api-key": "sk_test_123456789",
+  "authorization": "Bearer api_key"
+});
+
+// 6. Content negotiation headers
+const contentHeaders = createMockHeaders({
+  "accept": "application/json",
+  "accept-encoding": "gzip, deflate",
+  "accept-language": "en-US,en;q=0.9"
+});
+
+// 7. CORS headers
+const corsHeaders = createMockHeaders({
+  "origin": "https://example.com",
+  "access-control-request-method": "POST",
+  "access-control-request-headers": "content-type"
+});
+
+// 8. Cache control headers
+const cacheHeaders = createMockHeaders({
+  "cache-control": "no-cache",
+  "pragma": "no-cache",
+  "expires": "0"
+});
+
+// 9. CSRF token headers
+const csrfHeaders = createMockHeaders({
+  "x-csrf-token": "abc123def456",
+  "referer": "https://example.com"
+});
+
+// 10. Multiple headers of same type (not supported - Headers object enforces uniqueness)
+const headers = createMockHeaders({
+  "set-cookie": "session=abc; Path=/",
+  "set-cookie": "token=xyz; HttpOnly" // This overwrites the first
+});
+expect(headers.get("set-cookie")).toBe("token=xyz; HttpOnly");
 ```
 
-**Edge Cases:**
-- Override default headers by passing same key in `overrides`
-- Returns real `Headers` object (not a mock)
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing header validation
+test("validates required headers", () => {
+  const headers = createMockHeaders({
+    "authorization": "Bearer token",
+    "x-api-version": "2"
+  });
+
+  expect(hasRequiredHeaders(headers, ["authorization", "x-api-version"])).toBe(true);
+});
+
+// 2. Testing header case insensitivity
+test("headers are case-insensitive", () => {
+  const headers = createMockHeaders({
+    "Authorization": "Bearer token",
+    "Content-Type": "application/xml"
+  });
+
+  expect(headers.get("authorization")).toBe("Bearer token");
+  expect(headers.get("Authorization")).toBe("Bearer token");
+  expect(headers.get("CONTENT-TYPE")).toBe("application/xml");
+});
+
+// 3. Testing header methods
+test("Headers object supports all standard methods", () => {
+  const headers = createMockHeaders({
+    "x-test": "value"
+  });
+
+  expect(headers.has("x-test")).toBe(true);
+  expect(headers.get("x-test")).toBe("value");
+  
+  headers.set("x-test", "new-value");
+  expect(headers.get("x-test")).toBe("new-value");
+  
+  headers.delete("x-test");
+  expect(headers.has("x-test")).toBe(false);
+});
+
+// 4. Testing header iteration
+test("can iterate over headers", () => {
+  const headers = createMockHeaders({
+    "x-header-1": "value1",
+    "x-header-2": "value2",
+    "x-header-3": "value3"
+  });
+
+  const headerArray = Array.from(headers.entries());
+  expect(headerArray).toHaveLength(5); // 3 custom + 2 defaults
+});
+
+// 5. Testing authentication schemes
+test("supports various authentication schemes", () => {
+  const bearer = createMockHeaders({
+    "authorization": "Bearer token123"
+  });
+  
+  const basic = createMockHeaders({
+    "authorization": "Basic dXNlcjpwYXNz"
+  });
+  
+  const apiKey = createMockHeaders({
+    "authorization": "ApiKey abc123"
+  });
+
+  expect(bearer.get("authorization")).toMatch(/^Bearer/);
+  expect(basic.get("authorization")).toMatch(/^Basic/);
+  expect(apiKey.get("authorization")).toMatch(/^ApiKey/);
+});
+
+// 6. Testing conditional request headers
+test("conditional request headers", () => {
+  const headers = createMockHeaders({
+    "if-none-match": '"33a64df551425fcc55e4d42a148795d9f25f89d4"',
+    "if-modified-since": "Mon, 18 Aug 2026 12:00:00 GMT"
+  });
+
+  expect(headers.get("if-none-match")).toBeDefined();
+  expect(headers.get("if-modified-since")).toBeDefined();
+});
+
+// 7. Testing content-type variations
+test("different content-type values", () => {
+  const json = createMockHeaders({ "content-type": "application/json" });
+  const xml = createMockHeaders({ "content-type": "application/xml" });
+  const form = createMockHeaders({ "content-type": "application/x-www-form-urlencoded" });
+  const text = createMockHeaders({ "content-type": "text/plain" });
+  const html = createMockHeaders({ "content-type": "text/html" });
+
+  expect(json.get("content-type")).toBe("application/json");
+  expect(xml.get("content-type")).toBe("application/xml");
+  expect(form.get("content-type")).toBe("application/x-www-form-urlencoded");
+  expect(text.get("content-type")).toBe("text/plain");
+  expect(html.get("content-type")).toBe("text/html");
+});
+
+// 8. Testing with empty overrides
+test("empty overrides keeps defaults", () => {
+  const headers = createMockHeaders({});
+  
+  expect(headers.get("content-type")).toBe("application/json");
+  expect(headers.get("user-agent")).toBe("test-agent");
+});
+
+// 9. Testing security headers
+test("security headers", () => {
+  const securityHeaders = createMockHeaders({
+    "x-frame-options": "DENY",
+    "x-content-type-options": "nosniff",
+    "strict-transport-security": "max-age=31536000",
+    "x-xss-protection": "1; mode=block"
+  });
+
+  expect(securityHeaders.get("x-frame-options")).toBe("DENY");
+  expect(securityHeaders.get("x-content-type-options")).toBe("nosniff");
+  expect(securityHeaders.get("strict-transport-security")).toContain("max-age");
+  expect(securityHeaders.get("x-xss-protection")).toContain("mode=block");
+});
+
+// 10. Testing with fetch-like request
+test("headers work with mock fetch", async () => {
+  const headers = createMockHeaders({
+    "authorization": "Bearer token"
+  });
+
+  const mockFetch = vi.fn().mockResolvedValue(
+    createMockResponse({ authenticated: true })
+  );
+
+  await mockFetch("/api/data", { headers });
+
+  expect(mockFetch).toHaveBeenCalledWith("/api/data", expect.objectContaining({
+    headers
+  }));
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **Case-insensitive keys**: HTTP headers are case-insensitive
+  ```typescript
+  const headers = createMockHeaders({
+    "Authorization": "Bearer token"
+  });
+  expect(headers.get("authorization")).toBe("Bearer token");
+  expect(headers.get("AUTHORIZATION")).toBe("Bearer token");
+  ```
+
+- **Overriding defaults**: Same key replaces default value
+  ```typescript
+  const headers = createMockHeaders({
+    "content-type": "text/plain" // Overrides "application/json"
+  });
+  expect(headers.get("content-type")).toBe("text/plain");
+  ```
+
+- **Real Headers object**: Not a mock, has full Headers API
+  ```typescript
+  const headers = createMockHeaders({ "x-test": "value" });
+  
+  expect(headers).toBeInstanceOf(Headers);
+  expect(headers.set).toBeDefined(); // Real method
+  expect(headers.get).toBeDefined(); // Real method
+  expect(headers.has).toBeDefined(); // Real method
+  ```
+
+- **Header uniqueness**: Cannot have multiple values for same header
+  ```typescript
+  const headers = createMockHeaders({
+    "set-cookie": "cookie1=value1",
+    "set-cookie": "cookie2=value2" // Overwrites first!
+  });
+  expect(headers.get("set-cookie")).toBe("cookie2=value2");
+  // Only one value per header key
+  ```
+
+- **String values only**: Values must be strings, not numbers or objects
+  ```typescript
+  // Wrong - will be converted to string
+  const headers = createMockHeaders({
+    "x-count": 100, // Converted to "100"
+    "x-data": { key: "value" } // Converted to "[object Object]"
+  });
+  expect(headers.get("x-count")).toBe("100"); // String "100"
+  expect(headers.get("x-data")).toBe("[object Object]"); // Not usable
+  ```
+
+- **Empty string values**: Valid header value (different from missing)
+  ```typescript
+  const headers = createMockHeaders({
+    "x-empty": ""
+  });
+  expect(headers.get("x-empty")).toBe(""); // Empty string exists
+  expect(headers.has("x-empty")).toBe(true); // Header exists
+  ```
+
+- **Whitespace in values**: Preserved as-is
+  ```typescript
+  const headers = createMockHeaders({
+    "authorization": "Bearer   token"  // Multiple spaces preserved
+  });
+  expect(headers.get("authorization")).toBe("Bearer   token");
+  ```
+
+- **Special characters**: Must be valid header values
+  ```typescript
+  const headers = createMockHeaders({
+    "x-custom": "value with spaces",
+    "x-encoded": encodeURIComponent("special:chars") // Use encoding for special chars
+  });
+  expect(headers.get("x-custom")).toBe("value with spaces");
+  ```
+
+- **Default headers always present**: Even with overrides
+  ```typescript
+  const headers = createMockHeaders({
+    "x-custom": "value"
+  });
+  // Defaults still there
+  expect(headers.has("content-type")).toBe(true);
+  expect(headers.has("user-agent")).toBe(true);
+  // Plus custom
+  expect(headers.has("x-custom")).toBe(true);
+  ```
+
+- **Undefined/null values**: Convert to string "undefined"/"null"
+  ```typescript
+  const headers = createMockHeaders({
+    "x-test": undefined, // Becomes "undefined"
+    "x-null": null      // Becomes "null"
+  });
+  expect(headers.get("x-test")).toBe("undefined");
+  expect(headers.get("x-null")).toBe("null");
+  ```
+
+**Performance Considerations:**
+
+- Headers object creation is O(1) - minimal overhead
+- Header lookup is O(1) on average
+- Iterating headers is O(n) where n = number of headers
+- Suitable for high-frequency testing
+- No network overhead - purely in-memory
 
 ---
 
 #### `createMockRequest(overrides?)`
 
-Creates a mock HTTP request object.
+Creates a mock HTTP request object with fetch-like interface for testing request handlers, middleware, authentication, and request validation.
 
 **Signature:**
 ```typescript
-function createMockRequest(overrides?: {
-  method?: string,
-  url?: string,
-  headers?: Headers,
-  body?: unknown
-}): MockRequest
+function createMockRequest(
+  overrides?: {
+    method?: string,
+    url?: string,
+    headers?: Headers,
+    body?: unknown
+  }
+): MockRequest
 ```
 
 **Parameters:**
 - `overrides` (optional): Request properties to override
+  - `method?: string` - HTTP method (default: `"GET"`)
+    - Common values: `"GET"`, `"POST"`, `"PUT"`, `"PATCH"`, `"DELETE"`
+    - Case-sensitive by convention (uppercase)
+  - `url?: string` - Request URL (default: `"http://localhost:3001/api/test"`)
+    - Can be full URL or path
+    - Can include query parameters
+    - Can be relative or absolute
+  - `headers?: Headers` - Request headers (default: `createMockHeaders()`)
+    - Real `Headers` object
+    - Defaults to `content-type: application/json`, `user-agent: test-agent`
+  - `body?: unknown` - Request body (default: `null`)
+    - Can be any JSON-serializable value
+    - Used by `json()` and `text()` methods
+    - `null` for GET/DELETE requests (no body)
 
 **Returns:**
-- `MockRequest` object with:
-  - `method: string` (default: `"GET"`)
-  - `url: string` (default: `"http://localhost:3001/api/test"`)
-  - `headers: Headers` (default: `createMockHeaders()`)
-  - `body: unknown` (default: `null`)
-  - `json(): Promise<unknown>` - Async body parser
-  - `text(): Promise<string>` - Async body parser
+- `MockRequest` object with properties:
+  - `method: string` - HTTP method (from overrides or default `"GET"`)
+  - `url: string` - Request URL (from overrides or default)
+  - `headers: Headers` - Request headers (from overrides or `createMockHeaders()`)
+  - `body: unknown` - Request body (from overrides or default `null`)
+  - `json(): Promise<unknown>` - Async method that resolves to `body`
+  - `text(): Promise<string>` - Async method that resolves to `JSON.stringify(body)`
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
-const request = createMockRequest({
+// 1. Basic GET request (defaults)
+const request = createMockRequest();
+expect(request.method).toBe("GET");
+expect(request.url).toBe("http://localhost:3001/api/test");
+expect(request.body).toBeNull();
+
+// 2. POST request with body
+const postRequest = createMockRequest({
   method: "POST",
   url: "/api/favorites",
-  body: { stationId: "725" }
+  body: { stationId: "725", label: "Work" }
+});
+expect(postRequest.method).toBe("POST");
+expect(postRequest.url).toBe("/api/favorites");
+
+// 3. PUT request for updates
+const putRequest = createMockRequest({
+  method: "PUT",
+  url: "/api/favorites/fav_123",
+  body: { label: "Updated Work" }
+});
+
+// 4. DELETE request
+const deleteRequest = createMockRequest({
+  method: "DELETE",
+  url: "/api/favorites/fav_123"
+});
+
+// 5. PATCH request for partial updates
+const patchRequest = createMockRequest({
+  method: "PATCH",
+  url: "/api/stations/725",
+  body: { ada: false }
+});
+
+// 6. Request with custom headers
+const authRequest = createMockRequest({
+  method: "GET",
+  url: "/api/user/profile",
+  headers: createMockHeaders({
+    "authorization": "Bearer token123"
+  })
+});
+
+// 7. Request with query parameters
+const queryRequest = createMockRequest({
+  method: "GET",
+  url: "/api/arrivals?station=725&direction=N"
+});
+
+// 8. Request with full URL
+const fullUrlRequest = createMockRequest({
+  method: "GET",
+  url: "https://api.example.com/arrivals?station=725"
+});
+
+// 9. Request with array body
+const arrayBodyRequest = createMockRequest({
+  method: "POST",
+  url: "/api/batch",
+  body: [
+    { stationId: "725", action: "add" },
+    { stationId: "726", action: "remove" }
+  ]
+});
+
+// 10. Request with null body (no body)
+const noBodyRequest = createMockRequest({
+  method: "GET",
+  url: "/api/health",
+  body: null
 });
 ```
 
-**Edge Cases:**
-- `json()` and `text()` return async promises
-- `body` can be any JSON-serializable value
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing request body parsing
+test("parses JSON body correctly", async () => {
+  const request = createMockRequest({
+    method: "POST",
+    url: "/api/favorites",
+    body: { stationId: "725", label: "Home" }
+  });
+
+  const body = await request.json();
+  expect(body.stationId).toBe("725");
+  expect(body.label).toBe("Home");
+});
+
+// 2. Testing request body as text
+test("returns body as JSON string", async () => {
+  const request = createMockRequest({
+    method: "POST",
+    url: "/api/data",
+    body: { message: "test" }
+  });
+
+  const text = await request.text();
+  expect(text).toBe('{"message":"test"}');
+});
+
+// 3. Testing authentication middleware
+test("middleware validates authorization header", () => {
+  const authenticatedRequest = createMockRequest({
+    method: "GET",
+    url: "/api/protected",
+    headers: createMockHeaders({
+      "authorization": "Bearer valid_token"
+    })
+  });
+
+  const isAuthenticated = checkAuth(authenticatedRequest);
+  expect(isAuthenticated).toBe(true);
+});
+
+// 4. Testing different HTTP methods
+test("handles all HTTP methods", () => {
+  const methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+  methods.forEach(method => {
+    const request = createMockRequest({ method });
+    expect(request.method).toBe(method);
+  });
+});
+
+// 5. Testing URL parsing
+test("parses URL components", () => {
+  const request = createMockRequest({
+    method: "GET",
+    url: "https://api.example.com:443/api/arrivals?station=725&direction=N#section"
+  });
+
+  const url = new URL(request.url);
+  expect(url.hostname).toBe("api.example.com");
+  expect(url.pathname).toBe("/api/arrivals");
+  expect(url.searchParams.get("station")).toBe("725");
+  expect(url.searchParams.get("direction")).toBe("N");
+});
+
+// 6. Testing request validation
+test("validates required request properties", () => {
+  const request = createMockRequest({
+    method: "POST",
+    url: "/api/favorites",
+    body: { stationId: "725" }
+  });
+
+  expect(request.method).toBeDefined();
+  expect(request.url).toBeDefined();
+  expect(request.headers).toBeDefined();
+  expect(request.body).toBeDefined();
+});
+
+// 7. Testing body null for GET requests
+test("GET requests have null body by default", () => {
+  const getRequest = createMockRequest({
+    method: "GET",
+    url: "/api/data"
+  });
+
+  expect(getRequest.body).toBeNull();
+});
+
+// 8. Testing body for POST requests
+test("POST requests can have body", () => {
+  const postRequest = createMockRequest({
+    method: "POST",
+    url: "/api/data",
+    body: { key: "value" }
+  });
+
+  expect(postRequest.body).toEqual({ key: "value" });
+});
+
+// 9. Testing with CSRF token
+test("includes CSRF token in headers", () => {
+  const csrfRequest = createMockRequest({
+    method: "POST",
+    url: "/api/favorites",
+    headers: createMockHeaders({
+      "x-csrf-token": "abc123def456"
+    })
+  });
+
+  expect(csrfRequest.headers.get("x-csrf-token")).toBe("abc123def456");
+});
+
+// 10. Testing API versioning via headers
+test("includes API version in headers", () => {
+  const versionedRequest = createMockRequest({
+    method: "GET",
+    url: "/api/data",
+    headers: createMockHeaders({
+      "accept": "application/vnd.api+json",
+      "x-api-version": "2.0"
+    })
+  });
+
+  expect(versionedRequest.headers.get("x-api-version")).toBe("2.0");
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **`json()` and `text()` return Promises**: Must be awaited
+  ```typescript
+  const request = createMockRequest({
+    body: { data: "test" }
+  });
+  const body = request.json(); // Returns Promise, not data
+  // Need: await request.json()
+  ```
+
+- **`text()` returns JSON-encoded string**: Always `JSON.stringify(body)`
+  ```typescript
+  const request = createMockRequest({
+    body: "plain text"
+  });
+  const text = await request.text();
+  expect(text).toBe('"plain text"'); // JSON-encoded
+  ```
+
+- **`body` is stored directly**: No deep cloning
+  ```typescript
+  const mutableBody = { items: [] };
+  const request = createMockRequest({ body: mutableBody });
+  mutableBody.items.push("new item"); // Affects request body
+  ```
+
+- **Default method is GET**: Without override, always `"GET"`
+  ```typescript
+  const request = createMockRequest();
+  expect(request.method).toBe("GET");
+  ```
+
+- **Default URL is localhost**: Without override, always `"http://localhost:3001/api/test"`
+  ```typescript
+  const request = createMockRequest();
+  expect(request.url).toBe("http://localhost:3001/api/test");
+  ```
+
+- **Default headers include content-type**: Even for GET requests (no body)
+  ```typescript
+  const request = createMockRequest({ method: "GET" });
+  expect(request.headers.get("content-type")).toBe("application/json");
+  ```
+
+- **`body` can be any JSON-serializable value**: Including null, primitives, arrays
+  ```typescript
+  const nullBody = createMockRequest({ body: null });
+  const numBody = createMockRequest({ body: 42 });
+  const strBody = createMockRequest({ body: "text" });
+  const arrBody = createMockRequest({ body: [1, 2, 3] });
+  const objBody = createMockRequest({ body: { key: "value" } });
+
+  expect(await objBody.json()).toEqual({ key: "value" });
+  expect(await arrBody.json()).toEqual([1, 2, 3]);
+  ```
+
+- **Request object is plain object**: Not a real Request instance
+  ```typescript
+  const request = createMockRequest();
+  expect(request).not.toBeInstanceOf(Request); // Plain object
+  // But has compatible interface
+  expect(request.json).toBeDefined();
+  expect(request.method).toBeDefined();
+  ```
+
+- **Method is case-sensitive**: Use uppercase for HTTP methods
+  ```typescript
+  const request = createMockRequest({ method: "post" });
+  expect(request.method).toBe("post"); // Lowercase, not "POST"
+  // Convention is uppercase
+  ```
+
+- **URL is stored as-is**: No validation or parsing
+  ```typescript
+  const request = createMockRequest({
+    url: "not-a-valid-url"
+  });
+  expect(request.url).toBe("not-a-valid-url"); // Stored as provided
+  ```
+
+- **Headers can be overridden**: Provide custom Headers object
+  ```typescript
+  const customHeaders = new Headers({
+    "x-custom": "value"
+  });
+  const request = createMockRequest({
+    headers: customHeaders
+  });
+  expect(request.headers.get("x-custom")).toBe("value");
+  expect(request.headers.get("content-type")).toBeNull(); // No defaults
+  ```
+
+- **`null` body for GET by convention**: GET requests typically have no body
+  ```typescript
+  const getRequest = createMockRequest({
+    method: "GET",
+    body: null // Explicit null (also default)
+  });
+  expect(getRequest.body).toBeNull();
+  ```
+
+- **Empty object body**: Valid for POST/PUT/PATCH
+  ```typescript
+  const emptyPost = createMockRequest({
+    method: "POST",
+    body: {} // Empty JSON object
+  });
+  expect(await emptyPost.json()).toEqual({});
+  ```
+
+**Performance Considerations:**
+
+- Request creation is O(1) - just object creation
+- `json()` and `text()` resolve immediately (no actual parsing)
+- No network overhead - purely in-memory
+- Suitable for high-frequency testing
+- Body parsing is minimal - just returns stored value
 
 ---
 
@@ -2421,7 +3692,7 @@ test("initial load is fast, full load takes longer", async () => {
 
 #### `waitFor(condition, timeout?, interval?)`
 
-Waits for a condition to become true.
+Waits for a condition to become true by polling at intervals. Essential for testing async state changes, DOM updates, race conditions, and operations that complete asynchronously without callbacks.
 
 **Signature:**
 ```typescript
@@ -2433,32 +3704,370 @@ async function waitFor(
 ```
 
 **Parameters:**
-- `condition: () => boolean` - Function that returns true when condition met
-- `timeout` (optional): Max wait time in ms (default: `5000`)
-- `interval` (optional): Poll interval in ms (default: `50`)
+- `condition: () => boolean` - Function that returns `true` when condition met
+  - Type: Zero-argument function returning boolean
+  - Called repeatedly until returns `true` or timeout
+  - Should be pure (no side effects) for reliable testing
+  - Can check DOM, state variables, async results, etc.
+  - Throws in condition function will propagate immediately
+- `timeout` (optional): Maximum wait time in milliseconds
+  - Type: `number`
+  - Default: `5000` (5 seconds)
+  - Must be positive (zero or negative fails immediately)
+  - Too short: causes false timeouts
+  - Too long: slows down failing tests
+- `interval` (optional): Polling interval in milliseconds
+  - Type: `number`
+  - Default: `50` (50ms)
+  - Must be positive
+  - Shorter = more responsive but more CPU usage
+  - Longer = less CPU but slower detection
 
 **Returns:**
-- `Promise<void>` - Resolves when condition true, throws on timeout
+- `Promise<void>` - Resolves when condition becomes `true`
+  - Resolves immediately when condition first returns `true`
+  - Throws `Error` if timeout reached before condition met
+  - Error message: `"Condition not met within ${timeout}ms"`
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic DOM waiting
 await waitFor(
   () => document.querySelector(".result") !== null,
-  2000,
-  100
-); // Polls every 100ms for 2 seconds
+  2000
+);
+// Waits up to 2 seconds for .result element to appear
+
+// 2. State variable waiting
+let isLoading = true;
+setTimeout(() => { isLoading = false; }, 1000);
+await waitFor(() => !isLoading, 2000);
+// Waits up to 2 seconds for isLoading to become false
+
+// 3. Async result waiting
+let asyncResult = null;
+setTimeout(() => { asyncResult = "success"; }, 500);
+await waitFor(() => asyncResult !== null, 1000);
+expect(asyncResult).toBe("success");
+
+// 4. Custom interval and timeout
+await waitFor(
+  () => data.loaded,
+  10000, // 10 second timeout
+  100   // Check every 100ms
+);
+
+// 5. Multiple conditions (AND logic)
+await waitFor(() => 
+  condition1() && condition2() && condition3(),
+  5000
+);
+
+// 6. Multiple conditions (OR logic - any condition met)
+await waitFor(() => 
+  condition1() || condition2() || condition3(),
+  5000
+);
+
+// 7. Array element existence
+const items = [];
+setTimeout(() => items.push("item"), 100);
+await waitFor(() => items.length > 0, 1000);
+expect(items).toContain("item");
+
+// 8. Counter threshold
+let counter = 0;
+setInterval(() => counter++, 10);
+await waitFor(() => counter >= 10, 2000);
+expect(counter).toBeGreaterThanOrEqual(10);
+
+// 9. Object property existence
+const obj = {};
+setTimeout(() => { obj.loaded = true; }, 100);
+await waitFor(() => obj.loaded !== undefined, 1000);
+
+// 10. Element text content
+await waitFor(
+  () => document.querySelector(".status")?.textContent === "complete",
+  3000
+);
 ```
 
-**Edge Cases:**
-- Throws error with timeout message if condition never true
-- Condition function is called on each tick
-- Shorter intervals = more responsive but more CPU
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing race conditions
+test("handles concurrent state changes", async () => {
+  let state = "initial";
+  
+  // Two concurrent operations
+  setTimeout(() => { state = "operation1"; }, Math.random() * 100);
+  setTimeout(() => { state = "operation2"; }, Math.random() * 100);
+  
+  // Wait for either operation to complete
+  await waitFor(() => 
+    state === "operation1" || state === "operation2",
+    1000
+  );
+  
+  expect(["operation1", "operation2"]).toContain(state);
+});
+
+// 2. Testing progressive loading
+test("waits for progressive load stages", async () => {
+  const loadStages = ["loading", "processing", "complete"];
+  let currentStage = 0;
+  
+  // Simulate progressive loading
+  loadStages.forEach((stage, i) => {
+    setTimeout(() => { currentStage = i; }, i * 100);
+  });
+  
+  // Wait for each stage
+  for (let i = 0; i < loadStages.length; i++) {
+    await waitFor(() => currentStage >= i, 500);
+  }
+  
+  expect(currentStage).toBe(2); // Complete
+});
+
+// 3. Testing with slow networks
+test("handles slow async operations", async () => {
+  let dataReceived = false;
+  
+  // Simulate slow network (2 seconds)
+  setTimeout(() => { dataReceived = true; }, 2000);
+  
+  await waitFor(() => dataReceived, 3000, 100);
+  expect(dataReceived).toBe(true);
+});
+
+// 4. Testing failure scenarios
+test("throws on timeout", async () => {
+  let neverMet = false;
+  
+  await expect(
+    waitFor(() => neverMet, 100) // 100ms timeout
+  ).rejects.toThrow("Condition not met within 100ms");
+});
+
+// 5. Testing with retries
+test("waits for retry logic to succeed", async () => {
+  let attempts = 0;
+  let success = false;
+  
+  const retryOperation = () => {
+    attempts++;
+    if (attempts >= 3) success = true;
+  };
+  
+  setInterval(retryOperation, 50);
+  await waitFor(() => success, 1000);
+  
+  expect(attempts).toBeGreaterThanOrEqual(3);
+});
+
+// 6. Testing DOM mutation
+test("waits for DOM mutation", async () => {
+  const container = document.createElement("div");
+  
+  setTimeout(() => {
+    const element = document.createElement("span");
+    element.className = "loaded";
+    container.appendChild(element);
+  }, 100);
+  
+  await waitFor(() => 
+    container.querySelector(".loaded") !== null,
+    1000
+  );
+  
+  expect(container.querySelector(".loaded")).not.toBeNull();
+});
+
+// 7. Testing async queue processing
+test("waits for queue to empty", async () => {
+  const queue = [1, 2, 3, 4, 5];
+  
+  setInterval(() => {
+    if (queue.length > 0) queue.shift();
+  }, 50);
+  
+  await waitFor(() => queue.length === 0, 1000);
+  expect(queue).toHaveLength(0);
+});
+
+// 8. Testing with complex conditions
+test("handles complex boolean logic", async () => {
+  let flags = { a: false, b: false, c: false };
+  
+  setTimeout(() => { flags.a = true; }, 50);
+  setTimeout(() => { flags.b = true; }, 100);
+  setTimeout(() => { flags.c = true; }, 150);
+  
+  // Wait for all flags true
+  await waitFor(() => 
+    Object.values(flags).every(v => v),
+    1000
+  );
+  
+  expect(flags).toEqual({ a: true, b: true, c: true });
+});
+
+// 9. Testing with external state
+test("waits for external service state", async () => {
+  let serviceReady = false;
+  
+  // Simulate service initialization
+  setTimeout(() => { serviceReady = true; }, 500);
+  
+  await waitFor(() => serviceReady, 2000);
+  expect(serviceReady).toBe(true);
+});
+
+// 10. Testing progressive timeout increase
+test("increases timeout on retry", async () => {
+  let attempt = 0;
+  let success = false;
+  
+  const tryWithBackoff = async () => {
+    attempt++;
+    const timeout = 100 * attempt; // Progressive timeout
+    
+    try {
+      await waitFor(() => success, timeout);
+      return true;
+    } catch {
+      if (attempt < 3) {
+        return tryWithBackoff();
+      }
+      throw new Error("Failed after 3 attempts");
+    }
+  };
+  
+  // Succeed on 3rd attempt
+  setTimeout(() => { success = true; }, 300);
+  
+  const result = await tryWithBackoff();
+  expect(result).toBe(true);
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **Condition function called repeatedly**: Called on every interval tick
+  ```typescript
+  let callCount = 0;
+  await waitFor(() => {
+    callCount++;
+    return false;
+  }, 1000, 10); // 1000ms timeout, 10ms interval
+  
+  // Called ~100 times (1000/10)
+  expect(callCount).toBeGreaterThan(90);
+  ```
+
+- **Throws on timeout**: Error message includes timeout value
+  ```typescript
+  await expect(
+    waitFor(() => false, 100)
+  ).rejects.toThrow("Condition not met within 100ms");
+  ```
+
+- **Short intervals = more CPU**: Higher polling frequency uses more CPU
+  ```typescript
+  // High CPU usage
+  await waitFor(() => condition, 5000, 1); // Every 1ms
+  
+  // Lower CPU usage
+  await waitFor(() => condition, 5000, 100); // Every 100ms
+  ```
+
+- **Condition function throws**: Propagates immediately, doesn't wait for timeout
+  ```typescript
+  await expect(
+    waitFor(() => { throw new Error("Failed"); }, 5000)
+  ).rejects.toThrow("Failed");
+  // Throws immediately, not after 5 seconds
+  ```
+
+- **Zero or negative timeout**: May fail immediately or behave unexpectedly
+  ```typescript
+  await expect(
+    waitFor(() => true, 0)
+  ).rejects.toThrow(); // Likely fails immediately
+  ```
+
+- **Condition returns immediately**: No delay if condition already true
+  ```typescript
+  const start = Date.now();
+  await waitFor(() => true, 5000);
+  const elapsed = Date.now() - start;
+  
+  expect(elapsed).toBeLessThan(10); // Very fast, condition already true
+  ```
+
+- **Condition becomes true just before timeout**: Should still succeed
+  ```typescript
+  let condition = false;
+  setTimeout(() => { condition = true; }, 4900); // Just before 5s timeout
+  
+  await waitFor(() => condition, 5000);
+  // Should succeed (condition met at 4.9s)
+  ```
+
+- **Multiple concurrent waits**: Can have multiple `waitFor` calls running
+  ```typescript
+  const wait1 = waitFor(() => flag1, 1000);
+  const wait2 = waitFor(() => flag2, 1000);
+  const wait3 = waitFor(() => flag3, 1000);
+  
+  await Promise.all([wait1, wait2, wait3]);
+  ```
+
+- **Condition with side effects**: Possible but not recommended
+  ```typescript
+  let counter = 0;
+  await waitFor(() => {
+    counter++; // Side effect - runs every interval
+    return counter >= 10;
+  }, 1000);
+  
+  expect(counter).toBeGreaterThanOrEqual(10); // Side effect ran
+  ```
+
+- **Interval precision**: Actual interval may be slightly longer than specified
+  ```typescript
+  const start = Date.now();
+  await waitFor(() => false, 100, 10); // 10ms interval
+  
+  const elapsed = Date.now() - start;
+  // elapsed may be 100-110ms due to timing precision
+  ```
+
+- **Condition function scope**: Captures variables from outer scope
+  ```typescript
+  let outerVar = false;
+  setTimeout(() => { outerVar = true; }, 100);
+  
+  await waitFor(() => outerVar, 1000); // Captures outerVar
+  expect(outerVar).toBe(true);
+  ```
+
+**Performance Considerations:**
+
+- CPU usage scales with polling frequency: 1ms interval = high CPU, 100ms = lower
+- Memory usage is minimal - just stores state and interval ID
+- Condition function should be fast (avoid expensive operations in polling loop)
+- For long-running waits (>10s), consider using events or promises instead
+- Default interval (50ms) balances responsiveness and CPU usage
 
 ---
 
 #### `flushPromises()`
 
-Flushes all pending promises.
+Flushes all pending promises in the microtask queue. Essential for testing async operations, promise chains, mock verifications, and ensuring all async work has completed before making assertions.
 
 **Signature:**
 ```typescript
@@ -2469,19 +4078,342 @@ async function flushPromises(): Promise<void>
 - None
 
 **Returns:**
-- `Promise<void>` - Resolves after microtask queue empty
+- `Promise<void>` - Resolves after microtask queue is empty
+  - Uses `setTimeout(..., 0)` to yield to event loop
+  - Allows all pending microtasks to complete
+  - Returns promise that resolves after next tick
+  - No return value (void)
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic promise flushing
 someAsyncOperation();
 await flushPromises(); // Ensures all promises resolved
 expect(mockFn).toHaveBeenCalled();
+
+// 2. Flushing after async state update
+setState({ loading: true });
+await flushPromises();
+expect(state.loading).toBe(false);
+
+// 3. Flushing multiple promises
+Promise.resolve().then(() => console.log("1"));
+Promise.resolve().then(() => console.log("2"));
+Promise.resolve().then(() => console.log("3"));
+
+await flushPromises();
+// All three promises have executed
+
+// 4. Flushing with mock verifications
+const mockFn = vi.fn();
+Promise.resolve().then(() => mockFn("called"));
+
+await flushPromises();
+expect(mockFn).toHaveBeenCalledWith("called");
+
+// 5. Flushing in beforeEach hook
+beforeEach(async () => {
+  setupTest();
+  await flushPromises(); // Ensure all async setup complete
+});
+
+// 6. Flushing after DOM updates
+document.body.innerHTML = "<div>test</div>";
+Promise.resolve().then(() => {
+  document.querySelector("div")?.classList.add("loaded");
+});
+
+await flushPromises();
+expect(document.querySelector("div")).toHaveClass("loaded");
+
+// 7. Flushing with promise chains
+Promise.resolve()
+  .then(() => console.log("step 1"))
+  .then(() => console.log("step 2"))
+  .then(() => console.log("step 3"));
+
+await flushPromises();
+// All steps executed
+
+// 8. Flushing async operations in sequence
+operation1();
+await flushPromises();
+expect(result1).toBeDefined();
+
+operation2();
+await flushPromises();
+expect(result2).toBeDefined();
+
+// 9. Flushing before assertions
+const result = fetchData();
+await flushPromises();
+expect(result.data).toBeDefined();
+
+// 10. Flushing in test teardown
+afterEach(async () => {
+  cleanup();
+  await flushPromises(); // Ensure all cleanup async work complete
+});
 ```
 
-**Edge Cases:**
-- Uses `setTimeout(..., 0)` to flush microtasks
-- Only flushes already-created promises
-- Does not wait for new promises created during flush
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing async state updates
+test("async state updates complete before assertions", async () => {
+  let state = { updated: false };
+  
+  Promise.resolve().then(() => {
+    state.updated = true;
+  });
+  
+  // Without flushPromises, this might fail
+  await flushPromises();
+  expect(state.updated).toBe(true);
+});
+
+// 2. Testing promise chain execution order
+test("promise chains execute in order", async () => {
+  const order: number[] = [];
+  
+  Promise.resolve()
+    .then(() => { order.push(1); return Promise.resolve(); })
+    .then(() => { order.push(2); })
+    .then(() => { order.push(3); });
+  
+  await flushPromises();
+  expect(order).toEqual([1, 2, 3]);
+});
+
+// 3. Testing mock callbacks in promises
+test("mock functions called in promises are verified", async () => {
+  const mockFn = vi.fn();
+  
+  Promise.resolve()
+    .then(() => mockFn("first"))
+    .then(() => mockFn("second"));
+  
+  await flushPromises();
+  expect(mockFn).toHaveBeenCalledTimes(2);
+});
+
+// 4. Testing error handling in promises
+test("promise errors don't prevent flush", async () => {
+  let errorHandled = false;
+  
+  Promise.reject(new Error("Test error"))
+    .catch(() => { errorHandled = true; });
+  
+  await flushPromises();
+  expect(errorHandled).toBe(true);
+});
+
+// 5. Testing multiple async sources
+test("flushes all promise sources", async () => {
+  const results: string[] = [];
+  
+  Promise.resolve().then(() => results.push("promise1"));
+  Promise.resolve().then(() => results.push("promise2"));
+  Promise.resolve().then(() => results.push("promise3"));
+  
+  setTimeout(() => results.push("timeout"), 0);
+  queueMicrotask(() => results.push("microtask"));
+  
+  await flushPromises();
+  expect(results).toContain("promise1");
+  expect(results).toContain("promise2");
+  expect(results).toContain("promise3");
+});
+
+// 6. Testing with async components
+test("component async operations complete", async () => {
+  const component = new AsyncComponent();
+  component.loadData();
+  
+  await flushPromises();
+  expect(component.data).toBeDefined();
+});
+
+// 7. Testing race conditions
+test("handles race conditions in promises", async () => {
+  let winner: string | null = null;
+  
+  Promise.resolve().then(() => { winner = "first"; });
+  Promise.resolve().then(() => { winner = "second"; });
+  
+  await flushPromises();
+  expect(["first", "second"]).toContain(winner);
+});
+
+// 8. Testing nested promises
+test("nested promises complete", async () => {
+  let depth = 0;
+  
+  Promise.resolve().then(() => {
+    depth++;
+    return Promise.resolve().then(() => {
+      depth++;
+      return Promise.resolve().then(() => {
+        depth++;
+      });
+    });
+  });
+  
+  await flushPromises();
+  expect(depth).toBe(3);
+});
+
+// 9. Testing promise.all behavior
+test("Promise.all completes before assertions", async () => {
+  const values = await Promise.all([
+    Promise.resolve(1),
+    Promise.resolve(2),
+    Promise.resolve(3)
+  ]);
+  
+  await flushPromises();
+  expect(values).toEqual([1, 2, 3]);
+});
+
+// 10. Testing async test patterns
+test("common async test pattern", async () => {
+  // Arrange
+  const mockFn = vi.fn();
+  
+  // Act
+  Promise.resolve().then(() => mockFn());
+  
+  // Assert - after flushing
+  await flushPromises();
+  expect(mockFn).toHaveBeenCalled();
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **Only flushes microtasks**: Uses `setTimeout(..., 0)` which yields to event loop
+  ```typescript
+  Promise.resolve().then(() => console.log("microtask"));
+  setTimeout(() => console.log("macrotask"), 0);
+  
+  await flushPromises();
+  // "microtask" printed, "macrotask" may not be yet
+  ```
+
+- **Doesn't wait for macrotasks**: setTimeout, setInterval run in macrotask queue
+  ```typescript
+  setTimeout(() => { flag = true; }, 100);
+  await flushPromises();
+  expect(flag).toBe(false); // Still false, macrotask not run
+  ```
+
+- **Promises created during flush**: May not be executed in same flush
+  ```typescript
+  let callCount = 0;
+  Promise.resolve().then(() => {
+    callCount++;
+    Promise.resolve().then(() => {
+      callCount++; // Created during flush
+    });
+  });
+  
+  await flushPromises();
+  expect(callCount).toBe(1); // Only first promise executed
+  ```
+
+- **Multiple flushes for nested promises**: Need multiple flushes for deeply nested
+  ```typescript
+  let depth = 0;
+  Promise.resolve().then(() => {
+    depth++;
+    return Promise.resolve().then(() => {
+      depth++;
+      return Promise.resolve().then(() => {
+        depth++;
+      });
+    });
+  });
+  
+  await flushPromises();
+  await flushPromises(); // May need second flush
+  await flushPromises(); // May need third flush
+  expect(depth).toBe(3);
+  ```
+
+- **Async/await creates promises**: Even async/await needs flushing
+  ```typescript
+  let flag = false;
+  (async () => {
+    await Promise.resolve();
+    flag = true;
+  })();
+  
+  await flushPromises();
+  expect(flag).toBe(true);
+  ```
+
+- **Promise rejection**: Rejected promises still complete (need error handling)
+  ```typescript
+  let errorCaught = false;
+  Promise.reject(new Error("Test"))
+    .catch(() => { errorCaught = true; });
+  
+  await flushPromises();
+  expect(errorCaught).toBe(true);
+  ```
+
+- **Mock promises**: Mock promises created with vi.fn().mockResolvedValue need flush
+  ```typescript
+  const mockFn = vi.fn().mockResolvedValue("result");
+  mockFn().then(value => console.log(value));
+  
+  await flushPromises();
+  expect(mockFn).toHaveBeenCalled();
+  ```
+
+- **Race conditions in promises**: Multiple promises may complete in any order
+  ```typescript
+  let winner: string = "";
+  Promise.resolve().then(() => { winner = "A"; });
+  Promise.resolve().then(() => { winner = "B"; });
+  
+  await flushPromises();
+  expect(["A", "B"]).toContain(winner); // Either
+  ```
+
+- **No-op if no pending promises**: Returns immediately if queue empty
+  ```typescript
+  const start = Date.now();
+  await flushPromises(); // No pending promises
+  const elapsed = Date.now() - start;
+  
+  expect(elapsed).toBeLessThan(5); // Very fast
+  ```
+
+- **Performance overhead**: Small overhead from setTimeout(..., 0)
+  ```typescript
+  const start = Date.now();
+  await flushPromises();
+  const elapsed = Date.now() - start;
+  
+  expect(elapsed).toBeLessThan(10); // Should be fast
+  ```
+
+**Performance Considerations:**
+
+- Uses `setTimeout(..., 0)` which adds ~1-5ms overhead
+- For heavy promise testing, consider `waitFor` instead
+- Multiple flushes compound overhead
+- Most efficient when used once per test (not in loops)
+- Memory usage is minimal - just yields to event loop
+
+**When to Use vs Alternatives:**
+
+- Use `flushPromises()` for: Simple promise completion, mock verification, basic async testing
+- Use `waitFor()` for: DOM updates, complex conditions, retries, state changes
+- Use `waitForAll()` for: Parallel operations, concurrent promises, batch processing
+- Use `await promise` for: Single predictable async operations
 
 ---
 
