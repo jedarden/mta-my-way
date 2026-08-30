@@ -30,7 +30,7 @@ function createMockStation(overrides?: Partial<Station>): Station
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial station properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults. Accepts any subset of Station properties:
+- `overrides` (optional): Partial station properties to override defaults. Uses spread syntax (`...overrides`) to merge with defaults. Accepts any subset of [Station](packages/shared/src/types/stations.ts#L29) properties:
   - `id?: string` - GTFS station ID (3-digit codes like "725" for Times Square)
   - `name?: string` - Station display name (e.g., "Times Square-42 St")
   - `lat?: number` - Latitude coordinate (NYC range: 40.5-40.9)
@@ -38,13 +38,13 @@ function createMockStation(overrides?: Partial<Station>): Station
   - `lines?: string[]` - Subway lines serving this station (e.g., ["1", "2", "3"])
   - `northStopId?: string` - GTFS stop ID for northbound platform (typically `{id}N`)
   - `southStopId?: string` - GTFS stop ID for southbound platform (typically `{id}S`)
-  - `transfers?: TransferConnection[]` - Array of transfer connections to other stations
+  - `transfers?: [TransferConnection](packages/shared/src/types/stations.ts#L15)[]` - Array of transfer connections to other stations
   - `complex?: string` - Station complex ID for multi-entrance stations (e.g., "725")
   - `ada?: boolean` - ADA wheelchair accessibility flag
-  - `borough?: Borough` - NYC borough type: "manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland"
+  - `borough?: [Borough](packages/shared/src/types/stations.ts#L7)` - NYC borough type: "manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland"
 
 **Returns:**
-- `Station` object matching the `@mta-my-way/shared/types` Station interface:
+- [`Station`](packages/shared/src/types/stations.ts#L29) object matching the `@mta-my-way/shared/types` Station interface:
   - `id: string` - Station GTFS ID (default: `"725"` - Times Square)
   - `name: string` - Station name (default: `"Times Square-42 St"`)
   - `lat: number` - Latitude coordinate (default: `40.7589`)
@@ -52,10 +52,10 @@ function createMockStation(overrides?: Partial<Station>): Station
   - `lines: string[]` - Lines serving this station (default: `["1", "2", "3", "7", "N", "Q", "R", "W"]`)
   - `northStopId: string` - Northbound platform stop ID (default: `"725N"`)
   - `southStopId: string` - Southbound platform stop ID (default: `"725S"`)
-  - `transfers: TransferConnection[]` - Transfer connections (default: `[]`)
+  - `transfers: [TransferConnection](packages/shared/src/types/stations.ts#L15)[]` - Transfer connections (default: `[]`)
   - `complex?: string` - Station complex ID (default: `undefined`)
   - `ada: boolean` - ADA accessible (default: `true`)
-  - `borough: Borough` - NYC borough (default: `"manhattan"`)
+  - `borough: [Borough](packages/shared/src/types/stations.ts#L7)` - NYC borough (default: `"manhattan"`)
 
 **Usage Examples:**
 

@@ -38,6 +38,11 @@ Creates a mock subway station object.
 **Parameters:**
 - `overrides` (optional): Object to merge with default station data
 
+**Type Definitions:**
+- [`Station`](../types/stations.ts#L29) - Main station interface
+- [`Borough`](../types/stations.ts#L7) - NYC borough type: "manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland"
+- [`TransferConnection`](../types/stations.ts#L15) - Transfer connection interface
+
 **Returns:** Station object with fields: `id`, `name`, `lat`, `lon`, `lines`, `northStopId`, `southStopId`, `transfers`, `ada`, `borough`
 
 **Example:**
