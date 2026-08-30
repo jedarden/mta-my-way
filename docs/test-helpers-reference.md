@@ -1499,6 +1499,40 @@ function createMockStation(overrides?: Partial<Station>): Station
 **Parameters:**
 - `overrides` (optional): Partial object to override default values
 
+**Type Definitions:**
+All types are defined in [`packages/shared/src/types/stations.ts`](../packages/shared/src/types/stations.ts):
+
+- [`Station`](../packages/shared/src/types/stations.ts#L29) - Main station interface (lines 29-52)
+  - `id: string` - Parent station ID (e.g., `"725"`)
+  - `name: string` - Station display name (e.g., `"Times Sq-42 St"`)
+  - `lat: number` - Latitude
+  - `lon: number` - Longitude
+  - `lines: string[]` - All lines serving this station
+  - `northStopId: string` - Northbound platform stop ID (e.g., `"725N"`)
+  - `southStopId: string` - Southbound platform stop ID (e.g., `"725S"`)
+  - `transfers: TransferConnection[]` - Available transfers from this station
+  - `complex?: string` - Station complex ID for multi-entrance stations
+  - `ada: boolean` - Whether the station is ADA accessible
+  - `borough: Borough` - NYC borough
+
+- [`Borough`](../packages/shared/src/types/stations.ts#L7) - NYC borough type (line 7)
+  - Type: `"manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland"`
+
+- [`TransferConnection`](../packages/shared/src/types/stations.ts#L15) - Transfer connection interface (lines 15-24)
+  - `toStationId: string` - Target station ID
+  - `toLines: string[]` - Lines available at the transfer station
+  - `walkingSeconds: number` - Estimated walking time in seconds
+  - `accessible: boolean` - Whether the transfer path is ADA accessible
+
+**Import Path:**
+```typescript
+// Import the helper function
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+// Import types for type checking
+import type { Station, Borough, TransferConnection } from "@mta-my-way/shared/types/stations";
+```
+
 **Returns:** `Station` object with:
 - `id: string` - Station ID (default: `"725"`)
 - `name: string` - Station name (default: `"Times Square-42 St"`)
@@ -1507,13 +1541,14 @@ function createMockStation(overrides?: Partial<Station>): Station
 - `lines: string[]` - Subway lines (default: `["1", "2", "3", "7", "N", "Q", "R", "W"]`)
 - `northStopId: string` - Northbound stop ID (default: `"725N"`)
 - `southStopId: string` - Southbound stop ID (default: `"725S"`)
-- `transfers: Transfer[]` - Transfer stations (default: `[]`)
+- `transfers: TransferConnection[]` - Transfer stations (default: `[]`)
 - `ada: boolean` - ADA accessibility (default: `true`)
-- `borough: string` - Borough (default: `"manhattan"`)
+- `borough: Borough` - Borough (default: `"manhattan"`)
 
 **Usage Example:**
 ```typescript
 import { createMockStation } from "@mta-my-way/shared/testing";
+import type { Station, Borough, TransferConnection } from "@mta-my-way/shared/types/stations";
 
 const defaultStation = createMockStation();
 const customStation = createMockStation({
@@ -1522,12 +1557,13 @@ const customStation = createMockStation({
   lat: 40.702,
   lon: -74.013,
   lines: ["1"],
-  ada: true
+  ada: true,
+  borough: "manhattan" as Borough
 });
 
 const complexStation = createMockStation({
   transfers: [
-    { toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120 }
+    { toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120, accessible: true }
   ]
 });
 ```
@@ -1537,6 +1573,7 @@ const complexStation = createMockStation({
 - `lines` array affects line validation logic - ensure valid line IDs
 - ADA compliance tests should mock both `ada: true` and `ada: false` stations
 - Transfers structure affects route calculation tests - use realistic transfer data
+- Borough values must be valid [`Borough`](../packages/shared/src/types/stations.ts#L7) union members
 
 ---
 

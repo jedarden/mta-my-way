@@ -16,6 +16,26 @@ import { vi, expect } from "vitest";
 
 /**
  * Generate a mock station object.
+ *
+ * @param overrides - Optional object to merge with default station data
+ * @returns A mock {@link Station} object with all required fields
+ *
+ * @example
+ * ```typescript
+ * const station = createMockStation({
+ *   id: "725",
+ *   name: "Times Square-42 St",
+ *   lines: ["1", "2", "3"]
+ * });
+ * ```
+ *
+ * @remarks
+ * Type definitions are defined in {@link ../types/stations.ts}:
+ * - {@link Station} - Main station interface (line 29)
+ * - {@link Borough} - NYC borough type (line 7)
+ * - {@link TransferConnection} - Transfer connection interface (line 15)
+ *
+ * Import types from: `@mta-my-way/shared/types/stations`
  */
 export function createMockStation(overrides = {}) {
   return {

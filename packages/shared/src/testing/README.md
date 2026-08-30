@@ -39,9 +39,17 @@ Creates a mock subway station object.
 - `overrides` (optional): Object to merge with default station data
 
 **Type Definitions:**
-- [`Station`](../types/stations.ts#L29) - Main station interface
-- [`Borough`](../types/stations.ts#L7) - NYC borough type: "manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland"
-- [`TransferConnection`](../types/stations.ts#L15) - Transfer connection interface
+All types are defined in [`packages/shared/src/types/stations.ts`](../types/stations.ts):
+
+- [`Station`](../types/stations.ts#L29) - Main station interface (lines 29-52)
+- [`Borough`](../types/stations.ts#L7) - NYC borough type: `"manhattan" | "brooklyn" | "queens" | "bronx" | "statenisland"` (line 7)
+- [`TransferConnection`](../types/stations.ts#L15) - Transfer connection interface with `toStationId`, `toLines`, `walkingSeconds`, and `accessible` fields (lines 15-24)
+
+**Import Path:**
+```typescript
+// Import types from the shared package
+import type { Station, Borough, TransferConnection } from "@mta-my-way/shared/types/stations";
+```
 
 **Returns:** Station object with fields: `id`, `name`, `lat`, `lon`, `lines`, `northStopId`, `southStopId`, `transfers`, `ada`, `borough`
 
