@@ -2515,164 +2515,6 @@ ${
   }
 
   // -------------------------------------------------------------------------
-  // OAuth 2.0 Authentication - DISABLED: Feature not used by frontend
-  // These endpoints are disabled to reduce security surface area.
-  // Uncomment to re-enable OAuth 2.0 authentication functionality.
-  // -------------------------------------------------------------------------
-
-  // // Initialize OAuth providers on startup
-  // initializeDefaultProviders();
-  //
-  // // Clean up expired OAuth states every hour
-  // setInterval(
-  //   () => {
-  //     cleanupExpiredStates();
-  //   },
-  //   60 * 60 * 1000
-  // );
-  //
-  // /** Get available OAuth providers */
-  // app.get("/api/auth/oauth/providers", requirePermission("oauth:authorize" as Permission), (c) => {
-  //   const providers = getActiveOAuthProviders();
-  //
-  //   // Return only safe provider information (no secrets)
-  //   const safeProviders = providers.map((p) => ({
-  //     providerId: p.providerId,
-  //     displayName: p.displayName,
-  //     active: p.active,
-  //   }));
-  //
-  //   c.header("Cache-Control", "public, max-age=300");
-  //   return c.json({ providers: safeProviders });
-  // });
-  //
-  // /** Initiate OAuth authorization flow */
-  // app.get(
-  //   "/api/auth/oauth/authorize/:providerId",
-  //   requirePermission("oauth:authorize" as Permission),
-  //   async (c) => {
-  //     const providerId = c.req.param("providerId");
-  //     const redirectUrl = c.req.query("redirect_url");
-  //
-  //     if (!providerId) {
-  //       return c.json({ error: "Provider ID is required" }, 400);
-  //     }
-  //
-  //     const result = await createAuthorizationUrl(providerId, redirectUrl);
-  //
-  //     if ("error" in result) {
-  //       return c.json({ error: result.error }, 400);
-  //     }
-  //
-  //     // Return authorization URL and state
-  //     return c.json({
-  //       authorizationUrl: result.url,
-  //       stateId: result.stateId,
-  //     });
-  //   }
-  // );
-  //
-  // /** OAuth callback endpoint */
-  // app.get("/api/auth/oauth/callback/:providerId", async (c) => {
-  //   const providerId = c.req.param("providerId");
-  //   const state = c.req.query("state");
-  //   const code = c.req.query("code");
-  //   const error = c.req.query("error");
-  //   const errorDescription = c.req.query("error_description");
-  //
-  //   // Handle OAuth errors from provider
-  //   if (error) {
-  //     logger.warn("OAuth callback error", {
-  //       providerId,
-  //       error,
-  //       errorDescription,
-  //     });
-  //     return c.json(
-  //       {
-  //         success: false,
-  //         error: error || "OAuth authorization failed",
-  //         errorDescription,
-  //       },
-  //       400
-  //     );
-  //   }
-  //
-  //   // Validate required parameters
-  //   if (!state || !code) {
-  //     return c.json(
-  //       {
-  //         success: false,
-  //         error: "Missing required parameters: state and code",
-  //       },
-  //       400
-  //     );
-  //   }
-  //
-  //   // Get client info for logging and session creation
-  //   const clientIp =
-  //     c.req.header("x-forwarded-for")?.split(",")[0] ??
-  //     c.req.header("cf-connecting-ip") ??
-  //     "unknown";
-  //   const userAgent = c.req.header("user-agent");
-  //
-  //   // Handle the callback
-  //   const result = await handleOAuthCallback(
-  //     state,
-  //     code,
-  //     clientIp,
-  //     userAgent,
-  //     async (keyId, ip, ua, metadata) => {
-  //       // Create session with OAuth type
-  //       const sessionResult = await createSession(keyId, ip, ua, metadata, {
-  //         type: "oauth",
-  //         ipBinding: true,
-  //         createRefreshToken: true,
-  //       });
-  //
-  //       if ("sessionId" in sessionResult) {
-  //         return {
-  //           sessionId: sessionResult.sessionId,
-  //           csrfToken: getCsrfToken(c) || sessionResult.refreshToken || "",
-  //         };
-  //       }
-  //
-  //       return { error: "Failed to create session" };
-  //     }
-  //   );
-  //
-  //   if (!result.success) {
-  //     return c.json(
-  //       {
-  //         success: false,
-  //         error: result.error,
-  //         errorDescription: result.errorDescription,
-  //       },
-  //       400
-  //     );
-  //   }
-  //
-  //   // Set session cookie
-  //   if (result.sessionId) {
-  //     const isSecure = process.env["NODE_ENV"] === "production";
-  //     c.header(
-  //       "Set-Cookie",
-  //       `session_id=${result.sessionId}; Path=/; SameSite=Lax; ${isSecure ? "Secure; " : ""}HttpOnly; Max-Age=86400`
-  //     );
-  //   }
-  //
-  //   // Return success with profile (excluding sensitive data)
-  //   return c.json({
-  //     success: true,
-  //     profile: {
-  //       providerId: result.profile?.providerId,
-  //       email: result.profile?.email,
-  //       name: result.profile?.name,
-  //       picture: result.profile?.picture,
-  //     },
-  //   });
-  // });
-
-  // -------------------------------------------------------------------------
   // Multi-Factor Authentication (MFA) - TOTP - DISABLED: Feature not used by frontend
   // These endpoints are disabled to reduce security surface area.
   // Uncomment to re-enable MFA functionality.
@@ -3097,26 +2939,13 @@ ${
     app.get("/api/auth/password/policy", passwordResetRoutes.getPasswordPolicy);
 
     /** Initiate password reset request */
-    app.post("/api/auth/password/reset", passwordResetRoutes.requestPasswordReset[0],
-      passwordResetRoutes.requestPasswordReset[1],
-      passwordResetRoutes.requestPasswordReset[2],
-      passwordResetRoutes.requestPasswordReset[3]
-    );
+    app.post("/api/auth/password/reset", ...passwordResetRoutes.requestPasswordReset);
 
     /** Confirm password reset with token */
-    app.post("/api/auth/password/reset/confirm",
-      passwordResetRoutes.confirmPasswordReset[0],
-      passwordResetRoutes.confirmPasswordReset[1],
-      passwordResetRoutes.confirmPasswordReset[2],
-      passwordResetRoutes.confirmPasswordReset[3]
-    );
+    app.post("/api/auth/password/reset/confirm", ...passwordResetRoutes.confirmPasswordReset);
 
     /** Change password for authenticated user */
-    app.post("/api/auth/password/change",
-      passwordResetRoutes.changePassword[0],
-      passwordResetRoutes.changePassword[1],
-      passwordResetRoutes.changePassword[2]
-    );
+    app.post("/api/auth/password/change", ...passwordResetRoutes.changePassword);
 
     /** Get user's synced preferences */
     app.get("/api/preferences", preferencesRoutes.getPreferences);
