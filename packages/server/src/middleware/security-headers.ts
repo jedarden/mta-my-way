@@ -498,6 +498,11 @@ export function extractAuthHeader(
 
   const [authScheme, credentials] = parts;
 
+  // Type guard: ensure both parts are defined
+  if (!authScheme || !credentials) {
+    return null;
+  }
+
   if (scheme) {
     if (authScheme.toLowerCase() !== scheme.toLowerCase()) {
       return null;

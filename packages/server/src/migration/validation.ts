@@ -194,7 +194,7 @@ export function checkForeignKeyViolations(db: Database.Database): string[] {
 
   try {
     const fkResult = db.pragma("foreign_key_check");
-    if (fkResult && fkResult.length > 0) {
+    if (fkResult && Array.isArray(fkResult) && fkResult.length > 0) {
       for (const row of fkResult as Array<Record<string, unknown>>) {
         violations.push(
           `FK violation: table=${row.table}, rowid=${row.rowid}, parent=${row.parent}, fkid=${row.fkid}`
@@ -401,7 +401,7 @@ export function safeTransform(
       .all();
 
     db.transaction(() => {
-      for (const row of rows) {
+      for (const row of rows as Array<Record<string, unknown>>) {
         try {
           transform(row);
           transformed++;

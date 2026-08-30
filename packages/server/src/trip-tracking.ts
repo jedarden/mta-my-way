@@ -120,6 +120,7 @@ async function ensureTripTrackingTables(): Promise<void> {
  * Get the database instance, throwing if not available.
  * @deprecated Use push subscriptions database directly via getPushDatabase()
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function _getDb(): Promise<Database.Database> {
   if (!db) {
     // Try to get the database from push subscriptions
@@ -227,7 +228,7 @@ export async function recordTrip(
  * @param params - Trip parameters
  * @param ownerId - Owner ID for access control (defaults to "anonymous")
  */
-export function recordInferredTrip(
+export async function recordInferredTrip(
   params: {
     tripId: string;
     routeId: string;
@@ -238,7 +239,7 @@ export function recordInferredTrip(
     arrivalTime: number;
   },
   ownerId: string = DEFAULT_OWNER_ID
-): TripRecord | null {
+): Promise<TripRecord | null> {
   if (!stations || !db?.open) return null;
 
   const originStation = stations[params.originId];
@@ -259,7 +260,7 @@ export function recordInferredTrip(
     source: "inferred",
   };
 
-  return recordTrip(trip, ownerId);
+  return await recordTrip(trip, ownerId);
 }
 
 /**

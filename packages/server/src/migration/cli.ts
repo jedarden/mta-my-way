@@ -568,6 +568,6 @@ program.parseAsync().catch((error) => {
 // ============================================================================
 
 async function mkdir(path: string, options?: { recursive: boolean }): Promise<void> {
-  const { mkdir } = await import("node:fs/promises");
-  return mkdir(path, options);
+  const { mkdir: mkdirFn } = await import("node:fs/promises");
+  await mkdirFn(path, options);
 }

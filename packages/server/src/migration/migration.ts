@@ -23,16 +23,16 @@
  */
 
 import { copyFile, mkdir, readdir, unlink } from "node:fs/promises";
-import type { constants as Constants } from "node:os";
+import { constants as fsConstants } from "node:fs";
 
 // Import constants dynamically for better-sqlite3 compatibility
-let constants: typeof Constants;
+let constants: typeof fsConstants;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  constants = require("node:os").constants;
+  constants = require("node:fs").constants;
 } catch {
   // Fallback for environments where require is not available
-  constants = {} as typeof Constants;
+  constants = {} as typeof fsConstants;
 }
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -146,7 +146,7 @@ export async function createBackup(dbPath: string): Promise<string> {
   const basename = dbPath.split("/").pop() ?? "database.db";
   const backupPath = join(BACKUP_DIR, `${basename}-${timestamp}.bak`);
 
-  await copyFile(dbPath, backupPath, constants.COPYFILE_EXCL || 0);
+  await copyFile(dbPath, backupPath, (constants.COPYFILE_EXCL as number) || 0);
 
   logger.info("Backup created", { backupPath });
 
