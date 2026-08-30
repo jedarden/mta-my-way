@@ -1,31 +1,35 @@
+---
+name: bead-binary-path
+description: Location of the bead CLI binary in PATH
+metadata:
+  type: reference
+---
+
 # Bead Binary Path
 
-## Documented Location
+## Extracted Path
+`/home/coding/.cargo/bin/bead`
 
-The canonical bead binary (bead-rs CLI) is located at:
+## Bead CLI Type
+**bead-rs** (cargo-installed)
 
-```
-/home/coding/.local/bin/bead
-```
+## Source
+Parent bead: `mtamyway-f01ea82b` - "Locate bead binary in PATH"
 
-## Backend Confirmation
+## Context
+This path matters because:
 
-This is the locally-installed bead-rs CLI (version 0.2.4), which matches the actual location for the canonical bead backend as verified on 2026-08-30.
+1. **Canonical CLI**: As of 2026-08-14, `bead` (bead-rs) is the canonical bead CLI across the environment
+2. **Workspace verification**: This workspace uses bead-rs backend (evidenced by `.beads/config.json` and SQLite `beads.db`)
+3. **Operational safety**: Using the correct CLI is critical — running `bf` (bead-forge) against a bead-rs store causes schema corruption
+4. **Cargo installation**: The binary lives in `~/.cargo/bin/`, the standard Rust cargo install location
 
 ## Verification
-
-To verify the bead binary location:
-
 ```bash
-which bead  # Should return: /home/coding/.local/bin/bead
+which bead  # → /home/coding/.cargo/bin/bead
+file ~/.cargo/bin/bead  # → ELF 64-bit LSB executable, x86-64
 ```
 
-## Related Documentation
-
-- Parent bead: mtamyway-f01ea82b (Locate bead binary in PATH)
-- Bead backend: bead-rs (canonical as of 2026-08-14)
-- Workspace: `/home/coding/mta-my-way`
-
-## Notes
-
-This path is confirmed via the parent bead investigation (2026-08-28) and matches the bead-rs installation pattern for this environment.
+## Related
+- See CLAUDE.md "Beads (bead-rs CLI)" section for the full migration context
+- See memory: `project_needle_030_bead_rs_rollout_2026-08-14` for the incident that established this rule
