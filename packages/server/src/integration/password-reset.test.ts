@@ -11,7 +11,7 @@
  */
 
 import type { Hono } from "hono";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import {
   type ApiKey,
@@ -40,6 +40,10 @@ describe("Password Reset Flow Integration", () => {
   let originalPasswordSalt: string;
 
   beforeEach(async () => {
+    // Use fake timers for deterministic time
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+
     // Clear rate limits between tests
     _clearAllRateLimits();
 
@@ -87,6 +91,9 @@ describe("Password Reset Flow Integration", () => {
   afterEach(async () => {
     // Clean up test data using exported function
     deleteUser(testUserId);
+
+    // Restore real timers
+    vi.useRealTimers();
   });
 
   // Helper to create headers that pass same-origin checks
@@ -374,8 +381,9 @@ describe("Password Reset Flow Integration", () => {
         "../middleware/password-management.js"
       );
 
-      // Set the token as expired
-      _setTokenExpirationForTesting(resetData.tokenId, Date.now() - 1000); // 1 second ago
+      // Set the token as expired using deterministic time
+      const currentTime = Date.now();
+      _setTokenExpirationForTesting(resetData.tokenId, currentTime - 1000); // 1 second ago
 
       // Try to use expired token
       const response = await app.request("/api/auth/password/reset/confirm", {
@@ -725,6 +733,7 @@ describe("Password Reset Flow Integration", () => {
       expect(lockStatus.locked).toBe(true);
       expect(lockStatus.reason).toBeDefined();
       expect(lockStatus.remainingMinutes).toBeGreaterThan(0);
+      // Use deterministic time check
       expect(lockStatus.unlockTime).toBeGreaterThan(Date.now());
     });
 
@@ -858,11 +867,12 @@ describe("Password Reset Flow Integration", () => {
       // Generate a token
       const resetData = await generatePasswordResetToken(testUserId, "127.0.0.1");
 
-      // Manually expire it
+      // Manually expire it using deterministic time
       const { _setTokenExpirationForTesting } = await import(
         "../middleware/password-management.js"
       );
-      _setTokenExpirationForTesting(resetData.tokenId, Date.now() - 1000);
+      const currentTime = Date.now();
+      _setTokenExpirationForTesting(resetData.tokenId, currentTime - 1000);
 
       // Run cleanup
       const cleanedCount = cleanupExpiredTokens();
