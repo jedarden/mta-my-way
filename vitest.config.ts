@@ -23,21 +23,19 @@ function virtualPwaRegisterPlugin() {
 
 export default defineConfig({
   plugins: [virtualPwaRegisterPlugin()],
+  pool: "forks",
+  poolOptions: {
+    forks: {
+      singleFork: false,
+      minForks: 1,
+      maxForks: 4,
+    },
+  },
   test: {
-    pool: "forks",
-    maxForks: 4,
     env: {
       TEST_MODE: "true",
     },
     setupFiles: [],
-    // Global hooks for all test projects to ensure proper isolation
-    poolOptions: {
-      forks: {
-        singleFork: false, // Run tests in parallel for speed
-        minForks: 1,
-        maxForks: 4,
-      },
-    },
     // Ensure proper test isolation across all projects
     sequence: {
       shuffle: false, // Run tests in order for reproducibility
@@ -61,8 +59,6 @@ export default defineConfig({
           environment: "node",
           include: ["tests/**/*.test.ts"],
           exclude: ["tests/e2e/**/*.e2e.ts"],
-          pool: "forks",
-          maxForks: 4,
           setupFiles: [],
         },
       },
@@ -73,8 +69,6 @@ export default defineConfig({
           include: ["packages/web/src/**/*.test.ts", "packages/web/src/**/*.test.tsx"],
           globals: true,
           setupFiles: ["./packages/web/src/test/setup.ts"],
-          pool: "forks",
-          maxForks: 4,
           resolve: {
             alias: {
               "virtual:pwa-register": path.resolve(
@@ -90,8 +84,6 @@ export default defineConfig({
         test: {
           environment: "node",
           include: ["packages/server/src/**/*.test.ts"],
-          pool: "forks",
-          maxForks: 4,
           setupFiles: ["./packages/server/src/test/setup.ts"],
         },
       },
@@ -101,8 +93,6 @@ export default defineConfig({
           environment: "node",
           include: ["packages/shared/src/**/*.test.ts"],
           globals: true,
-          pool: "forks",
-          maxForks: 4,
           setupFiles: [],
         },
       },
