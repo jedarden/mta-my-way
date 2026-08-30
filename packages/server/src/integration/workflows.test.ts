@@ -7,6 +7,16 @@
  * - Cross-component data flow validation
  */
 
+// Mock config to ensure CORE_ONLY is false so trip tracking routes are mounted
+vi.mock("../config.js", () => ({
+  CORE_ONLY: false,
+  parseBooleanEnv: () => false,
+  isCoreOnlyMode: () => false,
+  getShellEnv: () => "/bin/sh",
+  hasShellEnv: () => true,
+  SHELL: "/bin/sh",
+}));
+
 import type {
   ComplexIndex,
   RouteIndex,
@@ -175,16 +185,23 @@ describe("End-to-End Workflow Integration Tests", () => {
   let authHeaders: { Authorization: string };
 
   beforeEach(async () => {
-    // Reset all module-level state BEFORE initializing fresh test state
-    await cleanupAllState();
-
-    vi.clearAllMocks();
     // Use frozen time for consistent test behavior
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
 
+    // Ensure CORE_ONLY is false so trip tracking routes are mounted
+    process.env.CORE_ONLY = "false";
+
+    // Reset all module-level state FIRST (before any initialization)
+    await cleanupAllState();
+
+    // Create database AFTER cleanup (cleanup resets module state)
     db = createIntegrationTestDatabase();
+
+    // Initialize trip tracking AFTER cleanup and db creation
     initTripTracking(db, TEST_STATIONS);
+
+    vi.clearAllMocks();
 
     const userCreds = await createTestUserCredentials();
     authHeaders = { Authorization: userCreds.authorizationHeader };

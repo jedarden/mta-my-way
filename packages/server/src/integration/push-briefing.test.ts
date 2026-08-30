@@ -22,7 +22,7 @@ import {
   initPushDatabase,
   upsertSubscription,
 } from "../push/subscriptions.js";
-import { createTestSubscription } from "./test-helpers.js";
+import { cleanupAllState, createTestSubscription } from "./test-helpers.js";
 
 // Import the briefing module functions
 // We'll need to test the internal functions through the public API
@@ -112,10 +112,13 @@ describe("Push Briefing Integration Tests", () => {
     setAlertsForTesting(createMockAlerts());
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     closePushDatabase();
     vi.useRealTimers();
     vi.restoreAllMocks();
+
+    // Clean up all module-level state between tests
+    await cleanupAllState();
 
     // Clean up temp files created during this test
     for (let i = tempFilesToCleanup.length - 1; i >= 0; i--) {

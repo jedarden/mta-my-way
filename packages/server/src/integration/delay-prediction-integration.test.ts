@@ -271,6 +271,11 @@ function createMockPosition(overrides: {
 
 describe("Delay Detector and Predictor Integration", () => {
   beforeEach(() => {
+    // Reset module state first to ensure clean slate
+    resetDelayDetector();
+    resetDelayPredictor();
+
+    // Initialize with test configuration
     initDelayDetector(TEST_TRAVEL_TIMES, TEST_ROUTES, TEST_STATIONS, {
       thresholdMultiplier: 2.0,
       minTrainsForLineAlert: 2,
@@ -283,9 +288,7 @@ describe("Delay Detector and Predictor Integration", () => {
   });
 
   afterEach(async () => {
-    resetDelayDetector();
-    resetDelayPredictor();
-    // Also clean up any other module state that may have been affected
+    // Clean up any other module state that may have been affected
     await cleanupAllState();
   });
 

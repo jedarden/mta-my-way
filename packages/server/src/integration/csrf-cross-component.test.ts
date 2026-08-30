@@ -95,8 +95,10 @@ describe("CSRF and Cross-Component Integration Tests", () => {
     authHeaders = { Authorization: userCreds.authorizationHeader };
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     closeDatabase(db);
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("GET /api/csrf-token", () => {

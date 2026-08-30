@@ -34,6 +34,7 @@ import {
   createIntegrationTestDatabase,
   createTestUserCredentials,
   requestWithCsrf,
+  cleanupAllState,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -144,10 +145,14 @@ describe("Cache and Database Coherency Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Clear database state while it's still open
     clearAllTrips(db);
     clearCommuteStatsCache(db);
+    // Close the database
     closeDatabase(db);
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("Database as source of truth", () => {

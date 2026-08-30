@@ -23,6 +23,7 @@ import {
 } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestTrip,
