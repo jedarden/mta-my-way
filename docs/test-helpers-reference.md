@@ -9,7 +9,17 @@ Complete reference documentation for all testing helper functions with detailed 
 
 ## Table of Contents
 
-1. [Security Testing Helpers](#security-testing-helpers)
+1. [Core Test Helpers](#core-test-helpers)
+   - [Mock Data Generators](#mock-data-generators)
+   - [Test Fixtures](#test-fixtures)
+   - [Assertion Helpers](#assertion-helpers)
+   - [Mock Helpers](#mock-helpers)
+   - [Test Setup Helpers](#test-setup-helpers)
+   - [Time Utilities](#time-utilities)
+   - [Performance Testing Utilities](#performance-testing-utilities)
+   - [HTTP Testing Utilities](#http-testing-utilities)
+   - [Async Testing Utilities](#async-testing-utilities)
+2. [Security Testing Helpers](#security-testing-helpers)
    - [Mock Authentication](#mock-authentication)
    - [CSRF Protection](#csrf-protection)
    - [Rate Limiting](#rate-limiting)
@@ -21,7 +31,7 @@ Complete reference documentation for all testing helper functions with detailed 
    - [Audit Log Testing](#audit-log-testing)
    - [Mock Security Middleware](#mock-security-middleware)
    - [Test Assertions](#test-assertions)
-2. [Integration Test Helpers](#integration-test-helpers)
+3. [Integration Test Helpers](#integration-test-helpers)
    - [Database Setup](#database-setup)
    - [Data Factory Functions](#data-factory-functions)
    - [Authentication Helpers](#authentication-helpers)
@@ -1468,6 +1478,1683 @@ function addSecurityHeaders(headers: Headers) {
 - Header names are case-insensitive in HTTP but this check uses lowercase - ensure consistency
 - `strict-transport-security` only checks for `max-age=` substring - doesn't validate the value
 - Missing any single header causes `false` return - all headers are required
+
+---
+
+## Core Test Helpers
+
+**Source:** `packages/shared/src/testing/test-helpers.ts`
+
+### Mock Data Generators
+
+#### `createMockStation`
+
+Creates a mock subway station object with default values.
+
+**Type Signature:**
+```typescript
+function createMockStation(overrides?: Partial<Station>): Station
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `Station` object with:
+- `id: string` - Station ID (default: `"725"`)
+- `name: string` - Station name (default: `"Times Square-42 St"`)
+- `lat: number` - Latitude (default: `40.7589`)
+- `lon: number` - Longitude (default: `-73.9851`)
+- `lines: string[]` - Subway lines (default: `["1", "2", "3", "7", "N", "Q", "R", "W"]`)
+- `northStopId: string` - Northbound stop ID (default: `"725N"`)
+- `southStopId: string` - Southbound stop ID (default: `"725S"`)
+- `transfers: Transfer[]` - Transfer stations (default: `[]`)
+- `ada: boolean` - ADA accessibility (default: `true`)
+- `borough: string` - Borough (default: `"manhattan"`)
+
+**Usage Example:**
+```typescript
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+const defaultStation = createMockStation();
+const customStation = createMockStation({
+  id: "101",
+  name: "South Ferry",
+  lat: 40.702,
+  lon: -74.013,
+  lines: ["1"],
+  ada: true
+});
+
+const complexStation = createMockStation({
+  transfers: [
+    { toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120 }
+  ]
+});
+```
+
+**Edge Cases:**
+- Default station is Times Square - override for location-specific tests
+- `lines` array affects line validation logic - ensure valid line IDs
+- ADA compliance tests should mock both `ada: true` and `ada: false` stations
+- Transfers structure affects route calculation tests - use realistic transfer data
+
+---
+
+#### `createMockRoute`
+
+Creates a mock subway route object with default values.
+
+**Type Signature:**
+```typescript
+function createMockRoute(overrides?: Partial<Route>): Route
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `Route` object with:
+- `id: string` - Route ID (default: `"1"`)
+- `shortName: string` - Short route name (default: `"1"`)
+- `longName: string` - Full route name (default: `"Broadway-7th Ave Local"`)
+- `color: string` - Route color hex (default: `"#EE352E"`)
+- `textColor: string` - Text color hex (default: `"#FFFFFF"`)
+- `feedId: string` - GTFS feed ID (default: `"gtfs"`)
+- `division: string` - Division (default: `"A"`)
+- `stops: string[]` - Stop IDs (default: `["101", "102", "103"]`)
+- `isExpress: boolean` - Express route flag (default: `false`)
+
+**Usage Example:**
+```typescript
+import { createMockRoute } from "@mta-my-way/shared/testing";
+
+const defaultRoute = createMockRoute();
+const expressRoute = createMockRoute({
+  id: "2",
+  shortName: "2",
+  longName: "7th Ave Express",
+  isExpress: true,
+  color: "#EE352E"
+});
+
+const localRoute = createMockRoute({
+  stops: ["101", "102", "103", "104", "105"]
+});
+```
+
+**Edge Cases:**
+- Color hex values must include `#` prefix - matching CSS color format
+- Express vs local affects skip-stop logic - test both behaviors
+- Stop IDs must correspond to valid stations - coordinate with `createMockStation`
+- `feedId` affects data source selection - use consistent feed ID across tests
+
+---
+
+#### `createMockArrival`
+
+Creates a mock train arrival object with default values.
+
+**Type Signature:**
+```typescript
+function createMockArrival(overrides?: Partial<Arrival>): Arrival
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `Arrival` object with:
+- `line: string` - Subway line (default: `"1"`)
+- `direction: "N" | "S"` - Direction (default: `"N"`)
+- `arrivalTime: number` - Arrival timestamp (default: 2 minutes from now)
+- `minutesAway: number` - Minutes until arrival (default: `2`)
+- `isAssigned: boolean` - Assignment status (default: `true`)
+- `isRerouted: boolean` - Reroute flag (default: `false`)
+- `tripId: string` - Trip ID (default: `"trip_123"`)
+- `destination: string` - Destination station (default: `"Van Cortlandt Park"`)
+- `confidence: "high" | "medium" | "low"` - Arrival confidence (default: `"high"`)
+- `feedName: string` - Feed source (default: `"gtfs"`)
+- `feedAge: number` - Feed age in seconds (default: `8`)
+
+**Usage Example:**
+```typescript
+import { createMockArrival } from "@mta-my-way/shared/testing";
+
+const defaultArrival = createMockArrival();
+const southboundArrival = createMockArrival({
+  line: "2",
+  direction: "S",
+  minutesAway: 5,
+  destination: "New Lots Avenue"
+});
+
+const delayedArrival = createMockArrival({
+  minutesAway: 15,
+  confidence: "low",
+  feedAge: 45 // Stale data
+});
+
+const reroutedArrival = createMockArrival({
+  isRerouted: true,
+  line: "1",
+  destination: "14 St (via 2)"
+});
+```
+
+**Edge Cases:**
+- `arrivalTime` defaults to 2 minutes from now - use fixed timestamp for predictable tests
+- `confidence` affects display priority - test low confidence handling
+- `feedAge` indicates data freshness - test stale data rejection logic
+- `isRerouted` flag affects route display - test reroute notifications
+- Direction is literal `"N"` or `"S"` - TypeScript validates but runtime doesn't check
+
+---
+
+#### `createMockAlert`
+
+Creates a mock service alert object with default values.
+
+**Type Signature:**
+```typescript
+function createMockAlert(overrides?: Partial<Alert>): Alert
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `Alert` object with:
+- `id: string` - Alert ID (default: `"alert_123"`)
+- `severity: "info" | "warning" | "severe"` - Alert severity (default: `"warning"`)
+- `headline: string` - Alert headline (default: `"Delays on 1 train"`)
+- `description: string` - Full description (default: `"1 trains running with delays..."`)
+- `affectedLines: string[]` - Affected subway lines (default: `["1"]`)
+- `activePeriod: {start: number, end: number}` - Active time window (default: starts 1 hour ago, ends in 2 hours)
+- `cause: string` - Alert cause (default: `"SIGNAL_PROBLEM"`)
+- `effect: string` - Service effect (default: `"DELAY"`)
+
+**Usage Example:**
+```typescript
+import { createMockAlert } from "@mta-my-way/shared/testing";
+
+const defaultAlert = createMockAlert();
+const severeAlert = createMockAlert({
+  id: "alert_severe_1",
+  severity: "severe",
+  headline: "Suspension of 1 Train Service",
+  description: "No 1 train service due to major incident",
+  affectedLines: ["1"],
+  cause: "MAJOR_INCIDENT",
+  effect: "SUSPENDED"
+});
+
+const multiLineAlert = createMockAlert({
+  severity: "warning",
+  affectedLines: ["1", "2", "3"],
+  headline: "Delays on Broadway Lines",
+  activePeriod: {
+    start: Date.now() - 3600000,
+    end: Date.now() + 7200000
+  }
+});
+
+const expiredAlert = createMockAlert({
+  activePeriod: {
+    start: Date.now() - 7200000,
+    end: Date.now() - 3600000 // Ended 1 hour ago
+  }
+});
+```
+
+**Edge Cases:**
+- Severity affects display priority - test all three levels
+- `activePeriod` uses timestamps - test expired, active, and future alerts
+- Multi-line alerts affect filtering - test line-specific vs multi-line scenarios
+- `cause` and `effect` are free-form strings - use standard GTFS values for consistency
+- Alert filtering tests should use active period boundaries
+
+---
+
+#### `createMockFavorite`
+
+Creates a mock favorite station object with default values.
+
+**Type Signature:**
+```typescript
+function createMockFavorite(overrides?: Partial<Favorite>): Favorite
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `Favorite` object with:
+- `id: string` - Favorite ID (default: `"fav_123"`)
+- `stationId: string` - Station ID (default: `"725"`)
+- `stationName: string` - Station name (default: `"Times Square-42 St"`)
+- `lines: string[]` - Lines to track (default: `["1", "2", "3"]`)
+- `direction: "N" | "S" | "both"` - Direction (default: `"both"`)
+- `sortOrder: number` - Display order (default: `0`)
+- `label: string` - User label (default: `"Work"`)
+
+**Usage Example:**
+```typescript
+import { createMockFavorite } from "@mta-my-way/shared/testing";
+
+const defaultFavorite = createMockFavorite();
+const homeFavorite = createMockFavorite({
+  id: "fav_home",
+  stationId: "101",
+  stationName: "South Ferry",
+  lines: ["1"],
+  direction: "both",
+  label: "Home"
+});
+
+const northboundOnly = createMockFavorite({
+  stationId: "725",
+  stationName: "Times Square",
+  lines: ["1", "2", "3"],
+  direction: "N",
+  label: "Morning Commute"
+});
+
+const sortedFavorites = [
+  createMockFavorite({ id: "fav_1", sortOrder: 0 }),
+  createMockFavorite({ id: "fav_2", sortOrder: 1 }),
+  createMockFavorite({ id: "fav_3", sortOrder: 2 })
+];
+```
+
+**Edge Cases:**
+- `direction` is union type - TypeScript validates but runtime doesn't check
+- `sortOrder` affects display sequence - test sorting logic with different values
+- `lines` array filters arrivals - test single-line vs multi-line favorites
+- Empty `lines` array should be handled - test no-lines scenario
+- `label` is user-defined - test special characters and long labels
+
+---
+
+#### `createMockCommute`
+
+Creates a mock commute object with origin, destination, and preferences.
+
+**Type Signature:**
+```typescript
+function createMockCommute(overrides?: Partial<Commute>): Commute
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `Commute` object with:
+- `id: string` - Commute ID (default: `"commute_123"`)
+- `name: string` - Commute name (default: `"Work"`)
+- `origin: Station` - Origin station (default: Times Square)
+- `destination: Station` - Destination station (default: Penn Station)
+- `preferredLines: string[]` - Preferred lines (default: `["1", "2", "3"]`)
+- `enableTransferSuggestions: boolean` - Transfer suggestions enabled (default: `true`)
+
+**Usage Example:**
+```typescript
+import { createMockCommute, createMockStation } from "@mta-my-way/shared/testing";
+
+const defaultCommute = createMockCommute();
+const customCommute = createMockCommute({
+  id: "commute_home",
+  name: "Home",
+  origin: createMockStation({ id: "725", name: "Times Square" }),
+  destination: createMockStation({ id: "101", name: "South Ferry" }),
+  preferredLines: ["1"],
+  enableTransferSuggestions: true
+});
+
+const noTransfers = createMockCommute({
+  enableTransferSuggestions: false
+});
+
+// Test transfer suggestion logic
+const commuteWithTransfers = createMockCommute({
+  origin: createMockStation({
+    id: "725",
+    transfers: [
+      { toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120 }
+    ]
+  })
+});
+```
+
+**Edge Cases:**
+- `origin` and `destination` are full station objects - use `createMockStation` for consistency
+- `preferredLines` affects route ranking - test with empty array and multiple lines
+- `enableTransferSuggestions` affects transfer display - test both true/false
+- Transfer suggestions depend on station `transfers` data - include transfer data for realistic tests
+- Origin and destination should be different - test same-station edge case
+
+---
+
+#### `createMockTripRecord`
+
+Creates a mock historical trip record with timing information.
+
+**Type Signature:**
+```typescript
+function createMockTripRecord(overrides?: Partial<TripRecord>): TripRecord
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `TripRecord` object with:
+- `id: string` - Trip ID (default: `"trip_123"`)
+- `date: string` - Trip date ISO string (default: today)
+- `origin: Station` - Origin station (default: Times Square)
+- `destination: Station` - Destination station (default: Penn Station)
+- `line: string` - Subway line (default: `"1"`)
+- `departureTime: number` - Departure timestamp (default: 1 hour ago)
+- `arrivalTime: number` - Arrival timestamp (default: 30 minutes ago)
+- `actualDurationMinutes: number` - Actual duration (default: `30`)
+- `source: "manual" | "inferred" | "tracked"` - Data source (default: `"tracked"`)
+
+**Usage Example:**
+```typescript
+import { createMockTripRecord, createMockStation } from "@mta-my-way/shared/testing";
+
+const defaultTrip = createMockTripRecord();
+const delayedTrip = createMockTripRecord({
+  actualDurationMinutes: 75, // 45 minute delay
+  departureTime: new Date("2024-01-15T08:30:00").getTime(),
+  arrivalTime: new Date("2024-01-15T09:45:00").getTime()
+});
+
+const manualTrip = createMockTripRecord({
+  source: "manual",
+  line: "2",
+  origin: createMockStation({ id: "101", name: "South Ferry" }),
+  destination: createMockStation({ id: "725", name: "Times Square" })
+});
+
+// Test date filtering
+const yesterdayTrip = createMockTripRecord({
+  date: new Date(Date.now() - 86400000).toISOString().split("T")[0]
+});
+```
+
+**Edge Cases:**
+- `date` is ISO date string (no time) - use `.split("T")[0]` format
+- `departureTime` < `arrivalTime` is expected - test invalid ordering
+- `source` affects data reliability scoring - test each source type
+- `actualDurationMinutes` should be positive - test zero/negative edge cases
+- Timestamps use millisecond precision - ensure consistent timezone handling
+
+---
+
+#### `createMockPushSubscription`
+
+Creates a mock web push subscription object for testing push notifications.
+
+**Type Signature:**
+```typescript
+function createMockPushSubscription(overrides?: Partial<PushSubscription>): PushSubscription
+```
+
+**Parameters:**
+- `overrides` (optional): Partial object to override default values
+
+**Returns:** `PushSubscription` object with:
+- `endpoint: string` - Push endpoint URL (default: FCM test endpoint)
+- `keys: {p256dh: string, auth: string}` - VAPID keys (default: test values)
+- `expirationTime: number | null` - Subscription expiration (default: `null`)
+
+**Usage Example:**
+```typescript
+import { createMockPushSubscription } from "@mta-my-way/shared/testing";
+
+const defaultSub = createMockPushSubscription();
+const customSub = createMockPushSubscription({
+  endpoint: "https://fcm.googleapis.com/fcm/send/custom_endpoint",
+  keys: {
+    p256dh: "custom_p256dh_key",
+    auth: "custom_auth_key"
+  }
+});
+
+const expiredSub = createMockPushSubscription({
+  expirationTime: Date.now() - 3600000 // Expired 1 hour ago
+});
+
+const futureExpiring = createMockPushSubscription({
+  expirationTime: Date.now() + 86400000 // Expires in 24 hours
+});
+```
+
+**Edge Cases:**
+- `expirationTime` can be `null` (no expiration) - test both null and timestamp
+- Endpoint URL must be valid - test invalid URL handling
+- VAPID keys are base64-encoded - use realistic encoding for validation tests
+- Expired subscriptions should be cleaned up - test expiration logic
+- Endpoint format depends on push service - FCM vs VAPID vs Web Push
+
+---
+
+### Test Fixtures
+
+#### `createTestFixture`
+
+Creates a complete test fixture set with related stations, routes, arrivals, alerts, favorites, and commutes.
+
+**Type Signature:**
+```typescript
+function createTestFixture(): TestFixture
+```
+
+**Parameters:** None
+
+**Returns:** `TestFixture` object with:
+- `stations: {timesSquare, pennStation}` - Station objects
+- `routes: {"1": route}` - Route objects keyed by line
+- `arrivals: {timesSquareNorth, timesSquareSouth}` - Arrival arrays by location/direction
+- `alerts: Alert[]` - Array of alerts
+- `favorites: Favorite[]` - Array of favorites
+- `commutes: Commute[]` - Array of commutes
+
+**Usage Example:**
+```typescript
+import { createTestFixture } from "@mta-my-way/shared/testing";
+
+const fixture = createTestFixture();
+
+// Access related data
+const timesSquare = fixture.stations.timesSquare;
+const route1 = fixture.routes["1"];
+const northboundArrivals = fixture.arrivals.timesSquareNorth;
+const alerts = fixture.alerts;
+const workCommute = fixture.commutes[0];
+
+// Test with realistic relationships
+expect(northboundArrivals[0].line).toBe("1");
+expect(alerts[0].affectedLines).toContain("1");
+expect(workCommute.origin.id).toBe(timesSquare.id);
+
+// Use in component tests
+const { stations, arrivals, alerts } = fixture;
+render(<StationBoard station={stations.timesSquare} arrivals={arrivals.timesSquareNorth} alerts={alerts} />);
+```
+
+**Edge Cases:**
+- All fixture data is internally consistent - arrivals reference fixture routes, alerts reference fixture lines
+- Fixture is immutable by design - create new fixture for each test variation
+- Relationships are hardcoded - ensure they match your test scenarios
+- Fixture includes both directions - test northbound/southbound separately
+- Single route (line 1) - override for multi-route tests
+
+---
+
+### Assertion Helpers
+
+#### `assertHasProperties`
+
+Asserts that an object has all required properties.
+
+**Type Signature:**
+```typescript
+function assertHasProperties(obj: unknown, requiredProps: string[]): void
+```
+
+**Parameters:**
+- `obj: unknown` - Object to test
+- `requiredProps: string[]` - Array of required property names
+
+**Returns:** `void` - Throws if assertion fails
+
+**Usage Example:**
+```typescript
+import { assertHasProperties, createMockStation } from "@mta-my-way/shared/testing";
+
+const station = createMockStation();
+assertHasProperties(station, ["id", "name", "lat", "lon", "lines"]);
+// Passes - station has all properties
+
+assertHasProperties(station, ["id", "name", "invalidProp"]);
+// Throws - station doesn't have "invalidProp"
+
+// Test API responses
+const response = await fetch("/api/stations/725");
+const data = await response.json();
+assertHasProperties(data, ["id", "name", "lines"]);
+
+// Test nested objects don't count
+assertHasProperties(station, ["origin.id"]);
+// Throws - nested properties not supported
+```
+
+**Edge Cases:**
+- Throws on `null` or `undefined` - check existence first
+- Only checks top-level properties - nested properties not supported
+- Empty `requiredProps` array always passes
+- Property names are case-sensitive - check exact casing
+- Works with any object type - useful for API response validation
+
+---
+
+#### `assertIsRecent`
+
+Asserts that a timestamp is recent (within specified milliseconds).
+
+**Type Signature:**
+```typescript
+function assertIsRecent(timestamp: number, maxAgeMs?: number): void
+```
+
+**Parameters:**
+- `timestamp: number` - Timestamp to test (milliseconds)
+- `maxAgeMs` (optional): Maximum allowed age in milliseconds (default: `60000` = 1 minute)
+
+**Returns:** `void` - Throws if assertion fails
+
+**Usage Example:**
+```typescript
+import { assertIsRecent } from "@mta-my-way/shared/testing";
+
+assertIsRecent(Date.now()); // Passes - 0ms old
+assertIsRecent(Date.now() - 30000); // Passes - 30 seconds old
+assertIsRecent(Date.now() - 30000, 60000); // Passes - within 60 second window
+
+assertIsRecent(Date.now() - 120000); // Throws - 2 minutes old (> 1 minute default)
+assertIsRecent(Date.now() - 120000, 180000); // Passes - within 3 minute custom window
+
+// Test API response freshness
+const response = await fetch("/api/arrivals?stationId=725");
+const data = await response.json();
+assertIsRecent(data.timestamp, 30000); // Data must be < 30 seconds old
+
+// Test future timestamps
+assertIsRecent(Date.now() + 5000); // Throws - future timestamps not "recent"
+```
+
+**Edge Cases:**
+- Future timestamps always throw - "recent" means past only
+- Default max age is 60 seconds - customize per use case
+- Uses millisecond precision - ensure timestamps are in milliseconds
+- Useful for data freshness checks - combine with cache invalidation tests
+- Age calculation: `Date.now() - timestamp` - must be non-negative
+
+---
+
+#### `assertApiResponse`
+
+Asserts that an API response has correct status and data shape.
+
+**Type Signature:**
+```typescript
+function assertApiResponse(
+  response: unknown,
+  expectedStatus: number,
+  expectedDataShape?: Record<string, unknown>
+): void
+```
+
+**Parameters:**
+- `response: unknown` - Response object to test
+- `expectedStatus: number` - Expected HTTP status code
+- `expectedDataShape` (optional): Expected data structure (partial match)
+
+**Returns:** `void` - Throws if assertion fails
+
+**Usage Example:**
+```typescript
+import { assertApiResponse } from "@mta-my-way/shared/testing";
+
+const response = await fetch("/api/stations/725");
+const data = await response.json();
+
+assertApiResponse(
+  { status: response.status, data },
+  200,
+  { id: "725", name: expect.any(String) }
+);
+
+// Test error response
+const errorResponse = await fetch("/api/stations/invalid");
+assertApiResponse(
+  { status: errorResponse.status, data: await errorResponse.json() },
+  404,
+  { error: expect.any(String) }
+);
+
+// Without data shape check
+assertApiResponse({ status: 200, data: {} }, 200); // Only checks status
+
+// Test nested structure
+assertApiResponse(
+  { status: 200, data: { station: { id: "725", name: "Times Square" } } },
+  200,
+  { station: { id: "725" } } // Partial match on nested object
+);
+```
+
+**Edge Cases:**
+- `expectedDataShape` uses Jest's `toMatchObject` - partial match, not exact
+- `undefined` data shape skips data check - only validates status
+- Response object must have `status` and `data` properties
+- Works with any response structure - adapt to your API format
+- Useful for contract testing - verify API response shape matches expectations
+
+---
+
+#### `assertIsSorted`
+
+Asserts that an array is sorted by a specific key in ascending or descending order.
+
+**Type Signature:**
+```typescript
+function assertIsSorted<T>(array: T[], key: keyof T, order?: "asc" | "desc"): void
+```
+
+**Parameters:**
+- `array: T[]` - Array to test
+- `key: keyof T` - Property key to sort by
+- `order` (optional): Sort order (default: `"asc"`)
+
+**Returns:** `void` - Throws if assertion fails
+
+**Usage Example:**
+```typescript
+import { assertIsSorted } from "@mta-my-way/shared/testing";
+
+const arrivals = [
+  { minutesAway: 2, line: "1" },
+  { minutesAway: 5, line: "1" },
+  { minutesAway: 8, line: "1" }
+];
+
+assertIsSorted(arrivals, "minutesAway"); // Passes - ascending
+assertIsSorted(arrivals, "minutesAway", "asc"); // Same as default
+
+const reverseArrivals = [...arrivals].reverse();
+assertIsSorted(reverseArrivals, "minutesAway", "desc"); // Passes - descending
+
+assertIsSorted(arrivals, "line"); // Throws - not sorted by line
+
+// Test timestamps
+const trips = [
+  { departureTime: Date.now() - 7200000 },
+  { departureTime: Date.now() - 3600000 },
+  { departureTime: Date.now() }
+];
+assertIsSorted(trips, "departureTime"); // Passes - oldest to newest
+
+// Test string sorting
+const stations = [
+  { name: "A" },
+  { name: "B" },
+  { name: "C" }
+];
+assertIsSorted(stations, "name"); // Passes - alphabetical
+```
+
+**Edge Cases:**
+- Empty array always passes - nothing to sort
+- Single-element array always passes - trivially sorted
+- Uses `<=` comparison - allows equal values (stable sort)
+- Order parameter defaults to `"asc"` - specify `"desc"` for reverse
+- Key must exist on all array elements - throws if property missing
+- Works with numbers, strings, dates - comparable types only
+
+---
+
+### Mock Helpers
+
+#### `createMockLogger`
+
+Creates a mock logger with Vitest spy functions for all log levels.
+
+**Type Signature:**
+```typescript
+function createMockLogger(): {
+  debug: ReturnType<typeof vi.fn>,
+  info: ReturnType<typeof vi.fn>,
+  warn: ReturnType<typeof vi.fn>,
+  error: ReturnType<typeof vi.fn>,
+  child: ReturnType<typeof vi.fn>
+}
+```
+
+**Parameters:** None
+
+**Returns:** Mock logger object with:
+- `debug: vi.fn` - Debug level spy
+- `info: vi.fn` - Info level spy
+- `warn: vi.fn` - Warning level spy
+- `error: vi.fn` - Error level spy
+- `child: vi.fn` - Child logger creator (returns new mock logger)
+
+**Usage Example:**
+```typescript
+import { createMockLogger } from "@mta-my-way/shared/testing";
+
+const logger = createMockLogger();
+
+logger.info("Station loaded", { stationId: "725" });
+logger.warn("Stale feed data", { age: 120 });
+logger.error("API request failed", { error: "timeout" });
+
+// Assert log calls
+expect(logger.info).toHaveBeenCalledWith("Station loaded", { stationId: "725" });
+expect(logger.info).toHaveBeenCalledTimes(1);
+expect(logger.error).toHaveBeenCalled();
+
+// Test child logger
+const childLogger = logger.child({ requestId: "req_123" });
+childLogger.debug("Processing request");
+expect(logger.child).toHaveBeenCalledWith({ requestId: "req_123" });
+
+// Check all calls
+expect(logger.debug.mock.calls.length).toBeGreaterThan(0);
+```
+
+**Edge Cases:**
+- All methods are Vitest spies - use `.mock.calls` to inspect history
+- `child()` returns a new logger instance - not the same object
+- No actual output - spies don't log to console
+- Reset between tests with `mockClear()` or `mockReset()`
+- Useful for testing log behavior without side effects
+
+---
+
+#### `createMockDatabase`
+
+Creates a mock database connection with prepared statement support.
+
+**Type Signature:**
+```typescript
+function createMockDatabase(): {
+  prepare: ReturnType<typeof vi.fn>,
+  exec: ReturnType<typeof vi.fn>,
+  transaction: ReturnType<typeof vi.fn>,
+  pragma: ReturnType<typeof vi.fn>,
+  close: ReturnType<typeof vi.fn>,
+  _setData: (table: string, data: unknown[]) => void,
+  _getData: (table: string) => unknown[]
+}
+```
+
+**Parameters:** None
+
+**Returns:** Mock database object with:
+- `prepare: vi.fn` - Returns object with `all`, `get`, `run` methods
+- `exec: vi.fn` - Execute SQL statement spy
+- `transaction: vi.fn` - Transaction executor (runs function immediately)
+- `pragma: vi.fn` - Pragma statement spy (returns empty array)
+- `close: vi.fn` - Database close spy
+- `_setData: (table, data) => void` - Helper to set mock data
+- `_getData: (table) => unknown[]` - Helper to get mock data
+
+**Usage Example:**
+```typescript
+import { createMockDatabase } from "@mta-my-way/shared/testing";
+
+const db = createMockDatabase();
+
+// Set up mock data
+db._setData("stations", [
+  { id: "725", name: "Times Square" },
+  { id: "101", name: "South Ferry" }
+]);
+
+// Use in code under test
+const stmt = db.prepare("SELECT * FROM stations WHERE id = ?");
+const station = stmt.get("725");
+
+// Mock prepared statement behavior
+db.prepare.mockReturnValue({
+  all: vi.fn(() => db._getData("stations")),
+  get: vi.fn((id) => db._getData("stations").find(s => s.id === id)),
+  run: vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }))
+});
+
+// Test query
+const allStations = db.prepare("SELECT * FROM stations").all();
+expect(allStations).toHaveLength(2);
+
+// Test transactions
+db.transaction(() => {
+  db.exec("INSERT INTO stations VALUES (...)");
+});
+expect(db.exec).toHaveBeenCalled();
+
+// Test cleanup
+db.close();
+expect(db.close).toHaveBeenCalled();
+```
+
+**Edge Cases:**
+- `prepare` returns new mock object each time - configure return value before use
+- `transaction` runs function synchronously - not a real transaction
+- `_setData`/`_getData` are test helpers - not available in production
+- No actual SQL execution - all methods are spies
+- Useful for testing database logic without SQLite dependency
+- Remember to configure `prepare` return value for realistic behavior
+
+---
+
+#### `createMockResponse`
+
+Creates a mock HTTP response object with status, JSON methods, and headers.
+
+**Type Signature:**
+```typescript
+function createMockResponse(data: unknown, status?: number): {
+  ok: boolean,
+  status: number,
+  json: () => Promise<unknown>,
+  text: () => Promise<string>,
+  headers: Headers
+}
+```
+
+**Parameters:**
+- `data: unknown` - Response body data
+- `status` (optional): HTTP status code (default: `200`)
+
+**Returns:** Mock response object with:
+- `ok: boolean` - Success flag (`true` if status 200-299)
+- `status: number` - HTTP status code
+- `json: () => Promise` - Async function returning data
+- `text: () => Promise<string>` - Async function returning JSON string
+- `headers: Headers` - Headers object with `content-type: application/json`
+
+**Usage Example:**
+```typescript
+import { createMockResponse } from "@mta-my-way/shared/testing";
+
+const successResponse = createMockResponse({ id: "725", name: "Times Square" }, 200);
+expect(successResponse.ok).toBe(true);
+expect(successResponse.status).toBe(200);
+const data = await successResponse.json();
+expect(data).toEqual({ id: "725", name: "Times Square" });
+
+const errorResponse = createMockResponse({ error: "Not found" }, 404);
+expect(errorResponse.ok).toBe(false);
+expect(errorResponse.status).toBe(404);
+
+const text = await errorResponse.text();
+expect(JSON.parse(text)).toEqual({ error: "Not found" });
+
+// Use with mock fetch
+vi.mock("global", () => ({
+  fetch: vi.fn(() => createMockResponse({ result: "success" }))
+}));
+
+const result = await fetch("/api/test");
+expect(result.ok).toBe(true);
+```
+
+**Edge Cases:**
+- `json()` returns the original data object - same reference, not cloned
+- `text()` always returns `JSON.stringify(data)` - even for non-objects
+- `ok` is calculated from status - not a settable property
+- Headers always include `content-type: application/json` - override for other content types
+- Status codes outside 200-299 make `ok: false` - test error handling
+- Useful for mocking `fetch` without network calls
+
+---
+
+#### `createMockFetch`
+
+Creates a mock fetch function that returns predefined responses based on URL matching.
+
+**Type Signature:**
+```typescript
+function createMockFetch(
+  responses: Array<{ url: string, response: ReturnType<typeof createMockResponse> }>
+): ReturnType<typeof vi.fn>
+```
+
+**Parameters:**
+- `responses: Array<{url, response}>` - Array of URL-response mappings
+
+**Returns:** Vitest spy function that:
+- Takes `url: string` parameter
+- Returns matching response or 404 if no match
+- Tracks all calls in `.mock.calls`
+
+**Usage Example:**
+```typescript
+import { createMockFetch, createMockResponse } from "@mta-my-way/shared/testing";
+
+const mockFetch = createMockFetch([
+  {
+    url: "/api/stations/725",
+    response: createMockResponse({ id: "725", name: "Times Square" })
+  },
+  {
+    url: "/api/arrivals",
+    response: createMockResponse([{ line: "1", minutesAway: 2 }])
+  }
+]);
+
+// Use in test
+const stationResponse = await mockFetch("/api/stations/725");
+const station = await stationResponse.json();
+expect(station).toEqual({ id: "725", name: "Times Square" });
+
+const arrivalsResponse = await mockFetch("/api/arrivals");
+const arrivals = await arrivalsResponse.json();
+expect(arrivals).toHaveLength(1);
+
+// Unmatched URL returns 404
+const notFound = await mockFetch("/api/unknown");
+expect(notFound.status).toBe(404);
+
+// Check call history
+expect(mockFetch).toHaveBeenCalledWith("/api/stations/725");
+expect(mockFetch).toHaveBeenCalledTimes(3);
+```
+
+**Edge Cases:**
+- URL matching includes substring checks - `/api/stations` matches both `/api/stations/725` and `/api/stations/101`
+- First matching response wins - order matters in responses array
+- Unmatched URLs return 404 - test missing endpoint handling
+- Responses are reused - same response object for each matching URL
+- Partial URL matching - can match on path prefix or exact URL
+- Useful for testing API clients without network calls
+
+---
+
+### Test Setup Helpers
+
+#### `setupTestEnvironment`
+
+Sets up common test environment mocks (console, performance API, requestIdleCallback).
+
+**Type Signature:**
+```typescript
+function setupTestEnvironment(): void
+```
+
+**Parameters:** None
+
+**Returns:** `void`
+
+**Side Effects:**
+- Spies on `console.debug` and `console.log` (suppresses output)
+- Stubs `performance` global with `now`, `mark`, `measure`, `getEntriesByName`
+- Stubs `requestIdleCallback` and `cancelIdleCallback` if not available
+
+**Usage Example:**
+```typescript
+import { setupTestEnvironment, cleanupTestEnvironment } from "@mta-my-way/shared/testing";
+
+beforeEach(() => {
+  setupTestEnvironment();
+});
+
+afterEach(() => {
+  cleanupTestEnvironment();
+});
+
+test("performance.now() works", () => {
+  const start = performance.now();
+  // ... test code ...
+  const duration = performance.now() - start;
+  expect(duration).toBeGreaterThanOrEqual(0);
+});
+
+test("console is silenced", () => {
+  console.debug("This won't print");
+  console.log("This won't print either");
+  expect(console.debug).toHaveBeenCalled();
+});
+
+test("requestIdleCallback works", () => {
+  requestIdleCallback(() => {
+    // Callback executed immediately
+  });
+});
+```
+
+**Edge Cases:**
+- Must call `cleanupTestEnvironment()` after tests - prevents test pollution
+- `performance.now()` returns `Date.now()` value - not high-resolution
+- Console methods are spies, not removed - can check if called
+- `requestIdleCallback` runs immediately (via `setTimeout`) - not actually idle
+- Global mocks affect entire test suite - clean up after each test
+- Some environments already have `requestIdleCallback` - stub only if missing
+
+---
+
+#### `cleanupTestEnvironment`
+
+Restores all mocked globals and clears spies set up by `setupTestEnvironment`.
+
+**Type Signature:**
+```typescript
+function cleanupTestEnvironment(): void
+```
+
+**Parameters:** None
+
+**Returns:** `void`
+
+**Side Effects:**
+- Restores all Vitest mocks via `vi.restoreAllMocks()`
+- Unstubs all globals via `vi.unstubAllGlobals()`
+
+**Usage Example:**
+```typescript
+import { setupTestEnvironment, cleanupTestEnvironment } from "@mta-my-way/shared/testing";
+
+beforeEach(() => {
+  setupTestEnvironment();
+});
+
+afterEach(() => {
+  cleanupTestEnvironment();
+});
+
+test("test with mocked environment", () => {
+  // Test code using mocked globals
+});
+
+test("real environment after cleanup", () => {
+  // After cleanup, globals are restored
+  expect(performance.now()).not.toBe(Date.now());
+});
+```
+
+**Edge Cases:**
+- Always call in `afterEach` - prevents cross-test pollution
+- Safe to call multiple times - second call is no-op
+- Restores all mocks, not just test environment - avoid if other mocks active
+- Does NOT clear `beforeEach`/`afterEach` hooks - only restores globals
+- Call even if test fails - use `afterEach` not `afterAll`
+
+---
+
+#### `createTestContext`
+
+Creates a complete test context with logger, database, fetch, fixture, and cleanup function.
+
+**Type Signature:**
+```typescript
+function createTestContext(): {
+  mockLogger: ReturnType<typeof createMockLogger>,
+  mockDb: ReturnType<typeof createMockDatabase>,
+  mockFetch: ReturnType<typeof createMockFetch>,
+  fixture: ReturnType<typeof createTestFixture>,
+  cleanup: () => void
+}
+```
+
+**Parameters:** None
+
+**Returns:** Test context object with:
+- `mockLogger: MockLogger` - Mock logger from `createMockLogger`
+- `mockDb: MockDatabase` - Mock database from `createMockDatabase`
+- `mockFetch: MockFetch` - Mock fetch from `createMockFetch([])`
+- `fixture: TestFixture` - Test fixture from `createTestFixture`
+- `cleanup: () => void` - Cleanup function from `cleanupTestEnvironment`
+
+**Usage Example:**
+```typescript
+import { createTestContext } from "@mta-my-way/shared/testing";
+
+let ctx: ReturnType<typeof createTestContext>;
+
+beforeEach(() => {
+  ctx = createTestContext();
+});
+
+afterEach(() => {
+  ctx.cleanup();
+});
+
+test("test with full context", async () => {
+  const { mockLogger, mockDb, mockFetch, fixture } = ctx;
+
+  // Set up database data
+  mockDb._setData("stations", [fixture.stations.timesSquare]);
+
+  // Use in code under test
+  const logger = mockLogger;
+  const db = mockDb;
+  const fetch = mockFetch;
+
+  logger.info("Loading station");
+  const station = db.prepare("SELECT * FROM stations").get();
+
+  expect(logger.info).toHaveBeenCalled();
+  expect(station).toEqual(fixture.stations.timesSquare);
+});
+```
+
+**Edge Cases:**
+- Automatically calls `setupTestEnvironment()` - no need to call separately
+- `cleanup()` must be called in `afterEach` - prevents test pollution
+- `mockFetch` starts with empty responses - add responses before use
+- All mocks are fresh - create new context for each test
+- `fixture` is immutable - don't modify, create new fixture if needed
+- One-stop shop for test setup - reduces boilerplate in test files
+
+---
+
+### Time Utilities
+
+#### `mockCurrentTime`
+
+Mocks `Date.now()` and `Date.parse()` to return consistent timestamps.
+
+**Type Signature:**
+```typescript
+function mockCurrentTime(timestamp: number): void
+```
+
+**Parameters:**
+- `timestamp: number` - Fixed timestamp to return (milliseconds)
+
+**Returns:** `void`
+
+**Side Effects:**
+- Spies on `Date.now` to return `timestamp`
+- Spies on `Date.parse` to return `timestamp` (simplified mock)
+
+**Usage Example:**
+```typescript
+import { mockCurrentTime } from "@mta-my-way/shared/testing";
+
+beforeEach(() => {
+  const fixedTime = new Date("2024-01-15T08:30:00").getTime();
+  mockCurrentTime(fixedTime);
+});
+
+test("time-dependent logic", () => {
+  const now = Date.now();
+  expect(now).toBe(new Date("2024-01-15T08:30:00").getTime());
+
+  // Test expiration logic
+  const token = { expiresAt: now + 3600000 };
+  const isExpired = Date.now() > token.expiresAt;
+  expect(isExpired).toBe(false);
+});
+
+test("Date parsing", () => {
+  const parsed = Date.parse("2024-01-15");
+  expect(parsed).toBe(new Date("2024-01-15T08:30:00").getTime());
+});
+```
+
+**Edge Cases:**
+- Affects all date operations in test - use in isolated tests
+- `Date.parse` mock is simplified - doesn't actually parse dates
+- Must restore after test - use `vi.restoreAllMocks()` or `cleanupTestEnvironment()`
+- Timestamps in milliseconds - ensure correct units
+- Useful for testing expiration, time windows, scheduled events
+- Does NOT mock `new Date()` constructor - only `Date.now()` and `Date.parse()`
+
+---
+
+#### `createMockDateString`
+
+Creates a mock ISO date string from a Date object.
+
+**Type Signature:**
+```typescript
+function createMockDateString(date?: Date): string
+```
+
+**Parameters:**
+- `date` (optional): Date object (default: `new Date()`)
+
+**Returns:** `string` - ISO 8601 date string
+
+**Usage Example:**
+```typescript
+import { createMockDateString } from "@mta-my-way/shared/testing";
+
+const today = createMockDateString(); // Current date in ISO format
+const specificDate = createMockDateString(new Date("2024-01-15"));
+
+// Use in test data
+const trip = {
+  date: createMockDateString(new Date("2024-01-15")),
+  origin: "Times Square",
+  destination: "Penn Station"
+};
+
+// Test date parsing
+const parsed = new Date(specificDate);
+expect(parsed.getFullYear()).toBe(2024);
+expect(parsed.getMonth()).toBe(0); // January
+expect(parsed.getDate()).toBe(15);
+```
+
+**Edge Cases:**
+- Returns full ISO string with time - `YYYY-MM-DDTHH:mm:ss.sssZ`
+- Default is current time - use fixed date for predictable tests
+- Timezone is always UTC - `Date.parse()` handles conversion
+- Useful for database records, API responses, test data
+- Combines well with `mockCurrentTime` for consistent time testing
+
+---
+
+### Performance Testing Utilities
+
+#### `measureExecutionTime`
+
+Measures execution time of a synchronous or async function.
+
+**Type Signature:**
+```typescript
+async function measureExecutionTime<T>(
+  fn: () => T | Promise<T>
+): Promise<{ result: T, durationMs: number }>
+```
+
+**Parameters:**
+- `fn: () => T | Promise<T>` - Function to measure (sync or async)
+
+**Returns:** `Promise<{result: T, durationMs: number}>` - Function result and duration in milliseconds
+
+**Usage Example:**
+```typescript
+import { measureExecutionTime } from "@mta-my-way/shared/testing";
+
+// Measure sync function
+const { result: sum, durationMs: sumTime } = await measureExecutionTime(() => {
+  return [1, 2, 3, 4, 5].reduce((a, b) => a + b, 0);
+});
+expect(sum).toBe(15);
+expect(sumTime).toBeGreaterThanOrEqual(0);
+
+// Measure async function
+const { result: data, durationMs: fetchTime } = await measureExecutionTime(async () => {
+  return await fetch("/api/stations").then(r => r.json());
+});
+expect(fetchTime).toBeLessThan(1000); // Should complete in < 1 second
+
+// Test performance requirements
+const { durationMs: queryTime } = await measureExecutionTime(() => {
+  return db.prepare("SELECT * FROM stations WHERE id = ?").get("725");
+});
+expect(queryTime).toBeLessThan(10); // Query should be fast
+```
+
+**Edge Cases:**
+- Uses `performance.now()` for timing - requires test environment setup
+- Returns actual function result - can chain with assertions
+- Duration includes async wait time - measures wall-clock time
+- Sub-millisecond precision possible - check for very small durations
+- Useful for performance regression tests - track execution time over time
+- Exception in function propagates - duration still measured before throw
+
+---
+
+#### `assertCompletesWithin`
+
+Asserts that a function completes within a specified time limit.
+
+**Type Signature:**
+```typescript
+async function assertCompletesWithin<T>(
+  fn: () => T | Promise<T>,
+  maxMs: number
+): Promise<T>
+```
+
+**Parameters:**
+- `fn: () => T | Promise<T>` - Function to test (sync or async)
+- `maxMs: number` - Maximum allowed duration in milliseconds
+
+**Returns:** `Promise<T>` - Function result (throws if exceeds time limit)
+
+**Usage Example:**
+```typescript
+import { assertCompletesWithin } from "@mta-my-way/shared/testing";
+
+// Test fast operation
+const result = await assertCompletesWithin(() => {
+  return [1, 2, 3].reduce((a, b) => a + b, 0);
+}, 10);
+expect(result).toBe(6);
+
+// Test async operation
+const data = await assertCompletesWithin(async () => {
+  return await fetch("/api/stations/725").then(r => r.json());
+}, 1000);
+
+// Test performance requirement
+await assertCompletesWithin(() => {
+  const db = createTripTrackingDatabase();
+  db.prepare("INSERT INTO trips (...) VALUES (...)").run(...);
+}, 50); // Should complete in < 50ms
+
+// Test timeout violation
+await expect(
+  assertCompletesWithin(() => new Promise(resolve => setTimeout(resolve, 100)), 50)
+).rejects.toThrow();
+```
+
+**Edge Cases:**
+- Throws on timeout - assertion fails if duration > `maxMs`
+- Returns function result on success - can chain with assertions
+- Uses wall-clock time - affected by system load
+- Small `maxMs` values may be flaky - allow margin for CI environments
+- Useful for SLA compliance testing - verify performance requirements
+- Function still completes after timeout - doesn't cancel execution
+
+---
+
+### HTTP Testing Utilities
+
+#### `createMockHeaders`
+
+Creates mock HTTP headers with default values.
+
+**Type Signature:**
+```typescript
+function createMockHeaders(overrides?: Record<string, string>): Headers
+```
+
+**Parameters:**
+- `overrides` (optional): Object with header key-value pairs to override defaults
+
+**Returns:** `Headers` object with:
+- `content-type: application/json` (default)
+- `user-agent: test-agent` (default)
+- Any overrides provided
+
+**Usage Example:**
+```typescript
+import { createMockHeaders } from "@mta-my-way/shared/testing";
+
+const defaultHeaders = createMockHeaders();
+expect(defaultHeaders.get("content-type")).toBe("application/json");
+expect(defaultHeaders.get("user-agent")).toBe("test-agent");
+
+const customHeaders = createMockHeaders({
+  "authorization": "Bearer key_123:abc",
+  "x-csrf-token": "csrf_token_123",
+  "accept": "application/json"
+});
+
+expect(customHeaders.get("authorization")).toBe("Bearer key_123:abc");
+expect(customHeaders.get("content-type")).toBe("application/json"); // Still has default
+
+// Use in request mock
+const request = {
+  method: "POST",
+  headers: createMockHeaders({ "x-csrf-token": "token_123" })
+};
+```
+
+**Edge Cases:**
+- Header names are case-insensitive - `Content-Type` = `content-type`
+- Override completely replaces header - doesn't merge with default
+- Defaults always present unless overridden - `content-type` and `user-agent`
+- Returns real `Headers` object - supports all Headers methods
+- Useful for request/response mocking - consistent header structure
+
+---
+
+#### `createMockRequest`
+
+Creates a mock HTTP request object with method, URL, headers, and body.
+
+**Type Signature:**
+```typescript
+function createMockRequest(overrides?: {
+  method?: string,
+  url?: string,
+  headers?: Headers,
+  body?: unknown
+}): {
+  method: string,
+  url: string,
+  headers: Headers,
+  body: unknown,
+  json: () => Promise<unknown>,
+  text: () => Promise<string>
+}
+```
+
+**Parameters:**
+- `overrides` (optional): Object with request properties to override defaults
+
+**Returns:** Mock request object with:
+- `method: string` - HTTP method (default: `"GET"`)
+- `url: string` - Request URL (default: `"http://localhost:3001/api/test"`)
+- `headers: Headers` - Request headers (default: from `createMockHeaders()`)
+- `body: unknown` - Request body (default: `null`)
+- `json: () => Promise<unknown>` - Async function returning body
+- `text: () => Promise<string>` - Async function returning JSON string
+
+**Usage Example:**
+```typescript
+import { createMockRequest } from "@mta-my-way/shared/testing";
+
+const defaultRequest = createMockRequest();
+expect(defaultRequest.method).toBe("GET");
+expect(defaultRequest.url).toBe("http://localhost:3001/api/test");
+
+const postRequest = createMockRequest({
+  method: "POST",
+  url: "/api/trips",
+  headers: new Headers({ "content-type": "application/json" }),
+  body: { originId: "101", destinationId: "725" }
+});
+
+expect(postRequest.method).toBe("POST");
+const body = await postRequest.json();
+expect(body).toEqual({ originId: "101", destinationId: "725" });
+
+// Use in middleware testing
+const authRequest = createMockRequest({
+  method: "GET",
+  url: "/api/arrivals?stationId=725",
+  headers: new Headers({ "authorization": "Bearer key_123:abc" })
+});
+
+// Test request processing
+function processRequest(req) {
+  expect(req.method).toBe("POST");
+  expect(req.url).toContain("/api/trips");
+  expect(req.headers.get("content-type")).toBe("application/json");
+}
+processRequest(postRequest);
+```
+
+**Edge Cases:**
+- `json()` returns the body object directly - no parsing
+- `text()` always returns `JSON.stringify(body)` - even for non-objects
+- `body` can be any type - object, string, number, null
+- Headers can be overridden - pass custom `Headers` object
+- Useful for middleware testing - test request parsing and validation
+- URL can be relative or absolute - depends on your implementation
+
+---
+
+### Async Testing Utilities
+
+#### `waitFor`
+
+Waits for a condition to become true, polling at intervals.
+
+**Type Signature:**
+```typescript
+async function waitFor(
+  condition: () => boolean,
+  timeout?: number,
+  interval?: number
+): Promise<void>
+```
+
+**Parameters:**
+- `condition: () => boolean` - Function that returns `true` when condition met
+- `timeout` (optional): Maximum wait time in milliseconds (default: `5000`)
+- `interval` (optional): Polling interval in milliseconds (default: `50`)
+
+**Returns:** `Promise<void>` - Resolves when condition is `true`, throws on timeout
+
+**Usage Example:**
+```typescript
+import { waitFor } from "@mta-my-way/shared/testing";
+
+let ready = false;
+setTimeout(() => { ready = true; }, 200);
+
+await waitFor(() => ready, 1000, 50);
+// Resolves after ~200ms
+
+// Test async state changes
+let count = 0;
+const incrementer = setInterval(() => count++, 100);
+
+await waitFor(() => count >= 3, 1000);
+clearInterval(incrementer);
+expect(count).toBeGreaterThanOrEqual(3);
+
+// Test timeout
+await expect(
+  waitFor(() => false, 500)
+).rejects.toThrow("Condition not met within 500ms");
+
+// Test DOM updates
+document.body.innerHTML = "<div>Loading...</div>";
+setTimeout(() => {
+  document.body.innerHTML = "<div>Ready</div>";
+}, 300);
+
+await waitFor(() => document.body.innerHTML.includes("Ready"));
+expect(document.body.innerHTML).toContain("Ready");
+```
+
+**Edge Cases:**
+- Throws on timeout - includes timeout duration in error message
+- Condition function called repeatedly - keep it fast (no side effects)
+- Default timeout is 5 seconds - customize for slower operations
+- Default interval is 50ms - balance between responsiveness and CPU usage
+- Useful for async state changes, DOM updates, event handling
+- Returns immediately if condition already true - no waiting
+
+---
+
+#### `flushPromises`
+
+Flushes all pending promises by waiting for one microtask cycle.
+
+**Type Signature:**
+```typescript
+async function flushPromises(): Promise<void>
+```
+
+**Parameters:** None
+
+**Returns:** `Promise<void>` - Resolves after one `setTimeout(..., 0)` cycle
+
+**Usage Example:**
+```typescript
+import { flushPromises } from "@mta-my-way/shared/testing";
+
+let resolved = false;
+Promise.resolve().then(() => {
+  resolved = true;
+});
+
+// Promise not resolved yet
+expect(resolved).toBe(false);
+
+await flushPromises();
+
+// Now resolved
+expect(resolved).toBe(true);
+
+// Test async state updates
+let state = { count: 0 };
+Promise.resolve().then(() => {
+  state.count++;
+}).then(() => {
+  state.count++;
+});
+
+await flushPromises();
+expect(state.count).toBe(2);
+
+// Use in component tests
+render(<MyComponent />);
+await flushPromises();
+expect(screen.getByText("Loaded")).toBeInTheDocument();
+```
+
+**Edge Cases:**
+- Only flushes one microtask cycle - chain promises may need multiple calls
+- Uses `setTimeout(..., 0)` - not truly immediate
+- Useful for testing async operations without explicit await
+- Combine with `waitFor` for complex async scenarios
+- Multiple calls safe - idempotent operation
+- Does NOT flush queued timers - only promises
+
+---
+
+#### `waitForAll`
+
+Waits for multiple async operations to complete in parallel.
+
+**Type Signature:**
+```typescript
+async function waitForAll<T>(
+  operations: Array<() => Promise<T>>
+): Promise<T[]>
+```
+
+**Parameters:**
+- `operations: Array<() => Promise<T>>` - Array of async functions to execute
+
+**Returns:** `Promise<T[]>` - Array of results from all operations (in order)
+
+**Usage Example:**
+```typescript
+import { waitForAll } from "@mta-my-way/shared/testing";
+
+const results = await waitForAll([
+  async () => {
+    const response = await fetch("/api/stations/725");
+    return response.json();
+  },
+  async () => {
+    const response = await fetch("/api/arrivals?stationId=725");
+    return response.json();
+  },
+  async () => {
+    return new Promise(resolve => setTimeout(() => resolve("done"), 100));
+  }
+]);
+
+expect(results).toHaveLength(3);
+expect(results[0]).toHaveProperty("id", "725");
+expect(results[1]).toBeInstanceOf(Array);
+expect(results[2]).toBe("done");
+
+// Test concurrent operations
+const fetchStations = async () => fetch("/api/stations").then(r => r.json());
+const fetchArrivals = async () => fetch("/api/arrivals").then(r => r.json());
+
+const [stations, arrivals] = await waitForAll([fetchStations, fetchArrivals]);
+expect(stations).toBeDefined();
+expect(arrivals).toBeDefined();
+
+// Test error handling - one failure rejects all
+await expect(
+  waitForAll([
+    async () => fetch("/api/valid").then(r => r.json()),
+    async () => fetch("/api/invalid").then(r => r.json()) // 404
+  ])
+).rejects.toThrow();
+```
+
+**Edge Cases:**
+- Executes operations in parallel - faster than sequential awaits
+- Results returned in input order - not completion order
+- One failure rejects entire promise - all or nothing
+- Empty array returns empty array - no operations
+- Useful for batching independent requests - reduce total latency
+- All operations run concurrently - don't use for dependent operations
 
 ---
 
