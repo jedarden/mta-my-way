@@ -83,11 +83,13 @@ describe("End-to-End User Workflow Integration Tests", () => {
   let app: Hono;
   let authCredentials: { keyId: string; apiKey: string; authorizationHeader: string };
 
-  beforeAll(async () => {
-    initDelayPredictor(TRAVEL_TIMES, STATIONS);
-  });
-
   beforeEach(async () => {
+    // Reset all module-level state to prevent test pollution
+    await cleanupAllState();
+
+    // Initialize delay predictor with fresh state for each test
+    initDelayPredictor(TRAVEL_TIMES, STATIONS);
+
     // Create fresh credentials for each test for proper isolation
     authCredentials = await createTestApiKey("write", "user");
     app = createApp(STATIONS, ROUTES, COMPLEXES, TRANSFERS, "/nonexistent/dist");
