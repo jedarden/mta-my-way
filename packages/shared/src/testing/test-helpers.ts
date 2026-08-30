@@ -8,7 +8,7 @@
  * - Test setup utilities
  */
 
-import { vi } from "vitest";
+import { vi, expect } from "vitest";
 
 // ============================================================================
 // Mock Data Generators
