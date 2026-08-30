@@ -548,7 +548,7 @@ function createJsonDepthApp(): Hono {
 function createMethodRestrictionApp(): Hono {
   const app = new Hono();
   app.use("/api/*", createHttpMethodRestrictionMiddleware());
-  app.any("/api/data", (c) => c.json({ allowed: true }));
+  app.all("/api/data", (c) => c.json({ allowed: true }));
   return app;
 }
 
@@ -1672,8 +1672,11 @@ describe("Audit logging for middleware security events", () => {
   describe("Rate limiting audit logging", () => {
     beforeEach(() => {
       // Clear rate limit state before each test
-      const { clearRateLimitStore } = require("../middleware/auth-rate-limit");
-      clearRateLimitStore();
+      const { _clearAllRateLimits } = require("../middleware/auth-rate-limit.js");
+      _clearAllRateLimits();
+      // Also clear the audit log
+      clearAuditLog();
+      clearAuditLogs();
     });
 
     it("logs rate limit exceeded event", async () => {

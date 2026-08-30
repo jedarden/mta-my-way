@@ -65,11 +65,36 @@ interface SecurityLoggerOptions {
 }
 
 /**
- * Default log function - routes security events through the structured logger
- * for sensitive field redaction and trace correlation.
+ * Default log function - routes security events through both the structured logger
+ * and the audit log for compliance and incident response.
  */
 function defaultLogFn(event: SecurityEvent): void {
+  // Log to structured logger for immediate operational visibility
   structuredLogger.warn("security_event", event as unknown as Record<string, unknown>);
+
+  // Also log to audit log for compliance and long-term retention
+  try {
+    const { addAuditEvent } = require("./audit-log.js");
+    addAuditEvent({
+      category: "security",
+      severity: event.severity === "critical" ? "error" : event.severity === "high" ? "error" : event.severity === "medium" ? "warning" : "info",
+      action: event.action,
+      userId: event.userId,
+      resourceId: event.resourceId,
+      ipAddress: event.ip,
+      path: event.path,
+      method: event.method,
+      success: !event.action.includes("failure") && !event.action.includes("blocked") && !event.action.includes("exceeded"),
+      metadata: {
+        userAgent: event.userAgent,
+        statusCode: event.statusCode,
+        details: event.details,
+      },
+    });
+  } catch (error) {
+    // If audit log is not available, at least we logged to structured logger
+    structuredLogger.error("Failed to write security event to audit log", { error, event });
+  }
 }
 
 /**
