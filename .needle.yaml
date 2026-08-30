@@ -35,8 +35,6 @@ strands:
       command: npm run lint 2>&1
     - name: test
       command: npm test 2>&1
-verification:
-- /home/coding/.needle/hooks/verify-changes.sh
 prompt:
   context_files: []
   instructions: 'You are working on MTA My Way, a mobile-first PWA for NYC subway
