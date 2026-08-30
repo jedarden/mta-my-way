@@ -5,19 +5,19 @@
 The canonical bead binary (bead-rs CLI) is located at:
 
 ```
-/home/coding/.cargo/bin/bead
+/home/coding/.local/bin/bead
 ```
 
 ## Backend Confirmation
 
-This is the cargo-installed bead-rs CLI, which matches the expected location for the canonical bead backend as documented in parent bead mtamyway-f01ea82b.
+This is the locally-installed bead-rs CLI (version 0.2.4), which matches the actual location for the canonical bead backend as verified on 2026-08-30.
 
 ## Verification
 
 To verify the bead binary location:
 
 ```bash
-which bead  # Should return: /home/coding/.cargo/bin/bead
+which bead  # Should return: /home/coding/.local/bin/bead
 ```
 
 ## Related Documentation
