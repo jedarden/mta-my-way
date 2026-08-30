@@ -215,10 +215,12 @@ describe("End-to-End Workflow Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     closeDatabase(db);
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("Complete trip tracking workflow", () => {
