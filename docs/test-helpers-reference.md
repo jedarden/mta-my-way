@@ -919,7 +919,7 @@ test("displays arrivals for Times Square", () => {
 
 #### `createMockLogger()`
 
-Creates a mock logger with Vitest spy functions.
+Creates a mock logger with Vitest spy functions for testing logging behavior, log level filtering, and verifying that operations log expected messages without actual console output.
 
 **Signature:**
 ```typescript
@@ -930,30 +930,243 @@ function createMockLogger(): MockLogger
 - None
 
 **Returns:**
-- `MockLogger` object with methods:
-  - `debug: vi.fn` - Debug-level logging
-  - `info: vi.fn` - Info-level logging
-  - `warn: vi.fn` - Warning-level logging
-  - `error: vi.fn` - Error-level logging
-  - `child: vi.fn` - Creates child logger (returns new mock)
+- `MockLogger` object with Vitest spy methods:
+  - `debug: vi.fn` - Debug-level logging function
+    - Type: `(message: string, context?: Record<string, unknown>) => void`
+    - Accepts message string and optional context object
+    - Spy tracks all calls for assertions
+  - `info: vi.fn` - Info-level logging function
+    - Type: `(message: string, context?: Record<string, unknown>) => void`
+    - Accepts message string and optional context object
+    - Most common level for operational logging
+  - `warn: vi.fn` - Warning-level logging function
+    - Type: `(message: string, context?: Record<string, unknown>) => void`
+    - Accepts message string and optional context object
+    - For non-critical issues that should be reviewed
+  - `error: vi.fn` - Error-level logging function
+    - Type: `(message: string, context?: Record<string, unknown>) => void`
+    - Accepts message string and optional context object
+    - For errors and exceptions
+  - `child: vi.fn` - Creates child logger
+    - Type: `(additionalContext: Record<string, unknown>) => MockLogger`
+    - Returns a new independent mock logger instance
+    - Child logger is separate from parent (no shared state)
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic logging verification
 const logger = createMockLogger();
 logger.info("Station loaded", { stationId: "725" });
-expect(logger.info).toHaveBeenCalledWith("Station loaded", expect.any(Object));
+expect(logger.info).toHaveBeenCalledWith("Station loaded", { stationId: "725" });
+expect(logger.info).toHaveBeenCalledTimes(1);
+
+// 2. Testing that errors are logged
+const logger = createMockLogger();
+try {
+  await riskyOperation();
+} catch (error) {
+  logger.error("Operation failed", { error: error.message });
+}
+expect(logger.error).toHaveBeenCalledWith(
+  "Operation failed",
+  expect.objectContaining({ error: expect.any(String) })
+);
+
+// 3. Verifying log level usage
+const logger = createMockLogger();
+processData(logger);
+expect(logger.debug).not.toHaveBeenCalled(); // Debug logs disabled
+expect(logger.info).toHaveBeenCalled(); // Info logs enabled
+
+// 4. Testing context propagation
+const logger = createMockLogger();
+logger.info("User action", { userId: "123", action: "login" });
+const call = logger.info.mock.calls[0];
+expect(call[1]).toMatchObject({ userId: "123", action: "login" });
+
+// 5. Multiple log calls in sequence
+const logger = createMockLogger();
+logger.debug("Starting process");
+logger.info("Processing item 1");
+logger.info("Processing item 2");
+logger.warn("Processing slow");
+logger.info("Completed");
+expect(logger.info).toHaveBeenCalledTimes(3);
+expect(logger.warn).toHaveBeenCalledTimes(1);
+
+// 6. Conditional logging verification
+const logger = createMockLogger();
+if (someCondition) {
+  logger.info("Condition met", { value: true });
+}
+expect(logger.info).toHaveBeenCalledTimes(someCondition ? 1 : 0);
+
+// 7. Testing child logger creation
+const logger = createMockLogger();
+const childLogger = logger.child({ component: "Database" });
+childLogger.info("Query executed");
+expect(logger.child).toHaveBeenCalledWith({ component: "Database" });
+expect(childLogger.info).toHaveBeenCalled(); // Child is independent mock
+
+// 8. Verifying no unexpected logging
+const logger = createMockLogger();
+await silentOperation();
+expect(logger.debug).not.toHaveBeenCalled();
+expect(logger.info).not.toHaveBeenCalled();
+expect(logger.warn).not.toHaveBeenCalled();
+expect(logger.error).not.toHaveBeenCalled();
+
+// 9. Testing log call order
+const logger = createMockLogger();
+logSequence(logger);
+expect(logger.debug).toHaveBeenCalledBefore(logger.info);
+expect(logger.info).toHaveBeenCalledBefore(logger.warn);
+expect(logger.warn).toHaveBeenCalledBefore(logger.error);
+
+// 10. Extracting context from log calls
+const logger = createMockLogger();
+logger.info("API request", { method: "GET", url: "/api/stations" });
+const contexts = logger.info.mock.calls.map(call => call[1]);
+expect(contexts).toContainEqual({ method: "GET", url: "/api/stations" });
 ```
 
-**Edge Cases:**
-- All methods are Vitest spies - can assert on calls
-- `child()` returns a new independent mock logger
-- Does not actually log to console (mocked for testing)
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing log filtering by level
+const logger = createMockLogger();
+setLogLevel("warn"); // Only warn and error
+logger.debug("This won't log");
+logger.info("This won't log");
+logger.warn("This will log");
+logger.error("This will log");
+expect(logger.debug).not.toHaveBeenCalled();
+expect(logger.info).not.toHaveBeenCalled();
+expect(logger.warn).toHaveBeenCalledTimes(1);
+expect(logger.error).toHaveBeenCalledTimes(1);
+
+// 2. Mock logger in component testing
+const logger = createMockLogger();
+const component = new StationComponent(logger);
+component.loadStation("725");
+expect(logger.info).toHaveBeenCalledWith("Loading station", { stationId: "725" });
+expect(logger.error).not.toHaveBeenCalled();
+
+// 3. Testing error logging with error objects
+const logger = createMockLogger();
+try {
+  JSON.parse(invalidJson);
+} catch (error) {
+  logger.error("JSON parse failed", { error: error.message, input: invalidJson });
+}
+expect(logger.error).toHaveBeenCalledWith(
+  "JSON parse failed",
+  expect.objectContaining({ error: expect.any(String) })
+);
+
+// 4. Verifying structured logging
+const logger = createMockLogger();
+logger.info("Request received", {
+  method: "POST",
+  path: "/api/arrivals",
+  ip: "127.0.0.1",
+  userAgent: "test-agent"
+});
+const logEntry = logger.info.mock.calls[0];
+expect(logEntry[1]).toMatchObject({
+  method: "POST",
+  path: "/api/arrivals"
+});
+
+// 5. Testing performance logging
+const logger = createMockLogger();
+const start = Date.now();
+await operation();
+logger.info("Operation completed", { duration: Date.now() - start });
+expect(logger.info).toHaveBeenCalledWith(
+  "Operation completed",
+  expect.objectContaining({ duration: expect.any(Number) })
+);
+```
+
+**Edge Cases & Gotchas:**
+
+- **No console output**: Logger methods are spies and don't actually log to console
+  ```typescript
+  const logger = createMockLogger();
+  logger.info("This won't appear in console");
+  // Only tracked in spy, no visible output
+  ```
+
+- **Child logger independence**: Child loggers are separate mocks, not linked to parent
+  ```typescript
+  const logger = createMockLogger();
+  const child = logger.child({ component: "DB" });
+  logger.info("Parent message");
+  child.info("Child message");
+  expect(logger.info).toHaveBeenCalledTimes(1); // Not 2
+  expect(child.info).toHaveBeenCalledTimes(1);
+  ```
+
+- **Spy call accumulation**: Calls accumulate across test runs if logger not recreated
+  ```typescript
+  const logger = createMockLogger();
+  logger.info("First test");
+  // If logger reused in next test without clearing:
+  logger.info("Second test");
+  expect(logger.info).toHaveBeenCalledTimes(2); // Includes previous test
+  ```
+
+- **Context object matching**: Jest matchers needed for partial object matching
+  ```typescript
+  logger.info("Message", { userId: "123", action: "login" });
+  expect(logger.info).toHaveBeenCalledWith("Message", { userId: "123" }); // ❌ Fails - missing action
+  expect(logger.info).toHaveBeenCalledWith("Message", expect.objectContaining({ userId: "123" })); // ✅ Works
+  ```
+
+- **Missing context**: Context parameter is optional, handle undefined
+  ```typescript
+  logger.info("Message without context");
+  const call = logger.info.mock.calls[0];
+  expect(call[1]).toBeUndefined(); // Second argument is undefined
+  ```
+
+- **Order-dependent assertions**:toHaveBeenCalled*before* requires calls to exist
+  ```typescript
+  const logger = createMockLogger();
+  logger.info("First");
+  logger.info("Second");
+  expect(logger.info).toHaveBeenCalledBefore(logger.error); // ❌ Fails if error never called
+  ```
+
+- **Type safety**: TypeScript allows any context shape - runtime validation needed
+  ```typescript
+  logger.info("Message", { wrong: "shape" }); // TypeScript accepts this
+  // No runtime validation of context structure
+  ```
+
+- **Spy reset**: Mock state persists unless explicitly cleared
+  ```typescript
+  const logger = createMockLogger();
+  logger.info("Test 1");
+  logger.info.mockClear(); // Clear spy state
+  logger.info("Test 2");
+  expect(logger.info).toHaveBeenCalledTimes(1); // Only sees Test 2
+  ```
+
+**Performance Considerations:**
+
+- Spy call tracking has minimal overhead (~0.01ms per call)
+- Context object serialization is not performed (references stored as-is)
+- For high-frequency logging (>1000 calls/second), consider using simpler logging
+- Mock creation is fast but not free - create fresh mocks per test when possible
 
 ---
 
 #### `createMockDatabase()`
 
-Creates a mock database connection with helper methods.
+Creates a mock database connection with prepared statement spies and test helper methods for testing database operations, SQL queries, transactions, and data persistence without a real database.
 
 **Signature:**
 ```typescript
@@ -965,26 +1178,349 @@ function createMockDatabase(): MockDatabase
 
 **Returns:**
 - `MockDatabase` object with methods:
-  - `prepare: vi.fn` - Returns `{ all, get, run }` spies
-  - `exec: vi.fn` - Execute SQL
-  - `transaction: vi.fn` - Run transaction (executes callback immediately)
-  - `pragma: vi.fn` - Run PRAGMA, returns `[]`
-  - `close: vi.fn` - Close connection
-  - `_setData(table, data)` - Test helper: set table data
-  - `_getData(table)` - Test helper: get table data
+  - `prepare: vi.fn` - Creates prepared statement with query methods
+    - Type: `(sql: string) => PreparedStatement`
+    - Returns object with `{ all, get, run }` spies
+    - Each call to `prepare` returns a new independent statement spy
+  - `exec: vi.fn` - Execute SQL statements that don't return data
+    - Type: `(sql: string) => void`
+    - For DDL statements (CREATE, DROP, ALTER)
+    - Spy tracks SQL strings for verification
+  - `transaction: vi.fn` - Execute a function in a transaction
+    - Type: `<T>(fn: () => T) => T`
+    - Executes callback immediately (no real transaction isolation)
+    - Returns whatever the callback returns
+    - Useful for testing transaction patterns
+  - `pragma: vi.fn` - Execute PRAGMA statements
+    - Type: `(sql: string) => unknown[]`
+    - Returns empty array by default
+    - For testing SQLite pragmas (journal_mode, foreign_keys, etc.)
+  - `close: vi.fn` - Close database connection
+    - Type: `() => void`
+    - Spy tracks close calls for cleanup verification
+  - `_setData: (table: string, data: unknown[]) => void` - Test helper to set table data
+    - Type: `(table: string, data: unknown[]) => void`
+    - Stores data in internal Map for retrieval
+    - Data persists until `_setData` called again or Map cleared
+    - Not part of real database API (test-only)
+  - `_getData: (table: string) => unknown[]` - Test helper to get table data
+    - Type: `(table: string) => unknown[]`
+    - Retrieves data from internal Map
+    - Returns empty array if table not found
+    - Not part of real database API (test-only)
 
-**Example:**
+**PreparedStatement** (returned by `prepare`):
+- `all: vi.fn` - Execute query and return all rows
+  - Type: `() => unknown[]`
+  - Returns empty array by default unless data set via `_setData`
+- `get: vi.fn` - Execute query and return first row
+  - Type: `() => unknown | null`
+  - Returns `null` by default unless data set via `_setData`
+- `run: vi.fn` - Execute query and return metadata
+  - Type: `() => { lastInsertRowid: number, changes: number }`
+  - Returns `{ lastInsertRowid: 1, changes: 1 }` by default
+
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic query with data setup
 const db = createMockDatabase();
-db._setData("stations", [station1, station2]);
+const stations = [
+  { id: "725", name: "Times Square" },
+  { id: "726", name: "Penn Station" }
+];
+db._setData("stations", stations);
+
 const stmt = db.prepare("SELECT * FROM stations");
-const stations = stmt.all();
+const results = stmt.all();
+expect(results).toEqual(stations);
+
+// 2. Testing single row queries
+const db = createMockDatabase();
+db._setData("users", [{ id: 1, name: "Alice" }]);
+
+const stmt = db.prepare("SELECT * FROM users WHERE id = 1");
+const user = stmt.get();
+expect(user).toEqual({ id: 1, name: "Alice" });
+
+// 3. Testing INSERT operations
+const db = createMockDatabase();
+const stmt = db.prepare("INSERT INTO users (name) VALUES (?)");
+const result = stmt.run("Bob");
+expect(result).toEqual({ lastInsertRowid: 1, changes: 1 });
+expect(db.prepare).toHaveBeenCalledWith("INSERT INTO users (name) VALUES (?)");
+
+// 4. Testing transaction patterns
+const db = createMockDatabase();
+const result = db.transaction(() => {
+  db.prepare("INSERT INTO users (name) VALUES (?)").run("Charlie");
+  db.prepare("INSERT INTO posts (title) VALUES (?)").run("First Post");
+  return "success";
+});
+expect(result).toBe("success");
+expect(db.prepare).toHaveBeenCalledTimes(2);
+
+// 5. Testing database operations in a service
+const db = createMockDatabase();
+db._setData("arrivals", [{ line: "1", minutesAway: 2 }]);
+const service = new ArrivalService(db);
+
+const arrivals = await service.getArrivals("1");
+expect(arrivals).toHaveLength(1);
+expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("arrivals"));
+
+// 6. Testing PRAGMA calls
+const db = createMockDatabase();
+db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
+expect(db.pragma).toHaveBeenCalledWith("journal_mode = WAL");
+expect(db.pragma).toHaveBeenCalledWith("foreign_keys = ON");
+
+// 7. Testing DDL statements
+const db = createMockDatabase();
+db.exec("CREATE TABLE stations (id TEXT PRIMARY KEY, name TEXT)");
+db.exec("CREATE INDEX idx_stations_id ON stations(id)");
+expect(db.exec).toHaveBeenCalledWith("CREATE TABLE stations (id TEXT PRIMARY KEY, name TEXT)");
+expect(db.exec).toHaveBeenCalledTimes(2);
+
+// 8. Verifying query parameters
+const db = createMockDatabase();
+const stmt = db.prepare("SELECT * FROM stations WHERE id = ?");
+stmt.get("725");
+expect(stmt.get).toHaveBeenCalledWith("725");
+
+// 9. Testing database cleanup
+const db = createMockDatabase();
+const service = new DatabaseService(db);
+await service.close();
+expect(db.close).toHaveBeenCalled();
+
+// 10. Empty result handling
+const db = createMockDatabase();
+db._setData("stations", []); // Empty table
+const stmt = db.prepare("SELECT * FROM stations");
+const results = stmt.all();
+expect(results).toEqual([]);
 ```
 
-**Edge Cases:**
-- `_setData`/`_getData` are test helpers not present in real DB
-- `transaction` executes callback immediately (no real transaction)
-- `prepare` always returns spies - data must be set via `_setData`
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Testing data persistence across operations
+const db = createMockDatabase();
+db._setData("stations", [{ id: "725", name: "Times Square" }]);
+
+const stmt1 = db.prepare("SELECT * FROM stations");
+const stmt2 = db.prepare("SELECT * FROM stations"); // Different statement
+expect(stmt1.all()).toEqual(stmt2.all()); // Same data
+
+// 2. Testing multiple tables
+const db = createMockDatabase();
+db._setData("stations", [{ id: "725" }]);
+db._setData("arrivals", [{ line: "1" }]);
+
+const stations = db.prepare("SELECT * FROM stations").all();
+const arrivals = db.prepare("SELECT * FROM arrivals").all();
+expect(stations).toHaveLength(1);
+expect(arrivals).toHaveLength(1);
+
+// 3. Testing rollback patterns (mocked)
+const db = createMockDatabase();
+let shouldRollback = true;
+db.transaction(() => {
+  db.prepare("INSERT INTO users (name) VALUES (?)").run("Alice");
+  if (shouldRollback) {
+    throw new Error("Rollback");
+  }
+});
+// In real DB, rollback would happen - mock just tracks calls
+expect(db.prepare).toHaveBeenCalled();
+
+// 4. Testing batch operations
+const db = createMockDatabase();
+db._setData("users", Array.from({ length: 100 }, (_, i) => ({ id: i + 1, name: `User ${i + 1}` })));
+
+const stmt = db.prepare("SELECT * FROM users");
+const users = stmt.all();
+expect(users).toHaveLength(100);
+
+// 5. Testing connection lifecycle
+const db = createMockDatabase();
+const service = new DatabaseService(db);
+await service.initialize();
+expect(db.pragma).toHaveBeenCalledWith(expect.stringContaining("journal_mode"));
+await service.cleanup();
+expect(db.close).toHaveBeenCalled();
+
+// 6. Testing error handling in queries
+const db = createMockDatabase();
+const stmt = db.prepare("SELECT * FROM nonexistent");
+const results = stmt.all();
+expect(results).toEqual([]); // No error, just empty results
+expect(db.prepare).toHaveBeenCalledWith("SELECT * FROM nonexistent");
+
+// 7. Testing prepared statement reuse
+const db = createMockDatabase();
+db._setData("stations", [{ id: "725" }, { id: "726" }]);
+
+const stmt = db.prepare("SELECT * FROM stations WHERE id = ?");
+const station1 = stmt.get("725");
+const station2 = stmt.get("726");
+expect(stmt.get).toHaveBeenCalledTimes(2);
+
+// 8. Testing complex queries with joins
+const db = createMockDatabase();
+db._setData("stations_arrivals", [{ line: "1", destination: "Van Cortlandt" }]);
+const stmt = db.prepare(`
+  SELECT s.*, a.line 
+  FROM stations s 
+  JOIN arrivals a ON s.id = a.station_id
+`);
+const results = stmt.all();
+expect(results).toHaveLength(1);
+```
+
+**Edge Cases & Gotchas:**
+
+- **Data must be set before queries**: `_setData` must be called before `prepare().all()`
+  ```typescript
+  const db = createMockDatabase();
+  const stmt = db.prepare("SELECT * FROM stations");
+  const results = stmt.all(); // Returns [] (no data set)
+  
+  db._setData("stations", [{ id: "725" }]);
+  const results2 = stmt.all(); // Still [] (new statement needed)
+  const stmt2 = db.prepare("SELECT * FROM stations");
+  const results3 = stmt2.all(); // Returns data
+  ```
+
+- **Table name matching**: `_setData` table name must match query intent
+  ```typescript
+  db._setData("stations", [{ id: "725" }]);
+  const stmt = db.prepare("SELECT * FROM users"); // Wrong table
+  const results = stmt.all(); // Returns [] (no users data)
+  ```
+
+- **Transaction isolation not mocked**: Transactions execute immediately
+  ```typescript
+  const db = createMockDatabase();
+  db.transaction(() => {
+    db.prepare("INSERT INTO users (name) VALUES (?)").run("Alice");
+    // Changes visible immediately, no rollback support
+  });
+  ```
+
+- **Statement independence**: Each `prepare()` call creates new spy
+  ```typescript
+  const db = createMockDatabase();
+  const stmt1 = db.prepare("SELECT * FROM stations");
+  const stmt2 = db.prepare("SELECT * FROM stations");
+  
+  stmt1.all();
+  expect(stmt1.all).toHaveBeenCalledTimes(1);
+  expect(stmt2.all).toHaveBeenCalledTimes(0); // Different spy
+  ```
+
+- **No SQL validation**: Any SQL string is accepted without parsing
+  ```typescript
+  const db = createMockDatabase();
+  db.prepare("INVALID SQL SYNTAX HERE").all(); // No error
+  // Mock doesn't validate SQL - just tracks calls
+  ```
+
+- **Empty table vs missing table**: Both return empty array
+  ```typescript
+  const db = createMockDatabase();
+  db._setData("stations", []); // Empty table
+  const stmt = db.prepare("SELECT * FROM stations");
+  expect(stmt.all()).toEqual([]); // Empty array
+  
+  const stmt2 = db.prepare("SELECT * FROM users"); // Table never set
+  expect(stmt2.all()).toEqual([]); // Also empty array
+  ```
+
+- **_setData overwrites previous data**: No append/merge behavior
+  ```typescript
+  const db = createMockDatabase();
+  db._setData("stations", [{ id: "725" }]);
+  db._setData("stations", [{ id: "726" }]); // Overwrites
+  const stmt = db.prepare("SELECT * FROM stations");
+  expect(stmt.all()).toEqual([{ id: "726" }]); // Only second dataset
+  ```
+
+- **get() returns null by default**: Even with data, need to match row
+  ```typescript
+  const db = createMockDatabase();
+  db._setData("users", [{ id: 1, name: "Alice" }]);
+  const stmt = db.prepare("SELECT * FROM users WHERE id = ?");
+  const user = stmt.get(2); // Wrong ID
+  expect(user).toBeNull(); // Returns null (no filtering logic)
+  ```
+
+**Performance Considerations:**
+
+- Mock operations are O(1) - no actual SQL execution
+- Data stored in memory Map - fast lookups
+- No query planning or optimization overhead
+- For large datasets (>10,000 rows), consider real database integration tests
+- Mock creation is fast but not free - create fresh per test when possible
+
+**Real-World Testing Scenarios:**
+
+```typescript
+// 1. Testing repository pattern with database
+test("StationRepository loads stations from database", async () => {
+  const db = createMockDatabase();
+  db._setData("stations", [
+    { id: "725", name: "Times Square", lat: 40.7589, lon: -73.9851 }
+  ]);
+  
+  const repository = new StationRepository(db);
+  const stations = await repository.getAll();
+  
+  expect(stations).toHaveLength(1);
+  expect(stations[0].name).toBe("Times Square");
+  expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("stations"));
+});
+
+// 2. Testing data access layer error handling
+test("DatabaseService handles connection failures", async () => {
+  const db = createMockDatabase();
+  db.prepare.mockImplementationOnce(() => {
+    throw new Error("Connection lost");
+  });
+  
+  const service = new DatabaseService(db);
+  await expect(service.getStations()).rejects.toThrow("Connection lost");
+});
+
+// 3. Testing migration scripts
+test("Migration creates tables and indexes", () => {
+  const db = createMockDatabase();
+  const migrations = new DatabaseMigrations(db);
+  
+  migrations.up();
+  
+  expect(db.exec).toHaveBeenCalledWith(expect.stringContaining("CREATE TABLE"));
+  expect(db.exec).toHaveBeenCalledWith(expect.stringContaining("CREATE INDEX"));
+});
+
+// 4. Testing transaction retry logic
+test("Transaction retries on deadlock", async () => {
+  const db = createMockDatabase();
+  let attempts = 0;
+  db.transaction.mockImplementation((fn) => {
+    attempts++;
+    if (attempts < 3) {
+      throw new Error("Database is deadlocked");
+    }
+    return fn();
+  });
+  
+  await retryTransaction(db, () => db.prepare("INSERT INTO users VALUES (1)").run());
+  expect(attempts).toBe(3);
+});
+```
 
 ---
 
