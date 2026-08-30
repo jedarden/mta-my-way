@@ -4966,22 +4966,60 @@ function createMockFavorite(overrides?: Partial<Favorite>): Favorite
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides` (optional): `Partial<Favorite>` - Partial object to merge with default favorite data using spread syntax
 
-**Returns:** `Favorite` object with:
-- `id: string` - Favorite ID (default: `"fav_123"`)
-- `stationId: string` - Station ID (default: `"725"`)
-- `stationName: string` - Station name (default: `"Times Square-42 St"`)
-- `lines: string[]` - Lines to track (default: `["1", "2", "3"]`)
-- `direction: "N" | "S" | "both"` - Direction (default: `"both"`)
-- `sortOrder: number` - Display order (default: `0`)
-- `label: string` - User label (default: `"Work"`)
+**Returns:** `Favorite` object with all required fields:
 
-**Usage Example:**
+| Field | Type | Default Value | Description |
+|-------|------|---------------|-------------|
+| `id` | `string` | `"fav_123"` | Unique favorite identifier (UUID) |
+| `stationId` | `string` | `"725"` | Parent station ID (GTFS station ID) |
+| `stationName` | `string` | `"Times Square-42 St"` | Station display name |
+| `lines` | `string[]` | `["1", "2", "3"]` | Lines to track at this station |
+| `direction` | `DirectionPreference` | `"both"` | Direction filter: N, S, or both |
+| `sortOrder` | `number` | `0` | Display ordering (lower = higher in list) |
+| `label` | `string` | `"Work"` | User label for the favorite |
+
+---
+
+**Type Definitions:**
+```typescript
+// Import from @mta-my-way/shared/types/favorites
+import type { Favorite, DirectionPreference } from "@mta-my-way/shared/types/favorites";
+
+interface Favorite {
+  id: string;
+  stationId: string;
+  stationName: string;
+  lines: string[];
+  direction: DirectionPreference;
+  sortOrder: number;
+  label?: string;
+  pinned?: boolean;
+}
+
+type DirectionPreference = "N" | "S" | "both";
+```
+
+---
+
+### Usage Examples
+
+#### Basic Favorite Creation
+
 ```typescript
 import { createMockFavorite } from "@mta-my-way/shared/testing";
 
-const defaultFavorite = createMockFavorite();
+// Default favorite (Times Square, both directions, 1/2/3 trains)
+const favorite = createMockFavorite();
+console.log(favorite.stationName); // "Times Square-42 St"
+console.log(favorite.direction); // "both"
+console.log(favorite.label); // "Work"
+```
+
+#### Home Favorite with Single Line
+
+```typescript
 const homeFavorite = createMockFavorite({
   id: "fav_home",
   stationId: "101",
@@ -4991,7 +5029,15 @@ const homeFavorite = createMockFavorite({
   label: "Home"
 });
 
-const northboundOnly = createMockFavorite({
+// Test favorite filtering
+expect(homeFavorite.lines).toHaveLength(1);
+expect(homeFavorite.label).toBe("Home");
+```
+
+#### Direction-Specific Favorites (Morning Commute)
+
+```typescript
+const morningCommute = createMockFavorite({
   stationId: "725",
   stationName: "Times Square",
   lines: ["1", "2", "3"],
@@ -4999,19 +5045,373 @@ const northboundOnly = createMockFavorite({
   label: "Morning Commute"
 });
 
-const sortedFavorites = [
-  createMockFavorite({ id: "fav_1", sortOrder: 0 }),
-  createMockFavorite({ id: "fav_2", sortOrder: 1 }),
-  createMockFavorite({ id: "fav_3", sortOrder: 2 })
-];
+const eveningCommute = createMockFavorite({
+  stationId: "725",
+  stationName: "Times Square",
+  lines: ["1", "2", "3"],
+  direction: "S",
+  label: "Evening Commute"
+});
+
+// Test direction filtering logic
+const northboundFavorites = allFavorites.filter(f => f.direction === "N" || f.direction === "both");
+expect(northboundFavorites).toContain(morningCommute);
 ```
 
-**Edge Cases:**
-- `direction` is union type - TypeScript validates but runtime doesn't check
-- `sortOrder` affects display sequence - test sorting logic with different values
-- `lines` array filters arrivals - test single-line vs multi-line favorites
-- Empty `lines` array should be handled - test no-lines scenario
-- `label` is user-defined - test special characters and long labels
+#### Multi-Line Favorite at Transfer Hub
+
+```typescript
+const hubFavorite = createMockFavorite({
+  stationId: "726",
+  stationName: "34 St-Penn Station",
+  lines: ["1", "2", "3", "A", "C", "E"],
+  direction: "both",
+  label: "Penn Station"
+});
+
+// Test multi-line arrival filtering
+const arrivals = getArrivals("726");
+const filteredArrivals = arrivals.filter(a => hubFavorite.lines.includes(a.line));
+expect(filteredArrivals.length).toBeGreaterThan(0);
+```
+
+#### Sorted Favorites List
+
+```typescript
+const sortedFavorites = [
+  createMockFavorite({ id: "fav_1", sortOrder: 0, label: "Work" }),
+  createMockFavorite({ id: "fav_2", sortOrder: 1, label: "Home" }),
+  createMockFavorite({ id: "fav_3", sortOrder: 2, label: "Gym" })
+];
+
+// Test display order
+const displayOrder = sortedFavorites.sort((a, b) => a.sortOrder - b.sortOrder);
+expect(displayOrder[0].label).toBe("Work");
+expect(displayOrder[2].label).toBe("Gym");
+```
+
+#### Favorite with Custom Label (Special Characters)
+
+```typescript
+const favoriteWithEmoji = createMockFavorite({
+  label: "🏢 Office",
+  stationId: "725",
+  stationName: "Times Square"
+});
+
+const favoriteWithLongLabel = createMockFavorite({
+  label: "Grand Central - 42nd Street (via Shuttle)",
+  stationId: "728",
+  stationName: "Grand Central-42 St"
+});
+
+// Test label rendering and truncation
+expect(favoriteWithEmoji.label).toContain("🏢");
+expect(favoriteWithLongLabel.label.length).toBeGreaterThan(30);
+```
+
+---
+
+### Common Override Patterns
+
+#### Pattern 1: Minimal Override (Station Change Only)
+
+```typescript
+// Override only the station, preserve all other defaults
+const favorite = createMockFavorite({
+  stationId: "101",
+  stationName: "South Ferry"
+});
+// Result: id="fav_123", direction="both", lines=["1", "2", "3"], label="Work"
+```
+
+#### Pattern 2: Single-Line vs Multi-Line Testing
+
+```typescript
+const singleLine = createMockFavorite({
+  lines: ["1"],
+  direction: "N"
+});
+
+const multiLine = createMockFavorite({
+  lines: ["1", "2", "3"],
+  direction: "both"
+});
+
+// Test arrival filtering efficiency
+const singleLineArrivals = filterByLines(allArrivals, singleLine.lines);
+const multiLineArrivals = filterByLines(allArrivals, multiLine.lines);
+expect(multiLineArrivals.length).toBeGreaterThanOrEqual(singleLineArrivals.length);
+```
+
+#### Pattern 3: Direction Filtering Testing
+
+```typescript
+const northbound = createMockFavorite({ direction: "N" });
+const southbound = createMockFavorite({ direction: "S" });
+const bothDirections = createMockFavorite({ direction: "both" });
+
+// Test direction matching logic
+const northArrivals = arrivals.filter(a => a.direction === "N");
+expect(northbound.direction).toBe("N");
+expect(southbound.direction).toBe("S");
+expect(bothDirections.direction).toBe("both");
+```
+
+#### Pattern 4: Sort Order Testing
+
+```typescript
+const favorites = [
+  createMockFavorite({ id: "fav_1", sortOrder: 2, label: "C" }),
+  createMockFavorite({ id: "fav_2", sortOrder: 0, label: "A" }),
+  createMockFavorite({ id: "fav_3", sortOrder: 1, label: "B" })
+];
+
+const sorted = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder);
+expect(sorted.map(f => f.label)).toEqual(["A", "B", "C"]);
+```
+
+#### Pattern 5: Pinned Favorites (Phase 5 Feature)
+
+```typescript
+const pinnedFavorite = createMockFavorite({
+  pinned: true,
+  sortOrder: -1, // Pinned items typically have negative sort order
+  label: "⭐ Priority"
+});
+
+const regularFavorite = createMockFavorite({
+  pinned: false,
+  sortOrder: 0,
+  label: "Regular"
+});
+
+// Test pinned vs regular display logic
+const pinnedFirst = [pinnedFavorite, regularFavorite].sort((a, b) => {
+  if (a.pinned && !b.pinned) return -1;
+  if (!a.pinned && b.pinned) return 1;
+  return a.sortOrder - b.sortOrder;
+});
+expect(pinnedFirst[0].pinned).toBe(true);
+```
+
+---
+
+### Edge Cases and Gotchas
+
+#### Override Merging Behavior (Shallow, Not Deep)
+
+```typescript
+// ⚠️ BAD: This REPLACES all lines, doesn't merge
+const favorite = createMockFavorite({ lines: ["7"] });
+// favorite.lines is ["7"], not ["1", "2", "3", "7"]
+
+// ✅ GOOD: Explicitly include all lines
+const favorite = createMockFavorite({
+  lines: ["1", "2", "3", "7"]
+});
+```
+
+**Why:** The function uses spread syntax (`...overrides`), which performs shallow merge. Arrays are replaced entirely, not merged element-by-element.
+
+---
+
+#### Empty Lines Array
+
+```typescript
+const noLines = createMockFavorite({
+  lines: [],
+  stationId: "725",
+  stationName: "Times Square"
+});
+
+// Test handling of favorites with no lines
+const arrivals = getArrivalsForFavorite(noLines);
+expect(arrivals).toEqual([]); // No lines = no arrivals
+```
+
+**Edge Case:** Empty `lines` array should be handled gracefully. Test that your arrival filtering logic returns an empty array rather than throwing an error.
+
+---
+
+#### Direction Type Validation
+
+```typescript
+// ✅ CORRECT: Valid direction values
+const north = createMockFavorite({ direction: "N" });
+const south = createMockFavorite({ direction: "S" });
+const both = createMockFavorite({ direction: "both" });
+
+// ❌ INCORRECT: Invalid direction (TypeScript error at compile time)
+// @ts-expect-error - Testing invalid direction
+const invalid = createMockFavorite({ direction: "east" });
+```
+
+**Gotcha:** TypeScript validates `DirectionPreference` union type at compile time, but runtime validation is your responsibility. Ensure your code handles unknown direction values gracefully if data comes from external sources.
+
+---
+
+#### Label Edge Cases
+
+```typescript
+// Empty label
+const noLabel = createMockFavorite({ label: "" });
+expect(noLabel.label).toBe("");
+
+// Very long label (test truncation)
+const longLabel = createMockFavorite({
+  label: "A".repeat(100)
+});
+
+// Special characters and emojis
+const emojiLabel = createMockFavorite({
+  label: "🏢 🏠 🏫 🏪"
+});
+
+// Test label rendering
+expect(renderFavoriteLabel(noLabel)).toBe("");
+expect(renderFavoriteLabel(longLabel).length).toBeLessThanOrEqual(50); // Truncated
+```
+
+**Gotcha:** Labels are user-defined input. Test that your UI handles empty strings, very long labels, special characters, and emojis without breaking layout or validation.
+
+---
+
+#### Sort Order Consistency
+
+```typescript
+// Test sort order collisions (same sortOrder)
+const favorites = [
+  createMockFavorite({ id: "fav_1", sortOrder: 0 }),
+  createMockFavorite({ id: "fav_2", sortOrder: 0 }),
+  createMockFavorite({ id: "fav_3", sortOrder: 0 })
+];
+
+// Stable sort should preserve insertion order
+const sorted = favorites.sort((a, b) => a.sortOrder - b.sortOrder);
+expect(sorted[0].id).toBe("fav_1"); // First inserted stays first
+```
+
+**Gotcha:** When multiple favorites have the same `sortOrder`, sort stability matters. Test that your sorting algorithm is stable or uses a secondary sort key (like `id` or insertion order).
+
+---
+
+#### Station ID vs Station Name Consistency
+
+```typescript
+// ⚠️ POTENTIAL BUG: stationId doesn't match real station
+const inconsistent = createMockFavorite({
+  stationId: "999", // Non-existent station
+  stationName: "Times Square-42 St" // Real station name
+});
+
+// ✅ GOOD: Use consistent, realistic station data
+const consistent = createMockFavorite({
+  stationId: "725",
+  stationName: "Times Square-42 St"
+});
+```
+
+**Why:** `stationId` is used for API lookups (arrivals, station details), while `stationName` is for display. Mismatched IDs cause lookup failures. Coordinate with `createMockStation` to ensure consistency.
+
+---
+
+#### Pinned Flag Behavior (Phase 5)
+
+```typescript
+// Pinned favorites should appear at top
+const favorites = [
+  createMockFavorite({ id: "fav_1", pinned: true, sortOrder: 5 }),
+  createMockFavorite({ id: "fav_2", pinned: false, sortOrder: 0 }),
+  createMockFavorite({ id: "fav_3", pinned: true, sortOrder: 10 })
+];
+
+// Pinned items sorted by sortOrder among themselves
+// Regular items sorted by sortOrder among themselves
+const sorted = sortFavoritesWithPinning(favorites);
+expect(sorted[0].pinned).toBe(true);
+expect(sorted[1].pinned).toBe(true);
+expect(sorted[2].pinned).toBe(false);
+```
+
+**Gotcha:** The `pinned` flag is optional (Phase 5 feature). Test that your code handles both pinned and unpinned favorites correctly, with backward compatibility for favorites without the flag.
+
+---
+
+### Real-World Testing Patterns
+
+#### Test Favorite CRUD Operations
+
+```typescript
+import { createMockFavorite } from "@mta-my-way/shared/testing";
+
+describe("Favorite CRUD", () => {
+  it("creates favorite with defaults", () => {
+    const favorite = createMockFavorite();
+    expect(favorite.id).toBeDefined();
+    expect(favorite.stationId).toBe("725");
+  });
+
+  it("updates favorite direction", () => {
+    const favorite = createMockFavorite();
+    const updated = { ...favorite, direction: "N" as const };
+    expect(updated.direction).toBe("N");
+  });
+
+  it("deletes favorite by ID", () => {
+    const favorites = [
+      createMockFavorite({ id: "fav_1" }),
+      createMockFavorite({ id: "fav_2" })
+    ];
+    const filtered = favorites.filter(f => f.id !== "fav_1");
+    expect(filtered).toHaveLength(1);
+  });
+});
+```
+
+#### Test Arrival Filtering by Favorite
+
+```typescript
+describe("Arrival Filtering", () => {
+  it("filters arrivals by favorite lines", () => {
+    const favorite = createMockFavorite({
+      lines: ["1", "2"],
+      direction: "N"
+    });
+
+    const arrivals = [
+      createMockArrival({ line: "1", direction: "N" }),
+      createMockArrival({ line: "2", direction: "N" }),
+      createMockArrival({ line: "3", direction: "N" }), // Filtered out
+      createMockArrival({ line: "1", direction: "S" })  // Filtered out
+    ];
+
+    const filtered = filterArrivalsByFavorite(arrivals, favorite);
+    expect(filtered).toHaveLength(2);
+    expect(filtered.every(a => a.line === "1" || a.line === "2")).toBe(true);
+    expect(filtered.every(a => a.direction === "N")).toBe(true);
+  });
+});
+```
+
+#### Test Favorite Persistence
+
+```typescript
+describe("Favorite Persistence", () => {
+  it("serializes and deserializes correctly", () => {
+    const original = createMockFavorite({
+      label: "Test Favorite",
+      direction: "N"
+    });
+
+    const serialized = JSON.stringify(original);
+    const deserialized = JSON.parse(serialized);
+
+    expect(deserialized).toEqual(original);
+    expect(deserialized.direction).toBe("N");
+  });
+});
+```
 
 ---
 
@@ -5025,51 +5425,493 @@ function createMockCommute(overrides?: Partial<Commute>): Commute
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides` (optional): `Partial<Commute>` - Partial object to merge with default commute data using spread syntax
 
-**Returns:** `Commute` object with:
-- `id: string` - Commute ID (default: `"commute_123"`)
-- `name: string` - Commute name (default: `"Work"`)
-- `origin: Station` - Origin station (default: Times Square)
-- `destination: Station` - Destination station (default: Penn Station)
-- `preferredLines: string[]` - Preferred lines (default: `["1", "2", "3"]`)
-- `enableTransferSuggestions: boolean` - Transfer suggestions enabled (default: `true`)
+**Returns:** `Commute` object with all required fields:
 
-**Usage Example:**
+| Field | Type | Default Value | Description |
+|-------|------|---------------|-------------|
+| `id` | `string` | `"commute_123"` | Unique commute identifier (UUID) |
+| `name` | `string` | `"Work"` | Display name for the commute |
+| `origin` | `StationRef` | Times Square | Origin station (full station object) |
+| `destination` | `StationRef` | Penn Station | Destination station (full station object) |
+| `preferredLines` | `string[]` | `["1", "2", "3"]` | Lines the user prefers for this commute |
+| `enableTransferSuggestions` | `boolean` | `true` | Whether to show transfer suggestions |
+
+---
+
+**Type Definitions:**
+```typescript
+// Import from @mta-my-way/shared/types/favorites
+import type { Commute, StationRef } from "@mta-my-way/shared/types/favorites";
+
+interface Commute {
+  id: string;
+  name: string;
+  origin: StationRef;
+  destination: StationRef;
+  preferredLines: string[];
+  enableTransferSuggestions: boolean;
+  isPinned?: boolean;
+}
+
+interface StationRef {
+  stationId: string;
+  stationName: string;
+}
+```
+
+---
+
+### Usage Examples
+
+#### Basic Commute Creation
+
 ```typescript
 import { createMockCommute, createMockStation } from "@mta-my-way/shared/testing";
 
-const defaultCommute = createMockCommute();
-const customCommute = createMockCommute({
+// Default commute (Times Square → Penn Station via 1/2/3)
+const commute = createMockCommute();
+console.log(commute.name); // "Work"
+console.log(commute.origin.stationName); // "Times Square-42 St"
+console.log(commute.destination.stationName); // "34 St-Penn Station"
+console.log(commute.preferredLines); // ["1", "2", "3"]
+```
+
+#### Home Commute (Reverse Direction)
+
+```typescript
+const homeCommute = createMockCommute({
   id: "commute_home",
   name: "Home",
-  origin: createMockStation({ id: "725", name: "Times Square" }),
-  destination: createMockStation({ id: "101", name: "South Ferry" }),
+  origin: createMockStation({ id: "101", name: "South Ferry" }),
+  destination: createMockStation({ id: "725", name: "Times Square-42 St" }),
   preferredLines: ["1"],
   enableTransferSuggestions: true
 });
 
-const noTransfers = createMockCommute({
-  enableTransferSuggestions: false
+// Test commute direction detection
+expect(homeCommute.origin.stationId).toBe("101");
+expect(homeCommute.destination.stationId).toBe("725");
+```
+
+#### Commute with Transfer Suggestions Disabled
+
+```typescript
+const directOnlyCommute = createMockCommute({
+  name: "Direct Route Only",
+  enableTransferSuggestions: false,
+  preferredLines: ["1"]
 });
 
 // Test transfer suggestion logic
-const commuteWithTransfers = createMockCommute({
+const analysis = await analyzeCommute(directOnlyCommute);
+if (!directOnlyCommute.enableTransferSuggestions) {
+  expect(analysis.transferRoutes).toEqual([]);
+  expect(analysis.recommendation).toBe("direct");
+}
+```
+
+#### Multi-Line Preferred Commute
+
+```typescript
+const multiLineCommute = createMockCommute({
+  name: "Multi-Line Options",
   origin: createMockStation({
     id: "725",
+    name: "Times Square-42 St",
+    lines: ["1", "2", "3", "7", "N", "Q", "R", "W"]
+  }),
+  destination: createMockStation({
+    id: "726",
+    name: "34 St-Penn Station",
+    lines: ["1", "2", "3", "A", "C", "E"]
+  }),
+  preferredLines: ["1", "2", "3"]
+});
+
+// Test route ranking by preferred lines
+const rankedRoutes = rankRoutesByPreference(
+  availableRoutes,
+  multiLineCommute.preferredLines
+);
+expect(rankedRoutes[0].line).toBe("1"); // Highest priority
+```
+
+#### Commute with Transfer Hub Origin
+
+```typescript
+const commuteFromHub = createMockCommute({
+  name: "From Transfer Hub",
+  origin: createMockStation({
+    id: "726",
+    name: "34 St-Penn Station",
     transfers: [
-      { toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120 }
+      {
+        toStationId: "727",
+        toLines: ["A", "C", "E"],
+        walkingSeconds: 180,
+        accessible: true
+      },
+      {
+        toStationId: "728",
+        toLines: ["N", "Q", "R", "W"],
+        walkingSeconds: 240,
+        accessible: false
+      }
     ]
-  })
+  }),
+  destination: createMockStation({
+    id: "727",
+    name: "34 St-Herald Sq",
+    lines: ["N", "Q", "R", "W"]
+  }),
+  enableTransferSuggestions: true
+});
+
+// Test transfer suggestion generation
+const transferRoutes = await findTransferRoutes(commuteFromHub);
+expect(transferRoutes).toHaveLength(1);
+expect(transferRoutes[0].transferStation.stationName).toBe("34 St-Herald Sq");
+```
+
+---
+
+### Common Override Patterns
+
+#### Pattern 1: Minimal Override (Name Change Only)
+
+```typescript
+// Override only the name, preserve all other defaults
+const commute = createMockCommute({ name: "Home" });
+// Result: origin/destination defaults preserved, preferredLines=["1", "2", "3"]
+```
+
+#### Pattern 2: Custom Station Pair
+
+```typescript
+const brooklynToManhattan = createMockCommute({
+  name: "Brooklyn to Manhattan",
+  origin: createMockStation({
+    id: "234",
+    name: "High St",
+    lines: ["A", "C"],
+    borough: "brooklyn"
+  }),
+  destination: createMockStation({
+    id: "725",
+    name: "Times Square-42 St",
+    lines: ["1", "2", "3", "7", "N", "Q", "R", "W"],
+    borough: "manhattan"
+  }),
+  preferredLines: ["A"]
 });
 ```
 
-**Edge Cases:**
-- `origin` and `destination` are full station objects - use `createMockStation` for consistency
-- `preferredLines` affects route ranking - test with empty array and multiple lines
-- `enableTransferSuggestions` affects transfer display - test both true/false
-- Transfer suggestions depend on station `transfers` data - include transfer data for realistic tests
-- Origin and destination should be different - test same-station edge case
+#### Pattern 3: Transfer Suggestions Enabled/Disabled
+
+```typescript
+const withTransfers = createMockCommute({
+  enableTransferSuggestions: true
+});
+
+const withoutTransfers = createMockCommute({
+  enableTransferSuggestions: false
+});
+
+// Test analysis behavior difference
+const analysisWith = await analyzeCommute(withTransfers);
+const analysisWithout = await analyzeCommute(withoutTransfers);
+
+expect(analysisWith.transferRoutes.length).toBeGreaterThan(0);
+expect(analysisWithout.transferRoutes).toEqual([]);
+```
+
+#### Pattern 4: Empty Preferred Lines (Any Line)
+
+```typescript
+const anyLineCommute = createMockCommute({
+  name: "Any Line",
+  preferredLines: [] // Empty = no preference
+});
+
+// Test that all available lines are considered
+const routes = await findRoutes(anyLineCommute);
+expect(routes.length).toBeGreaterThan(1); // Multiple line options
+```
+
+#### Pattern 5: Pinned Commute (Phase: Commute Presets)
+
+```typescript
+const pinnedCommute = createMockCommute({
+  name: "Priority Commute",
+  isPinned: true,
+  sortOrder: -1
+});
+
+const regularCommute = createMockCommute({
+  name: "Regular Commute",
+  isPinned: false,
+  sortOrder: 0
+});
+
+// Test pinned commute display logic
+const sorted = [pinnedCommute, regularCommute].sort((a, b) => {
+  if ((a.isPinned ?? false) && !(b.isPinned ?? false)) return -1;
+  if (!(a.isPinned ?? false) && (b.isPinned ?? false)) return 1;
+  return 0;
+});
+expect(sorted[0].name).toBe("Priority Commute");
+```
+
+---
+
+### Edge Cases and Gotchas
+
+#### Override Merging Behavior (Shallow, Not Deep)
+
+```typescript
+// ⚠️ BAD: This REPLACES preferredLines, doesn't merge
+const commute = createMockCommute({ preferredLines: ["7"] });
+// commute.preferredLines is ["7"], not ["1", "2", "3", "7"]
+
+// ✅ GOOD: Explicitly include all preferred lines
+const commute = createMockCommute({
+  preferredLines: ["1", "2", "3", "7"]
+});
+```
+
+**Why:** The function uses spread syntax (`...overrides`), which performs shallow merge. Arrays are replaced entirely, not merged element-by-element.
+
+---
+
+#### StationRef vs Full Station Object
+
+```typescript
+// IMPORTANT: Commute uses StationRef, not full Station
+const commute = createMockCommute({
+  origin: {
+    stationId: "725",
+    stationName: "Times Square-42 St"
+    // Note: No lat, lon, lines, transfers, etc.
+  },
+  destination: {
+    stationId: "726",
+    stationName: "34 St-Penn Station"
+  }
+});
+
+// But createMockStation() returns a full Station object
+const fullStation = createMockStation({ id: "725" });
+console.log(fullStation); // Has lat, lon, lines, transfers, etc.
+
+// The mock generator handles the conversion automatically
+const commuteFromMock = createMockCommute({
+  origin: fullStation // Automatically converted to StationRef
+});
+```
+
+**Gotcha:** `createMockCommute` internally uses `createMockStation`, which returns a full `Station` object. However, the `Commute` type expects `StationRef` (just `stationId` and `stationName`). The mock generator handles this conversion, but when manually constructing commutes, ensure you use the correct structure.
+
+---
+
+#### Same Origin and Destination
+
+```typescript
+// Edge case: Origin and destination are the same
+const sameStationCommute = createMockCommute({
+  origin: createMockStation({ id: "725", name: "Times Square" }),
+  destination: createMockStation({ id: "725", name: "Times Square" })
+});
+
+// Test handling of invalid commute
+const isValid = await validateCommute(sameStationCommute);
+expect(isValid).toBe(false);
+expect(() => analyzeCommute(sameStationCommute)).toThrow("Origin and destination must be different");
+```
+
+**Edge Case:** Your code should validate that `origin.stationId !== destination.stationId`. Test this edge case to ensure proper error handling.
+
+---
+
+#### Empty Preferred Lines Array
+
+```typescript
+const noPreference = createMockCommute({
+  preferredLines: []
+});
+
+// Test that empty array means "no preference"
+const routes = await findRoutes(noPreference);
+expect(routes).toContainEqual(
+  expect.objectContaining({
+    line: expect.any(String)
+  })
+);
+```
+
+**Gotcha:** Empty `preferredLines` array should be interpreted as "no line preference" rather than "no routes available". Ensure your routing logic handles this correctly.
+
+---
+
+#### Transfer Suggestions Without Transfer Data
+
+```typescript
+// ⚠️ POTENTIAL BUG: Transfer suggestions enabled but no transfer data
+const commuteWithoutTransferData = createMockCommute({
+  origin: createMockStation({
+    id: "725",
+    transfers: [] // No transfer connections
+  }),
+  destination: createMockStation({
+    id: "726",
+    transfers: []
+  }),
+  enableTransferSuggestions: true
+});
+
+// Test graceful handling of no-transfer scenario
+const analysis = await analyzeCommute(commuteWithoutTransferData);
+expect(analysis.transferRoutes).toEqual([]);
+expect(analysis.recommendation).toBe("direct");
+```
+
+**Gotcha:** When `enableTransferSuggestions` is `true` but stations have no `transfers` data, your analysis should return an empty transfer routes array rather than throwing an error.
+
+---
+
+#### isPinned Flag (Phase: Commute Presets)
+
+```typescript
+// Pinned commutes should appear at top
+const commutes = [
+  createMockCommute({ id: "comm_1", isPinned: true, name: "Priority" }),
+  createMockCommute({ id: "comm_2", isPinned: false, name: "Regular" }),
+  createMockCommute({ id: "comm_3", isPinned: true, name: "Urgent" })
+];
+
+// Test pinned sorting logic
+const sorted = sortCommutesByPinning(commutes);
+expect(sorted[0].isPinned).toBe(true);
+expect(sorted[1].isPinned).toBe(true);
+expect(sorted[2].isPinned).toBe(false);
+```
+
+**Gotcha:** The `isPinned` flag is optional (commute presets feature). Test that your code handles both pinned and unpinned commutes correctly, with backward compatibility for commutes without the flag.
+
+---
+
+### Real-World Testing Patterns
+
+#### Test Commute Analysis with Direct Routes
+
+```typescript
+describe("Commute Analysis", () => {
+  it("analyzes direct routes between stations", async () => {
+    const commute = createMockCommute({
+      origin: createMockStation({
+        id: "725",
+        name: "Times Square",
+        lines: ["1", "2", "3"]
+      }),
+      destination: createMockStation({
+        id: "726",
+        name: "Penn Station",
+        lines: ["1", "2", "3"]
+      }),
+      preferredLines: ["1", "2", "3"]
+    });
+
+    const analysis = await analyzeCommute(commute);
+
+    expect(analysis.directRoutes).toHaveLength(3);
+    expect(analysis.directRoutes[0].line).toBe("1");
+    expect(analysis.recommendation).toBe("direct");
+  });
+});
+```
+
+#### Test Commute Analysis with Transfer Routes
+
+```typescript
+describe("Transfer Route Analysis", () => {
+  it("finds transfer routes when enabled", async () => {
+    const commute = createMockCommute({
+      origin: createMockStation({
+        id: "726",
+        name: "Penn Station",
+        transfers: [
+          {
+            toStationId: "727",
+            toLines: ["A", "C", "E"],
+            walkingSeconds: 180
+          }
+        ]
+      }),
+      destination: createMockStation({
+        id: "727",
+        name: "Herald Square",
+        lines: ["A", "C", "E"]
+      }),
+      enableTransferSuggestions: true
+    });
+
+    const analysis = await analyzeCommute(commute);
+
+    expect(analysis.transferRoutes.length).toBeGreaterThan(0);
+    expect(analysis.transferRoutes[0].legs).toHaveLength(2);
+  });
+});
+```
+
+#### Test Commute Persistence
+
+```typescript
+describe("Commute Persistence", () => {
+  it("serializes and deserializes correctly", () => {
+    const original = createMockCommute({
+      name: "Test Commute",
+      preferredLines: ["A", "C"]
+    });
+
+    const serialized = JSON.stringify(original);
+    const deserialized = JSON.parse(serialized);
+
+    expect(deserialized).toEqual(original);
+    expect(deserialized.preferredLines).toEqual(["A", "C"]);
+  });
+});
+```
+
+#### Test Commute CRUD Operations
+
+```typescript
+describe("Commute CRUD", () => {
+  it("creates commute with defaults", () => {
+    const commute = createMockCommute();
+    expect(commute.id).toBeDefined();
+    expect(commute.name).toBe("Work");
+  });
+
+  it("updates commute preferred lines", () => {
+    const commute = createMockCommute();
+    const updated = {
+      ...commute,
+      preferredLines: ["A", "C", "E"]
+    };
+    expect(updated.preferredLines).toEqual(["A", "C", "E"]);
+  });
+
+  it("deletes commute by ID", () => {
+    const commutes = [
+      createMockCommute({ id: "comm_1" }),
+      createMockCommute({ id: "comm_2" })
+    ];
+    const filtered = commutes.filter(c => c.id !== "comm_1");
+    expect(filtered).toHaveLength(1);
+  });
+});
+```
 
 ---
 
@@ -5083,49 +5925,564 @@ function createMockTripRecord(overrides?: Partial<TripRecord>): TripRecord
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides` (optional): `Partial<TripRecord>` - Partial object to merge with default trip record data using spread syntax
 
-**Returns:** `TripRecord` object with:
-- `id: string` - Trip ID (default: `"trip_123"`)
-- `date: string` - Trip date ISO string (default: today)
-- `origin: Station` - Origin station (default: Times Square)
-- `destination: Station` - Destination station (default: Penn Station)
-- `line: string` - Subway line (default: `"1"`)
-- `departureTime: number` - Departure timestamp (default: 1 hour ago)
-- `arrivalTime: number` - Arrival timestamp (default: 30 minutes ago)
-- `actualDurationMinutes: number` - Actual duration (default: `30`)
-- `source: "manual" | "inferred" | "tracked"` - Data source (default: `"tracked"`)
+**Returns:** `TripRecord` object with all required fields:
 
-**Usage Example:**
+| Field | Type | Default Value | Description |
+|-------|------|---------------|-------------|
+| `id` | `string` | `"trip_123"` | Unique trip identifier (UUID) |
+| `date` | `string` | Today's date (ISO format) | Trip date in "YYYY-MM-DD" format |
+| `origin` | `StationRef` | Times Square | Origin station (station ID and name) |
+| `destination` | `StationRef` | Penn Station | Destination station (station ID and name) |
+| `line` | `string` | `"1"` | Subway line used for this trip |
+| `departureTime` | `number` | 1 hour ago | Departure timestamp (POSIX milliseconds) |
+| `arrivalTime` | `number` | 30 minutes ago | Arrival timestamp (POSIX milliseconds) |
+| `actualDurationMinutes` | `number` | `30` | Actual trip duration in minutes |
+| `source` | `TripSource` | `"tracked"` | How this trip was detected |
+
+---
+
+**Type Definitions:**
+```typescript
+// Import from @mta-my-way/shared/types/trips
+import type { TripRecord, TripSource, StationRef } from "@mta-my-way/shared/types/trips";
+
+interface TripRecord {
+  id: string;
+  date: string; // "YYYY-MM-DD" format (no time component)
+  origin: StationRef;
+  destination: StationRef;
+  line: string;
+  departureTime: number; // POSIX timestamp (milliseconds)
+  arrivalTime: number; // POSIX timestamp (milliseconds)
+  actualDurationMinutes: number;
+  scheduledDurationMinutes?: number; // Optional: for delay calculation
+  source: TripSource;
+  notes?: string;
+}
+
+type TripSource = "tracked" | "inferred" | "manual";
+
+interface StationRef {
+  stationId: string;
+  stationName: string;
+}
+```
+
+---
+
+### Usage Examples
+
+#### Basic Trip Record Creation
+
 ```typescript
 import { createMockTripRecord, createMockStation } from "@mta-my-way/shared/testing";
 
-const defaultTrip = createMockTripRecord();
+// Default trip (Times Square → Penn Station, 1 train, 30 minutes)
+const trip = createMockTripRecord();
+console.log(trip.date); // "2026-08-30" (today)
+console.log(trip.line); // "1"
+console.log(trip.actualDurationMinutes); // 30
+console.log(trip.source); // "tracked"
+```
+
+#### Delayed Trip (45-Minute Delay)
+
+```typescript
 const delayedTrip = createMockTripRecord({
-  actualDurationMinutes: 75, // 45 minute delay
-  departureTime: new Date("2024-01-15T08:30:00").getTime(),
-  arrivalTime: new Date("2024-01-15T09:45:00").getTime()
+  actualDurationMinutes: 75, // 45-minute delay (30 + 45)
+  scheduledDurationMinutes: 30,
+  departureTime: new Date("2024-01-15T08:00:00").getTime(),
+  arrivalTime: new Date("2024-01-15T09:15:00").getTime(),
+  source: "tracked",
+  notes: "Signal problems at 14th St"
 });
 
+// Test delay calculation
+const delayMinutes = delayedTrip.actualDurationMinutes - (delayedTrip.scheduledDurationMinutes ?? 0);
+expect(delayMinutes).toBe(45);
+```
+
+#### Manual Trip Entry
+
+```typescript
 const manualTrip = createMockTripRecord({
   source: "manual",
+  date: "2024-01-15",
   line: "2",
   origin: createMockStation({ id: "101", name: "South Ferry" }),
-  destination: createMockStation({ id: "725", name: "Times Square" })
+  destination: createMockStation({ id: "725", name: "Times Square-42 St" }),
+  departureTime: new Date("2024-01-15T08:30:00").getTime(),
+  arrivalTime: new Date("2024-01-15T09:00:00").getTime(),
+  actualDurationMinutes: 30,
+  notes: "Manual entry - phone died during trip"
+});
+
+// Test manual trip handling
+expect(manualTrip.source).toBe("manual");
+expect(manualTrip.notes).toBeDefined();
+```
+
+#### Inferred Trip (from Location Data)
+
+```typescript
+const inferredTrip = createMockTripRecord({
+  source: "inferred",
+  line: "A",
+  origin: createMockStation({
+    id: "726",
+    name: "34 St-Penn Station"
+  }),
+  destination: createMockStation({
+    id: "234",
+    name: "High St"
+  }),
+  departureTime: Date.now() - 7200000, // 2 hours ago
+  arrivalTime: Date.now() - 3600000, // 1 hour ago
+  actualDurationMinutes: 60
+});
+
+// Test inferred trip reliability scoring
+const reliabilityScore = calculateInferredTripReliability(inferredTrip);
+expect(reliabilityScore).toBeLessThan(1.0); // Inferred trips have lower confidence
+```
+
+#### Historical Trip (Yesterday)
+
+```typescript
+const yesterdayTrip = createMockTripRecord({
+  date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
+  departureTime: Date.now() - 172800000, // 48 hours ago
+  arrivalTime: Date.now() - 172500000, // 47.5 hours ago
+  actualDurationMinutes: 30
 });
 
 // Test date filtering
-const yesterdayTrip = createMockTripRecord({
-  date: new Date(Date.now() - 86400000).toISOString().split("T")[0]
+const today = new Date().toISOString().split("T")[0];
+const isHistorical = yesterdayTrip.date < today;
+expect(isHistorical).toBe(true);
+```
+
+#### Trip with Notes
+
+```typescript
+const tripWithNotes = createMockTripRecord({
+  notes: "Crowded train, waited 3rd door",
+  source: "tracked",
+  actualDurationMinutes: 35
+});
+
+// Test notes display and storage
+expect(tripWithNotes.notes).toBeDefined();
+expect(tripWithNotes.notes.length).toBeGreaterThan(0);
+```
+
+---
+
+### Common Override Patterns
+
+#### Pattern 1: Minimal Override (Different Line Only)
+
+```typescript
+// Override only the line, preserve all other defaults
+const trip = createMockTripRecord({ line: "A" });
+// Result: All defaults preserved, line="A"
+```
+
+#### Pattern 2: Specific Date (Historical Trips)
+
+```typescript
+const tripFromLastWeek = createMockTripRecord({
+  date: new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0],
+  departureTime: Date.now() - 7 * 86400000 - 3600000,
+  arrivalTime: Date.now() - 7 * 86400000 - 1800000
+});
+
+// Test historical trip filtering
+const lastWeek = filterTripsByDateRange(allTrips, {
+  start: new Date(Date.now() - 14 * 86400000),
+  end: new Date()
+});
+expect(lastWeek).toContainEqual(tripFromLastWeek);
+```
+
+#### Pattern 3: Source-Specific Testing
+
+```typescript
+const trackedTrip = createMockTripRecord({ source: "tracked" });
+const inferredTrip = createMockTripRecord({ source: "inferred" });
+const manualTrip = createMockTripRecord({ source: "manual" });
+
+// Test data reliability scoring by source
+const scores = {
+  tracked: calculateReliability(trackedTrip),
+  inferred: calculateReliability(inferredTrip),
+  manual: calculateReliability(manualTrip)
+};
+
+expect(scores.tracked).toBeGreaterThan(scores.inferred);
+expect(scores.manual).toBe(1.0); // Manual entries are 100% reliable
+```
+
+#### Pattern 4: Delay Analysis
+
+```typescript
+const onTimeTrip = createMockTripRecord({
+  actualDurationMinutes: 30,
+  scheduledDurationMinutes: 30
+});
+
+const delayedTrip = createMockTripRecord({
+  actualDurationMinutes: 45,
+  scheduledDurationMinutes: 30
+});
+
+const earlyTrip = createMockTripRecord({
+  actualDurationMinutes: 25,
+  scheduledDurationMinutes: 30
+});
+
+// Test delay calculation
+expect(calculateDelay(onTimeTrip)).toBe(0);
+expect(calculateDelay(delayedTrip)).toBe(15);
+expect(calculateDelay(earlyTrip)).toBe(-5);
+```
+
+#### Pattern 5: Same-Origin-Destination Trips (Different Lines)
+
+```typescript
+const timesSquareToPennVia1 = createMockTripRecord({
+  line: "1",
+  origin: createMockStation({ id: "725", name: "Times Square" }),
+  destination: createMockStation({ id: "726", name: "Penn Station" }),
+  actualDurationMinutes: 30
+});
+
+const timesSquareToPennViaA = createMockTripRecord({
+  line: "A",
+  origin: createMockStation({ id: "725", name: "Times Square" }),
+  destination: createMockStation({ id: "726", name: "Penn Station" }),
+  actualDurationMinutes: 28
+});
+
+// Test line comparison analysis
+const analysis = compareLinesForSameRoute([
+  timesSquareToPennVia1,
+  timesSquareToPennViaA
+]);
+expect(analysis.fastestLine).toBe("A");
+```
+
+---
+
+### Edge Cases and Gotchas
+
+#### Date String Format (ISO, No Time Component)
+
+```typescript
+// ✅ CORRECT: Date string without time
+const correctDate = new Date().toISOString().split("T")[0]; // "2026-08-30"
+const trip = createMockTripRecord({ date: correctDate });
+
+// ❌ INCORRECT: Full ISO string with time
+const incorrectDate = new Date().toISOString(); // "2026-08-30T12:34:56.789Z"
+const badTrip = createMockTripRecord({ date: incorrectDate });
+
+// Test date format validation
+expect(validateDateString(correctDate)).toBe(true);
+expect(validateDateString(incorrectDate)).toBe(false);
+```
+
+**Gotcha:** `date` field must be in `"YYYY-MM-DD"` format (no time component). The helper function automatically generates today's date in this format, but manual overrides should use `.toISOString().split("T")[0]` to strip the time.
+
+---
+
+#### Timestamp Consistency (Departure < Arrival)
+
+```typescript
+// ✅ CORRECT: Departure before arrival
+const validTrip = createMockTripRecord({
+  departureTime: Date.now() - 3600000, // 1 hour ago
+  arrivalTime: Date.now() - 1800000 // 30 minutes ago
+});
+
+// ❌ INCORRECT: Arrival before departure
+const invalidTrip = createMockTripRecord({
+  departureTime: Date.now() - 1800000, // 30 minutes ago
+  arrivalTime: Date.now() - 3600000 // 1 hour ago (invalid!)
+});
+
+// Test timestamp validation
+expect(validateTimestamps(validTrip)).toBe(true);
+expect(validateTimestamps(invalidTrip)).toBe(false);
+```
+
+**Gotcha:** `departureTime` must be less than `arrivalTime`. Test invalid timestamp ordering to ensure your validation logic catches this error.
+
+---
+
+#### Duration Calculation Consistency
+
+```typescript
+// ⚠️ POTENTIAL BUG: actualDurationMinutes doesn't match timestamps
+const inconsistentTrip = createMockTripRecord({
+  departureTime: Date.now() - 3600000, // 1 hour ago
+  arrivalTime: Date.now() - 1800000, // 30 minutes ago
+  actualDurationMinutes: 60 // Should be 30, not 60!
+});
+
+// ✅ GOOD: Duration matches timestamp difference
+const duration = (arrivalTime - departureTime) / 60000; // Convert ms to minutes
+const consistentTrip = createMockTripRecord({
+  departureTime: Date.now() - 3600000,
+  arrivalTime: Date.now() - 1800000,
+  actualDurationMinutes: duration // 30 minutes
+});
+
+// Test duration consistency
+expect(consistentTrip.actualDurationMinutes).toBe(30);
+expect(inconsistentTrip.actualDurationMinutes).not.toEqual(
+  (inconsistentTrip.arrivalTime - inconsistentTrip.departureTime) / 60000
+);
+```
+
+**Gotcha:** `actualDurationMinutes` should match the difference between `arrivalTime` and `departureTime` (in minutes). When overriding timestamps, manually calculate and set the correct duration to avoid inconsistencies.
+
+---
+
+#### Source Type Validation
+
+```typescript
+// ✅ CORRECT: Valid source types
+const tracked = createMockTripRecord({ source: "tracked" });
+const inferred = createMockTripRecord({ source: "inferred" });
+const manual = createMockTripRecord({ source: "manual" });
+
+// ❌ INCORRECT: Invalid source (TypeScript error at compile time)
+// @ts-expect-error - Testing invalid source
+const invalid = createMockTripRecord({ source: "automatic" });
+```
+
+**Gotcha:** TypeScript validates `TripSource` union type at compile time, but runtime validation is your responsibility. Ensure your code handles unknown source values gracefully if data comes from external sources.
+
+---
+
+#### Zero or Negative Duration
+
+```typescript
+const zeroDuration = createMockTripRecord({
+  departureTime: Date.now() - 1000,
+  arrivalTime: Date.now(),
+  actualDurationMinutes: 0 // Edge case: instant trip
+});
+
+const negativeDuration = createMockTripRecord({
+  departureTime: Date.now() - 3600000,
+  arrivalTime: Date.now() - 1800000,
+  actualDurationMinutes: -10 // Invalid: negative duration
+});
+
+// Test duration validation
+expect(validateDuration(zeroDuration)).toBe(false); // Zero should be rejected
+expect(validateDuration(negativeDuration)).toBe(false); // Negative should be rejected
+```
+
+**Gotcha:** `actualDurationMinutes` should be positive (greater than 0). Test that your validation logic rejects zero and negative durations.
+
+---
+
+#### Timezone Handling
+
+```typescript
+// ✅ CORRECT: Use UTC timestamps consistently
+const utcTrip = createMockTripRecord({
+  departureTime: new Date("2024-01-15T08:00:00Z").getTime(),
+  arrivalTime: new Date("2024-01-15T08:30:00Z").getTime()
+});
+
+// ⚠️ POTENTIAL BUG: Mixing timezones
+const mixedTimezoneTrip = createMockTripRecord({
+  departureTime: new Date("2024-01-15T08:00:00-05:00").getTime(), // EST
+  arrivalTime: new Date("2024-01-15T08:30:00Z").getTime() // UTC
+});
+
+// Test timezone consistency
+const departureOffset = new Date(utcTrip.departureTime).getTimezoneOffset();
+const arrivalOffset = new Date(utcTrip.arrivalTime).getTimezoneOffset();
+expect(departureOffset).toEqual(arrivalOffset);
+```
+
+**Gotcha:** Timestamps use POSIX milliseconds (UTC). Ensure all timestamps use the same timezone (preferably UTC) to avoid daylight saving time and timezone offset issues.
+
+---
+
+#### Scheduled Duration Missing (Optional Field)
+
+```typescript
+const withoutScheduled = createMockTripRecord({
+  actualDurationMinutes: 30
+  // scheduledDurationMinutes not set
+});
+
+const withScheduled = createMockTripRecord({
+  actualDurationMinutes: 30,
+  scheduledDurationMinutes: 28
+});
+
+// Test delay calculation with optional field
+const delayWithout = withoutScheduled.scheduledDurationMinutes
+  ? withoutScheduled.actualDurationMinutes - withoutScheduled.scheduledDurationMinutes
+  : null;
+
+const delayWith = withScheduled.actualDurationMinutes - (withScheduled.scheduledDurationMinutes ?? 0);
+
+expect(delayWithout).toBeNull(); // Can't calculate delay without scheduled duration
+expect(delayWith).toBe(2); // 2 minutes late
+```
+
+**Gotcha:** `scheduledDurationMinutes` is optional. When calculating delays, handle the case where this field is missing (return `null` or skip delay calculation).
+
+---
+
+### Real-World Testing Patterns
+
+#### Test Trip Statistics Calculation
+
+```typescript
+describe("Trip Statistics", () => {
+  it("calculates average duration for a route", () => {
+    const trips = [
+      createMockTripRecord({ actualDurationMinutes: 28 }),
+      createMockTripRecord({ actualDurationMinutes: 32 }),
+      createMockTripRecord({ actualDurationMinutes: 30 })
+    ];
+
+    const stats = calculateTripStatistics(trips);
+    expect(stats.averageDurationMinutes).toBe(30);
+    expect(stats.medianDurationMinutes).toBe(30);
+  });
+
+  it("calculates on-time percentage", () => {
+    const trips = [
+      createMockTripRecord({
+        actualDurationMinutes: 30,
+        scheduledDurationMinutes: 30
+      }),
+      createMockTripRecord({
+        actualDurationMinutes: 35,
+        scheduledDurationMinutes: 30
+      }),
+      createMockTripRecord({
+        actualDurationMinutes: 29,
+        scheduledDurationMinutes: 30
+      })
+    ];
+
+    const stats = calculateTripStatistics(trips);
+    expect(stats.onTimePercentage).toBeCloseTo(66.67, 1); // 2 out of 3 within 2 minutes
+  });
 });
 ```
 
-**Edge Cases:**
-- `date` is ISO date string (no time) - use `.split("T")[0]` format
-- `departureTime` < `arrivalTime` is expected - test invalid ordering
-- `source` affects data reliability scoring - test each source type
-- `actualDurationMinutes` should be positive - test zero/negative edge cases
-- Timestamps use millisecond precision - ensure consistent timezone handling
+#### Trip Filtering and Sorting
+
+```typescript
+describe("Trip Filtering", () => {
+  it("filters trips by date range", () => {
+    const today = new Date().toISOString().split("T")[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+
+    const trips = [
+      createMockTripRecord({ date: today }),
+      createMockTripRecord({ date: yesterday })
+    ];
+
+    const todayTrips = trips.filter(t => t.date === today);
+    expect(todayTrips).toHaveLength(1);
+  });
+
+  it("filters trips by source", () => {
+    const trips = [
+      createMockTripRecord({ source: "tracked" }),
+      createMockTripRecord({ source: "inferred" }),
+      createMockTripRecord({ source: "manual" })
+    ];
+
+    const trackedTrips = trips.filter(t => t.source === "tracked");
+    expect(trackedTrips).toHaveLength(1);
+  });
+
+  it("sorts trips by departure time", () => {
+    const trips = [
+      createMockTripRecord({ departureTime: Date.now() - 7200000 }),
+      createMockTripRecord({ departureTime: Date.now() - 3600000 }),
+      createMockTripRecord({ departureTime: Date.now() - 10800000 })
+    ];
+
+    const sorted = [...trips].sort((a, b) => a.departureTime - b.departureTime);
+    expect(sorted[0].departureTime).toBeLessThan(sorted[1].departureTime);
+    expect(sorted[1].departureTime).toBeLessThan(sorted[2].departureTime);
+  });
+});
+```
+
+#### Test Delay Calculation
+
+```typescript
+describe("Delay Calculation", () => {
+  it("calculates delay correctly", () => {
+    const onTime = createMockTripRecord({
+      actualDurationMinutes: 30,
+      scheduledDurationMinutes: 30
+    });
+
+    const delayed = createMockTripRecord({
+      actualDurationMinutes: 45,
+      scheduledDurationMinutes: 30
+    });
+
+    const early = createMockTripRecord({
+      actualDurationMinutes: 25,
+      scheduledDurationMinutes: 30
+    });
+
+    expect(calculateDelay(onTime)).toBe(0);
+    expect(calculateDelay(delayed)).toBe(15);
+    expect(calculateDelay(early)).toBe(-5);
+  });
+
+  it("handles missing scheduled duration", () => {
+    const trip = createMockTripRecord({
+      actualDurationMinutes: 30
+      // scheduledDurationMinutes not set
+    });
+
+    expect(calculateDelay(trip)).toBeNull();
+  });
+});
+```
+
+#### Test Trip Persistence
+
+```typescript
+describe("Trip Persistence", () => {
+  it("serializes and deserializes correctly", () => {
+    const original = createMockTripRecord({
+      source: "manual",
+      line: "2",
+      notes: "Test notes"
+    });
+
+    const serialized = JSON.stringify(original);
+    const deserialized = JSON.parse(serialized);
+
+    expect(deserialized).toEqual(original);
+    expect(deserialized.source).toBe("manual");
+    expect(deserialized.notes).toBe("Test notes");
+  });
+});
+```
 
 ---
 
