@@ -8,7 +8,7 @@
  * - Test setup utilities
  */
 
-import { vi, expect } from "vitest";
+import { expect, vi } from "vitest";
 
 // ============================================================================
 // Mock Data Generators
@@ -199,7 +199,9 @@ import { vi, expect } from "vitest";
  * };
  * ```
  */
-export function createMockStation(overrides = {}) {
+import type { Station } from "../types/stations";
+
+export function createMockStation(overrides: Partial<Station> = {}) {
   return {
     id: "725",
     name: "Times Square-42 St",
@@ -210,7 +212,7 @@ export function createMockStation(overrides = {}) {
     southStopId: "725S",
     transfers: [],
     ada: true,
-    borough: "manhattan",
+    borough: "manhattan" as const,
     ...overrides,
   };
 }
@@ -442,7 +444,11 @@ export function assertApiResponse(
 /**
  * Assert that an array is sorted by a key.
  */
-export function assertIsSorted<T>(array: T[], key: keyof T, order: "asc" | "desc" = "asc"): void {
+export function assertIsSorted<T extends Record<string, number | bigint>>(
+  array: T[],
+  key: keyof T,
+  order: "asc" | "desc" = "asc"
+): void {
   for (let i = 0; i < array.length - 1; i++) {
     const current = array[i][key];
     const next = array[i + 1][key];

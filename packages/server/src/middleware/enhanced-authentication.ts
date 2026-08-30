@@ -508,12 +508,14 @@ export function requirePermissions(
       const result = checkPermission(auth.role || "guest", permission as Permission, {
         resourceId,
         userId: auth.keyId,
-        config: mergedConfig.enableRbacCache ? {
-          cacheTtl: 5 * 60 * 1000, // 5 minutes
-          maxCacheSize: 10000,
-          enableAuditLogging: mergedConfig.enableAuditLogging,
-          enableOverrides: true,
-        } : undefined,
+        config: mergedConfig.enableRbacCache
+          ? {
+              cacheTtl: 5 * 60 * 1000, // 5 minutes
+              maxCacheSize: 10000,
+              enableAuditLogging: mergedConfig.enableAuditLogging,
+              enableOverrides: true,
+            }
+          : undefined,
       });
       permissionResults.set(permission, result);
     }

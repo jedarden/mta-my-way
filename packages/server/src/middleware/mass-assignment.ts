@@ -177,10 +177,7 @@ export function validateMassAssignment(
       }
 
       // Check for sensitive fields
-      if (
-        isSensitiveField(fieldName) &&
-        !allowedSensitiveFieldNames.has(fieldName.toLowerCase())
-      ) {
+      if (isSensitiveField(fieldName) && !allowedSensitiveFieldNames.has(fieldName.toLowerCase())) {
         objViolations.push({
           type: "blocked_field",
           field: fullPath,

@@ -5,22 +5,22 @@
  * Run with: npm test middleware-fixtures-demo
  */
 
-import { beforeEach, describe, expect, it, afterEach } from "vitest";
 import type Database from "better-sqlite3";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { loadApiKeyRegistry, setSecurityDb } from "../../security/security-db.js";
 import {
+  assertSecurityTableEmpty,
+  assertSecurityTableRowCount,
   createAuthTestDatabase,
   createAuthorizationTestDatabase,
   createPasswordResetTestDatabase,
   createRateLimitTestDatabase,
   createTestDatabaseWithFixtures,
-  resetToScenario,
-  assertSecurityTableRowCount,
-  assertSecurityTableEmpty,
   getSecurityTableRows,
-  withTestTransaction,
+  resetToScenario,
   setupMiddlewareTestDatabase,
+  withTestTransaction,
 } from "./middleware-helpers.js";
-import { setSecurityDb, loadApiKeyRegistry } from "../../security/security-db.js";
 
 describe("Middleware Fixtures Demo", () => {
   // File-level beforeEach to ensure security-db singleton is reset before all tests
@@ -155,14 +155,9 @@ describe("Middleware Fixtures Demo", () => {
 
       expect(() => {
         withTestTransaction(db, () => {
-          db.prepare("INSERT INTO security_api_key_registry (key_id, key_hash, key_salt, scope, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)").run(
-            "new_key",
-            "hash",
-            "salt",
-            "read",
-            Date.now(),
-            Date.now() + 86400000
-          );
+          db.prepare(
+            "INSERT INTO security_api_key_registry (key_id, key_hash, key_salt, scope, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)"
+          ).run("new_key", "hash", "salt", "read", Date.now(), Date.now() + 86400000);
 
           // Throw an error - should rollback
           throw new Error("Test error");

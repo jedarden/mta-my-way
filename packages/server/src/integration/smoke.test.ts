@@ -15,12 +15,12 @@ import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared"
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import {
+  TEST_STATIONS,
   cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestApiKey,
   createTestTrip,
-  TEST_STATIONS,
 } from "./test-helpers.js";
 
 // Minimal test fixtures for routes and complexes
@@ -88,9 +88,7 @@ describe("E2E Smoke Test", () => {
 
       // Verify tables exist
       const tables = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         .all() as Array<{ name: string }>;
 
       const tableNames = tables.map((t) => t.name);
@@ -171,9 +169,7 @@ describe("E2E Smoke Test", () => {
       );
 
       // Query it back
-      const row = db
-        .prepare("SELECT * FROM trips WHERE id = ?")
-        .get(testTrip.id) as any;
+      const row = db.prepare("SELECT * FROM trips WHERE id = ?").get(testTrip.id) as any;
 
       expect(row).toBeDefined();
       expect(row.id).toBe(testTrip.id);
@@ -187,14 +183,16 @@ describe("E2E Smoke Test", () => {
       db.prepare("DELETE FROM trips").run();
 
       // Start with 0 trips
-      const initialCount = db
-        .prepare("SELECT COUNT(*) as count FROM trips")
-        .get() as { count: number };
+      const initialCount = db.prepare("SELECT COUNT(*) as count FROM trips").get() as {
+        count: number;
+      };
       expect(initialCount.count).toBe(0);
 
       // Try to insert a trip in a transaction that will rollback
       const transaction = db.transaction(() => {
-        db.prepare("INSERT INTO trips (id, date, origin_station_id, origin_station_name, destination_station_id, destination_station_name, line, departure_time, arrival_time, actual_duration_minutes, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+        db.prepare(
+          "INSERT INTO trips (id, date, origin_station_id, origin_station_name, destination_station_id, destination_station_name, line, departure_time, arrival_time, actual_duration_minutes, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ).run(
           "rollback-test-1",
           "2026-08-30",
           "101",
@@ -216,9 +214,9 @@ describe("E2E Smoke Test", () => {
       expect(() => transaction()).toThrow("Intentional rollback");
 
       // Should still have 0 trips (rollback worked)
-      const finalCount = db
-        .prepare("SELECT COUNT(*) as count FROM trips")
-        .get() as { count: number };
+      const finalCount = db.prepare("SELECT COUNT(*) as count FROM trips").get() as {
+        count: number;
+      };
       expect(finalCount.count).toBe(0);
     });
   });
@@ -268,7 +266,9 @@ describe("E2E Smoke Test", () => {
     it("should clean up database between tests", () => {
       // This test verifies that the beforeEach/afterEach hooks work
       // Insert some data
-      db.prepare("INSERT INTO trips (id, date, origin_station_id, origin_station_name, destination_station_id, destination_station_name, line, departure_time, arrival_time, actual_duration_minutes, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      db.prepare(
+        "INSERT INTO trips (id, date, origin_station_id, origin_station_name, destination_station_id, destination_station_name, line, departure_time, arrival_time, actual_duration_minutes, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      ).run(
         "isolation-test-1",
         "2026-08-30",
         "101",
@@ -285,9 +285,7 @@ describe("E2E Smoke Test", () => {
       );
 
       // Verify it exists
-      const count = db
-        .prepare("SELECT COUNT(*) as count FROM trips")
-        .get() as { count: number };
+      const count = db.prepare("SELECT COUNT(*) as count FROM trips").get() as { count: number };
       expect(count.count).toBe(1);
 
       // The afterEach hook will clean this up

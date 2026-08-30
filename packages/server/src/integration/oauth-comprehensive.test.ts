@@ -15,11 +15,7 @@
 import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
-import {
-  cleanupAllState,
-  createIntegrationTestDatabase,
-  createTestApiKey,
-} from "./test-helpers.js";
+import { registerApiKey } from "../middleware/authentication.js";
 import {
   cancelOAuthAuthorization,
   createAuthorizationUrl,
@@ -29,7 +25,11 @@ import {
   registerOAuthProvider,
   resetOAuthForTesting,
 } from "../oauth/index.js";
-import { registerApiKey } from "../middleware/authentication.js";
+import {
+  cleanupAllState,
+  createIntegrationTestDatabase,
+  createTestApiKey,
+} from "./test-helpers.js";
 
 // Minimal test fixtures
 const STATIONS: StationIndex = {
@@ -181,7 +181,9 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
       expect(url.origin).toBe("https://accounts.google.com");
 
       expect(url.searchParams.get("client_id")).toBe("test-google-client");
-      expect(url.searchParams.get("redirect_uri")).toBe("http://localhost:3001/auth/google/callback");
+      expect(url.searchParams.get("redirect_uri")).toBe(
+        "http://localhost:3001/auth/google/callback"
+      );
       expect(url.searchParams.get("response_type")).toBe("code");
       expect(url.searchParams.get("scope")).toBe("openid email profile");
 
@@ -203,7 +205,9 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
       expect(url.origin).toBe("https://github.com");
 
       expect(url.searchParams.get("client_id")).toBe("test-github-client");
-      expect(url.searchParams.get("redirect_uri")).toBe("http://localhost:3001/auth/github/callback");
+      expect(url.searchParams.get("redirect_uri")).toBe(
+        "http://localhost:3001/auth/github/callback"
+      );
       expect(url.searchParams.get("response_type")).toBe("code");
       expect(url.searchParams.get("scope")).toBe("read:user user:email");
 
@@ -279,7 +283,9 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
       if ("error" in authorization) throw new Error(authorization.error);
 
       // Manually expire the state by setting expiresAt to past
-      const state = (await import("../oauth/index.js")).getOAuthStateForTesting(authorization.stateId);
+      const state = (await import("../oauth/index.js")).getOAuthStateForTesting(
+        authorization.stateId
+      );
       if (state) {
         state.expiresAt = Date.now() - 1000;
       }
@@ -305,10 +311,12 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
       // Mock failed token exchange
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "invalid_grant" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }))
+        vi.fn().mockResolvedValue(
+          new Response(JSON.stringify({ error: "invalid_grant" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
       );
 
       const createSession = vi.fn().mockResolvedValue({ sessionId: "test-session" });
@@ -386,7 +394,11 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
           .fn()
           .mockResolvedValueOnce(jsonResponse({ access_token: "provider-access-token" }))
           .mockResolvedValueOnce(
-            jsonResponse({ sub: "google-subject-123", email: "rider@example.test", name: "Test Rider" })
+            jsonResponse({
+              sub: "google-subject-123",
+              email: "rider@example.test",
+              name: "Test Rider",
+            })
           )
       );
 
@@ -432,7 +444,12 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
           .fn()
           .mockResolvedValueOnce(jsonResponse({ access_token: "provider-access-token" }))
           .mockResolvedValueOnce(
-            jsonResponse({ id: 42, login: "testrider", email: "rider@example.test", avatar_url: "https://example.com/avatar.png" })
+            jsonResponse({
+              id: 42,
+              login: "testrider",
+              email: "rider@example.test",
+              avatar_url: "https://example.com/avatar.png",
+            })
           )
       );
 
@@ -459,12 +476,10 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
         picture: "https://example.com/avatar.png",
       });
 
-      expect(createSession).toHaveBeenCalledWith(
-        "oauth:github:42",
-        "198.51.100.10",
-        "test-agent",
-        { oauthProvider: "github", oauthUserId: "42" }
-      );
+      expect(createSession).toHaveBeenCalledWith("oauth:github:42", "198.51.100.10", "test-agent", {
+        oauthProvider: "github",
+        oauthUserId: "42",
+      });
     });
   });
 
@@ -690,7 +705,9 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
         vi
           .fn()
           .mockResolvedValueOnce(jsonResponse({ access_token: "provider-access-token" }))
-          .mockResolvedValueOnce(jsonResponse({ sub: "google-subject-ratelimit", name: "Rate Limit Test" }))
+          .mockResolvedValueOnce(
+            jsonResponse({ sub: "google-subject-ratelimit", name: "Rate Limit Test" })
+          )
       );
 
       // First callback should succeed
@@ -783,7 +800,9 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
         vi
           .fn()
           .mockResolvedValueOnce(jsonResponse({ access_token: "provider-access-token" }))
-          .mockResolvedValueOnce(jsonResponse({ sub: "google-subject-signout", name: "Sign Out Test" }))
+          .mockResolvedValueOnce(
+            jsonResponse({ sub: "google-subject-signout", name: "Sign Out Test" })
+          )
       );
 
       const callbackResponse = await app.request(

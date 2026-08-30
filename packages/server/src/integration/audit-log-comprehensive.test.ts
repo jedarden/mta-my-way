@@ -19,37 +19,37 @@ import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type AuditEvent,
+  type AuditEventCategory,
+  type AuditEventSeverity,
   addAuditEvent,
   clearAuditLog,
   getClientIp,
   getUserAgent,
-  queryAuditLog,
-  logAuthorizationSuccess,
-  logAuthorizationFailure,
   logApiKeyCreated,
+  logAuthorizationFailure,
+  logAuthorizationSuccess,
   logSecurityEvent,
-  type AuditEvent,
-  type AuditEventCategory,
-  type AuditEventSeverity,
+  queryAuditLog,
 } from "../middleware/audit-log.js";
+import { requirePermission, requireRole } from "../middleware/rbac.js";
+import { securityHeaders } from "../middleware/security-headers.js";
 import {
+  type AuditCategory,
+  type AuditOutcome,
+  type AuditSeverity,
+  type StructuredAuditEvent,
+  clearAuditLogs,
+  detectSecurityIncidents,
+  getAuditEvent,
+  getChildEvents,
+  getRecentFailedAuths,
+  getRelatedEvents,
+  getAuditLogStats as getStructuredAuditLogStats,
   logAuditEventFromContext,
   queryAuditLogs,
-  clearAuditLogs,
-  getAuditEvent,
-  getRelatedEvents,
-  getChildEvents,
-  getAuditLogStats as getStructuredAuditLogStats,
   redactSensitiveData,
-  detectSecurityIncidents,
-  getRecentFailedAuths,
-  type AuditCategory,
-  type AuditSeverity,
-  type AuditOutcome,
-  type StructuredAuditEvent,
 } from "../middleware/structured-audit-log.js";
-import { securityHeaders } from "../middleware/security-headers.js";
-import { requirePermission, requireRole } from "../middleware/rbac.js";
 
 // ---------------------------------------------------------------------------
 // Types and Interfaces
@@ -76,7 +76,7 @@ function createTestContext(overrides: Partial<TestContext> = {}): any {
         const headers: Record<string, string> = {
           "CF-Connecting-IP": "192.168.1.100",
           "User-Agent": "Mozilla/5.0 Test Agent",
-          "Host": "test.example.com",
+          Host: "test.example.com",
         };
         return headers[name];
       }),
@@ -103,7 +103,12 @@ function createRbacMiddleware(requiredRole: string): MiddlewareHandler {
     const userRole = c.get("role");
     if (userRole !== requiredRole) {
       // Log authorization failure
-      logAuthorizationFailure(c, "protected_resource", "access", `Role '${userRole}' lacks required role '${requiredRole}'`);
+      logAuthorizationFailure(
+        c,
+        "protected_resource",
+        "access",
+        `Role '${userRole}' lacks required role '${requiredRole}'`
+      );
       return c.json({ error: "forbidden" }, 403);
     }
 
@@ -121,7 +126,12 @@ function createPermissionMiddleware(requiredPermission: string): MiddlewareHandl
     const userPermissions = c.get("permissions") as string[] | undefined;
     if (!userPermissions?.includes(requiredPermission)) {
       // Log authorization failure
-      logAuthorizationFailure(c, "protected_resource", "access", `Missing required permission: ${requiredPermission}`);
+      logAuthorizationFailure(
+        c,
+        "protected_resource",
+        "access",
+        `Missing required permission: ${requiredPermission}`
+      );
       return c.json({ error: "forbidden" }, 403);
     }
 
@@ -178,7 +188,17 @@ function verifyEventCompleteness(event: AuditEvent): void {
   expect(typeof event.timestamp).toBe("number");
 
   expect(event.category).toBeDefined();
-  expect(["authentication", "authorization", "api_keys", "users", "sessions", "admin", "data_access", "configuration", "security"]).toContain(event.category);
+  expect([
+    "authentication",
+    "authorization",
+    "api_keys",
+    "users",
+    "sessions",
+    "admin",
+    "data_access",
+    "configuration",
+    "security",
+  ]).toContain(event.category);
 
   expect(event.severity).toBeDefined();
   expect(["info", "warning", "error", "critical"]).toContain(event.severity);
@@ -209,13 +229,24 @@ function verifyEventCompleteness(event: AuditEvent): void {
 function verifyStructuredEventCompleteness(event: StructuredAuditEvent): void {
   expect(event.metadata).toBeDefined();
   expect(event.metadata.eventId).toBeDefined();
-  expect(event.metadata.eventId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  expect(event.metadata.eventId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  );
 
   expect(event.timestamp).toBeDefined();
   expect(new Date(event.timestamp).toISOString()).toBe(event.timestamp);
 
   expect(event.category).toBeDefined();
-  expect(["authentication", "authorization", "data_access", "data_modification", "configuration", "administration", "security", "compliance"]).toContain(event.category);
+  expect([
+    "authentication",
+    "authorization",
+    "data_access",
+    "data_modification",
+    "configuration",
+    "administration",
+    "security",
+    "compliance",
+  ]).toContain(event.category);
 
   expect(event.severity).toBeDefined();
   expect(["info", "warning", "error", "critical"]).toContain(event.severity);
@@ -320,7 +351,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       expect(events.length).toBeGreaterThanOrEqual(4);
 
       severities.forEach((severity) => {
-        const found = events.some(e => e.severity === severity);
+        const found = events.some((e) => e.severity === severity);
         expect(found).toBe(true);
       });
     });
@@ -363,8 +394,8 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       // Filter by specific error message to avoid picking up events from other tests
       const events = queryAuditLog({
         category: "authorization",
-        success: false
-      }).filter(e => e.error?.includes("lacks required role"));
+        success: false,
+      }).filter((e) => e.error?.includes("lacks required role"));
 
       expect(events.length).toBeGreaterThanOrEqual(1);
       const event = events[0]!;
@@ -397,7 +428,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       // Verify audit log captured the denial
       const events = queryAuditLog({
         category: "authorization",
-        success: false
+        success: false,
       });
 
       expect(events.length).toBeGreaterThanOrEqual(1);
@@ -426,11 +457,11 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       // Check for successful authorization events
       const events = queryAuditLog({
         category: "authorization",
-        success: true
+        success: true,
       });
 
       // May have events from previous tests, so just check structure if any exist
-      events.forEach(event => {
+      events.forEach((event) => {
         expect(event.success).toBe(true);
         verifyEventCompleteness(event);
       });
@@ -458,13 +489,13 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       // Verify all failures were captured
       const events = queryAuditLog({
         category: "authorization",
-        success: false
+        success: false,
       });
 
       expect(events.length).toBeGreaterThanOrEqual(3);
 
       // All should have the same action but different timestamps
-      const deniedActions = events.filter(e => e.action === "protected_resource:access");
+      const deniedActions = events.filter((e) => e.action === "protected_resource:access");
       expect(deniedActions.length).toBeGreaterThanOrEqual(3);
     });
   });
@@ -499,7 +530,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
 
       const events = queryAuditLog({
         category: "security",
-        action: "rate_limit_exceeded"
+        action: "rate_limit_exceeded",
       });
 
       expect(events.length).toBeGreaterThanOrEqual(1);
@@ -539,13 +570,13 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
 
       const events = queryAuditLog({
         category: "security",
-        action: "rate_limit_exceeded"
+        action: "rate_limit_exceeded",
       });
 
       expect(events.length).toBeGreaterThanOrEqual(3);
 
       endpoints.forEach((endpoint) => {
-        const found = events.some(e => e.path === endpoint.path && e.method === endpoint.method);
+        const found = events.some((e) => e.path === endpoint.path && e.method === endpoint.method);
         expect(found).toBe(true);
       });
     });
@@ -572,13 +603,13 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
 
       const events = queryAuditLog({
         clientIp: testIp,
-        action: "rate_limit_exceeded"
+        action: "rate_limit_exceeded",
       });
 
       expect(events.length).toBeGreaterThanOrEqual(5);
 
       // Should have escalation in severity
-      const hasErrorSeverity = events.some(e => e.severity === "error");
+      const hasErrorSeverity = events.some((e) => e.severity === "error");
       expect(hasErrorSeverity).toBe(true);
     });
   });
@@ -603,7 +634,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       // Check for security header violation events
       const events = queryAuditLog({
         category: "security",
-        action: "security_header_violations"
+        action: "security_header_violations",
       });
 
       expect(events.length).toBeGreaterThanOrEqual(1);
@@ -628,7 +659,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
 
       const events = queryAuditLog({
         category: "security",
-        action: "security_header_violations"
+        action: "security_header_violations",
       });
 
       expect(events.length).toBeGreaterThanOrEqual(1);
@@ -637,7 +668,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       expect(event.metadata?.issues).toEqual([
         "missing_csp",
         "missing_hsts",
-        "missing_x_frame_options"
+        "missing_x_frame_options",
       ]);
     });
 
@@ -667,15 +698,15 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
 
       const events = queryAuditLog({
         category: "security",
-        action: "security_header_violations"
+        action: "security_header_violations",
       });
 
       expect(events.length).toBeGreaterThanOrEqual(4);
 
       // Verify all severity levels are present
-      expect(events.some(e => e.severity === "warning")).toBe(true);
-      expect(events.some(e => e.severity === "error")).toBe(true);
-      expect(events.some(e => e.severity === "critical")).toBe(true);
+      expect(events.some((e) => e.severity === "warning")).toBe(true);
+      expect(events.some((e) => e.severity === "error")).toBe(true);
+      expect(events.some((e) => e.severity === "critical")).toBe(true);
     });
 
     it("captures security header violations by endpoint", () => {
@@ -693,13 +724,13 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
 
       const events = queryAuditLog({
         category: "security",
-        action: "security_header_violations"
+        action: "security_header_violations",
       });
 
       expect(events.length).toBeGreaterThanOrEqual(3);
 
       endpoints.forEach((endpoint) => {
-        const found = events.some(e => e.metadata?.endpoint === endpoint);
+        const found = events.some((e) => e.metadata?.endpoint === endpoint);
         expect(found).toBe(true);
       });
     });
@@ -728,7 +759,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       const events = queryAuditLog();
       expect(events.length).toBeGreaterThanOrEqual(1);
 
-      events.forEach(event => {
+      events.forEach((event) => {
         expect(event.id).toBeDefined();
         expect(event.timestamp).toBeDefined();
         expect(event.category).toBeDefined();
@@ -760,7 +791,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       expect(events.length).toBeGreaterThanOrEqual(3);
 
       users.forEach((userId) => {
-        const userEvents = events.filter(e => e.performedBy === userId);
+        const userEvents = events.filter((e) => e.performedBy === userId);
         expect(userEvents.length).toBeGreaterThanOrEqual(1);
       });
     });
@@ -787,8 +818,8 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       const events = queryAuditLog({ category: "authorization" });
 
       testCases.forEach((testCase) => {
-        const found = events.some(e =>
-          e.clientIp === testCase.ip && e.path === testCase.endpoint
+        const found = events.some(
+          (e) => e.clientIp === testCase.ip && e.path === testCase.endpoint
         );
         expect(found).toBe(true);
       });
@@ -817,11 +848,11 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
 
       outcomes.forEach((outcome) => {
         if (outcome.success) {
-          const successEvents = events.filter(e => e.success === true);
+          const successEvents = events.filter((e) => e.success === true);
           expect(successEvents.length).toBeGreaterThanOrEqual(1);
         } else {
-          const failureEvents = events.filter(e =>
-            e.success === false && e.error === outcome.error
+          const failureEvents = events.filter(
+            (e) => e.success === false && e.error === outcome.error
           );
           expect(failureEvents.length).toBeGreaterThanOrEqual(1);
         }
@@ -932,18 +963,18 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       categories.forEach((category) => {
         const filtered = queryAuditLog({ category });
         expect(filtered.length).toBeGreaterThanOrEqual(1);
-        expect(filtered.every(e => e.category === category)).toBe(true);
+        expect(filtered.every((e) => e.category === category)).toBe(true);
       });
 
       // Test success filtering
       const successEvents = queryAuditLog({ success: true });
       expect(successEvents.length).toBeGreaterThanOrEqual(2);
-      expect(successEvents.every(e => e.success === true)).toBe(true);
+      expect(successEvents.every((e) => e.success === true)).toBe(true);
 
       // Test combined filters
       const authSuccessEvents = queryAuditLog({
         category: "authentication",
-        success: true
+        success: true,
       });
       expect(authSuccessEvents.length).toBeGreaterThanOrEqual(1);
     });
@@ -1014,7 +1045,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       const childEvents = getChildEvents(parentId);
       expect(childEvents.length).toBe(2);
 
-      const childIds = childEvents.map(e => e.metadata.eventId);
+      const childIds = childEvents.map((e) => e.metadata.eventId);
       expect(childIds).toContain(childId1);
       expect(childIds).toContain(childId2);
     });
@@ -1056,7 +1087,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       const incidents = detectSecurityIncidents();
       expect(incidents.length).toBeGreaterThan(0);
 
-      const bruteForceIncident = incidents.find(i => i.type === "brute_force");
+      const bruteForceIncident = incidents.find((i) => i.type === "brute_force");
       expect(bruteForceIncident).toBeDefined();
     });
 
@@ -1137,12 +1168,12 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       expect(attackEvents.length).toBeGreaterThanOrEqual(3);
 
       // Verify event chain
-      expect(attackEvents.some(e => e.action === "login_failed")).toBe(true);
-      expect(attackEvents.some(e => e.action === "access_denied")).toBe(true);
-      expect(attackEvents.some(e => e.action === "rate_limit_exceeded")).toBe(true);
+      expect(attackEvents.some((e) => e.action === "login_failed")).toBe(true);
+      expect(attackEvents.some((e) => e.action === "access_denied")).toBe(true);
+      expect(attackEvents.some((e) => e.action === "rate_limit_exceeded")).toBe(true);
 
       // All should have same IP
-      expect(attackEvents.every(e => e.clientIp === testIp)).toBe(true);
+      expect(attackEvents.every((e) => e.clientIp === testIp)).toBe(true);
     });
 
     it("maintains audit trail across middleware chain", async () => {
@@ -1184,7 +1215,7 @@ describe("Comprehensive Audit Logging Integration Tests", () => {
       const events = queryAuditLog({ category: "configuration" });
       expect(events.length).toBeGreaterThanOrEqual(2);
 
-      events.forEach(event => {
+      events.forEach((event) => {
         expect(event.action).toBe("request_completed");
         expect(event.metadata?.duration).toBeDefined();
         expect(event.metadata?.statusCode).toBe(200);

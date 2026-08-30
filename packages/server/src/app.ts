@@ -61,6 +61,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
+import { CORE_ONLY } from "./config.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
 import { getDelayPredictorStatus } from "./delay-predictor.js";
 import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./equipment-poller.js";
@@ -124,7 +125,6 @@ import {
 } from "./oauth/index.js";
 import { logger, metrics, tracingMiddleware } from "./observability/index.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
-import { CORE_ONLY } from "./config.js";
 import {
   getSubscriptionCount,
   getSubscriptionOwner,
@@ -2943,19 +2943,36 @@ ${
     /** Initiate password reset request */
     const resetMiddleware = passwordResetRoutes.requestPasswordReset;
     if (resetMiddleware.length >= 4) {
-      app.post("/api/auth/password/reset", resetMiddleware[0]!, resetMiddleware[1]!, resetMiddleware[2]!, resetMiddleware[3]!);
+      app.post(
+        "/api/auth/password/reset",
+        resetMiddleware[0]!,
+        resetMiddleware[1]!,
+        resetMiddleware[2]!,
+        resetMiddleware[3]!
+      );
     }
 
     /** Confirm password reset with token */
     const confirmMiddleware = passwordResetRoutes.confirmPasswordReset;
     if (confirmMiddleware.length >= 4) {
-      app.post("/api/auth/password/reset/confirm", confirmMiddleware[0]!, confirmMiddleware[1]!, confirmMiddleware[2]!, confirmMiddleware[3]!);
+      app.post(
+        "/api/auth/password/reset/confirm",
+        confirmMiddleware[0]!,
+        confirmMiddleware[1]!,
+        confirmMiddleware[2]!,
+        confirmMiddleware[3]!
+      );
     }
 
     /** Change password for authenticated user */
     const changeMiddleware = passwordResetRoutes.changePassword;
     if (changeMiddleware.length >= 3) {
-      app.post("/api/auth/password/change", changeMiddleware[0]!, changeMiddleware[1]!, changeMiddleware[2]!);
+      app.post(
+        "/api/auth/password/change",
+        changeMiddleware[0]!,
+        changeMiddleware[1]!,
+        changeMiddleware[2]!
+      );
     }
 
     /** Get user's synced preferences */

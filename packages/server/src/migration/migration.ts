@@ -22,7 +22,7 @@
  * ```
  */
 
-import { constants as fsConstants } from "node:fs";
+import type { constants as fsConstants } from "node:fs";
 import { copyFile, mkdir, readdir, unlink } from "node:fs/promises";
 
 // Import constants dynamically for better-sqlite3 compatibility

@@ -28,6 +28,7 @@ import {
   updateTripNotes,
 } from "../trip-tracking.js";
 import {
+  cleanupAllState,
   clearAllTrips,
   clearCommuteStatsCache,
   closeDatabase,
@@ -36,7 +37,6 @@ import {
   createTestUserCredentials,
   getCsrfToken,
   requestWithCsrf,
-  cleanupAllState,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------

@@ -12,9 +12,9 @@
  * - Happy-path through the full chain
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
+import { beforeEach, describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Test instrumentation
@@ -59,18 +59,13 @@ function instrumentMiddleware(
       phase: "before",
     });
 
-    try {
-      await middleware(c, next);
+    await middleware(c, next);
 
-      executionLog.push({
-        middlewareName: name,
-        timestamp: Date.now(),
-        phase: "after",
-      });
-    } catch (error) {
-      // Re-throw after logging
-      throw error;
-    }
+    executionLog.push({
+      middlewareName: name,
+      timestamp: Date.now(),
+      phase: "after",
+    });
   };
 }
 
@@ -88,7 +83,9 @@ function verifyExecutionOrder(expectedOrder: string[], actualLog: ExecutionLogEn
   expectedOrder.forEach((expectedName) => {
     const found = actualOrder.includes(expectedName);
     if (!found) {
-      throw new Error(`Expected middleware "${expectedName}" not found in execution log. Actual order: ${actualOrder.join(", ")}`);
+      throw new Error(
+        `Expected middleware "${expectedName}" not found in execution log. Actual order: ${actualOrder.join(", ")}`
+      );
     }
   });
 
@@ -119,17 +116,26 @@ describe("Middleware Execution Order", () => {
     it("should execute middleware in registration order", async () => {
       const app = new Hono();
 
-      app.use("*", instrumentMiddleware("middleware1", async (_c, next) => {
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware1", async (_c, next) => {
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware2", async (_c, next) => {
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware2", async (_c, next) => {
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware3", async (_c, next) => {
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware3", async (_c, next) => {
+          await next();
+        })
+      );
 
       app.get("/test", (c) => c.json({ status: "ok" }));
 
@@ -145,20 +151,29 @@ describe("Middleware Execution Order", () => {
       const app = new Hono();
       let executionCount = 0;
 
-      app.use("*", instrumentMiddleware("middleware1", async (_c, next) => {
-        executionCount++;
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware1", async (_c, next) => {
+          executionCount++;
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware2", async (_c, next) => {
-        executionCount++;
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware2", async (_c, next) => {
+          executionCount++;
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware3", async (_c, next) => {
-        executionCount++;
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware3", async (_c, next) => {
+          executionCount++;
+          await next();
+        })
+      );
 
       app.get("/test", (c) => c.json({ count: executionCount }));
 
@@ -179,22 +194,28 @@ describe("Middleware Execution Order", () => {
       let authRan = false;
       let authzRan = false;
 
-      app.use("/api/*", instrumentMiddleware("authentication", async (c, next) => {
-        authRan = true;
-        // Set auth context
-        c.set("authContext", { userId: "test-user" });
-        await next();
-      }));
+      app.use(
+        "/api/*",
+        instrumentMiddleware("authentication", async (c, next) => {
+          authRan = true;
+          // Set auth context
+          c.set("authContext", { userId: "test-user" });
+          await next();
+        })
+      );
 
-      app.use("/api/*", instrumentMiddleware("authorization", async (c, next) => {
-        authzRan = true;
-        // Check auth context exists
-        const authContext = c.get("authContext");
-        if (!authContext) {
-          return c.json({ error: "Unauthorized" }, 401);
-        }
-        await next();
-      }));
+      app.use(
+        "/api/*",
+        instrumentMiddleware("authorization", async (c, next) => {
+          authzRan = true;
+          // Check auth context exists
+          const authContext = c.get("authContext");
+          if (!authContext) {
+            return c.json({ error: "Unauthorized" }, 401);
+          }
+          await next();
+        })
+      );
 
       app.get("/api/test", (c) => c.json({ status: "ok" }));
 
@@ -206,8 +227,12 @@ describe("Middleware Execution Order", () => {
 
       // Verify execution order
       const log = getExecutionLog();
-      const authIndex = log.findIndex((e) => e.middlewareName === "authentication" && e.phase === "before");
-      const authzIndex = log.findIndex((e) => e.middlewareName === "authorization" && e.phase === "before");
+      const authIndex = log.findIndex(
+        (e) => e.middlewareName === "authentication" && e.phase === "before"
+      );
+      const authzIndex = log.findIndex(
+        (e) => e.middlewareName === "authorization" && e.phase === "before"
+      );
 
       expect(authIndex).toBeGreaterThanOrEqual(0);
       expect(authzIndex).toBeGreaterThanOrEqual(0);
@@ -220,21 +245,27 @@ describe("Middleware Execution Order", () => {
       let authRan = false;
       let authzRan = false;
 
-      app.use("/api/*", instrumentMiddleware("authentication", async (c, next) => {
-        authRan = true;
-        // Simulate authentication failure
-        const validAuth = c.req.header("Authorization");
-        if (!validAuth || validAuth === "invalid") {
-          // Return error response without calling next()
-          return c.json({ error: "Invalid credentials" }, 401);
-        }
-        await next();
-      }));
+      app.use(
+        "/api/*",
+        instrumentMiddleware("authentication", async (c, next) => {
+          authRan = true;
+          // Simulate authentication failure
+          const validAuth = c.req.header("Authorization");
+          if (!validAuth || validAuth === "invalid") {
+            // Return error response without calling next()
+            return c.json({ error: "Invalid credentials" }, 401);
+          }
+          await next();
+        })
+      );
 
-      app.use("/api/*", instrumentMiddleware("authorization", async (c, next) => {
-        authzRan = true;
-        await next();
-      }));
+      app.use(
+        "/api/*",
+        instrumentMiddleware("authorization", async (c, next) => {
+          authzRan = true;
+          await next();
+        })
+      );
 
       app.get("/api/test", (c) => c.json({ status: "ok" }));
 
@@ -251,7 +282,9 @@ describe("Middleware Execution Order", () => {
 
       // Verify authentication ran
       const log = getExecutionLog();
-      expect(log.some((e) => e.middlewareName === "authentication" && e.phase === "before")).toBe(true);
+      expect(log.some((e) => e.middlewareName === "authentication" && e.phase === "before")).toBe(
+        true
+      );
     });
   });
 
@@ -259,22 +292,28 @@ describe("Middleware Execution Order", () => {
     it("should allow middleware to share context via request state", async () => {
       const app = new Hono();
 
-      app.use("*", instrumentMiddleware("setContext", async (c, next) => {
-        c.set("testValue", "middleware-data");
-        c.set("requestId", "test-123");
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("setContext", async (c, next) => {
+          c.set("testValue", "middleware-data");
+          c.set("requestId", "test-123");
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("readContext", async (c, next) => {
-        const testValue = c.get("testValue");
-        const requestId = c.get("requestId");
+      app.use(
+        "*",
+        instrumentMiddleware("readContext", async (c, next) => {
+          const testValue = c.get("testValue");
+          const requestId = c.get("requestId");
 
-        if (testValue && requestId) {
-          c.set("contextRead", true);
-          c.set("readValues", { testValue, requestId });
-        }
-        await next();
-      }));
+          if (testValue && requestId) {
+            c.set("contextRead", true);
+            c.set("readValues", { testValue, requestId });
+          }
+          await next();
+        })
+      );
 
       app.get("/test", (c) => {
         const contextRead = c.get("contextRead");
@@ -297,23 +336,32 @@ describe("Middleware Execution Order", () => {
     it("should propagate context through the full middleware chain", async () => {
       const app = new Hono();
 
-      app.use("*", instrumentMiddleware("middleware1", async (c, next) => {
-        c.set("middleware1Data", { value: "data1" });
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware1", async (c, next) => {
+          c.set("middleware1Data", { value: "data1" });
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware2", async (c, next) => {
-        const data1 = c.get("middleware1Data");
-        c.set("middleware2Data", { value: "data2", previous: data1 });
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware2", async (c, next) => {
+          const data1 = c.get("middleware1Data");
+          c.set("middleware2Data", { value: "data2", previous: data1 });
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware3", async (c, next) => {
-        const data1 = c.get("middleware1Data");
-        const data2 = c.get("middleware2Data");
-        c.set("middleware3Data", { value: "data3", chain: [data1, data2] });
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware3", async (c, next) => {
+          const data1 = c.get("middleware1Data");
+          const data2 = c.get("middleware2Data");
+          c.set("middleware3Data", { value: "data3", chain: [data1, data2] });
+          await next();
+        })
+      );
 
       app.get("/test", (c) => {
         const data1 = c.get("middleware1Data");
@@ -341,29 +389,41 @@ describe("Middleware Execution Order", () => {
       const app = new Hono();
 
       // Simulate a middleware chain
-      app.use("*", instrumentMiddleware("requestId", async (c, next) => {
-        c.set("requestId", "test-123");
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("requestId", async (c, next) => {
+          c.set("requestId", "test-123");
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("securityHeaders", async (c, next) => {
-        c.set("securityHeadersSet", true);
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("securityHeaders", async (c, next) => {
+          c.set("securityHeadersSet", true);
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("authentication", async (c, next) => {
-        c.set("authenticated", true);
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("authentication", async (c, next) => {
+          c.set("authenticated", true);
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("authorization", async (c, next) => {
-        const authenticated = c.get("authenticated");
-        if (!authenticated) {
-          return c.json({ error: "Unauthorized" }, 401);
-        }
-        c.set("authorized", true);
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("authorization", async (c, next) => {
+          const authenticated = c.get("authenticated");
+          if (!authenticated) {
+            return c.json({ error: "Unauthorized" }, 401);
+          }
+          c.set("authorized", true);
+          await next();
+        })
+      );
 
       app.get("/api/test", (c) => {
         return c.json({
@@ -387,7 +447,10 @@ describe("Middleware Execution Order", () => {
       expect(body.authorized).toBe(true);
 
       // Verify all middleware ran in order
-      verifyExecutionOrder(["requestId", "securityHeaders", "authentication", "authorization"], getExecutionLog());
+      verifyExecutionOrder(
+        ["requestId", "securityHeaders", "authentication", "authorization"],
+        getExecutionLog()
+      );
 
       // Verify all middleware completed (after phase)
       const beforePhases = getExecutionLog().filter((e) => e.phase === "before");
@@ -400,24 +463,33 @@ describe("Middleware Execution Order", () => {
 
       let requestIdValue: string | undefined;
 
-      app.use("*", instrumentMiddleware("requestId", async (c, next) => {
-        const requestId = c.get("requestId") || "generated-123";
-        requestIdValue = requestId;
-        c.set("originalRequestId", requestId);
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("requestId", async (c, next) => {
+          const requestId = c.get("requestId") || "generated-123";
+          requestIdValue = requestId;
+          c.set("originalRequestId", requestId);
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware2", async (c, next) => {
-        const originalId = c.get("originalRequestId");
-        expect(originalId).toBeDefined();
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware2", async (c, next) => {
+          const originalId = c.get("originalRequestId");
+          expect(originalId).toBeDefined();
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware3", async (c, next) => {
-        const originalId = c.get("originalRequestId");
-        expect(originalId).toBeDefined();
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware3", async (c, next) => {
+          const originalId = c.get("originalRequestId");
+          expect(originalId).toBeDefined();
+          await next();
+        })
+      );
 
       app.get("/test", (c) => {
         const originalId = c.get("originalRequestId");
@@ -441,18 +513,24 @@ describe("Middleware Execution Order", () => {
       let requestIdSet = false;
       let loggingRan = false;
 
-      app.use("*", instrumentMiddleware("requestId", async (c, next) => {
-        c.set("requestId", "test-123");
-        requestIdSet = !!c.get("requestId");
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("requestId", async (c, next) => {
+          c.set("requestId", "test-123");
+          requestIdSet = !!c.get("requestId");
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("logging", async (c, next) => {
-        loggingRan = true;
-        // Logging should have requestId available
-        expect(requestIdSet).toBe(true);
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("logging", async (c, next) => {
+          loggingRan = true;
+          // Logging should have requestId available
+          expect(requestIdSet).toBe(true);
+          await next();
+        })
+      );
 
       app.get("/test", (c) => c.json({ status: "ok" }));
 
@@ -469,21 +547,27 @@ describe("Middleware Execution Order", () => {
       let sanitizationRan = false;
       let validationRan = false;
 
-      app.use("/api/*", instrumentMiddleware("inputSanitization", async (c, next) => {
-        sanitizationRan = true;
-        const query = c.req.query();
-        if (query.q) {
-          c.set("sanitizedQuery", query.q.trim());
-        }
-        await next();
-      }));
+      app.use(
+        "/api/*",
+        instrumentMiddleware("inputSanitization", async (c, next) => {
+          sanitizationRan = true;
+          const query = c.req.query();
+          if (query.q) {
+            c.set("sanitizedQuery", query.q.trim());
+          }
+          await next();
+        })
+      );
 
-      app.use("/api/*", instrumentMiddleware("validation", async (c, next) => {
-        validationRan = true;
-        const sanitizedQuery = c.get("sanitizedQuery");
-        expect(sanitizedQuery).toBeDefined();
-        await next();
-      }));
+      app.use(
+        "/api/*",
+        instrumentMiddleware("validation", async (c, next) => {
+          validationRan = true;
+          const sanitizedQuery = c.get("sanitizedQuery");
+          expect(sanitizedQuery).toBeDefined();
+          await next();
+        })
+      );
 
       app.get("/api/test", (c) => c.json({ status: "ok" }));
 
@@ -500,16 +584,22 @@ describe("Middleware Execution Order", () => {
     it("should ensure security headers run before rate limiting", async () => {
       const app = new Hono();
 
-      app.use("*", instrumentMiddleware("securityHeaders", async (c, next) => {
-        c.header("X-Content-Type-Options", "nosniff");
-        c.header("X-Frame-Options", "DENY");
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("securityHeaders", async (c, next) => {
+          c.header("X-Content-Type-Options", "nosniff");
+          c.header("X-Frame-Options", "DENY");
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("rateLimiter", async (c, next) => {
-        c.header("X-RateLimit-Remaining", "60");
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("rateLimiter", async (c, next) => {
+          c.header("X-RateLimit-Remaining", "60");
+          await next();
+        })
+      );
 
       app.get("/test", (c) => c.json({ status: "ok" }));
 
@@ -534,15 +624,18 @@ describe("Middleware Execution Order", () => {
       let sanitizationRan = false;
       let businessLogicRan = false;
 
-      app.use("/api/*", instrumentMiddleware("inputSanitization", async (c, next) => {
-        sanitizationRan = true;
-        const query = c.req.query();
-        if (query.q) {
-          // Store sanitized value
-          c.set("sanitizedQuery", query.q.replace(/[<>]/g, ""));
-        }
-        await next();
-      }));
+      app.use(
+        "/api/*",
+        instrumentMiddleware("inputSanitization", async (c, next) => {
+          sanitizationRan = true;
+          const query = c.req.query();
+          if (query.q) {
+            // Store sanitized value
+            c.set("sanitizedQuery", query.q.replace(/[<>]/g, ""));
+          }
+          await next();
+        })
+      );
 
       app.get("/api/test", (c) => {
         businessLogicRan = true;
@@ -563,7 +656,9 @@ describe("Middleware Execution Order", () => {
 
       // Verify execution order
       const log = getExecutionLog();
-      const sanitizationIndex = log.findIndex((e) => e.middlewareName === "inputSanitization" && e.phase === "before");
+      const sanitizationIndex = log.findIndex(
+        (e) => e.middlewareName === "inputSanitization" && e.phase === "before"
+      );
       expect(sanitizationIndex).toBeGreaterThanOrEqual(0);
     });
   });
@@ -575,21 +670,27 @@ describe("Middleware Execution Order", () => {
       let middleware1Ran = false;
       let middleware2Ran = false;
 
-      app.use("*", instrumentMiddleware("middleware1", async (_c, next) => {
-        middleware1Ran = true;
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware1", async (_c, next) => {
+          middleware1Ran = true;
+          await next();
+        })
+      );
 
-      app.use("*", instrumentMiddleware("middleware2", async (c, next) => {
-        middleware2Ran = true;
-        // Check a condition and reject early
-        const apiKey = c.req.header("X-API-Key");
-        if (!apiKey) {
-          // Return error response without calling next()
-          return c.json({ error: "API key required" }, 401);
-        }
-        await next();
-      }));
+      app.use(
+        "*",
+        instrumentMiddleware("middleware2", async (c, next) => {
+          middleware2Ran = true;
+          // Check a condition and reject early
+          const apiKey = c.req.header("X-API-Key");
+          if (!apiKey) {
+            // Return error response without calling next()
+            return c.json({ error: "API key required" }, 401);
+          }
+          await next();
+        })
+      );
 
       app.get("/test", (c) => c.json({ status: "ok" }));
 
@@ -607,7 +708,9 @@ describe("Middleware Execution Order", () => {
       expect(middleware2Entry).toBeDefined();
 
       // Middleware2 should have before phase
-      expect(log.some((e) => e.middlewareName === "middleware2" && e.phase === "before")).toBe(true);
+      expect(log.some((e) => e.middlewareName === "middleware2" && e.phase === "before")).toBe(
+        true
+      );
     });
   });
 });

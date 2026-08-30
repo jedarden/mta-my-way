@@ -598,7 +598,10 @@ export function insertPasswordHistory(db: Database, history: PasswordHistoryFixt
   insertMany(history);
 }
 
-export function insertPasswordResetAttempts(db: Database, attempts: PasswordResetAttemptFixture[]): void {
+export function insertPasswordResetAttempts(
+  db: Database,
+  attempts: PasswordResetAttemptFixture[]
+): void {
   const insert = db.prepare(`
     INSERT OR REPLACE INTO security_password_reset_attempts (key, count, reset_at, locked_until)
     VALUES (?, ?, ?, ?)
@@ -658,7 +661,10 @@ export function insertTrustedIps(db: Database, ips: TrustedIpFixture[]): void {
   insertMany(ips);
 }
 
-export function insertNotificationPreferences(db: Database, prefs: NotificationPreferenceFixture[]): void {
+export function insertNotificationPreferences(
+  db: Database,
+  prefs: NotificationPreferenceFixture[]
+): void {
   const insert = db.prepare(`
     INSERT OR REPLACE INTO security_notification_preferences (key_id, preferences, updated_at)
     VALUES (?, ?, ?)
@@ -682,14 +688,24 @@ export function insertSecurityEvents(db: Database, events: SecurityEventFixture[
 
   const insertMany = db.transaction((eventList: SecurityEventFixture[]) => {
     for (const event of eventList) {
-      insert.run(event.event_id, event.key_id, event.event_type, event.severity, event.timestamp, event.event_data);
+      insert.run(
+        event.event_id,
+        event.key_id,
+        event.event_type,
+        event.severity,
+        event.timestamp,
+        event.event_data
+      );
     }
   });
 
   insertMany(events);
 }
 
-export function insertNotificationHistory(db: Database, history: NotificationHistoryFixture[]): void {
+export function insertNotificationHistory(
+  db: Database,
+  history: NotificationHistoryFixture[]
+): void {
   const insert = db.prepare(`
     INSERT OR REPLACE INTO security_notification_history (event_id, key_id, results, recorded_at)
     VALUES (?, ?, ?, ?)
@@ -704,7 +720,10 @@ export function insertNotificationHistory(db: Database, history: NotificationHis
   insertMany(history);
 }
 
-export function insertNotificationTemplates(db: Database, templates: NotificationTemplateFixture[]): void {
+export function insertNotificationTemplates(
+  db: Database,
+  templates: NotificationTemplateFixture[]
+): void {
   const insert = db.prepare(`
     INSERT OR REPLACE INTO security_notification_templates (event_type, template_data)
     VALUES (?, ?)

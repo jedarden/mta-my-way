@@ -172,78 +172,80 @@ export function buildBriefingPayload(
  * Checks every minute and sends briefings at the configured time.
  */
 export function startBriefingScheduler(): void {
-  setInterval(async () => {
-    const now = new Date();
-    const todayKey = getTodayKey();
+  setInterval(() => {
+    void (async () => {
+      const now = new Date();
+      const todayKey = getTodayKey();
 
-    // Reset sent tracking at midnight
-    if (todayKey !== lastCheckDate) {
-      sentToday.clear();
-      lastCheckDate = todayKey;
-    }
-
-    // Only run during the minute window when briefings may be due
-    if (now.getMinutes() !== BRIEFING_MINUTE) {
-      return;
-    }
-
-    const currentHour = now.getHours();
-    const subscriptions = await getAllSubscriptions();
-    if (subscriptions.length === 0) return;
-
-    for (const sub of subscriptions) {
-      // Skip if already sent today
-      if (sentToday.has(sub.endpointHash)) continue;
-
-      // Send at each subscription's personalized briefing hour (default 7 AM)
-      const subBriefingHour = sub.briefingHour ?? DEFAULT_BRIEFING_HOUR;
-      if (currentHour !== subBriefingHour) continue;
-
-      let favorites: PushFavoriteTuple[];
-      let quietHours: QuietHoursConfig;
-      let morningScores: MorningScoreMap;
-
-      try {
-        favorites = JSON.parse(sub.favorites);
-      } catch {
-        continue;
+      // Reset sent tracking at midnight
+      if (todayKey !== lastCheckDate) {
+        sentToday.clear();
+        lastCheckDate = todayKey;
       }
 
-      try {
-        quietHours = JSON.parse(sub.quietHours);
-      } catch {
-        quietHours = { enabled: false, startHour: 22, endHour: 7 };
+      // Only run during the minute window when briefings may be due
+      if (now.getMinutes() !== BRIEFING_MINUTE) {
+        return;
       }
 
-      try {
-        morningScores = JSON.parse(sub.morningScores);
-      } catch {
-        morningScores = {};
+      const currentHour = now.getHours();
+      const subscriptions = await getAllSubscriptions();
+      if (subscriptions.length === 0) return;
+
+      for (const sub of subscriptions) {
+        // Skip if already sent today
+        if (sentToday.has(sub.endpointHash)) continue;
+
+        // Send at each subscription's personalized briefing hour (default 7 AM)
+        const subBriefingHour = sub.briefingHour ?? DEFAULT_BRIEFING_HOUR;
+        if (currentHour !== subBriefingHour) continue;
+
+        let favorites: PushFavoriteTuple[];
+        let quietHours: QuietHoursConfig;
+        let morningScores: MorningScoreMap;
+
+        try {
+          favorites = JSON.parse(sub.favorites);
+        } catch {
+          continue;
+        }
+
+        try {
+          quietHours = JSON.parse(sub.quietHours);
+        } catch {
+          quietHours = { enabled: false, startHour: 22, endHour: 7 };
+        }
+
+        try {
+          morningScores = JSON.parse(sub.morningScores);
+        } catch {
+          morningScores = {};
+        }
+
+        // Respect quiet hours
+        if (isQuietHours(quietHours)) continue;
+
+        const payload = buildBriefingPayload(favorites, morningScores);
+        if (!payload) continue;
+
+        sendPushNotification(sub, payload)
+          .then((sent) => {
+            if (sent) {
+              sentToday.add(sub.endpointHash);
+            }
+          })
+          .catch(() => {
+            // Individual send failure — don't block others
+          });
       }
 
-      // Respect quiet hours
-      if (isQuietHours(quietHours)) continue;
-
-      const payload = buildBriefingPayload(favorites, morningScores);
-      if (!payload) continue;
-
-      sendPushNotification(sub, payload)
-        .then((sent) => {
-          if (sent) {
-            sentToday.add(sub.endpointHash);
-          }
-        })
-        .catch(() => {
-          // Individual send failure — don't block others
+      if (sentToday.size > 0) {
+        logger.info("Morning briefing sent", {
+          sent_count: sentToday.size,
+          total_subscriptions: subscriptions.length,
         });
-    }
-
-    if (sentToday.size > 0) {
-      logger.info("Morning briefing sent", {
-        sent_count: sentToday.size,
-        total_subscriptions: subscriptions.length,
-      });
-    }
+      }
+    })();
   }, CHECK_INTERVAL_MS);
 
   logger.info("Briefing scheduler started", {

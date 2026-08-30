@@ -12,7 +12,7 @@
 import type { ComplexIndex, RouteIndex, TransferConnection } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { cleanupAllState, TEST_STATIONS } from "./test-helpers.js";
+import { TEST_STATIONS, cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures (minimal — we only need the app to boot)

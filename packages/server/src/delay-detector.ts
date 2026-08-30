@@ -726,8 +726,7 @@ export function getDelayDetectorStatus(): {
     trackedTrips: trackedTrips.size,
     activeAlerts: activePredictedAlerts.size,
     thresholdMultiplier: config?.thresholdMultiplier ?? DEFAULT_THRESHOLD_MULTIPLIER,
-    minTrainsForLineAlert:
-      config?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
+    minTrainsForLineAlert: config?.minTrainsForLineAlert ?? DEFAULT_MIN_TRAINS_FOR_LINE_ALERT,
   };
 }
 
