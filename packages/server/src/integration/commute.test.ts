@@ -22,6 +22,8 @@ import {
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
+  getCsrfToken,
+  requestWithCsrf,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -178,31 +180,6 @@ describe("Commute Analysis Integration Tests", () => {
   let authHeaders: { Authorization: string };
   let getArrivalsSpy: ReturnType<typeof vi.spyOn>;
 
-  /**
-   * Helper to get a CSRF token from the test app.
-   */
-  async function getCsrfToken(): Promise<string> {
-    const res = await app.request("/api/csrf-token");
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    return body.token as string;
-  }
-
-  /**
-   * Helper to make a state-changing request with CSRF token.
-   * Merges in authHeaders if present in the options.
-   */
-  async function requestWithCsrf(path: string, options: RequestInit = {}): Promise<Response> {
-    const token = await getCsrfToken();
-    return app.request(path, {
-      ...options,
-      headers: {
-        ...(options.headers as Record<string, string>),
-        "X-CSRF-Token": token,
-      },
-    });
-  }
-
   beforeEach(async () => {
     db = createIntegrationTestDatabase();
 
@@ -241,7 +218,7 @@ describe("Commute Analysis Integration Tests", () => {
         return null;
       });
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -281,7 +258,7 @@ describe("Commute Analysis Integration Tests", () => {
         return null;
       });
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -300,7 +277,7 @@ describe("Commute Analysis Integration Tests", () => {
     it("filters by preferred lines", async () => {
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -316,7 +293,7 @@ describe("Commute Analysis Integration Tests", () => {
     it("uses custom commute ID", async () => {
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -335,7 +312,7 @@ describe("Commute Analysis Integration Tests", () => {
     it("enables accessible mode", async () => {
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -351,7 +328,7 @@ describe("Commute Analysis Integration Tests", () => {
     it("returns 404 for invalid origin station", async () => {
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -366,7 +343,7 @@ describe("Commute Analysis Integration Tests", () => {
     it("returns 404 for invalid destination station", async () => {
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -386,7 +363,7 @@ describe("Commute Analysis Integration Tests", () => {
         return null;
       });
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -409,7 +386,7 @@ describe("Commute Analysis Integration Tests", () => {
       // Mock to return empty array (no arrivals)
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -435,7 +412,7 @@ describe("Commute Analysis Integration Tests", () => {
         throw new Error("Internal error");
       });
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -459,7 +436,7 @@ describe("Commute Analysis Integration Tests", () => {
         return null;
       });
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -475,7 +452,7 @@ describe("Commute Analysis Integration Tests", () => {
     it("propagates transfer connection data", async () => {
       getArrivalsSpy.mockImplementation((stationId: string) => createEmptyMockArrivals(stationId));
 
-      const res = await requestWithCsrf("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({

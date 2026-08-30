@@ -34,6 +34,8 @@ import {
   createIntegrationTestDatabase,
   createTestTrip,
   createTestUserCredentials,
+  getCsrfToken,
+  requestWithCsrf,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -132,34 +134,6 @@ const TEST_TRANSFERS: Record<string, TransferConnection[]> = {
   "725": [{ toStationId: "726", toLines: ["A", "C", "E"], walkingSeconds: 120, accessible: true }],
 };
 
-/**
- * Helper to get a CSRF token from the test app.
- */
-async function getCsrfToken(app: ReturnType<typeof createApp>): Promise<string> {
-  const res = await app.request("/api/csrf-token");
-  expect(res.status).toBe(200);
-  const body = await res.json();
-  return body.token as string;
-}
-
-/**
- * Helper to make a state-changing request with CSRF token.
- */
-async function requestWithCsrf(
-  app: ReturnType<typeof createApp>,
-  path: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const token = await getCsrfToken(app);
-  return app.request(path, {
-    ...options,
-    headers: {
-      ...options.headers,
-      "X-CSRF-Token": token,
-    },
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -257,10 +231,6 @@ describe("Data Flow Integration Tests", () => {
 
     it("recalculates on-time percentage after trip recording", async () => {
       const now = Date.now();
-
-      // Clear any existing data to ensure test isolation
-      clearAllTrips(db);
-      clearCommuteStatsCache(db);
 
       // Record trips with varying delays - provide actualDurationMinutes explicitly
       // Trip 1: 50 minutes actual, 45 scheduled = 5 min late (NOT on time, >2 min threshold)
@@ -834,10 +804,6 @@ describe("Data Flow Integration Tests", () => {
 
     it("calculates delay statistics correctly", async () => {
       const now = Date.now();
-
-      // Clear any existing data to ensure test isolation
-      clearAllTrips(db);
-      clearCommuteStatsCache(db);
 
       // Create trips with varying delays (timestamps in seconds)
       const t1 = await requestWithCsrf(app, "/api/trips", {

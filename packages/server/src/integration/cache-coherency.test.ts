@@ -145,6 +145,8 @@ describe("Cache and Database Coherency Integration Tests", () => {
   });
 
   afterEach(() => {
+    clearAllTrips(db);
+    clearCommuteStatsCache(db);
     closeDatabase(db);
   });
 
@@ -517,10 +519,6 @@ describe("Cache and Database Coherency Integration Tests", () => {
     it("calculates stats from current database state", async () => {
       const now = Date.now();
 
-      // Clear existing data to ensure test isolation
-      clearAllTrips(db);
-      clearCommuteStatsCache(db);
-
       // Create trips with varying durations
       const durations = [45, 50, 55, 60, 65];
 
@@ -556,10 +554,6 @@ describe("Cache and Database Coherency Integration Tests", () => {
 
     it("updates on-time percentage correctly", async () => {
       const now = Date.now();
-
-      // Clear any existing data to ensure test isolation
-      clearAllTrips(db);
-      clearCommuteStatsCache(db);
 
       // Create on-time trip using requestWithCsrf for proper CSRF handling
       const t1 = await requestWithCsrf(app, "/api/trips", {

@@ -50,7 +50,6 @@ const TEST_TRAVEL_TIMES = {};
 
 // Initialize delay predictor before all tests
 beforeEach(async () => {
-  await cleanupAllState();
   initDelayPredictor(TEST_TRAVEL_TIMES, TEST_STATIONS);
 });
 

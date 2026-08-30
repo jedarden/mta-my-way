@@ -30,6 +30,7 @@ import {
   createIntegrationTestDatabase,
   createTestAdminCredentials,
   createTestUserCredentials,
+  getCsrfToken,
   requestWithCsrf,
 } from "./test-helpers.js";
 
@@ -103,34 +104,6 @@ const TEST_ROUTES: RouteIndex = {
 
 const TEST_COMPLEXES: ComplexIndex = {};
 const TEST_TRANSFERS: Record<string, TransferConnection[]> = {};
-
-/**
- * Helper to get a CSRF token from the test app.
- */
-async function getCsrfToken(app: ReturnType<typeof createApp>): Promise<string> {
-  const res = await app.request("/api/csrf-token");
-  expect(res.status).toBe(200);
-  const body = await res.json();
-  return body.token as string;
-}
-
-/**
- * Helper to make a state-changing request with CSRF token.
- */
-async function requestWithCsrf(
-  app: ReturnType<typeof createApp>,
-  path: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const token = await getCsrfToken(app);
-  return app.request(path, {
-    ...options,
-    headers: {
-      ...options.headers,
-      "X-CSRF-Token": token,
-    },
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Tests
