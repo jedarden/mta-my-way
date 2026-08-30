@@ -1568,6 +1568,335 @@ const complexStation = createMockStation({
 });
 ```
 
+### How `Partial<T>` Works
+
+The `Partial<T>` utility type is a built-in TypeScript feature that makes all properties of a type optional. When you pass `overrides: Partial<Station>`, you only need to specify the properties you want to change - everything else uses the default Times Square values.
+
+**TypeScript's `Partial<T>` behavior:**
+```typescript
+// Partial<Station> is equivalent to:
+{
+  id?: string;
+  name?: string;
+  lat?: number;
+  lon?: number;
+  lines?: string[];
+  northStopId?: string;
+  southStopId?: string;
+  transfers?: TransferConnection[];
+  complex?: string;
+  ada?: boolean;
+  borough?: Borough;
+}
+```
+
+**How merging works:**
+```typescript
+// Step 1: Start with defaults
+const defaults = {
+  id: "725",
+  name: "Times Square-42 St",
+  lat: 40.7589,
+  lon: -73.9851,
+  lines: ["1", "2", "3", "7", "N", "Q", "R", "W"],
+  northStopId: "725N",
+  southStopId: "725S",
+  transfers: [],
+  ada: true,
+  borough: "manhattan"
+};
+
+// Step 2: Apply overrides using spread operator
+const result = { ...defaults, ...overrides };
+
+// Example: createMockStation({ id: "101", name: "South Ferry" })
+// Result: All defaults except id="101" and name="South Ferry"
+```
+
+**Key benefits:**
+- **Type safety:** TypeScript validates that your overrides are valid `Station` properties
+- **No required fields:** Pass an empty object `{}` to get all defaults
+- **Selective overrides:** Only specify what you need, inherit everything else
+- **Predictable defaults:** Always start from a known good state (Times Square)
+
+### Common Override Patterns
+
+#### Pattern 1: Minimal Override (Single Field)
+
+Override only the identifier, all other fields use Times Square defaults:
+
+```typescript
+const station = createMockStation({ id: "999" });
+// Result: id="999", all other fields are Times Square defaults
+// Useful: When you only need a unique ID for deduplication/lookup tests
+```
+
+#### Pattern 2: ADA Compliance Testing
+
+Test accessibility filtering and ADA-specific features:
+
+```typescript
+const adaStation = createMockStation({ ada: true });
+const nonAdaStation = createMockStation({ ada: false });
+
+// Test ADA filtering
+const allStations = [adaStation, nonAdaStation];
+const adaOnly = allStations.filter(s => s.ada);
+expect(adaOnly).toHaveLength(1);
+expect(adaOnly).not.toContain(nonAdaStation);
+```
+
+#### Pattern 3: Line-Specific Stations
+
+Create stations serving specific subway lines:
+
+```typescript
+const onlyTrain1 = createMockStation({
+  id: "101",
+  name: "South Ferry",
+  lines: ["1"],
+  northStopId: "101N",
+  southStopId: "101S"
+});
+
+const trainExpressStop = createMockStation({
+  id: "725",
+  name: "Times Square-42 St",
+  lines: ["1", "2", "3"],  // 1 is local, 2/3 are express
+  transfers: []
+});
+
+// Test line filtering logic
+const oneTrainStations = allStations.filter(s => s.lines.includes("1"));
+expect(oneTrainStations).toContain(onlyTrain1);
+```
+
+#### Pattern 4: Borough-Specific Stations
+
+Create stations in each NYC borough for location-based testing:
+
+```typescript
+// Manhattan station (default)
+const manhattanStation = createMockStation({
+  id: "725",
+  borough: "manhattan"
+});
+
+// Brooklyn station
+const brooklynStation = createMockStation({
+  id: "234",
+  name: "High St",
+  lat: 40.7022,
+  lon: -73.9894,
+  lines: ["A", "C"],
+  borough: "brooklyn"
+});
+
+// Queens station
+const queensStation = createMockStation({
+  id: "501",
+  name: "Jamaica Center-Parsons/Archer",
+  lines: ["E", "J", "Z"],
+  borough: "queens",
+  ada: true
+});
+
+// Bronx station
+const bronxStation = createMockStation({
+  id: "601",
+  name: "161 St-Yankee Stadium",
+  lines: ["4", "B", "D"],
+  borough: "bronx",
+  ada: true
+});
+
+// Test borough filtering
+const brooklynStations = allStations.filter(s => s.borough === "brooklyn");
+expect(brooklynStations).toHaveLength(1);
+```
+
+#### Pattern 5: Transfer Hubs
+
+Create complex stations with multiple transfer connections:
+
+```typescript
+const pennStation = createMockStation({
+  id: "726",
+  name: "34 St-Penn Station",
+  lines: ["1", "2", "3"],
+  transfers: [
+    {
+      toStationId: "727",
+      toLines: ["A", "C", "E"],
+      walkingSeconds: 180,
+      accessible: true
+    },
+    {
+      toStationId: "728",
+      toLines: ["N", "Q", "R", "W"],
+      walkingSeconds: 240,
+      accessible: false
+    }
+  ],
+  ada: true,
+  borough: "manhattan"
+});
+
+// Test transfer logic
+const accessibleTransfers = pennStation.transfers.filter(t => t.accessible);
+expect(accessibleTransfers).toHaveLength(1);
+```
+
+#### Pattern 6: Express vs Local Stops
+
+Distinguish between express and local service patterns:
+
+```typescript
+const localStop = createMockStation({
+  id: "101",
+  name: "South Ferry",
+  lines: ["1"],  // Local only
+  transfers: []
+});
+
+const expressStop = createMockStation({
+  id: "725",
+  name: "Times Square-42 St",
+  lines: ["1", "2", "3"],  // Local + express
+  transfers: []
+});
+
+const expressOnly = createMockStation({
+  id: "726",
+  name: "34 St-Penn Station",
+  lines: ["2", "3"],  // Express only (no 1)
+  transfers: []
+});
+```
+
+#### Pattern 7: Multi-Entrance Complex Stations
+
+Create stations with complex IDs for multi-entrance stations:
+
+```typescript
+const courtSq = createMockStation({
+  id: "631",
+  name: "Court Sq",
+  complex: "D14",  // Complex ID linking multiple entrances
+  lines: ["G", "E", "M", "7"],
+  borough: "queens",
+  ada: true
+});
+
+// Test complex station grouping
+const complexStations = allStations.filter(s => s.complex === "D14");
+expect(complexStations).toContain(courtSq);
+```
+
+#### Pattern 8: Stop ID Consistency
+
+Ensure stop IDs follow naming conventions:
+
+```typescript
+const consistentStation = createMockStation({
+  id: "999",
+  name: "Custom Station",
+  // Stop IDs typically follow pattern: {stationId}{N/S}
+  northStopId: "999N",
+  southStopId: "999S"
+});
+
+// Test stop ID validation
+const validStopPattern = /^\d+[NS]$/;
+expect(validStopPattern.test(consistentStation.northStopId)).toBe(true);
+expect(validStopPattern.test(consistentStation.southStopId)).toBe(true);
+```
+
+### Station-Specific Parameters
+
+#### Required Parameters (Always Present)
+
+All station objects include these parameters, even when overridden:
+
+| Parameter | Type | Default Value | Description |
+|-----------|------|---------------|-------------|
+| `id` | `string` | `"725"` | Unique station identifier (GTFS station ID) |
+| `name` | `string` | `"Times Square-42 St"` | Human-readable station name |
+| `lat` | `number` | `40.7589` | Latitude coordinate (decimal degrees) |
+| `lon` | `number` | `-73.9851` | Longitude coordinate (decimal degrees) |
+| `lines` | `string[]` | `["1", "2", "3", "7", "N", "Q", "R", "W"]` | All subway lines serving this station |
+| `northStopId` | `string` | `"725N"` | Northbound platform stop ID (GTFS) |
+| `southStopId` | `string` | `"725S"` | Southbound platform stop ID (GTFS) |
+| `transfers` | `TransferConnection[]` | `[]` | Available transfer connections |
+| `ada` | `boolean` | `true` | ADA accessibility flag |
+| `borough` | `Borough` | `"manhattan"` | NYC borough location |
+
+#### Optional Parameters
+
+These parameters may not be present in all station objects:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `complex` | `string` (optional) | Station complex ID for multi-entrance stations (e.g., `"D14"`) |
+
+#### Geographic Parameters
+
+Location-specific parameters for geographic testing:
+
+```typescript
+// Manhattan (default)
+createMockStation({ borough: "manhattan", lat: 40.7589, lon: -73.9851 });
+
+// Brooklyn
+createMockStation({ borough: "brooklyn", lat: 40.7022, lon: -73.9894 });
+
+// Queens
+createMockStation({ borough: "queens", lat: 40.7064, lon: -73.7877 });
+
+// Bronx
+createMockStation({ borough: "bronx", lat: 40.8278, lon: -73.9280 });
+
+// Staten Island
+createMockStation({ borough: "statenisland", lat: 40.5795, lon: -74.1502 });
+```
+
+#### Line Service Parameters
+
+Line-specific parameters for route testing:
+
+```typescript
+// IRT Broadway-7th Ave (1, 2, 3)
+createMockStation({ lines: ["1", "2", "3"] });
+
+// IRT Lexington Ave (4, 5, 6)
+createMockStation({ lines: ["4", "5", "6"] });
+
+// IND 8th Ave (A, C, E)
+createMockStation({ lines: ["A", "C", "E"] });
+
+// BMT Broadway (N, Q, R, W)
+createMockStation({ lines: ["N", "Q", "R", "W"] });
+
+// Flushing Line (7)
+createMockStation({ lines: ["7"] });
+```
+
+#### Accessibility Parameters
+
+ADA compliance parameters for accessibility testing:
+
+```typescript
+// ADA accessible (default)
+const adaStation = createMockStation({ ada: true });
+
+// Non-ADA accessible
+const nonAdaStation = createMockStation({ ada: false });
+
+// Test accessibility filtering
+const adaStations = allStations.filter(s => s.ada);
+expect(adaStations).not.toContain(nonAdaStation);
+```
+
 **Edge Cases:**
 - Default station is Times Square - override for location-specific tests
 - `lines` array affects line validation logic - ensure valid line IDs
