@@ -444,15 +444,28 @@ export async function resetAllModuleState(): Promise<void> {
  */
 export async function cleanupAllState(): Promise<void> {
   // Helper: call `fn` only if it exists on the imported module.
+  // Logs errors when the module exists but the reset function throws,
+  // while silently skipping truly absent modules.
   const tryReset = async (spec: string, ...fns: string[]): Promise<void> => {
+    let moduleFound = false;
     try {
       const mod = await import(spec);
+      moduleFound = true;
       for (const fn of fns) {
         if (typeof mod[fn] === "function") {
-          await mod[fn]();
+          try {
+            await mod[fn]();
+          } catch (error) {
+            // Log the error but continue with other resets
+            console.error(`[cleanupAllState] Reset function '${fn}' in '${spec}' failed:`, error);
+          }
         }
       }
-    } catch {
+    } catch (error) {
+      // Only log if the module was found - if not found, skip silently
+      if (moduleFound) {
+        console.error(`[cleanupAllState] Failed to process module '${spec}':`, error);
+      }
       // Module may be mocked or not reachable — skip silently.
     }
   };
@@ -495,6 +508,27 @@ export async function cleanupAllState(): Promise<void> {
 
   // ---- transformer.ts ------------------------------------------------------
   await tryReset("../transformer.js", "resetTransformerState");
+
+  // ---- delay-predictor.ts -------------------------------------------------
+  await tryReset("../delay-predictor.js", "resetDelayPredictor");
+
+  // ---- dynamic-rbac-cache.ts ----------------------------------------------
+  await tryReset("../middleware/dynamic-rbac-cache.js", "clearCache", "clearPermissionOverrides", "clearEmergencyRevocations", "resetCacheStats");
+
+  // ---- password-reset.routes.ts --------------------------------------------
+  await tryReset("../routes/password-reset.routes.js", "clearAllUsers");
+
+  // ---- captcha.ts ---------------------------------------------------------
+  await tryReset("../middleware/captcha.js", "resetCaptchaTracking");
+
+  // ---- csrf-protection.ts --------------------------------------------------
+  await tryReset("../middleware/csrf-protection.js", "clearCsrfTokenStore");
+
+  // ---- suspicious-activity-notifications.ts --------------------------------
+  await tryReset("../middleware/suspicious-activity-notifications.js", "resetNotificationStorage");
+
+  // ---- oauth/index.ts ------------------------------------------------------
+  await tryReset("../oauth/index.js", "resetOAuthForTesting");
 
   // ---- context-service.ts -------------------------------------------------
   // REMOVED: context-service was deleted in 2026-08 as part of client-side-only context design
