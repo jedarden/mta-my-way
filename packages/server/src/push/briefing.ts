@@ -172,7 +172,7 @@ export function buildBriefingPayload(
  * Checks every minute and sends briefings at the configured time.
  */
 export function startBriefingScheduler(): void {
-  setInterval(() => {
+  setInterval(async () => {
     const now = new Date();
     const todayKey = getTodayKey();
 
@@ -188,7 +188,7 @@ export function startBriefingScheduler(): void {
     }
 
     const currentHour = now.getHours();
-    const subscriptions = getAllSubscriptions();
+    const subscriptions = await getAllSubscriptions();
     if (subscriptions.length === 0) return;
 
     for (const sub of subscriptions) {

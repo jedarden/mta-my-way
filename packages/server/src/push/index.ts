@@ -23,7 +23,7 @@ export function startPushPipeline(): void {
     void (async () => {
       try {
         // Get all current subscriptions
-        const subscriptions = getAllSubscriptions();
+        const subscriptions = await getAllSubscriptions();
         if (subscriptions.length === 0) return;
 
         // Match each change against all subscriptions
