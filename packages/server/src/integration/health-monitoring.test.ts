@@ -19,7 +19,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getAlertsStatus, setAlertsForTesting } from "../alerts-poller.js";
 import { createApp } from "../app.js";
 import { setArrivalsForTesting } from "../cache.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  closeDatabase,
+  createIntegrationTestDatabase,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -82,8 +87,9 @@ describe("Health and Monitoring Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
-    // Clean up test data
+  afterEach(async () => {
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("GET /api/health", () => {

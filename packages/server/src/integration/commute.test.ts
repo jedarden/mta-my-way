@@ -19,6 +19,7 @@ import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import {
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
@@ -201,8 +202,10 @@ describe("Commute Analysis Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     closeDatabase(db);
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("POST /api/commute/analyze", () => {

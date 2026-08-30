@@ -21,6 +21,7 @@ import { createApp } from "../app.js";
 import { getArrivals, setArrivalsForTesting } from "../cache.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
@@ -99,8 +100,9 @@ describe("Commute Analysis Integration Tests", () => {
     authHeaders = { Authorization: creds.authorizationHeader };
   });
 
-  afterEach(() => {
-    // Clean up test data
+  afterEach(async () => {
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("POST /api/commute/analyze", () => {

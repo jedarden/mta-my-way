@@ -24,7 +24,7 @@ import {
   updateSubscriptionQuietHours,
   upsertSubscription,
 } from "../push/subscriptions.js";
-import { createTestSubscription } from "./test-helpers.js";
+import { cleanupAllState, createTestSubscription } from "./test-helpers.js";
 
 describe("Push Subscriptions Integration Tests", () => {
   let testDbPath: string;
@@ -66,7 +66,7 @@ describe("Push Subscriptions Integration Tests", () => {
     initPushDatabase(testDbPath);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     closePushDatabase();
 
     // Clean up temp files created during this test
@@ -81,6 +81,9 @@ describe("Push Subscriptions Integration Tests", () => {
       }
       tempFilesToCleanup.splice(i, 1);
     }
+
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("initPushDatabase", () => {

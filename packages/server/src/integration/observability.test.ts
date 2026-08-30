@@ -10,9 +10,9 @@
  */
 
 import type { ComplexIndex, RouteIndex, TransferConnection } from "@mta-my-way/shared";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { TEST_STATIONS } from "./test-helpers.js";
+import { cleanupAllState, TEST_STATIONS } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures (minimal — we only need the app to boot)
@@ -50,6 +50,11 @@ describe("Observability Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
+  });
+
+  afterEach(async () => {
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   // -------------------------------------------------------------------------

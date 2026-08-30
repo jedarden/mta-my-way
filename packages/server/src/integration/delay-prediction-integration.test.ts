@@ -39,6 +39,7 @@ import {
   setWeatherOverride,
   updateWeather,
 } from "../delay-predictor.js";
+import { cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -281,9 +282,11 @@ describe("Delay Detector and Predictor Integration", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     resetDelayDetector();
     resetDelayPredictor();
+    // Also clean up any other module state that may have been affected
+    await cleanupAllState();
   });
 
   describe("Vehicle position extraction", () => {

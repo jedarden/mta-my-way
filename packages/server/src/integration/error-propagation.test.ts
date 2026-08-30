@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { deleteTrip, getTripById, initTripTracking, recordTrip } from "../trip-tracking.js";
 import {
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
@@ -123,9 +124,10 @@ describe("Error Propagation Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     closeDatabase(db);
     vi.restoreAllMocks();
+    await cleanupAllState();
   });
 
   describe("API validation errors", () => {

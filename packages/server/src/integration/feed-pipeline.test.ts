@@ -24,7 +24,12 @@ import {
 import { parseFeed } from "../parser.js";
 import { aDivisionFeed, bDivisionFeed, emptyFeed, pastArrivalsFeed } from "../test/fixtures.js";
 import { buildStopToStationMap, transformFeeds } from "../transformer.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  closeDatabase,
+  createIntegrationTestDatabase,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures — match the stop IDs used in test/fixtures.ts
@@ -199,6 +204,11 @@ describe("Feed Data Pipeline Integration Tests", () => {
     stopToStation = buildTestStopMap();
     // Clear arrivals cache before each test
     updateArrivals(new Map());
+  });
+
+  afterEach(async () => {
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   // -------------------------------------------------------------------------
