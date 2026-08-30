@@ -1937,6 +1937,219 @@ const adaStations = allStations.filter(s => s.ada);
 expect(adaStations).not.toContain(nonAdaStation);
 ```
 
+### Real-World Test Scenarios from the Codebase
+
+These examples show how `createMockStation` is actually used in production tests across the MTA My Way codebase.
+
+#### Scenario 1: Smoke Testing Mock Data Generation
+
+**Source:** [`packages/shared/src/testing/smoke.test.ts`](../packages/shared/src/testing/smoke.test.ts)
+
+```typescript
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+describe("Test Infrastructure Smoke Test", () => {
+  it("can create mock station data", () => {
+    const station = createMockStation({
+      id: "725",
+      name: "Times Square-42 St",
+    });
+
+    expect(station.id).toBe("725");
+    expect(station.name).toBe("Times Square-42 St");
+    expect(station.lines).toContain("1");
+    expect(station.ada).toBe(true);
+  });
+});
+```
+
+**Use Case:** Verify that mock data generation works correctly for testing infrastructure reliability.
+
+#### Scenario 2: Assertion Helper Testing
+
+**Source:** [`packages/shared/src/testing/smoke.test.ts`](../packages/shared/src/testing/smoke.test.ts)
+
+```typescript
+import { createMockStation, assertHasProperties } from "@mta-my-way/shared/testing";
+
+it("assertHasProperties validates object structure", () => {
+  const station = createMockStation();
+  assertHasProperties(station, ["id", "name", "lat", "lon", "lines"]);
+});
+```
+
+**Use Case:** Test custom assertion helpers with realistic mock data structures.
+
+#### Scenario 3: Mock Database Setup with Multiple Stations
+
+**Source:** [`packages/shared/src/testing/smoke.test.ts`](../packages/shared/src/testing/smoke.test.ts)
+
+```typescript
+import { createMockStation, createMockDatabase } from "@mta-my-way/shared/testing";
+
+it("can create and use mock database", () => {
+  const db = createMockDatabase();
+
+  // Populate database with multiple mock stations
+  db._setData("stations", [
+    createMockStation({ id: "725" }),
+    createMockStation({ id: "726" })
+  ]);
+
+  const stations = db._getData("stations");
+  expect(stations).toHaveLength(2);
+});
+```
+
+**Use Case:** Set up mock database state for integration tests without a real database.
+
+#### Scenario 4: Empty Override Testing (Edge Case)
+
+**Source:** [`packages/shared/src/testing/smoke.test.ts`](../packages/shared/src/testing/smoke.test.ts)
+
+```typescript
+describe("Test Infrastructure - Edge Cases", () => {
+  it("handles empty overrides in mock generators", () => {
+    const station = createMockStation(); // No overrides
+    expect(station).toBeDefined();
+    expect(station.id).toBe("725"); // Default value
+  });
+});
+```
+
+**Use Case:** Verify that default values work correctly when no overrides are provided.
+
+#### Scenario 5: Partial Override Testing
+
+**Source:** [`packages/shared/src/testing/smoke.test.ts`](../packages/shared/src/testing/smoke.test.ts)
+
+```typescript
+describe("Test Infrastructure - Edge Cases", () => {
+  it("handles partial overrides in mock generators", () => {
+    const arrival = createMockArrival({
+      line: "2", // Override line
+      // direction should use default: "N"
+    });
+
+    expect(arrival.line).toBe("2");
+    expect(arrival.direction).toBe("N"); // Default preserved
+  });
+});
+```
+
+**Use Case:** Verify that partial overrides correctly preserve default values for unspecified fields.
+
+### Common Testing Patterns
+
+#### Pattern: Test Fixture Creation with Related Stations
+
+Create sets of related stations for testing route calculations and transfer logic:
+
+```typescript
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+// Create a realistic route segment
+const timesSquare = createMockStation({
+  id: "725",
+  name: "Times Square-42 St"
+});
+
+const pennStation = createMockStation({
+  id: "726",
+  name: "34 St-Penn Station",
+  transfers: [
+    {
+      toStationId: "727",
+      toLines: ["A", "C", "E"],
+      walkingSeconds: 180,
+      accessible: true
+    }
+  ]
+});
+
+const heraldSquare = createMockStation({
+  id: "727",
+  name: "34 St-Herald Sq",
+  lines: ["N", "Q", "R", "W"]
+});
+
+// Test route calculation
+const route = calculateRoute(timesSquare, heraldSquare);
+expect(route.stations).toHaveLength(2);
+```
+
+#### Pattern: Type-Safe Station Creation
+
+When working with TypeScript, ensure type safety by importing and using the correct types:
+
+```typescript
+import { createMockStation } from "@mta-my-way/shared/testing";
+import type { Station, Borough, TransferConnection } from "@mta-my-way/shared/types/stations";
+
+// Type-safe mock station
+const station: Station = createMockStation({
+  id: "999",
+  borough: "brooklyn" as Borough
+});
+
+// Type-safe transfer connection
+const transfer: TransferConnection = {
+  toStationId: "726",
+  toLines: ["A", "C"],
+  walkingSeconds: 120,
+  accessible: true
+};
+
+const stationWithTransfer: Station = createMockStation({
+  transfers: [transfer]
+});
+```
+
+#### Pattern: Batch Station Creation for Bulk Operations
+
+Create multiple stations efficiently for bulk operations testing:
+
+```typescript
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+// Create stations in bulk
+const stations = [
+  createMockStation({ id: "725", name: "Times Square-42 St" }),
+  createMockStation({ id: "726", name: "34 St-Penn Station" }),
+  createMockStation({ id: "727", name: "34 St-Herald Sq" }),
+  createMockStation({ id: "728", name: "23 St" }),
+  createMockStation({ id: "729", name: "14 St-Union Sq" })
+];
+
+// Test bulk operations
+const filtered = stations.filter(s => s.lines.includes("1"));
+expect(filtered).toHaveLength(5);
+```
+
+#### Pattern: Conditional Station Creation Based on Test Parameters
+
+Create stations conditionally based on test parameters or environment:
+
+```typescript
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+function createTestStation(borough: Borough, adaAccessible: boolean): Station {
+  return createMockStation({
+    id: "test-001",
+    name: "Test Station",
+    borough,
+    ada: adaAccessible
+  });
+}
+
+// Test different borough configurations
+const manhattanAda = createTestStation("manhattan", true);
+const brooklynNonAda = createTestStation("brooklyn", false);
+
+expect(manhattanAda.ada).toBe(true);
+expect(brooklynNonAda.borough).toBe("brooklyn");
+```
+
 **Edge Cases:**
 - Default station is Times Square - override for location-specific tests
 - `lines` array affects line validation logic - ensure valid line IDs
