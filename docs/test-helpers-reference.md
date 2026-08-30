@@ -1533,17 +1533,57 @@ import { createMockStation } from "@mta-my-way/shared/testing";
 import type { Station, Borough, TransferConnection } from "@mta-my-way/shared/types/stations";
 ```
 
-**Returns:** `Station` object with:
-- `id: string` - Station ID (default: `"725"`)
-- `name: string` - Station name (default: `"Times Square-42 St"`)
-- `lat: number` - Latitude (default: `40.7589`)
-- `lon: number` - Longitude (default: `-73.9851`)
-- `lines: string[]` - Subway lines (default: `["1", "2", "3", "7", "N", "Q", "R", "W"]`)
-- `northStopId: string` - Northbound stop ID (default: `"725N"`)
-- `southStopId: string` - Southbound stop ID (default: `"725S"`)
-- `transfers: TransferConnection[]` - Transfer stations (default: `[]`)
-- `ada: boolean` - ADA accessibility (default: `true`)
-- `borough: Borough` - Borough (default: `"manhattan"`)
+**Important: No Separate "MockStation" Type**
+
+There is **no separate `MockStation` type** in this codebase. The `createMockStation` function returns a regular `Station` object - the same type used throughout the application for real station data. The "mock" aspect is simply that the function provides convenient default values (Times Square-42 St) that can be selectively overridden.
+
+This design means:
+- **Type compatibility:** Mock stations are 100% compatible with real station data structures
+- **No conversion needed:** Mock stations can be used anywhere real stations are expected
+- **Type safety:** TypeScript ensures mock stations have the exact same shape as real stations
+- **Test realism:** Mock stations match production data structures exactly
+
+**Return Type Structure**
+
+The function returns a complete `Station` object with all required properties:
+
+```typescript
+interface Station {
+  id: string;                  // Station ID (default: "725")
+  name: string;                // Station name (default: "Times Square-42 St")
+  lat: number;                // Latitude (default: 40.7589)
+  lon: number;                // Longitude (default: -73.9851)
+  lines: string[];            // Subway lines (default: ["1", "2", "3", "7", "N", "Q", "R", "W"])
+  northStopId: string;        // Northbound stop ID (default: "725N")
+  southStopId: string;        // Southbound stop ID (default: "725S")
+  transfers: TransferConnection[];  // Transfer stations (default: [])
+  complex?: string;           // Optional: Station complex ID for multi-entrance stations
+  ada: boolean;               // ADA accessibility (default: true)
+  borough: Borough;           // Borough (default: "manhattan")
+}
+```
+
+**Default Return Values**
+
+When called with no parameters, `createMockStation()` returns:
+
+| Property | Type | Default Value |
+|----------|------|---------------|
+| `id` | `string` | `"725"` |
+| `name` | `string` | `"Times Square-42 St"` |
+| `lat` | `number` | `40.7589` |
+| `lon` | `number` | `-73.9851` |
+| `lines` | `string[]` | `["1", "2", "3", "7", "N", "Q", "R", "W"]` |
+| `northStopId` | `string` | `"725N"` |
+| `southStopId` | `string` | `"725S"` |
+| `transfers` | `TransferConnection[]` | `[]` |
+| `ada` | `boolean` | `true` |
+| `borough` | `Borough` | `"manhattan"` |
+| `complex` | `string \| undefined` | `undefined` (not set by default) |
+
+**Relationship to Real Station Data**
+
+Mock stations created with `createMockStation` are structurally identical to stations loaded from the GTFS static data feed. They can be used interchangeably in tests, components, and utility functions.
 
 **Usage Example:**
 ```typescript
