@@ -1644,7 +1644,7 @@ console.log(dateStr); // "2026-08-27T00:00:00.000Z"
 
 #### `measureExecutionTime(fn)`
 
-Measures execution time of a synchronous or async function.
+Measures the execution time of a synchronous or async function with high-resolution timing. Essential for performance benchmarking, optimization validation, and ensuring code meets performance requirements.
 
 **Signature:**
 ```typescript
@@ -1654,29 +1654,363 @@ async function measureExecutionTime<T>(
 ```
 
 **Parameters:**
-- `fn: () => T | Promise<T>` - Function to measure (sync or async)
+- `fn: () => T | Promise<T>` - Function to measure (can be sync or async)
+  - Type: Function that returns `T` or `Promise<T>`
+  - Zero-argument function (if arguments needed, use arrow function wrapper)
+  - Can be sync function (returns `T`) or async function (returns `Promise<T>`)
+  - Function is executed immediately when `measureExecutionTime` is called
+  - Type parameter `T` is inferred from return type
 
 **Returns:**
-- `Promise<{ result: T, durationMs: number }>` - Result and execution time
+- `Promise<{ result: T, durationMs: number }>` - Object containing:
+  - `result: T` - The return value of the measured function
+  - `durationMs: number` - Execution time in milliseconds (high-resolution)
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
-const { result, durationMs } = await measureExecutionTime(() => {
-  return fetchArrivals();
+// 1. Basic async function measurement
+const { result, durationMs } = await measureExecutionTime(async () => {
+  await new Promise(r => setTimeout(r, 100));
+  return "complete";
 });
-console.log(`Fetch took ${durationMs}ms`);
+expect(result).toBe("complete");
+expect(durationMs).toBeGreaterThanOrEqual(100);
+
+// 2. Synchronous function measurement
+const { result, durationMs } = await measureExecutionTime(() => {
+  let sum = 0;
+  for (let i = 0; i < 1000; i++) sum += i;
+  return sum;
+});
+expect(result).toBe(499500);
+console.log(`Calculation took ${durationMs}ms`);
+
+// 3. API call measurement
+const { durationMs } = await measureExecutionTime(() => fetchArrivals());
+console.log(`API call completed in ${durationMs}ms`);
+expect(durationMs).toBeLessThan(1000); // Must complete in < 1 second
+
+// 4. Comparing performance of different approaches
+const approach1 = await measureExecutionTime(() => method1());
+const approach2 = await measureExecutionTime(() => method2());
+
+console.log(`Method 1: ${approach1.durationMs}ms`);
+console.log(`Method 2: ${approach2.durationMs}ms`);
+expect(approach2.durationMs).toBeLessThan(approach1.durationMs);
+
+// 5. Database query measurement
+const { result: users, durationMs: queryTime } = await measureExecutionTime(() => 
+  db.query("SELECT * FROM users")
+);
+console.log(`Query returned ${users.length} users in ${queryTime}ms`);
+
+// 6. File I/O measurement
+const { durationMs } = await measureExecutionTime(() => 
+  fs.readFile("large-file.json", "utf8")
+);
+console.log(`File read in ${durationMs}ms`);
+
+// 7. Measuring array operations
+const { result, durationMs } = await measureExecutionTime(() => {
+  const arr = Array.from({ length: 10000 }, (_, i) => i);
+  return arr.filter(x => x % 2 === 0).map(x => x * 2);
+});
+console.log(`Array processing of ${result.length} items took ${durationMs}ms`);
+
+// 8. Measuring with result validation
+const { result, durationMs } = await measureExecutionTime(() => {
+  return complexCalculation();
+});
+expect(result).toBeDefined();
+expect(result.correct).toBe(true);
+expect(durationMs).toBeLessThan(500);
+
+// 9. Measuring function with side effects
+let sideEffect = 0;
+const { durationMs } = await measureExecutionTime(() => {
+  sideEffect = 42;
+  return "done";
+});
+expect(sideEffect).toBe(42);
+
+// 10. Multiple measurements for averaging
+const measurements = await Promise.all([
+  measureExecutionTime(() => operation()),
+  measureExecutionTime(() => operation()),
+  measureExecutionTime(() => operation()),
+  measureExecutionTime(() => operation()),
+  measureExecutionTime(() => operation())
+]);
+const avgDuration = measurements.reduce((sum, m) => sum + m.durationMs, 0) / measurements.length;
+console.log(`Average duration: ${avgDuration}ms`);
 ```
 
-**Edge Cases:**
-- Uses `performance.now()` for high-resolution timing
-- Includes both sync and async execution time
-- Duration includes promise resolution overhead
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Performance regression testing
+test("performance does not regress", async () => {
+  const { durationMs } = await measureExecutionTime(() => 
+    processLargeDataset(dataset)
+  );
+  
+  expect(durationMs).toBeLessThan(1000); // Must complete in < 1 second
+});
+
+// 2. Benchmarking different algorithms
+test("compares sorting algorithms", async () => {
+  const data = Array.from({ length: 10000 }, () => Math.random());
+  
+  const bubbleSort = await measureExecutionTime(() => {
+    return bubbleSortAlgorithm([...data]);
+  });
+  
+  const quickSort = await measureExecutionTime(() => {
+    return quickSortAlgorithm([...data]);
+  });
+  
+  console.log(`Bubble sort: ${bubbleSort.durationMs}ms`);
+  console.log(`Quick sort: ${quickSort.durationMs}ms`);
+  expect(quickSort.durationMs).toBeLessThan(bubbleSort.durationMs);
+});
+
+// 3. Measuring memory vs CPU tradeoff
+test("caching improves performance", async () => {
+  const uncached = await measureExecutionTime(() => {
+    return expensiveCalculation(1000);
+  });
+  
+  const cached = await measureExecutionTime(() => {
+    return cachedExpensiveCalculation(1000);
+  });
+  
+  expect(cached.durationMs).toBeLessThan(uncached.durationMs);
+  const speedup = uncached.durationMs / cached.durationMs;
+  console.log(`Speedup: ${speedup}x`);
+});
+
+// 4. Measuring concurrent operations
+test("parallel execution is faster", async () => {
+  const sequential = await measureExecutionTime(async () => {
+    await operation1();
+    await operation2();
+    await operation3();
+  });
+  
+  const parallel = await measureExecutionTime(async () => {
+    await Promise.all([operation1(), operation2(), operation3()]);
+  });
+  
+  expect(parallel.durationMs).toBeLessThan(sequential.durationMs);
+  console.log(`Parallel is ${sequential.durationMs / parallel.durationMs}x faster`);
+});
+
+// 5. Measuring with different input sizes
+test("scales linearly with input size", async () => {
+  const sizes = [100, 1000, 10000];
+  const timings: number[] = [];
+  
+  for (const size of sizes) {
+    const { durationMs } = await measureExecutionTime(() => 
+      processArrayOfSize(size)
+    );
+    timings.push(durationMs);
+  }
+  
+  // Check that timings grow proportionally
+  expect(timings[1] / timings[0]).toBeCloseTo(10, 1);
+  expect(timings[2] / timings[1]).toBeCloseTo(10, 1);
+});
+
+// 6. Measuring cold vs warm cache
+test("warm cache is faster", async () => {
+  const cold = await measureExecutionTime(() => 
+    fetchDataFromCache()
+  );
+  
+  const warm = await measureExecutionTime(() => 
+    fetchDataFromCache()
+  );
+  
+  expect(warm.durationMs).toBeLessThanOrEqual(cold.durationMs);
+});
+
+// 7. Measuring error handling overhead
+test("error handling adds overhead", async () => {
+  const withoutErrorHandling = await measureExecutionTime(() => {
+    return riskyOperation();
+  });
+  
+  const withErrorHandling = await measureExecutionTime(() => {
+    try {
+      return riskyOperation();
+    } catch (error) {
+      return null;
+    }
+  });
+  
+  expect(withErrorHandling.durationMs).toBeGreaterThan(withoutErrorHandling.durationMs);
+});
+
+// 8. Measuring async vs sync operations
+test("async overhead is minimal", async () => {
+  const sync = await measureExecutionTime(() => {
+    return calculateSync(1000);
+  });
+  
+  const async = await measureExecutionTime(async () => {
+    return await calculateAsync(1000);
+  });
+  
+  const overhead = async.durationMs - sync.durationMs;
+  console.log(`Async overhead: ${overhead}ms`);
+  expect(overhead).toBeLessThan(10); // Should be minimal
+});
+
+// 9. Statistical benchmarking
+test("runs multiple iterations for statistical significance", async () => {
+  const iterations = 10;
+  const measurements: number[] = [];
+  
+  for (let i = 0; i < iterations; i++) {
+    const { durationMs } = await measureExecutionTime(() => operation());
+    measurements.push(durationMs);
+  }
+  
+  const avg = measurements.reduce((a, b) => a + b) / measurements.length;
+  const min = Math.min(...measurements);
+  const max = Math.max(...measurements);
+  
+  console.log(`Average: ${avg}ms, Min: ${min}ms, Max: ${max}ms`);
+  expect(avg).toBeLessThan(1000);
+});
+
+// 10. Measuring with setup/teardown
+test("measures core operation excluding setup", async () => {
+  // Setup time not measured
+  const data = await loadData();
+  
+  const { durationMs } = await measureExecutionTime(() => 
+    processData(data)
+  );
+  
+  // Cleanup time not measured
+  await cleanupData(data);
+  
+  expect(durationMs).toBeLessThan(500);
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **High-resolution timing**: Uses `performance.now()` which has microsecond precision
+  ```typescript
+  const { durationMs } = await measureExecutionTime(() => {});
+  expect(durationMs).toBeLessThan(1); // Can measure sub-millisecond times
+  ```
+
+- **Includes async overhead**: Duration includes promise resolution time
+  ```typescript
+  const sync = await measureExecutionTime(() => 42);
+  const async = await measureExecutionTime(async () => 42);
+  // async.durationMs > sync.durationMs due to Promise overhead
+  ```
+
+- **Function execution is immediate**: No setup time included in measurement
+  ```typescript
+  const setupStart = performance.now();
+  const { durationMs } = await measureExecutionTime(() => operation());
+  // setupStart time not included in durationMs
+  ```
+
+- **Throwing functions**: Exceptions propagate, measurement still valid
+  ```typescript
+  await expect(
+    measureExecutionTime(() => { throw new Error("Failed"); })
+  ).rejects.toThrow("Failed");
+  ```
+
+- **Zero-duration functions**: Can measure very fast operations
+  ```typescript
+  const { durationMs } = await measureExecutionTime(() => 42);
+  expect(durationMs).toBeGreaterThanOrEqual(0);
+  ```
+
+- **Memory allocation**: Measurement includes GC time if triggered
+  ```typescript
+  const { durationMs } = await measureExecutionTime(() => {
+    return Array(1000000).fill(0); // May trigger GC
+  });
+  ```
+
+- **Concurrent measurements**: Multiple measurements can run in parallel
+  ```typescript
+  const [m1, m2, m3] = await Promise.all([
+    measureExecutionTime(() => op1()),
+    measureExecutionTime(() => op2()),
+    measureExecutionTime(() => op3())
+  ]);
+  ```
+
+- **Result type safety**: TypeScript infers result type correctly
+  ```typescript
+  const { result } = await measureExecutionTime(() => {
+    return { id: "123", name: "Test" };
+  });
+  expect(result.name).toBe("Test"); // Type-safe access
+  ```
+
+**Performance Considerations:**
+
+- Measurement overhead is < 0.1ms - negligible for most operations
+- For very fast operations (< 1ms), consider running multiple iterations
+- `performance.now()` is monotonically increasing and not affected by system clock changes
+- Browser compatibility: Requires `performance.now()` support (all modern browsers)
+
+**Real-World Testing Scenarios:**
+
+```typescript
+// 1. API endpoint performance testing
+test("API responds within SLA", async () => {
+  const { durationMs } = await measureExecutionTime(() => 
+    fetch("/api/arrivals/725").then(r => r.json())
+  );
+  
+  expect(durationMs).toBeLessThan(500); // SLA: < 500ms
+  console.log(`API response time: ${durationMs}ms`);
+});
+
+// 2. Database query optimization
+test("optimized query is faster", async () => {
+  const unoptimized = await measureExecutionTime(() => 
+    db.query("SELECT * FROM users WHERE name LIKE '%test%'")
+  );
+  
+  const optimized = await measureExecutionTime(() => 
+    db.query("SELECT * FROM users WHERE name = 'test'")
+  );
+  
+  expect(optimized.durationMs).toBeLessThan(unoptimized.durationMs);
+  console.log(`Performance improvement: ${unoptimized.durationMs / optimized.durationMs}x`);
+});
+
+// 3. Component rendering performance
+test("component renders quickly", async () => {
+  const { durationMs } = await measureExecutionTime(() => {
+    const component = render(<ExpensiveComponent data={largeData} />);
+    return component.container;
+  });
+  
+  expect(durationMs).toBeLessThan(100); // Must render in < 100ms
+});
+```
 
 ---
 
 #### `assertCompletesWithin(fn, maxMs)`
 
-Asserts a function completes within a time limit.
+Asserts that a function completes within a specified time limit and returns the function result. Essential for performance requirements, SLA compliance testing, timeout handling validation, and ensuring code doesn't degrade over time.
 
 **Signature:**
 ```typescript
@@ -1687,24 +2021,399 @@ async function assertCompletesWithin<T>(
 ```
 
 **Parameters:**
-- `fn: () => T | Promise<T>` - Function to test
+- `fn: () => T | Promise<T>` - Function to test for performance
+  - Type: Function that returns `T` or `Promise<T>`
+  - Can be sync or async
+  - Zero-argument function (use arrow function wrapper if arguments needed)
+  - Executed immediately when `assertCompletesWithin` is called
 - `maxMs: number` - Maximum allowed duration in milliseconds
+  - Type: `number`
+  - Must be positive (negative or zero will likely fail immediately)
+  - Should be realistic for the operation being tested
+  - Too low: causes false failures
+  - Too high: misses real performance problems
 
 **Returns:**
-- `Promise<T>` - Function result (throws if exceeds maxMs)
+- `Promise<T>` - The function result if it completes within `maxMs`
+  - Returns the actual result from `fn` for further assertions
+  - Throws Vitest assertion error if execution exceeds `maxMs`
+  - Type parameter `T` is inferred from return type of `fn`
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic async operation timeout
 const result = await assertCompletesWithin(
-  () => fetchArrivals(),
+  () => fetchData(),
   1000
-); // Throws if takes > 1 second
+);
+expect(result).toBeDefined();
+
+// 2. Synchronous operation timeout
+const sum = await assertCompletesWithin(
+  () => {
+    let total = 0;
+    for (let i = 0; i < 1000000; i++) total += i;
+    return total;
+  },
+  100
+);
+expect(sum).toBe(499999500000);
+
+// 3. API response time assertion
+const data = await assertCompletesWithin(
+  () => fetch("/api/arrivals").then(r => r.json()),
+  500
+);
+expect(data.arrivals).toBeDefined();
+
+// 4. Database query timeout
+const users = await assertCompletesWithin(
+  () => db.query("SELECT * FROM users LIMIT 100"),
+  200
+);
+expect(users.length).toBe(100);
+
+// 5. File I/O timeout
+const content = await assertCompletesWithin(
+  () => fs.readFile("config.json", "utf8"),
+  100
+);
+expect(JSON.parse(content)).toBeDefined();
+
+// 6. Component rendering timeout
+const { container } = await assertCompletesWithin(
+  () => render(<MyComponent />),
+  50
+);
+expect(container.querySelector(".my-component")).not.toBeNull();
+
+// 7. Testing fast operations
+const value = await assertCompletesWithin(
+  () => 42,
+  1
+);
+expect(value).toBe(42);
+
+// 8. Testing with result validation
+const result = await assertCompletesWithin(
+  () => expensiveOperation(),
+  1000
+);
+expect(result.correct).toBe(true);
+
+// 9. Multiple sequential assertions
+await assertCompletesWithin(() => step1(), 100);
+await assertCompletesWithin(() => step2(), 100);
+await assertCompletesWithin(() => step3(), 100);
+
+// 10. Error handling with timeout
+try {
+  await assertCompletesWithin(
+    () => slowOperation(),
+    100
+  );
+} catch (error) {
+  expect(error.message).toContain("Expected to complete within 100ms");
+}
 ```
 
-**Edge Cases:**
-- Throws Vitest assertion error if exceeds limit
-- Returns function result if passes
-- Useful for SLA testing and performance requirements
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Performance SLA testing
+test("API meets response time SLA", async () => {
+  const response = await assertCompletesWithin(
+    () => fetch("/api/data").then(r => r.json()),
+    500 // SLA: < 500ms
+  );
+  expect(response).toBeDefined();
+  // Test passes only if both SLA met AND response is valid
+});
+
+// 2. Progressive timeout testing
+test("operation completes within reasonable time", async () => {
+  const data = { size: 1000 };
+  
+  // Fast test for small data
+  const small = await assertCompletesWithin(
+    () => processData({ ...data, size: 10 }),
+    100
+  );
+  
+  // Slower test for large data
+  const large = await assertCompletesWithin(
+    () => processData({ ...data, size: 10000 }),
+    1000
+  );
+  
+  expect(large).toBeDefined();
+});
+
+// 3. Comparing performance
+test("optimized version is faster", async () => {
+  const optimizedTime = await measureExecutionTime(() => 
+    assertCompletesWithin(() => optimized(), 1000)
+  );
+  
+  const originalTime = await measureExecutionTime(() => 
+    assertCompletesWithin(() => original(), 1000)
+  );
+  
+  expect(optimizedTime.durationMs).toBeLessThan(originalTime.durationMs);
+});
+
+// 4. Testing timeout handling
+test("handles timeout gracefully", async () => {
+  await expect(
+    assertCompletesWithin(
+      () => new Promise(r => setTimeout(r, 1000)),
+      100 // Too short
+    )
+  ).rejects.toThrow("Expected to complete within 100ms");
+});
+
+// 5. Testing retry logic with timeout
+test("retry operation completes within overall timeout", async () => {
+  let attempts = 0;
+  
+  const retryOperation = async () => {
+    attempts++;
+    if (attempts < 3) throw new Error("Not ready");
+    return "success";
+  };
+  
+  const result = await assertCompletesWithin(
+    () => retryWithBackoff(retryOperation),
+    2000 // Must complete within 2 seconds including retries
+  );
+  
+  expect(result).toBe("success");
+  expect(attempts).toBeLessThanOrEqual(5);
+});
+
+// 6. Testing concurrent operations timeout
+test("parallel operations complete within timeout", async () => {
+  const results = await assertCompletesWithin(
+    () => Promise.all([
+      fetch("/api/1"),
+      fetch("/api/2"),
+      fetch("/api/3")
+    ]),
+    1000 // All must complete within 1 second
+  );
+  
+  expect(results).toHaveLength(3);
+});
+
+// 7. Testing progressive enhancement
+test("fast path completes quickly", async () => {
+  const result = await assertCompletesWithin(
+    () => {
+      const fast = checkFastPath();
+      if (fast) return fast;
+      return slowFallback();
+    },
+    100
+  );
+  
+  expect(result).not.toBeNull();
+});
+
+// 8. Testing with dynamic timeouts
+test("timeout scales with input size", async () => {
+  const input = { items: Array.from({ length: 1000 }, () => Math.random()) };
+  
+  const result = await assertCompletesWithin(
+    () => processItems(input),
+    input.items.length * 0.5 // 0.5ms per item
+  );
+  
+  expect(result.processed).toBe(1000);
+});
+
+// 9. Testing real-time operations
+test("real-time processing keeps up", async () => {
+  const stream = simulateDataStream(100); // 100 items per second
+  
+  const processed = await assertCompletesWithin(
+    () => processStream(stream),
+    2000 // Must process 200 items in 2 seconds
+  );
+  
+  expect(processed).toBeGreaterThanOrEqual(200);
+});
+
+// 10. Testing memory-intensive operations
+test("large dataset processing completes", async () => {
+  const largeData = generateTestData(1000000); // 1M items
+  
+  const result = await assertCompletesWithin(
+    () => processLargeDataset(largeData),
+    5000 // 5 seconds for 1M items
+  );
+  
+  expect(result.processedCount).toBe(1000000);
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **Timeout precision**: Actual timeout may be slightly longer than `maxMs` due to event loop timing
+  ```typescript
+  const start = Date.now();
+  await assertCompletesWithin(() => {}, 100);
+  const elapsed = Date.now() - start;
+  // elapsed may be 100-105ms due to timing precision
+  ```
+
+- **Function execution starts immediately**: No setup time included in timeout
+  ```typescript
+  await assertCompletesWithin(() => operation(), 100);
+  // Operation starts immediately, timeout is from call time
+  ```
+
+- **Throwing functions**: Exceptions propagate before timeout check
+  ```typescript
+  await expect(
+    assertCompletesWithin(() => { throw new Error("Failed"); }, 1000)
+  ).rejects.toThrow("Failed");
+  // Error thrown immediately, not a timeout
+  ```
+
+- **Zero or negative timeout**: May fail immediately or behave unexpectedly
+  ```typescript
+  await expect(
+    assertCompletesWithin(() => {}, 0)
+  ).rejects.toThrow(); // Likely fails immediately
+  ```
+
+- **Very short timeouts**: May not work reliably due to event loop granularity
+  ```typescript
+  // 1ms timeout may not be reliable
+  await expect(
+    assertCompletesWithin(() => {}, 1)
+  ).rejects.toThrow(); // May fail even for fast operations
+  ```
+
+- **Result type safety**: TypeScript infers result type correctly
+  ```typescript
+  const result = await assertCompletesWithin(() => {
+    return { id: "123", value: 42 };
+  }, 100);
+  
+  expect(result.value).toBe(42); // Type-safe access
+  ```
+
+- **Async functions work identically**: No difference in behavior
+  ```typescript
+  const syncResult = await assertCompletesWithin(() => 42, 100);
+  const asyncResult = await assertCompletesWithin(async () => 42, 100);
+  // Both work the same way
+  ```
+
+**Performance Considerations:**
+
+- Measurement overhead is minimal (< 0.1ms) - doesn't affect timeout accuracy significantly
+- For operations expected to take < 10ms, consider using `measureExecutionTime` instead
+- Timeout check happens after function completes - not checked during execution
+- For long-running operations, consider manual timeout cancellation
+
+**Real-World Testing Scenarios:**
+
+```typescript
+// 1. Testing API endpoint performance
+test("health check endpoint responds quickly", async () => {
+  const response = await assertCompletesWithin(
+    () => fetch("/health").then(r => r.json()),
+    100 // Health check should be very fast
+  );
+  
+  expect(response.status).toBe("healthy");
+});
+
+// 2. Testing database query performance
+test("indexed query completes quickly", async () => {
+  const users = await assertCompletesWithin(
+    () => db.query("SELECT * FROM users WHERE email = 'test@example.com'"),
+    50 // Indexed query should be fast
+  );
+  
+  expect(users).toHaveLength(1);
+});
+
+// 3. Testing component rendering performance
+test("component renders within frame budget", async () => {
+  const { container } = await assertCompletesWithin(
+    () => render(<ComplexComponent data={testData} />),
+    16 // ~60fps = 16ms per frame
+  );
+  
+  expect(container.querySelector(".ready")).not.toBeNull();
+});
+
+// 4. Testing file upload timeout
+test("file upload completes within timeout", async () => {
+  const file = new File(["content"], "test.txt");
+  
+  const result = await assertCompletesWithin(
+    () => uploadFile(file),
+    5000 // 5 seconds for upload
+  );
+  
+  expect(result.success).toBe(true);
+});
+
+// 5. Testing cache performance
+test("cache hit is very fast", async () => {
+  await populateCache("key", "value");
+  
+  const result = await assertCompletesWithin(
+    () => getFromCache("key"),
+    1 // Cache hit should be nearly instant
+  );
+  
+  expect(result).toBe("value");
+});
+
+// 6. Testing batch operations
+test("batch processing completes within SLA", async () => {
+  const items = Array.from({ length: 1000 }, (_, i) => ({ id: i }));
+  
+  const results = await assertCompletesWithin(
+    () => processBatch(items),
+    1000 // 1 second for 1000 items = 1ms per item
+  );
+  
+  expect(results.successful).toBe(1000);
+});
+
+// 7. Testing with realistic timeouts
+test("search completes within user tolerance", async () => {
+  const results = await assertCompletesWithin(
+    () => searchDatabase("query string"),
+    2000 // Users expect search in < 2 seconds
+  );
+  
+  expect(results).toBeDefined();
+});
+
+// 8. Testing progressive loading
+test("initial load is fast, full load takes longer", async () => {
+  const initial = await assertCompletesWithin(
+    () => fetchPage({ lazy: false }),
+    300 // Initial load should be fast
+  );
+  
+  const full = await assertCompletesWithin(
+    () => fetchPage({ lazy: true }),
+    1000 // Full load can take longer
+  );
+  
+  expect(initial.data).toBeDefined();
+  expect(full.data).toBeDefined();
+});
+```
 
 ---
 
@@ -1778,7 +2487,7 @@ expect(mockFn).toHaveBeenCalled();
 
 #### `waitForAll(operations)`
 
-Waits for multiple async operations to complete.
+Waits for multiple async operations to complete in parallel and returns all results. Essential for testing concurrent operations, batch processing, parallel API calls, and scenarios where multiple async tasks must complete before assertions.
 
 **Signature:**
 ```typescript
@@ -1786,24 +2495,512 @@ async function waitForAll<T>(operations: Array<() => Promise<T>>): Promise<T[]>
 ```
 
 **Parameters:**
-- `operations: Array<() => Promise<T>>` - Array of async functions
+- `operations: Array<() => Promise<T>>` - Array of async functions to execute in parallel
+  - Each element is a function that returns a Promise (not the Promise itself)
+  - Functions are called immediately when `waitForAll` is invoked
+  - Type parameter `T` can be any type - results array contains `T[]`
+  - Empty array resolves immediately with `[]`
 
 **Returns:**
-- `Promise<T[]>` - Array of results in same order as operations
+- `Promise<T[]>` - Array of results in the same order as input operations
+  - Resolves when all operations complete successfully
+  - Rejects if any operation rejects (fail-fast behavior)
+  - Results are ordered by input array position, not completion order
+  - Type is `T[]` where `T` is the inferred type from operation return values
 
-**Example:**
+**Common Usage Patterns:**
+
 ```typescript
+// 1. Basic parallel operations
 const results = await waitForAll([
-  () => fetchArrivals("725"),
-  () => fetchArrivals("726"),
-  () => fetchAlerts()
+  () => Promise.resolve(1),
+  () => Promise.resolve(2),
+  () => Promise.resolve(3)
 ]);
+expect(results).toEqual([1, 2, 3]);
+
+// 2. Async functions with different return types
+const results = await waitForAll([
+  () => Promise.resolve({ id: "1", name: "Item 1" }),
+  () => Promise.resolve({ id: "2", name: "Item 2" }),
+  () => Promise.resolve({ id: "3", name: "Item 3" })
+]);
+expect(results).toHaveLength(3);
+expect(results[0].name).toBe("Item 1");
+
+// 3. Simulating parallel API calls
+const mockFetch = vi.fn().mockResolvedValue(createMockResponse({ data: "value" }));
+const results = await waitForAll([
+  () => mockFetch("/api/arrivals/725"),
+  () => mockFetch("/api/arrivals/726"),
+  () => mockFetch("/api/alerts")
+]);
+expect(results).toHaveLength(3);
+expect(mockFetch).toHaveBeenCalledTimes(3);
+
+// 4. Operations with delays
+const delays = await waitForAll([
+  () => new Promise(r => setTimeout(() => r(100), 100)),
+  () => new Promise(r => setTimeout(() => r(200), 50)),
+  () => new Promise(r => setTimeout(() => r(300), 150))
+]);
+expect(delays).toEqual([100, 200, 300]);
+
+// 5. Complex async operations
+const results = await waitForAll([
+  async () => {
+    await new Promise(r => setTimeout(r, 100));
+    return "operation1";
+  },
+  async () => {
+    await new Promise(r => setTimeout(r, 200));
+    return "operation2";
+  }
+]);
+expect(results[0]).toBe("operation1");
+expect(results[1]).toBe("operation2");
+
+// 6. Empty operations array
+const results = await waitForAll([]);
+expect(results).toEqual([]);
+
+// 7. Single operation
+const result = await waitForAll([
+  () => Promise.resolve("single")
+]);
+expect(result).toEqual(["single"]);
+
+// 8. Operations returning arrays
+const results = await waitForAll([
+  () => Promise.resolve([1, 2, 3]),
+  () => Promise.resolve([4, 5, 6])
+]);
+expect(results[0]).toEqual([1, 2, 3]);
+expect(results[1]).toEqual([4, 5, 6]);
+
+// 9. Testing concurrent state changes
+let counter = 0;
+await waitForAll([
+  async () => { counter += 1; },
+  async () => { counter += 1; },
+  async () => { counter += 1; }
+]);
+expect(counter).toBe(3);
+
+// 10. Error handling (one operation fails)
+await expect(
+  waitForAll([
+    () => Promise.resolve("success"),
+    () => Promise.reject(new Error("Failed")),
+    () => Promise.resolve("also success")
+  ])
+).rejects.toThrow("Failed");
 ```
 
-**Edge Cases:**
-- Uses `Promise.all()` - all operations run in parallel
-- Throws if any operation fails
-- Results are in same order as input array
+**Advanced Usage Patterns:**
+
+```typescript
+// 1. Parallel data fetching with aggregation
+test("aggregates data from multiple sources", async () => {
+  const sources = [
+    { id: "1", data: "Data from source 1" },
+    { id: "2", data: "Data from source 2" },
+    { id: "3", data: "Data from source 3" }
+  ];
+  
+  const fetchData = async (id: string) => {
+    await new Promise(r => setTimeout(r, 100));
+    return sources.find(s => s.id === id);
+  };
+  
+  const results = await waitForAll([
+    () => fetchData("1"),
+    () => fetchData("2"),
+    () => fetchData("3")
+  ]);
+  
+  expect(results).toHaveLength(3);
+  expect(results.every(r => r?.data)).toBe(true);
+});
+
+// 2. Testing race conditions
+test("all operations complete despite timing differences", async () => {
+  const completionTimes: number[] = [];
+  
+  const operations = [
+    async () => {
+      const start = Date.now();
+      await new Promise(r => setTimeout(r, Math.random() * 100));
+      completionTimes.push(Date.now() - start);
+      return "op1";
+    },
+    async () => {
+      const start = Date.now();
+      await new Promise(r => setTimeout(r, Math.random() * 100));
+      completionTimes.push(Date.now() - start);
+      return "op2";
+    },
+    async () => {
+      const start = Date.now();
+      await new Promise(r => setTimeout(r, Math.random() * 100));
+      completionTimes.push(Date.now() - start);
+      return "op3";
+    }
+  ];
+  
+  const results = await waitForAll(operations);
+  expect(results).toEqual(["op1", "op2", "op3"]);
+  expect(completionTimes).toHaveLength(3);
+});
+
+// 3. Testing concurrent mutations
+test("concurrent mutations don't interfere", async () => {
+  const state = { values: [1, 2, 3] };
+  
+  await waitForAll([
+    async () => {
+      await new Promise(r => setTimeout(r, 50));
+      state.values.push(4);
+    },
+    async () => {
+      await new Promise(r => setTimeout(r, 100));
+      state.values.push(5);
+    },
+    async () => {
+      await new Promise(r => setTimeout(r, 75));
+      state.values.push(6);
+    }
+  ]);
+  
+  expect(state.values).toContain(4);
+  expect(state.values).toContain(5);
+  expect(state.values).toContain(6);
+});
+
+// 4. Testing batch processing
+test("processes batches in parallel", async () => {
+  const batches = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+  
+  const processBatch = async (batch: number[]) => {
+    await new Promise(r => setTimeout(r, 100));
+    return batch.map(x => x * 2);
+  };
+  
+  const results = await waitForAll([
+    () => processBatch(batches[0]),
+    () => processBatch(batches[1]),
+    () => processBatch(batches[2])
+  ]);
+  
+  expect(results[0]).toEqual([2, 4, 6]);
+  expect(results[1]).toEqual([8, 10, 12]);
+  expect(results[2]).toEqual([14, 16, 18]);
+});
+
+// 5. Testing with different return types
+test("handles heterogeneous return types", async () => {
+  const results = await waitForAll([
+    () => Promise.resolve({ count: 5 }),
+    () => Promise.resolve([1, 2, 3]),
+    () => Promise.resolve("success"),
+    () => Promise.resolve(42)
+  ]);
+  
+  expect(results[0]).toEqual({ count: 5 });
+  expect(results[1]).toEqual([1, 2, 3]);
+  expect(results[2]).toBe("success");
+  expect(results[3]).toBe(42);
+});
+
+// 6. Testing concurrent API clients
+test("multiple API clients fetch concurrently", async () => {
+  const clients = [
+    { name: "Client1", fetch: async () => ({ data: "client1" }) },
+    { name: "Client2", fetch: async () => ({ data: "client2" }) },
+    { name: "Client3", fetch: async () => ({ data: "client3" }) }
+  ];
+  
+  const results = await waitForAll([
+    () => clients[0].fetch(),
+    () => clients[1].fetch(),
+    () => clients[2].fetch()
+  ]);
+  
+  expect(results[0].data).toBe("client1");
+  expect(results[1].data).toBe("client2");
+  expect(results[2].data).toBe("client3");
+});
+
+// 7. Testing error propagation
+test("first error propagates immediately", async () => {
+  let longOpCompleted = false;
+  
+  try {
+    await waitForAll([
+      () => Promise.reject(new Error("Fast error")),
+      async () => {
+        await new Promise(r => setTimeout(r, 1000));
+        longOpCompleted = true;
+        return "completed";
+      }
+    ]);
+  } catch (error) {
+    expect((error as Error).message).toBe("Fast error");
+    expect(longOpCompleted).toBe(false); // Short-circuited
+  }
+});
+
+// 8. Testing ordered results despite completion order
+test("results are ordered by input not completion", async () => {
+  const results = await waitForAll([
+    () => new Promise(r => setTimeout(() => r("last"), 300)),
+    () => new Promise(r => setTimeout(() => r("first"), 100)),
+    () => new Promise(r => setTimeout(() => r("middle"), 200))
+  ]);
+  
+  expect(results).toEqual(["last", "first", "middle"]);
+  // Order preserved despite different completion times
+});
+
+// 9. Testing with async generators
+test("processes multiple async generators", async () => {
+  const gen1 = async function*() {
+    yield 1; yield 2; yield 3;
+  };
+  const gen2 = async function*() {
+    yield 4; yield 5; yield 6;
+  };
+  
+  const collect = async (gen: AsyncGenerator<any>) => {
+    const items = [];
+    for await (const item of gen()) items.push(item);
+    return items;
+  };
+  
+  const results = await waitForAll([
+    () => collect(gen1),
+    () => collect(gen2)
+  ]);
+  
+  expect(results[0]).toEqual([1, 2, 3]);
+  expect(results[1]).toEqual([4, 5, 6]);
+});
+
+// 10. Testing resource cleanup
+test("cleans up all resources even if some fail", async () => {
+  const cleanup: any[] = [];
+  
+  try {
+    await waitForAll([
+      async () => {
+        await new Promise(r => setTimeout(r, 100));
+        cleanup.push("op1");
+        return "success1";
+      },
+      async () => {
+        await new Promise(r => setTimeout(r, 50));
+        throw new Error("op2 failed");
+      },
+      async () => {
+        await new Promise(r => setTimeout(r, 150));
+        cleanup.push("op3");
+        return "success3";
+      }
+    ]);
+  } catch (error) {
+    expect(cleanup).not.toContain("op3"); // Short-circuited
+    expect((error as Error).message).toBe("op2 failed");
+  }
+});
+```
+
+**Edge Cases & Gotchas:**
+
+- **Fail-fast behavior**: First rejection rejects the entire `Promise.all()`
+  ```typescript
+  await expect(
+    waitForAll([
+      () => Promise.reject(new Error("First error")),
+      () => Promise.reject(new Error("Second error")),
+      () => Promise.resolve("Success")
+    ])
+  ).rejects.toThrow("First error");
+  // Only "First error" is thrown, others are lost
+  ```
+
+- **Operations start immediately**: Functions are called when `waitForAll` is invoked, not lazily
+  ```typescript
+  let started = 0;
+  const ops = [
+    () => { started++; return Promise.resolve(1); },
+    () => { started++; return Promise.resolve(2); }
+  ];
+  
+  waitForAll(ops); // Both functions called immediately
+  expect(started).toBe(2);
+  ```
+
+- **Order preservation**: Results are in input order, not completion order
+  ```typescript
+  const results = await waitForAll([
+    () => new Promise(r => setTimeout(() => r("slow"), 200)),
+    () => new Promise(r => setTimeout(() => r("fast"), 50))
+  ]);
+  expect(results).toEqual(["slow", "fast"]); // Input order preserved
+  ```
+
+- **Empty array**: Resolves immediately with empty array
+  ```typescript
+  const results = await waitForAll([]);
+  expect(results).toEqual([]);
+  // No delay, immediate resolution
+  ```
+
+- **Mixed types**: TypeScript infers union type for heterogeneous arrays
+  ```typescript
+  const results = await waitForAll([
+    () => Promise.resolve(42),
+    () => Promise.resolve("string"),
+    () => Promise.resolve({ key: "value" })
+  ]);
+  // Type is (string | number | { key: string })[]
+  ```
+
+- **Memory accumulation**: All results held in memory until all complete
+  ```typescript
+  const largeArrays = await waitForAll([
+    () => Promise.resolve(new Array(1000000).fill(1)),
+    () => Promise.resolve(new Array(1000000).fill(2))
+  ]);
+  // Both large arrays held in memory simultaneously
+  ```
+
+- **Long-running operations**: No individual timeout for each operation
+  ```typescript
+  await expect(
+    waitForAll([
+      () => new Promise(r => setTimeout(r, 10000)) // 10 second operation
+    ])
+  ).resolves.toBeUndefined(); // Will wait full 10 seconds
+  ```
+
+- **Nested promises**: Functions returning non-Promise values are wrapped
+  ```typescript
+  const results = await waitForAll([
+    () => 42, // Not a Promise
+    () => Promise.resolve(100)
+  ]);
+  expect(results).toEqual([42, 100]);
+  // Non-Promise values are treated as resolved promises
+  ```
+
+**Performance Considerations:**
+
+- Operations run in parallel on available CPU cores (for CPU-bound operations)
+- I/O-bound operations benefit most from parallel execution
+- Memory usage scales with operation count and result size
+- For very large operation arrays (>1000), consider batching
+- Network operations are limited by browser connection limits
+
+**Real-World Testing Scenarios:**
+
+```typescript
+// 1. Testing parallel API data fetching
+test("fetches data from multiple endpoints", async () => {
+  const mockFetch = vi.fn()
+    .mockResolvedValueOnce(createMockResponse({ arrivals: [] }))
+    .mockResolvedValueOnce(createMockResponse({ alerts: [] }))
+    .mockResolvedValueOnce(createMockResponse({ stations: [] }));
+  
+  const results = await waitForAll([
+    () => mockFetch("/api/arrivals"),
+    () => mockFetch("/api/alerts"),
+    () => mockFetch("/api/stations")
+  ]);
+  
+  expect(results).toHaveLength(3);
+  expect(mockFetch).toHaveBeenCalledTimes(3);
+});
+
+// 2. Testing concurrent state updates
+test("updates state from multiple sources concurrently", async () => {
+  const state = {
+    user: null as any,
+    settings: null as any,
+    notifications: null as any
+  };
+  
+  await waitForAll([
+    async () => {
+      state.user = { id: "123", name: "Test User" };
+    },
+    async () => {
+      state.settings = { theme: "dark" };
+    },
+    async () => {
+      state.notifications = [{ message: "Welcome" }];
+    }
+  ]);
+  
+  expect(state.user).not.toBeNull();
+  expect(state.settings).not.toBeNull();
+  expect(state.notifications).not.toBeNull();
+});
+
+// 3. Testing parallel file processing
+test("processes multiple files in parallel", async () => {
+  const files = [
+    { name: "file1.txt", content: "content1" },
+    { name: "file2.txt", content: "content2" },
+    { name: "file3.txt", content: "content3" }
+  ];
+  
+  const processFile = async (file: any) => {
+    await new Promise(r => setTimeout(r, 100));
+    return { ...file, processed: true };
+  };
+  
+  const results = await waitForAll([
+    () => processFile(files[0]),
+    () => processFile(files[1]),
+    () => processFile(files[2])
+  ]);
+  
+  expect(results.every(r => r.processed)).toBe(true);
+});
+
+// 4. Testing concurrent database queries
+test("executes multiple queries concurrently", async () => {
+  const db = createMockDatabase();
+  
+  const results = await waitForAll([
+    () => Promise.resolve({ users: [] }),
+    () => Promise.resolve({ posts: [] }),
+    () => Promise.resolve({ comments: [] })
+  ]);
+  
+  expect(results[0].users).toEqual([]);
+  expect(results[1].posts).toEqual([]);
+  expect(results[2].comments).toEqual([]);
+});
+
+// 5. Testing parallel validation
+test("validates multiple fields concurrently", async () => {
+  const validators = {
+    email: async (value: string) => value.includes("@"),
+    username: async (value: string) => value.length >= 3,
+    password: async (value: string) => value.length >= 8
+  };
+  
+  const results = await waitForAll([
+    () => validators.email("test@example.com"),
+    () => validators.username("test"),
+    () => validators.password("password123")
+  ]);
+  
+  expect(results).toEqual([true, true, true]);
+});
+```
 
 ---
 

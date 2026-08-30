@@ -7,6 +7,11 @@ import { createLRUCache, debounce, memoize, memoizeAsync, memoizeSort, throttle 
 
 describe("memoization utilities", () => {
   beforeEach(() => {
+    // Use fake timers for deterministic timing in tests
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
     vi.useRealTimers();
   });
 
@@ -37,7 +42,7 @@ describe("memoization utilities", () => {
       expect(memoized(1, 2)).toBe(3);
     });
 
-    it("respects TTL", () => {
+    it("respects TTL", async () => {
       let callCount = 0;
       const fn = () => {
         callCount++;
@@ -51,14 +56,11 @@ describe("memoization utilities", () => {
       memoized();
       expect(callCount).toBe(1); // Cached
 
-      // Wait for TTL to expire
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          memoized();
-          expect(callCount).toBe(2); // Called again after TTL
-          resolve(null);
-        }, 150);
-      });
+      // Advance time past TTL (100ms + buffer)
+      await vi.advanceTimersByTimeAsync(150);
+
+      memoized();
+      expect(callCount).toBe(2); // Called again after TTL
     });
 
     it("respects maxSize", () => {
@@ -120,83 +122,77 @@ describe("memoization utilities", () => {
   });
 
   describe("debounce", () => {
-    it("delays function execution", () => {
-      return new Promise((resolve) => {
-        let callCount = 0;
-        const fn = () => {
-          callCount++;
-        };
-        const debounced = debounce(fn, 100);
+    it("delays function execution", async () => {
+      let callCount = 0;
+      const fn = () => {
+        callCount++;
+      };
+      const debounced = debounce(fn, 100);
 
-        debounced();
-        expect(callCount).toBe(0);
+      debounced();
+      expect(callCount).toBe(0);
 
-        setTimeout(() => {
-          expect(callCount).toBe(1);
-          resolve(null);
-        }, 150);
-      });
+      // Advance time past debounce delay
+      await vi.advanceTimersByTimeAsync(150);
+
+      expect(callCount).toBe(1);
     });
 
-    it("cancels previous calls", () => {
-      return new Promise((resolve) => {
-        let callCount = 0;
-        const fn = () => {
-          callCount++;
-        };
-        const debounced = debounce(fn, 100);
+    it("cancels previous calls", async () => {
+      let callCount = 0;
+      const fn = () => {
+        callCount++;
+      };
+      const debounced = debounce(fn, 100);
 
-        debounced();
-        debounced();
-        debounced();
+      debounced();
+      debounced();
+      debounced();
 
-        setTimeout(() => {
-          expect(callCount).toBe(1); // Only last call executed
-          resolve(null);
-        }, 150);
-      });
+      // Advance time past debounce delay
+      await vi.advanceTimersByTimeAsync(150);
+
+      expect(callCount).toBe(1); // Only last call executed
     });
 
-    it("resets delay on each call", () => {
-      return new Promise((resolve) => {
-        let callCount = 0;
-        const fn = () => {
-          callCount++;
-        };
-        const debounced = debounce(fn, 100);
+    it("resets delay on each call", async () => {
+      let callCount = 0;
+      const fn = () => {
+        callCount++;
+      };
+      const debounced = debounce(fn, 100);
 
-        debounced();
-        setTimeout(() => debounced(), 50); // Call again before delay
-        setTimeout(() => debounced(), 100); // And again
+      debounced();
 
-        setTimeout(() => {
-          expect(callCount).toBe(1);
-          resolve(null);
-        }, 300);
-      });
+      // Schedule calls at different times
+      vi.advanceTimersByTimeAsync(50).then(() => debounced());
+      vi.advanceTimersByTimeAsync(100).then(() => debounced());
+
+      // Advance to final time
+      await vi.advanceTimersByTimeAsync(300);
+
+      expect(callCount).toBe(1);
     });
   });
 
   describe("throttle", () => {
-    it("limits function execution rate", () => {
-      return new Promise((resolve) => {
-        let callCount = 0;
-        const fn = () => {
-          callCount++;
-        };
-        const throttled = throttle(fn, 100);
+    it("limits function execution rate", async () => {
+      let callCount = 0;
+      const fn = () => {
+        callCount++;
+      };
+      const throttled = throttle(fn, 100);
 
-        throttled();
-        throttled();
-        throttled();
+      throttled();
+      throttled();
+      throttled();
 
-        expect(callCount).toBe(1); // Only first call executed immediately
+      expect(callCount).toBe(1); // Only first call executed immediately
 
-        setTimeout(() => {
-          expect(callCount).toBe(1);
-          resolve(null);
-        }, 50);
-      });
+      // Advance time less than throttle period
+      await vi.advanceTimersByTimeAsync(50);
+
+      expect(callCount).toBe(1);
     });
 
     it("allows execution after delay", () => {

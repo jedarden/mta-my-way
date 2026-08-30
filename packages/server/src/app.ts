@@ -124,6 +124,7 @@ import {
 } from "./oauth/index.js";
 import { logger, metrics, tracingMiddleware } from "./observability/index.js";
 import { buildLineDiagram } from "./positions-interpolator.js";
+import { CORE_ONLY } from "./config.js";
 import {
   getSubscriptionCount,
   getSubscriptionOwner,
@@ -1124,8 +1125,6 @@ ${
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
     // Core status depends only on feeds and alerts - stateful subsystem degradation is acceptable
     // This allows the stateless core to report "ok" even when stateful subsystem is down
     const status = allFeedsOk && alertsOk ? "ok" : "degraded";
@@ -1242,7 +1241,6 @@ ${
     );
     const unhealthy = failingFeeds.length >= UNHEALTHY_FEED_THRESHOLD;
 
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
     const pushDbOk = isPushDatabaseReady();
     const status = allFeedsOk && alertsOk && (pushDbOk || CORE_ONLY) ? "ok" : "degraded";
     const httpStatus = unhealthy ? 503 : 200;
@@ -2011,8 +2009,6 @@ ${
   // -------------------------------------------------------------------------
 
   // Only mount push subscription routes if NOT in CORE_ONLY mode
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
   if (!CORE_ONLY) {
     // Apply same-origin protection to all push subscription operations
     app.use("/api/push/*", requireSameOrigin());

@@ -11,13 +11,14 @@
  */
 
 import type { Hono } from "hono";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createApp } from "../app.js";
 import { initDelayPredictor } from "../delay-predictor.js";
 import { initTripTracking } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestApiKey,
