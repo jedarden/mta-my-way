@@ -561,7 +561,7 @@ export function createApp(
   // CSRF protection for state-changing operations
   // Excludes health, metrics, and safe read-only endpoints
   // NOTE: /status is a public read-only HTML page (not under /api/*, so not affected)
-  // NOTE: /api/auth/oauth, /api/auth/mfa, /api/auth/session are disabled
+  // NOTE: /api/auth/oauth, /api/auth/mfa, /api/auth/session are excluded for OAuth flows
   // NOTE: /api/auth/password is enabled for password reset functionality
   app.use(
     "/api/*",
@@ -579,10 +579,10 @@ export function createApp(
         "/api/positions",
         "/api/push/vapid-public-key",
         "/api/journal",
-        // "/api/auth/oauth", // DISABLED: Feature not used by frontend
+        "/api/auth/oauth", // OAuth authorize/callback flows require redirects
         // "/api/auth/mfa", // DISABLED: Feature not used by frontend
         // "/api/auth/session", // DISABLED: Feature not used by frontend
-        "/api/auth/password",
+        "/api/auth/password", // Password reset functionality
         "/api/csrf-token",
         "/api/security/csp-report", // CSP violation reports (browser-initiated)
       ],
