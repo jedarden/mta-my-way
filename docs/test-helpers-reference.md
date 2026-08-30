@@ -7091,9 +7091,17 @@ function createCustomFixture(overrides?: Partial<TestFixture>): TestFixture {
 
 ### Assertion Helpers
 
+**Source:** `packages/shared/src/testing/test-helpers.ts`
+
 #### `assertHasProperties`
 
-Asserts that an object has all required properties.
+Asserts that an object has all required properties. Validates object structure for API responses, database records, and test data.
+
+**What it validates:**
+- The object is defined (not `undefined`)
+- The object is not `null`
+- All specified property names exist on the object (top-level only)
+- Uses Vitest's `toHaveProperty` matcher for precise property checking
 
 **Type Signature:**
 ```typescript
@@ -7101,12 +7109,14 @@ function assertHasProperties(obj: unknown, requiredProps: string[]): void
 ```
 
 **Parameters:**
-- `obj: unknown` - Object to test
-- `requiredProps: string[]` - Array of required property names
+- `obj: unknown` - Object to validate. Must be a non-null object with properties
+- `requiredProps: string[]` - Array of property names that must exist. Case-sensitive, top-level only
 
-**Returns:** `void` - Throws if assertion fails
+**Returns:** `void` - Throws if any property is missing or if object is null/undefined
 
-**Usage Example:**
+**Usage Examples:**
+
+*Basic property validation:*
 ```typescript
 import { assertHasProperties, createMockStation } from "@mta-my-way/shared/testing";
 
@@ -7116,29 +7126,132 @@ assertHasProperties(station, ["id", "name", "lat", "lon", "lines"]);
 
 assertHasProperties(station, ["id", "name", "invalidProp"]);
 // Throws - station doesn't have "invalidProp"
-
-// Test API responses
-const response = await fetch("/api/stations/725");
-const data = await response.json();
-assertHasProperties(data, ["id", "name", "lines"]);
-
-// Test nested objects don't count
-assertHasProperties(station, ["origin.id"]);
-// Throws - nested properties not supported
 ```
 
-**Edge Cases:**
-- Throws on `null` or `undefined` - check existence first
-- Only checks top-level properties - nested properties not supported
-- Empty `requiredProps` array always passes
-- Property names are case-sensitive - check exact casing
-- Works with any object type - useful for API response validation
+*API response validation:*
+```typescript
+// Test API response structure
+const response = await fetch("/api/stations/725");
+const data = await response.json();
+assertHasProperties(data, ["id", "name", "lines", "ada", "borough"]);
+
+// Test error response structure
+const errorResponse = await fetch("/api/stations/invalid");
+const errorData = await errorResponse.json();
+assertHasProperties(errorData, ["error", "statusCode", "message"]);
+```
+
+*Database record validation:*
+```typescript
+// Test trip record has required fields
+const trip = db.getTrip("trip_123");
+assertHasProperties(trip, ["id", "origin", "destination", "line", "departureTime"]);
+
+// Test user record structure
+const user = db.getUser("user_456");
+assertHasProperties(user, ["id", "email", "name", "role", "createdAt"]);
+```
+
+*Common validation patterns:*
+```typescript
+// Pattern 1: Validate before specific checks
+const station = createMockStation();
+assertHasProperties(station, ["id", "name"]);
+// Now safe to access these properties
+expect(station.id).toBe("725");
+expect(station.name).toBe("Times Square-42 St");
+
+// Pattern 2: Batch validation for multiple objects
+const stations = await fetchAllStations();
+for (const station of stations) {
+  assertHasProperties(station, ["id", "name", "lines"]);
+}
+
+// Pattern 3: Progressive validation
+// First check core properties, then optional ones
+assertHasProperties(data, ["id", "type"]);
+if (data.type === "station") {
+  assertHasProperties(data, ["id", "type", "name", "lines"]);
+}
+```
+
+**Edge Cases and Gotchas:**
+
+**Null and undefined handling:**
+```typescript
+// Throws - object is null
+assertHasProperties(null, ["id"]); // Error: Expected: undefined
+
+// Throws - object is undefined
+assertHasProperties(undefined, ["id"]); // Error: Expected: undefined
+
+// Good pattern: Check existence first
+const data = fetchData();
+if (data) {
+  assertHasProperties(data, ["id", "name"]);
+}
+```
+
+**Nested property limitation:**
+```typescript
+const station = {
+  id: "725",
+  location: { lat: 40.7589, lon: -73.9851 }
+};
+
+// This works - checks for "location" property
+assertHasProperties(station, ["location"]); // Passes
+
+// This DOES NOT work - cannot check nested properties
+assertHasProperties(station, ["location.lat"]); // Throws
+
+// Alternative: Check nested separately
+assertHasProperties(station, ["location"]);
+expect(station.location).toHaveProperty("lat");
+expect(station.location).toHaveProperty("lon");
+```
+
+**Case sensitivity:**
+```typescript
+const obj = { Name: "Times Square", id: "725" };
+
+// These are different properties
+assertHasProperties(obj, ["Name"]); // Passes
+assertHasProperties(obj, ["name"]); // Throws - case mismatch
+assertHasProperties(obj, ["id"]); // Passes
+assertHasProperties(obj, ["Id"]); // Throws - case mismatch
+```
+
+**Empty array behavior:**
+```typescript
+// Empty requiredProps always passes
+assertHasProperties(station, []); // Passes - no properties to check
+
+// Good pattern: Require at least one property
+assertHasProperties(station, ["id"]); // Minimum check
+```
+
+**Type flexibility:**
+```typescript
+// Works with any object type
+const apiResponse = { status: 200, data: [] };
+assertHasProperties(apiResponse, ["status", "data"]);
+
+const logEntry = { timestamp: 123456, level: "info", message: "test" };
+assertHasProperties(logEntry, ["timestamp", "level", "message"]);
+```
 
 ---
 
 #### `assertIsRecent`
 
-Asserts that a timestamp is recent (within specified milliseconds).
+Asserts that a timestamp is recent (within specified milliseconds). Validates data freshness for cache timestamps, API responses, and real-time data.
+
+**What it validates:**
+- The timestamp is in the past (not future)
+- The timestamp's age is within the maximum allowed age
+- Uses millisecond precision for accurate age calculation
+- Age formula: `Date.now() - timestamp` (must be ≥ 0 and ≤ maxAgeMs)
 
 **Type Signature:**
 ```typescript
@@ -7146,12 +7259,14 @@ function assertIsRecent(timestamp: number, maxAgeMs?: number): void
 ```
 
 **Parameters:**
-- `timestamp: number` - Timestamp to test (milliseconds)
-- `maxAgeMs` (optional): Maximum allowed age in milliseconds (default: `60000` = 1 minute)
+- `timestamp: number` - Timestamp to validate in milliseconds since epoch. Must be a past timestamp
+- `maxAgeMs` (optional): Maximum allowed age in milliseconds. Default: `60000` (60 seconds/1 minute)
 
-**Returns:** `void` - Throws if assertion fails
+**Returns:** `void` - Throws if timestamp is in the future or older than maxAgeMs
 
-**Usage Example:**
+**Usage Examples:**
+
+*Basic freshness checks:*
 ```typescript
 import { assertIsRecent } from "@mta-my-way/shared/testing";
 
@@ -7161,28 +7276,136 @@ assertIsRecent(Date.now() - 30000, 60000); // Passes - within 60 second window
 
 assertIsRecent(Date.now() - 120000); // Throws - 2 minutes old (> 1 minute default)
 assertIsRecent(Date.now() - 120000, 180000); // Passes - within 3 minute custom window
+```
 
-// Test API response freshness
+*API response freshness:*
+```typescript
+// Test real-time arrivals data is fresh
 const response = await fetch("/api/arrivals?stationId=725");
 const data = await response.json();
 assertIsRecent(data.timestamp, 30000); // Data must be < 30 seconds old
 
-// Test future timestamps
-assertIsRecent(Date.now() + 5000); // Throws - future timestamps not "recent"
+// Test feed data age
+const feedData = await fetchGTFSData();
+assertIsRecent(feedData.lastUpdate, 300000); // Feed must be < 5 minutes old
 ```
 
-**Edge Cases:**
-- Future timestamps always throw - "recent" means past only
-- Default max age is 60 seconds - customize per use case
-- Uses millisecond precision - ensure timestamps are in milliseconds
-- Useful for data freshness checks - combine with cache invalidation tests
-- Age calculation: `Date.now() - timestamp` - must be non-negative
+*Cache validation:*
+```typescript
+// Test cached data is still fresh
+const cachedStation = cache.get("station_725");
+assertIsRecent(cachedStation.cachedAt, 60000); // Cache must be < 1 minute old
+
+// Test stale cache detection
+const oldData = { timestamp: Date.now() - 3600000 }; // 1 hour old
+assertIsRecent(oldData.timestamp, 300000); // Throws - cache is stale
+```
+
+*Timestamp comparison patterns:*
+```typescript
+// Pattern 1: Validate feed freshness
+function checkFeedFreshness(feedData: { timestamp: number }) {
+  assertIsRecent(feedData.timestamp, 120000); // < 2 minutes old
+  return feedData;
+}
+
+// Pattern 2: Compare multiple timestamps
+const now = Date.now();
+assertIsRecent(data1.timestamp, 60000);
+assertIsRecent(data2.timestamp, 60000);
+// Both must be recent
+
+// Pattern 3: Relative freshness checks
+const baseline = Date.now();
+assertIsRecent(data.timestamp, 30000); // Stricter check
+expect(data.timestamp).toBeGreaterThanOrEqual(baseline - 30000);
+```
+
+**Edge Cases and Gotchas:**
+
+**Future timestamp rejection:**
+```typescript
+// All these throw - future timestamps are not "recent"
+assertIsRecent(Date.now() + 1000); // Throws - 1 second in future
+assertIsRecent(Date.now() + 60000); // Throws - 1 minute in future
+assertIsRecent(Date.now() + 3600000, 7200000); // Still throws - future is future
+
+// Use case: Clock skew detection
+try {
+  assertIsRecent(serverTimestamp, 5000);
+} catch (e) {
+  console.error("Server clock is ahead of client clock");
+}
+```
+
+**Default max age tolerance:**
+```typescript
+// Default is 60 seconds - often too lenient for real-time data
+assertIsRecent(Date.now() - 59000); // Passes - just within default
+assertIsRecent(Date.now() - 61000); // Throws - just over default
+
+// Good practice: Always specify maxAge explicitly
+assertIsRecent(arrivals.timestamp, 10000); // 10 seconds for arrivals
+assertIsRecent(alerts.timestamp, 60000); // 1 minute for alerts
+assertIsRecent(stations.timestamp, 3600000); // 1 hour for static data
+```
+
+**Millisecond precision:**
+```typescript
+// Correct: Millisecond timestamps
+assertIsRecent(Date.now(), 1000); // Passes
+
+// Incorrect: Second timestamps (common error)
+const secondsTimestamp = Math.floor(Date.now() / 1000);
+assertIsRecent(secondsTimestamp, 60000); // Throws - treated as very old!
+
+// Fix: Convert to milliseconds
+assertIsRecent(secondsTimestamp * 1000, 60000); // Passes
+```
+
+**Boundary conditions:**
+```typescript
+const now = Date.now();
+
+// Exact boundary cases
+assertIsRecent(now, 0); // Passes - age is exactly 0
+assertIsRecent(now - 60000, 60000); // Passes - age is exactly maxAgeMs
+assertIsRecent(now - 60001, 60000); // Throws - age exceeds maxAgeMs by 1ms
+
+// Edge case: Very large maxAge
+const oldTimestamp = Date.now() - (365 * 24 * 60 * 60 * 1000); // 1 year ago
+assertIsRecent(oldTimestamp, 365 * 24 * 60 * 60 * 1000); // Passes - 1 year tolerance
+```
+
+**Common tolerance values by use case:**
+```typescript
+// Real-time data (arrivals, alerts)
+assertIsRecent(data.timestamp, 10000); // 10 seconds
+
+// Near real-time (vehicle positions)
+assertIsRecent(data.timestamp, 30000); // 30 seconds
+
+// Fresh data (service status)
+assertIsRecent(data.timestamp, 60000); // 1 minute
+
+// Cached data (station info)
+assertIsRecent(data.timestamp, 300000); // 5 minutes
+
+// Static data (route configurations)
+assertIsRecent(data.timestamp, 3600000); // 1 hour
+```
 
 ---
 
 #### `assertApiResponse`
 
-Asserts that an API response has correct status and data shape.
+Asserts that an API response has correct HTTP status and data structure. Validates API contracts and response shapes.
+
+**What it validates:**
+- Response has the expected HTTP status code
+- Response has a `data` property (when shape is provided)
+- Response data matches the expected structure (partial match using `toMatchObject`)
+- Supports nested object matching and special Jest matchers
 
 **Type Signature:**
 ```typescript
@@ -7194,13 +7417,15 @@ function assertApiResponse(
 ```
 
 **Parameters:**
-- `response: unknown` - Response object to test
-- `expectedStatus: number` - Expected HTTP status code
-- `expectedDataShape` (optional): Expected data structure (partial match)
+- `response: unknown` - Response object with `status` and optional `data` properties
+- `expectedStatus: number` - Expected HTTP status code (e.g., 200, 404, 500)
+- `expectedDataShape` (optional): Partial data structure to match. Uses `toMatchObject` for recursive partial matching
 
-**Returns:** `void` - Throws if assertion fails
+**Returns:** `void` - Throws if status doesn't match or data structure doesn't match expected shape
 
-**Usage Example:**
+**Usage Examples:**
+
+*Basic success response validation:*
 ```typescript
 import { assertApiResponse } from "@mta-my-way/shared/testing";
 
@@ -7212,52 +7437,247 @@ assertApiResponse(
   200,
   { id: "725", name: expect.any(String) }
 );
+// Passes - status 200, data has id and name
+```
 
-// Test error response
+*Error response validation:*
+```typescript
+// Test 404 error response
 const errorResponse = await fetch("/api/stations/invalid");
 assertApiResponse(
   { status: errorResponse.status, data: await errorResponse.json() },
   404,
   { error: expect.any(String) }
 );
+// Passes - status 404, data has error message
 
-// Without data shape check
-assertApiResponse({ status: 200, data: {} }, 200); // Only checks status
-
-// Test nested structure
+// Test 500 error response
+const serverError = await fetch("/api/stations/crash");
 assertApiResponse(
-  { status: 200, data: { station: { id: "725", name: "Times Square" } } },
-  200,
-  { station: { id: "725" } } // Partial match on nested object
+  { status: serverError.status, data: await serverError.json() },
+  500,
+  { error: "Internal Server Error", statusCode: 500 }
 );
 ```
 
-**Edge Cases:**
-- `expectedDataShape` uses Jest's `toMatchObject` - partial match, not exact
-- `undefined` data shape skips data check - only validates status
-- Response object must have `status` and `data` properties
-- Works with any response structure - adapt to your API format
-- Useful for contract testing - verify API response shape matches expectations
+*Status-only validation:*
+```typescript
+// Without data shape check - only validates status
+assertApiResponse({ status: 200, data: {} }, 200); // Passes
+assertApiResponse({ status: 404, data: { error: "not found" } }, 404); // Passes
+
+// Use case: Quick endpoint availability check
+assertApiResponse({ status: response.status }, 200);
+```
+
+*Nested structure validation:*
+```typescript
+// Test nested object matching
+const response = {
+  status: 200,
+  data: {
+    station: { id: "725", name: "Times Square", lines: ["1", "2", "3"] }
+  }
+};
+
+assertApiResponse(
+  response,
+  200,
+  { station: { id: "725" } } // Partial match - only checks station.id
+);
+// Passes - nested partial match works
+
+// Multiple nested levels
+assertApiResponse(
+  { status: 200, data: { route: { stops: [{ id: "725" }] } } },
+  200,
+  { route: { stops: [{ id: "725" }] } } // Full nested match
+);
+```
+
+*Jest matcher integration:*
+```typescript
+// Use Jest matchers for flexible validation
+assertApiResponse(
+  { status: 200, data: { id: "725", count: 5, name: "Test" } },
+  200,
+  {
+    id: expect.any(String), // Any string
+    count: expect.any(Number), // Any number
+    name: expect.any(String)
+  }
+);
+
+// Pattern matchers
+assertApiResponse(
+  { status: 200, data: { id: "725" } },
+  200,
+  { id: expect.stringMatching(/^7\d{2}$/) } // Matches "7XX" pattern
+);
+
+// Array validation
+assertApiResponse(
+  { status: 200, data: { stations: [{ id: "725" }, { id: "726" }] } },
+  200,
+  { stations: expect.arrayContaining([{ id: "725" }]) } // Contains item
+);
+```
+
+*Common validation patterns:*
+```typescript
+// Pattern 1: Progressive validation
+// First check status, then validate data structure
+const response = await fetch("/api/stations/725");
+assertApiResponse({ status: response.status }, 200);
+// Then detailed data validation
+expect(await response.json()).toMatchObject({ id: "725" });
+
+// Pattern 2: Contract testing
+// Define expected API response shape
+const stationSchema = {
+  id: expect.stringMatching(/^\d+$/),
+  name: expect.stringMatching(/.+/),
+  lines: expect.any(Array),
+  ada: expect.any(Boolean),
+  borough: expect.any(String)
+};
+
+const data = await response.json();
+assertApiResponse({ status: 200, data }, 200, stationSchema);
+
+// Pattern 3: Error handling
+async function fetchStation(id: string) {
+  const response = await fetch(`/api/stations/${id}`);
+  const data = await response.json();
+
+  if (response.status === 404) {
+    assertApiResponse({ status: 404, data }, 404, { error: expect.any(String) });
+    return null;
+  }
+
+  assertApiResponse({ status: 200, data }, 200, { id, name: expect.any(String) });
+  return data;
+}
+```
+
+**Edge Cases and Gotchas:**
+
+**Partial match behavior:**
+```typescript
+// Passes - only checks specified properties
+assertApiResponse(
+  { status: 200, data: { id: "725", name: "Times Square", lines: ["1"] } },
+  200,
+  { id: "725" } // Only checks id
+);
+
+// Does NOT fail on extra properties
+assertApiResponse(
+  { status: 200, data: { id: "725", unexpected: "field" } },
+  200,
+  { id: "725" } // Ignores "unexpected" field
+);
+
+// For exact matching, use standard Vitest matchers instead
+expect(data).toEqual({ id: "725", name: "Times Square" }); // Exact match
+```
+
+**Missing data property:**
+```typescript
+// When expectedDataShape is provided, response must have data
+assertApiResponse(
+  { status: 200 }, // No data property
+  200,
+  { id: "725" }
+);
+// Throws - cannot read property 'data' of undefined
+
+// Fix: Only validate status when data might be missing
+if (response.data) {
+  assertApiResponse(response, 200, { id: "725" });
+} else {
+  assertApiResponse({ status: response.status }, 200);
+}
+```
+
+**Status code mismatch:**
+```typescript
+// Exact status match required
+assertApiResponse({ status: 200, data: {} }, 200); // Passes
+assertApiResponse({ status: 201, data: {} }, 200); // Throws - 201 ≠ 200
+assertApiResponse({ status: "200", data: {} }, 200); // Throws - string ≠ number
+
+// Pattern: Accept multiple success codes
+const response = await fetch("/api/stations/725");
+expect([200, 201, 204]).toContain(response.status);
+if (response.status !== 204) {
+  assertApiResponse({ status: response.status, data: await response.json() }, response.status);
+}
+```
+
+**Complex object structures:**
+```typescript
+// Arrays in response
+assertApiResponse(
+  { status: 200, data: { arrivals: [{ id: "1" }, { id: "2" }] } },
+  200,
+  { arrivals: expect.any(Array) } // Just checks it's an array
+);
+
+// For detailed array validation, use separate assertions
+const data = await response.json();
+assertApiResponse({ status: 200, data }, 200, { arrivals: expect.any(Array) });
+expect(data.arrivals).toHaveLength(2);
+expect(data.arrivals[0]).toHaveProperty("id");
+```
+
+**Response object requirements:**
+```typescript
+// Response must have status property
+assertApiResponse({ data: {} }, 200);
+// Throws - cannot read property 'status' of undefined
+
+// Response object structure matters
+const fetchResponse = await fetch("/api/stations/725");
+// This is the correct transformation
+assertApiResponse(
+  { status: fetchResponse.status, data: await fetchResponse.json() },
+  200
+);
+```
 
 ---
 
 #### `assertIsSorted`
 
-Asserts that an array is sorted by a specific key in ascending or descending order.
+Asserts that an array is sorted by a specific key in ascending or descending order. Validates sorted data structures for UI rendering, analytics, and ordered sequences.
+
+**What it validates:**
+- Each adjacent pair of elements in the array satisfies the sort order constraint
+- Uses `<=` for ascending (allows equal elements - stable sort)
+- Uses `>=` for descending (allows equal elements - stable sort)
+- Validates that the key exists on all array elements
+- Supports any comparable type: numbers, strings, bigints, dates
 
 **Type Signature:**
 ```typescript
-function assertIsSorted<T>(array: T[], key: keyof T, order?: "asc" | "desc"): void
+function assertIsSorted<T extends Record<string, number | bigint>>(
+  array: T[],
+  key: keyof T,
+  order?: "asc" | "desc"
+): void
 ```
 
 **Parameters:**
-- `array: T[]` - Array to test
-- `key: keyof T` - Property key to sort by
-- `order` (optional): Sort order (default: `"asc"`)
+- `array: T[]` - Array of objects to validate. Must have at least 2 elements to test sorting
+- `key: keyof T` - Property name to sort by. Must exist on all elements and be comparable
+- `order` (optional): Sort direction. Default: `"asc"` (ascending). Use `"desc"` for descending
 
-**Returns:** `void` - Throws if assertion fails
+**Returns:** `void` - Throws if any adjacent pair violates the sort order
 
-**Usage Example:**
+**Usage Examples:**
+
+*Basic ascending sort validation:*
 ```typescript
 import { assertIsSorted } from "@mta-my-way/shared/testing";
 
@@ -7267,38 +7687,203 @@ const arrivals = [
   { minutesAway: 8, line: "1" }
 ];
 
-assertIsSorted(arrivals, "minutesAway"); // Passes - ascending
-assertIsSorted(arrivals, "minutesAway", "asc"); // Same as default
+assertIsSorted(arrivals, "minutesAway"); // Passes - ascending (default)
+assertIsSorted(arrivals, "minutesAway", "asc"); // Same as explicit "asc"
+```
 
-const reverseArrivals = [...arrivals].reverse();
+*Descending sort validation:*
+```typescript
+const reverseArrivals = [
+  { minutesAway: 8, line: "1" },
+  { minutesAway: 5, line: "1" },
+  { minutesAway: 2, line: "1" }
+];
+
 assertIsSorted(reverseArrivals, "minutesAway", "desc"); // Passes - descending
+assertIsSorted(reverseArrivals, "minutesAway"); // Throws - not ascending
+```
 
-assertIsSorted(arrivals, "line"); // Throws - not sorted by line
+*Unsorted array detection:*
+```typescript
+const unsortedArrivals = [
+  { minutesAway: 5, line: "1" },
+  { minutesAway: 2, line: "1" }, // Out of order
+  { minutesAway: 8, line: "1" }
+];
 
-// Test timestamps
+assertIsSorted(unsortedArrivals, "minutesAway");
+// Throws - 5 > 2 violates ascending order
+```
+
+*Timestamp validation:*
+```typescript
+// Test chronological order
 const trips = [
-  { departureTime: Date.now() - 7200000 },
-  { departureTime: Date.now() - 3600000 },
-  { departureTime: Date.now() }
+  { departureTime: Date.now() - 7200000 }, // 2 hours ago
+  { departureTime: Date.now() - 3600000 }, // 1 hour ago
+  { departureTime: Date.now() } // Now
 ];
 assertIsSorted(trips, "departureTime"); // Passes - oldest to newest
 
-// Test string sorting
+// Test reverse chronological
+const recentTrips = [...trips].reverse();
+assertIsSorted(recentTrips, "departureTime", "desc"); // Passes - newest to oldest
+```
+
+*String sorting:*
+```typescript
+// Alphabetical sorting
 const stations = [
   { name: "A" },
   { name: "B" },
   { name: "C" }
 ];
 assertIsSorted(stations, "name"); // Passes - alphabetical
+
+// Case-sensitive string sorting
+const mixedCase = [
+  { name: "A" },
+  { name: "Z" },
+  { name: "a" } // Lowercase has higher ASCII value
+];
+assertIsSorted(mixedCase, "name"); // Passes - ASCII order: A < Z < a
 ```
 
-**Edge Cases:**
-- Empty array always passes - nothing to sort
-- Single-element array always passes - trivially sorted
-- Uses `<=` comparison - allows equal values (stable sort)
-- Order parameter defaults to `"asc"` - specify `"desc"` for reverse
-- Key must exist on all array elements - throws if property missing
-- Works with numbers, strings, dates - comparable types only
+*Multi-key sort validation:*
+```typescript
+// After sorting by multiple keys, validate each level
+const sortedData = data.sort((a, b) => {
+  if (a.line !== b.line) return a.line.localeCompare(b.line);
+  return a.minutesAway - b.minutesAway;
+});
+
+// Validate primary sort key
+assertIsSorted(sortedData, "line"); // All same line groups together
+
+// Validate secondary sort within each group
+const line1Group = sortedData.filter(d => d.line === "1");
+assertIsSorted(line1Group, "minutesAway"); // Within line 1, sorted by time
+```
+
+*Common validation patterns:*
+```typescript
+// Pattern 1: Validate sorted API response
+const response = await fetch("/api/arrivals?stationId=725&sort=time");
+const arrivals = await response.json();
+assertIsSorted(arrivals, "minutesAway"); // Confirm server sorted correctly
+
+// Pattern 2: Validate UI list order
+function renderSortedStations(stations: Station[]) {
+  assertIsSorted(stations, "name"); // Pre-condition check
+  return stations.map(s => <StationCard key={s.id} station={s} />);
+}
+
+// Pattern 3: Validate after client-side sort
+const sorted = [...unsorted].sort((a, b) => a.minutesAway - b.minutesAway);
+assertIsSorted(sorted, "minutesAway"); // Post-condition check
+```
+
+**Edge Cases and Gotchas:**
+
+**Empty and single-element arrays:**
+```typescript
+// Empty array always passes
+assertIsSorted([], "anyKey"); // Passes - nothing to sort
+assertIsSorted([], "anyKey", "desc"); // Passes
+
+// Single-element array always passes
+assertIsSorted([{ value: 1 }], "value"); // Passes - trivially sorted
+
+// Use case: Validate before sorting
+if (arrivals.length > 1) {
+  assertIsSorted(arrivals, "minutesAway");
+}
+```
+
+**Equal values (stable sort):**
+```typescript
+// Uses <= for ascending, >= for descending
+const withDuplicates = [
+  { minutesAway: 2, line: "1" },
+  { minutesAway: 2, line: "1" }, // Equal value
+  { minutesAway: 5, line: "1" }
+];
+
+assertIsSorted(withDuplicates, "minutesAway"); // Passes - 2 <= 2 is true
+assertIsSorted(withDuplicates, "minutesAway", "desc"); // Throws - 2 >= 5 is false
+```
+
+**Missing property on elements:**
+```typescript
+const incompleteData = [
+  { minutesAway: 2, line: "1" },
+  { line: "2" }, // Missing minutesAway
+  { minutesAway: 8, line: "3" }
+];
+
+assertIsSorted(incompleteData, "minutesAway");
+// Throws - trying to access undefined as number
+// Error: Cannot read property 'minutesAway' of undefined
+
+// Fix: Filter or validate first
+const completeData = incompleteData.filter(d => d.minutesAway !== undefined);
+assertIsSorted(completeData, "minutesAway");
+```
+
+**Type compatibility:**
+```typescript
+// Works with numbers
+assertIsSorted([{ value: 1 }, { value: 2 }, { value: 3 }], "value");
+
+// Works with bigint
+assertIsSorted([{ value: 1n }, { value: 2n }, { value: 3n }], "value");
+
+// Works with strings (lexicographic)
+assertIsSorted([{ value: "a" }, { value: "b" }, { value: "c" }], "value");
+
+// Fails with mixed types
+const mixed = [
+  { value: 1 },
+  { value: "2" }, // String, not number
+  { value: 3 }
+];
+assertIsSorted(mixed, "value"); // May throw or produce unexpected results
+```
+
+**Comparison logic details:**
+```typescript
+// Ascending: each element <= next element
+// [1, 2, 3] → 1 <= 2 ✓, 2 <= 3 ✓ → Passes
+// [1, 3, 2] → 1 <= 3 ✓, 3 <= 2 ✗ → Throws at pair (3, 2)
+
+// Descending: each element >= next element
+// [3, 2, 1] → 3 >= 2 ✓, 2 >= 1 ✓ → Passes
+// [3, 1, 2] → 3 >= 1 ✓, 1 >= 2 ✗ → Throws at pair (1, 2)
+
+// Boundary case: Exactly at limit
+const nearBoundary = [
+  { value: Number.MAX_SAFE_INTEGER - 1 },
+  { value: Number.MAX_SAFE_INTEGER }
+];
+assertIsSorted(nearBoundary, "value"); // Passes - safe integer arithmetic
+```
+
+**Performance considerations:**
+```typescript
+// O(n) time complexity - checks each adjacent pair once
+// Efficient for large arrays compared to full re-sort
+
+const largeArray = Array(100000).fill(0).map((_, i) => ({ value: i }));
+assertIsSorted(largeArray, "value"); // Fast - single pass validation
+
+// For very large arrays, consider sampling
+if (array.length > 10000) {
+  // Validate first 1000 elements
+  assertIsSorted(array.slice(0, 1000), "key");
+  // Validate last 1000 elements
+  assertIsSorted(array.slice(-1000), "key");
+}
+```
 
 ---
 
