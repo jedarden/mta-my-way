@@ -2150,12 +2150,477 @@ expect(manhattanAda.ada).toBe(true);
 expect(brooklynNonAda.borough).toBe("brooklyn");
 ```
 
-**Edge Cases:**
-- Default station is Times Square - override for location-specific tests
-- `lines` array affects line validation logic - ensure valid line IDs
-- ADA compliance tests should mock both `ada: true` and `ada: false` stations
-- Transfers structure affects route calculation tests - use realistic transfer data
-- Borough values must be valid [`Borough`](../packages/shared/src/types/stations.ts#L7) union members
+### Edge Cases and Gotchas
+
+#### Override Merging Behavior
+
+**CRITICAL: Shallow Merge, Not Deep Merge**
+
+The `createMockStation` function uses JavaScript's spread operator (`...overrides`) which performs a **shallow merge**. This has important implications for how overrides are applied:
+
+```typescript
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+// ❌ INCORRECT: This does NOT merge the lines array
+const station = createMockStation({
+  lines: ["7"]  // Replaces entire array, not adds to it
+});
+// Result: lines = ["7"], NOT ["1", "2", "3", "7", "N", "Q", "R", "W", "7"]
+
+// ✅ CORRECT: Explicitly specify all lines you want
+const station = createMockStation({
+  lines: ["1", "2", "3", "7", "N", "Q", "R", "W"]  // Complete array
+});
+
+// ✅ CORRECT: Add to defaults manually if needed
+const defaultStation = createMockStation();
+const stationWithExtraLine = {
+  ...defaultStation,
+  lines: [...defaultStation.lines, "7"]
+};
+```
+
+**What Gets Replaced vs. Preserved:**
+
+| Field Type | Behavior | Example |
+|------------|----------|----------|
+| **Primitives** (`id`, `name`, `lat`, `lon`, `ada`, `borough`) | Replaced | `{ id: "101" }` → new id only |
+| **Arrays** (`lines`, `transfers`) | **Replaced entirely** | `{ lines: ["7"] }` → only line 7, not merged |
+| **Optional fields** (`complex`) | Added if provided | `{ complex: "D14" }` → now has complex ID |
+
+**Array Override Gotcha:**
+
+```typescript
+// ❌ EXPECTATION: Add "7" to existing lines
+const station = createMockStation({
+  lines: ["7"]
+});
+expect(station.lines).toEqual(["1", "2", "3", "7", "N", "Q", "R", "W", "7"]); // FAILS!
+
+// ✅ REALITY: Lines array is completely replaced
+expect(station.lines).toEqual(["7"]); // PASSES
+```
+
+---
+
+#### Stop ID Consistency Issues
+
+**The `id` Field Does Not Auto-Update `northStopId` and `southStopId`**
+
+When you override the station `id`, the stop IDs remain at their defaults ("725N" and "725S") unless explicitly overridden:
+
+```typescript
+// ❌ INCONSISTENT: id is "101" but stop IDs reference "725"
+const inconsistentStation = createMockStation({
+  id: "101"
+});
+console.log(inconsistentStation.id);         // "101"
+console.log(inconsistentStation.northStopId); // "725N" ← Still references old ID!
+console.log(inconsistentStation.southStopId); // "725S" ← Still references old ID!
+
+// ✅ CONSISTENT: Update all related IDs together
+const consistentStation = createMockStation({
+  id: "999",
+  northStopId: "999N",
+  southStopId: "999S"
+});
+```
+
+**Stop ID Pattern Convention:**
+
+MTA stop IDs typically follow the pattern: `{stationId}{N/S}`
+
+```typescript
+// Helper function to maintain consistency
+function createConsistentStation(stationId: string) {
+  return createMockStation({
+    id: stationId,
+    northStopId: `${stationId}N`,
+    southStopId: `${stationId}S`
+  });
+}
+
+const timesSquare = createConsistentStation("725");
+const southFerry = createConsistentStation("101");
+```
+
+---
+
+#### Borough Type Assertion Gotcha
+
+The default station uses `borough: "manhattan" as const` which provides a literal type. When overriding, ensure your borough value is a valid `Borough` union member:
+
+```typescript
+import type { Borough } from "@mta-my-way/shared/types/stations";
+
+// ✅ CORRECT: Use type assertion for custom boroughs
+const brooklynStation = createMockStation({
+  borough: "brooklyn" as Borough
+});
+
+// ✅ CORRECT: All valid borough values
+const boroughs: Borough[] = ["manhattan", "brooklyn", "queens", "bronx", "statenisland"];
+boroughs.forEach(borough => {
+  const station = createMockStation({ borough });
+});
+
+// ❌ INCORRECT: Typo in borough name (TypeScript won't catch without explicit type)
+const typoStation = createMockStation({
+  borough: "manhatan" // Runtime error if validated against Borough type
+});
+```
+
+**Valid Borough Values:**
+- `"manhattan"`
+- `"brooklyn"`
+- `"queens"`
+- `"bronx"`
+- `"statenisland"`
+
+---
+
+#### Complex ID Field Behavior
+
+The `complex` field is **optional** in the `Station` type and **not set by default**. It will be `undefined` unless explicitly provided:
+
+```typescript
+// Default: complex is undefined
+const defaultStation = createMockStation();
+console.log(defaultStation.complex); // undefined
+
+// Set complex ID explicitly
+const complexStation = createMockStation({
+  complex: "D14"  // Court Sq-23 St-45 St
+});
+
+// Test complex grouping
+const stations = [
+  createMockStation({ id: "631", complex: "D14" }),
+  createMockStation({ id: "632", complex: "D14" }),
+  createMockStation({ id: "633", complex: "D14" })
+];
+
+const complexD14 = stations.filter(s => s.complex === "D14");
+expect(complexD14).toHaveLength(3);
+```
+
+**Testing Complex ID Logic:**
+
+```typescript
+// Multi-entrance stations should share complex IDs
+const courtSqEntrances = [
+  createMockStation({ id: "631", name: "Court Sq", complex: "D14" }),
+  createMockStation({ id: "632", name: "Court Sq-23 St", complex: "D14" }),
+  createMockStation({ id: "633", name: "45 St-Court Sq", complex: "D14" })
+];
+
+// Group by complex ID
+function groupByComplex(stations: Station[]): Record<string, Station[]> {
+  const groups: Record<string, Station[]> = {};
+  
+  for (const station of stations) {
+    const complex = station.complex || station.id; // Use id if no complex
+    if (!groups[complex]) {
+      groups[complex] = [];
+    }
+    groups[complex].push(station);
+  }
+  
+  return groups;
+}
+
+const groups = groupByComplex(courtSqEntrances);
+expect(groups["D14"]).toHaveLength(3);
+```
+
+---
+
+#### Transfers Array Replacement
+
+Like the `lines` array, `transfers` is **replaced entirely**, not merged:
+
+```typescript
+// ❌ INCORRECT: Does NOT merge transfers
+const station = createMockStation({
+  transfers: [
+    { toStationId: "727", toLines: ["A", "C", "E"], walkingSeconds: 180, accessible: true }
+  ]
+});
+// Result: Only one transfer (the one you specified)
+
+// ✅ CORRECT: Specify all transfers explicitly
+const hubStation = createMockStation({
+  transfers: [
+    { toStationId: "727", toLines: ["A", "C", "E"], walkingSeconds: 180, accessible: true },
+    { toStationId: "728", toLines: ["N", "Q", "R", "W"], walkingSeconds: 240, accessible: false }
+  ]
+});
+```
+
+**Adding to Default Transfers:**
+
+```typescript
+// If you need to add to the default (empty) transfers array:
+const defaultStation = createMockStation();
+const stationWithTransfers = {
+  ...defaultStation,
+  transfers: [
+    ...defaultStation.transfers,
+    { toStationId: "727", toLines: ["A", "C", "E"], walkingSeconds: 180, accessible: true }
+  ]
+};
+```
+
+---
+
+#### No Built-in Validation
+
+`createMockStation` **does not validate** inputs. It will create stations with invalid coordinates, non-existent line IDs, or malformed stop IDs:
+
+```typescript
+// ❌ These will create objects without error (but are invalid!)
+const invalidStation = createMockStation({
+  id: "INVALID-ID-123",
+  lat: 999.999,  // Invalid latitude (outside -90 to 90)
+  lon: -999.999, // Invalid longitude (outside -180 to 180)
+  lines: ["INVALID-LINE"],  // Non-existent MTA line
+  northStopId: "not-a-number",  // Doesn't follow pattern
+  borough: "new-jersey"  // Not a valid NYC borough
+});
+
+// ✅ You must add your own validation if needed
+function validateStation(station: Station): boolean {
+  // Validate coordinates
+  if (station.lat < -90 || station.lat > 90) return false;
+  if (station.lon < -180 || station.lon > 180) return false;
+  
+  // Validate stop ID pattern
+  if (!/^\d+$/.test(station.id)) return false;
+  if (!/^\d+N$/.test(station.northStopId)) return false;
+  if (!/^\d+S$/.test(station.southStopId)) return false;
+  
+  // Validate borough
+  const validBoroughs: Borough[] = ["manhattan", "brooklyn", "queens", "bronx", "statenisland"];
+  if (!validBoroughs.includes(station.borough)) return false;
+  
+  return true;
+}
+
+const validStation = createMockStation({ id: "101" });
+expect(validateStation(validStation)).toBe(true);
+```
+
+---
+
+#### Geographic Coordinate Precision
+
+Default coordinates use **4 decimal place precision** (approximately 11-meter accuracy):
+
+```typescript
+const station = createMockStation();
+console.log(station.lat); // 40.7589 (4 decimal places)
+console.log(station.lon); // -73.9851 (4 decimal places)
+
+// For high-precision tests, override with more decimals
+const highPrecisionStation = createMockStation({
+  lat: 40.758896,  // 6 decimal places (~0.1 meter accuracy)
+  lon: -73.985130
+});
+
+// Coordinate boundaries for NYC
+// Latitude: 40.477399 (southern tip) to 40.917739 (northern tip)
+// Longitude: -74.259098 (western edge) to -73.700272 (eastern edge)
+```
+
+**Testing Geographic Logic:**
+
+```typescript
+// Test distance calculations
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c;
+}
+
+const timesSquare = createMockStation({ lat: 40.7589, lon: -73.9851 });
+const pennStation = createMockStation({ lat: 40.7505, lon: -73.9898 });
+const distance = calculateDistance(
+  timesSquare.lat, timesSquare.lon,
+  pennStation.lat, pennStation.lon
+);
+// Distance ≈ 980 meters
+expect(distance).toBeGreaterThan(900);
+expect(distance).toBeLessThan(1100);
+```
+
+---
+
+#### Line ID Validation
+
+The function doesn't validate line IDs against real MTA lines. Ensure your tests use valid line identifiers:
+
+```typescript
+// Valid MTA line identifiers
+const validLines = [
+  "1", "2", "3", "4", "5", "6", "7",       // IRT
+  "A", "B", "C", "D", "E", "F", "G", "M",  // BMT/IND
+  "N", "Q", "R", "W",                       // BMT Broadway
+  "J", "Z",                                 // BMT Nassau
+  "L",                                      // BMT Canarsie
+  "S", "FS", "GS", "H"                      // Shuttles
+];
+
+// ✅ Use valid line IDs
+const station = createMockStation({
+  lines: ["A", "C", "E"]  // Valid IND 8th Ave lines
+});
+
+// ❌ Avoid invalid line IDs (unless testing error handling)
+const invalidLineStation = createMockStation({
+  lines: ["X", "Y", "Z"]  // These don't exist in MTA system
+});
+```
+
+---
+
+#### Static vs. Dynamic Test Data
+
+**Best Practice:** Create station constants at the top of your test file for reuse:
+
+```typescript
+// ✅ GOOD: Define test fixtures once
+const TIMES_SQUARE = createMockStation({ id: "725", name: "Times Square-42 St" });
+const PENN_STATION = createMockStation({ id: "726", name: "34 St-Penn Station" });
+const SOUTH_FERRY = createMockStation({ id: "101", name: "South Ferry", lines: ["1"] });
+
+describe("Station filtering", () => {
+  it("filters by borough", () => {
+    const brooklyn = createMockStation({ id: "234", borough: "brooklyn" });
+    const queens = createMockStation({ id: "501", borough: "queens" });
+    
+    const result = filterByBorough([TIMES_SQUARE, brooklyn, queens], "brooklyn");
+    expect(result).toEqual([brooklyn]);
+  });
+  
+  it("filters by line", () => {
+    const result = filterByLine([TIMES_SQUARE, PENN_STATION, SOUTH_FERRY], "1");
+    expect(result).toContain(SOUTH_FERRY);
+  });
+});
+
+// ❌ AVOID: Recreating same mock data in every test
+describe("Station filtering (bad practice)", () => {
+  it("filters by borough", () => {
+    const timesSquare = createMockStation({ id: "725" });
+    const brooklyn = createMockStation({ id: "234", borough: "brooklyn" });
+    const queens = createMockStation({ id: "501", borough: "queens" });
+    // ...重复代码
+  });
+});
+```
+
+---
+
+#### Differences from Real Station Data
+
+Mock stations created with `createMockStation` are **structurally compatible** with real GTFS station data but have important differences:
+
+| Aspect | Mock Station | Real GTFS Station |
+|--------|--------------|-------------------|
+| **Data Source** | Hardcoded defaults | Loaded from GTFS feed |
+| **Consistency** | May have inconsistencies (e.g., ID mismatch) | Validated against GTFS schema |
+| **Completeness** | Only required fields | May include additional GTFS fields |
+| **Validation** | None (any values allowed) | Feed-specific validation rules |
+
+**Testing Against Real Data:**
+
+```typescript
+import { loadStationsFromGtfs } from "./gtfs-loader";
+import { createMockStation } from "@mta-my-way/shared/testing";
+
+describe("Station structure compatibility", () => {
+  it("mock stations match real station structure", async () => {
+    const realStations = await loadStationsFromGtfs();
+    const mockStation = createMockStation();
+    
+    // Mock should have same keys as real stations
+    const mockKeys = Object.keys(mockStation).sort();
+    const realKeys = Object.keys(realStations[0]).sort();
+    
+    expect(mockKeys).toEqual(realKeys);
+  });
+  
+  it("mock stations work with real station functions", () => {
+    const mockStation = createMockStation();
+    const formatStationName = (s: Station) => `${s.name} (${s.lines.join(", ")})`;
+    
+    expect(formatStationName(mockStation)).toBe(
+      "Times Square-42 St (1, 2, 3, 7, N, Q, R, W)"
+    );
+  });
+});
+```
+
+---
+
+#### Common Pitfalls Summary
+
+1. **Stop ID Inconsistency**: Overriding `id` doesn't update `northStopId`/`southStopId`
+2. **Array Replacement**: Overriding `lines` or `transfers` replaces the entire array
+3. **Missing Complex ID**: `complex` is undefined unless explicitly set
+4. **No Validation**: Invalid coordinates, line IDs, or boroughs are not caught
+5. **Type Assertion**: Borough override needs `as Borough` for type safety
+6. **Shallow Merge**: Nested objects/arrays are replaced, not merged
+7. **Precision**: Default coordinates have 4-decimal precision (~11m accuracy)
+
+---
+
+#### Quick Reference: Safe Override Patterns
+
+```typescript
+// ✅ SAFE: Override primitive values only
+const station1 = createMockStation({
+  id: "101",
+  name: "South Ferry",
+  ada: true,
+  borough: "manhattan" as Borough
+});
+
+// ✅ SAFE: Override arrays with complete values
+const station2 = createMockStation({
+  id: "999",
+  lines: ["1", "2", "3"],  // Complete array
+  transfers: [
+    { toStationId: "726", toLines: ["A", "C"], walkingSeconds: 120, accessible: true }
+  ]
+});
+
+// ✅ SAFE: Maintain stop ID consistency
+const station3 = createMockStation({
+  id: "999",
+  northStopId: "999N",  // Must match id
+  southStopId: "999S"   // Must match id
+});
+
+// ❌ UNSAFE: Expecting array merging
+const station4 = createMockStation({
+  lines: ["7"]  // Replaces all lines, doesn't add "7"
+});
+
+// ❌ UNSAFE: Inconsistent stop IDs
+const station5 = createMockStation({
+  id: "101"  // Stop IDs still "725N"/"725S"
+});
+```
 
 ---
 
