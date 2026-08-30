@@ -26,6 +26,7 @@ import {
   updateTripNotes,
 } from "../trip-tracking.js";
 import {
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
@@ -174,6 +175,9 @@ describe("End-to-End Workflow Integration Tests", () => {
   let authHeaders: { Authorization: string };
 
   beforeEach(async () => {
+    // Reset all module-level state BEFORE initializing fresh test state
+    await cleanupAllState();
+
     vi.clearAllMocks();
     // Use frozen time for consistent test behavior
     vi.useFakeTimers();

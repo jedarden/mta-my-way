@@ -195,42 +195,38 @@ describe("memoization utilities", () => {
       expect(callCount).toBe(1);
     });
 
-    it("allows execution after delay", () => {
-      return new Promise((resolve) => {
-        let callCount = 0;
-        const fn = () => {
-          callCount++;
-        };
-        const throttled = throttle(fn, 100);
+    it("allows execution after delay", async () => {
+      let callCount = 0;
+      const fn = () => {
+        callCount++;
+      };
+      const throttled = throttle(fn, 100);
 
-        throttled();
-        expect(callCount).toBe(1);
+      throttled();
+      expect(callCount).toBe(1);
 
-        setTimeout(() => {
-          throttled();
-          expect(callCount).toBe(2); // Allowed after delay
-          resolve(null);
-        }, 150);
-      });
+      // Advance time past throttle period
+      await vi.advanceTimersByTimeAsync(150);
+
+      throttled();
+      expect(callCount).toBe(2); // Allowed after delay
     });
 
-    it("schedules delayed call for throttled invocations", () => {
-      return new Promise((resolve) => {
-        let callCount = 0;
-        const fn = () => {
-          callCount++;
-        };
-        const throttled = throttle(fn, 100);
+    it("schedules delayed call for throttled invocations", async () => {
+      let callCount = 0;
+      const fn = () => {
+        callCount++;
+      };
+      const throttled = throttle(fn, 100);
 
-        throttled();
-        throttled(); // Throttled
+      throttled();
+      throttled(); // Throttled
 
-        setTimeout(() => {
-          // The throttled call should have been scheduled and executed
-          expect(callCount).toBeGreaterThan(1);
-          resolve(null);
-        }, 150);
-      });
+      // Advance time past throttle period
+      await vi.advanceTimersByTimeAsync(150);
+
+      // The throttled call should have been scheduled and executed
+      expect(callCount).toBeGreaterThan(1);
     });
   });
 
