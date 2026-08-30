@@ -2631,7 +2631,7 @@ const station5 = createMockStation({
 
 #### `createMockRoute`
 
-Creates a mock subway route object with default values.
+Creates a mock subway route object with realistic MTA route defaults.
 
 **Type Signature:**
 ```typescript
@@ -2639,25 +2639,63 @@ function createMockRoute(overrides?: Partial<Route>): Route
 ```
 
 **Parameters:**
-- `overrides` (optional): Partial object to override default values
+- `overrides` (optional): `Partial<Route>` - Partial object to merge with default route data using spread syntax
 
-**Returns:** `Route` object with:
-- `id: string` - Route ID (default: `"1"`)
-- `shortName: string` - Short route name (default: `"1"`)
-- `longName: string` - Full route name (default: `"Broadway-7th Ave Local"`)
-- `color: string` - Route color hex (default: `"#EE352E"`)
-- `textColor: string` - Text color hex (default: `"#FFFFFF"`)
-- `feedId: string` - GTFS feed ID (default: `"gtfs"`)
-- `division: string` - Division (default: `"A"`)
-- `stops: string[]` - Stop IDs (default: `["101", "102", "103"]`)
-- `isExpress: boolean` - Express route flag (default: `false`)
+**Returns:** `Route` object with all required fields:
 
-**Usage Example:**
+| Field | Type | Default Value | Description |
+|-------|------|---------------|-------------|
+| `id` | `string` | `"1"` | Unique route identifier |
+| `shortName` | `string` | `"1"` | Display name for UI (matches ID for MTA) |
+| `longName` | `string` | `"Broadway-7th Ave Local"` | Full route name from GTFS |
+| `color` | `string` | `"#EE352E"` | Route color hex (MTA official palette) |
+| `textColor` | `string` | `"#FFFFFF"` | Text color for contrast |
+| `feedId` | `string` | `"gtfs"` | GTFS-RT feed source (`"gtfs"` or `"gtfs-ace"`) |
+| `division` | `"A" \| "B"` | `"A"` | MTA division (A = numbered, B = lettered) |
+| `stops` | `string[]` | `["101", "102", "103"]` | Ordered stop IDs for this route |
+| `isExpress` | `boolean` | `false` | Express service flag |
+
+---
+
+**Type Definitions:**
+```typescript
+// Import from @mta-my-way/shared/types/stations
+import type { Route, RouteIndex, Division } from "@mta-my-way/shared/types/stations";
+
+interface Route {
+  id: string;
+  shortName: string;
+  longName: string;
+  color: string;
+  textColor: string;
+  feedId: string;
+  division: Division;
+  stops: string[];
+  isExpress: boolean;
+}
+
+type Division = "A" | "B";  // A = numbered lines, B = lettered lines
+```
+
+---
+
+### Usage Examples
+
+#### Basic Route Creation
+
 ```typescript
 import { createMockRoute } from "@mta-my-way/shared/testing";
 
-const defaultRoute = createMockRoute();
-const expressRoute = createMockRoute({
+// Default route (1 train - Broadway-7th Ave Local)
+const route1 = createMockRoute();
+console.log(route1.longName); // "Broadway-7th Ave Local"
+console.log(route1.isExpress); // false
+```
+
+#### Express Route
+
+```typescript
+const express2 = createMockRoute({
   id: "2",
   shortName: "2",
   longName: "7th Ave Express",
@@ -2665,16 +2703,385 @@ const expressRoute = createMockRoute({
   color: "#EE352E"
 });
 
-const localRoute = createMockRoute({
-  stops: ["101", "102", "103", "104", "105"]
+// Test express skip-stop behavior
+expect(express2.isExpress).toBe(true);
+```
+
+#### Lettered Route (Division B)
+
+```typescript
+const trainA = createMockRoute({
+  id: "A",
+  shortName: "A",
+  longName: "8th Ave Express",
+  division: "B",              // Lettered train
+  feedId: "gtfs-ace",         // Different feed source
+  color: "#0039A6",
+  isExpress: true
+});
+
+// Test division-based feed selection
+expect(trainA.feedId).toBe("gtfs-ace");
+expect(trainA.division).toBe("B");
+```
+
+#### Route with Custom Stops
+
+```typescript
+const route6 = createMockRoute({
+  id: "6",
+  shortName: "6",
+  longName: "Lexington Ave Local",
+  stops: ["625", "626", "627", "628", "629"],
+  color: "#00933C"
+});
+
+// Test stop sequence
+expect(route6.stops).toHaveLength(5);
+```
+
+#### Shuttle Route (S Train)
+
+```typescript
+const shuttle42 = createMockRoute({
+  id: "GS",
+  shortName: "GS",
+  longName: "42 St Shuttle",
+  color: "#6CBE45",
+  textColor: "#000000",  // Light background → dark text
+  stops: ["725", "728"],
+  isExpress: false,
+  feedId: "gtfs"
+});
+
+// Test shuttle-specific patterns
+expect(shuttle42.stops).toHaveLength(2);
+expect(shuttle62.textColor).toBe("#000000");
+```
+
+---
+
+### Common Override Patterns
+
+#### Pattern 1: Minimal Override (Identifier Only)
+
+```typescript
+// Override only the route ID
+const route = createMockRoute({ id: "A" });
+// All other fields use 1 train defaults
+```
+
+#### Pattern 2: Express vs Local Testing
+
+```typescript
+const expressRoute = createMockRoute({ isExpress: true });
+const localRoute = createMockRoute({ isExpress: false });
+
+// Test skip-stop logic differs
+const skipCount = calculateSkipStops(expressRoute, localRoute);
+```
+
+#### Pattern 3: Division-Specific Routes
+
+```typescript
+const divisionA = createMockRoute({
+  division: "A",
+  feedId: "gtfs"
+});
+
+const divisionB = createMockRoute({
+  division: "B",
+  feedId: "gtfs-ace"
 });
 ```
 
-**Edge Cases:**
-- Color hex values must include `#` prefix - matching CSS color format
-- Express vs local affects skip-stop logic - test both behaviors
-- Stop IDs must correspond to valid stations - coordinate with `createMockStation`
-- `feedId` affects data source selection - use consistent feed ID across tests
+#### Pattern 4: Route Color Consistency
+
+```typescript
+const redRoute = createMockRoute({
+  id: "1",
+  shortName: "1",
+  color: "#EE352E",
+  textColor: "#FFFFFF"
+});
+
+// Test color rendering
+expect(routeColorContrast(redRoute.color, redRoute.textColor)).toBeGreaterThan(4.5);
+```
+
+#### Pattern 5: Custom Stop Sequence
+
+```typescript
+const longRoute = createMockRoute({
+  id: "7",
+  shortName: "7",
+  stops: ["725", "728", "729", "730", "731", "732"]
+});
+
+// Test route length and travel time calculation
+const estimatedTime = calculateTravelTime(longRoute.stops);
+```
+
+---
+
+### Route-Station Relationships
+
+Coordinate route stops with mock stations for realistic test data:
+
+```typescript
+import { createMockRoute, createMockStation } from "@mta-my-way/shared/testing";
+
+// Create matching stations
+const timesSquare = createMockStation({ id: "725" });
+const pennStation = createMockStation({ id: "726" });
+const heraldSquare = createMockStation({ id: "727" });
+
+// Create route using those stop IDs
+const route1 = createMockRoute({
+  id: "1",
+  shortName: "1",
+  stops: ["725", "726", "727"]
+});
+
+// Test route-station relationship
+expect(route1.stops).toContain(timesSquare.id);
+expect(route1.stops).toContain(pennStation.id);
+expect(route1.stops).toContain(heraldSquare.id);
+```
+
+---
+
+### Multi-Route Testing Setup
+
+Create multiple related routes for integration tests:
+
+```typescript
+const routes: RouteIndex = {
+  "1": createMockRoute({
+    id: "1",
+    shortName: "1",
+    longName: "Broadway-7th Ave Local",
+    color: "#EE352E",
+    stops: ["725", "726", "727"]
+  }),
+  "2": createMockRoute({
+    id: "2",
+    shortName: "2",
+    longName: "7th Ave Express",
+    color: "#EE352E",
+    isExpress: true,
+    stops: ["725", "728", "730"]
+  }),
+  "3": createMockRoute({
+    id: "3",
+    shortName: "3",
+    longName: "7th Ave Express",
+    color: "#EE352E",
+    isExpress: true,
+    stops: ["725", "728", "731"]
+  })
+};
+
+// Test shared corridor routing
+const sharedStops = findSharedStops(routes["1"].stops, routes["2"].stops);
+expect(sharedStops).toContain("725"); // Times Square shared by all
+```
+
+---
+
+### Edge Cases and Gotchas
+
+#### 1. Override Merging (Shallow, Not Deep)
+
+```typescript
+// ⚠️ BAD: This REPLACES all stops, doesn't merge
+const route = createMockRoute({ stops: ["104"] });
+// route.stops is ["104"], not ["101", "102", "103", "104"]
+
+// ✅ GOOD: Explicitly include all stops
+const route = createMockRoute({
+  stops: ["101", "102", "103", "104"]
+});
+```
+
+**Why:** The function uses spread syntax (`...overrides`), which performs shallow merge. Arrays are replaced entirely, not merged element-by-element.
+
+#### 2. Route-Stop Consistency
+
+```typescript
+// ⚠️ POTENTIAL BUG: Stop IDs don't match real stations
+const badRoute = createMockRoute({
+  stops: ["999", "998", "997"]  // These don't exist
+});
+
+// ✅ GOOD: Coordinate with createMockStation
+const station1 = createMockStation({ id: "101" });
+const station2 = createMockStation({ id: "102" });
+const goodRoute = createMockRoute({
+  stops: ["101", "102"]  // Valid station IDs
+});
+```
+
+**Why:** Routes reference stop IDs that must correspond to actual stations. Mismatched IDs cause lookup failures in route calculation logic.
+
+#### 3. Color Hex Format
+
+```typescript
+// ⚠️ BAD: Missing # prefix
+const badRoute = createMockRoute({ color: "EE352E" });
+
+// ✅ GOOD: Proper hex format
+const goodRoute = createMockRoute({ color: "#EE352E" });
+
+// ✅ ALSO GOOD: 3-digit shorthand
+const shortRoute = createMockRoute({ color: "#E35" });
+```
+
+**Why:** CSS color format requires `#` prefix. Missing it breaks rendering in UI components and fails validation.
+
+#### 4. Division and FeedId Mismatch
+
+```typescript
+// ⚠️ BAD: Division A but using gtfs-ace feed
+const badRoute = createMockRoute({
+  division: "A",
+  feedId: "gtfs-ace"  // Wrong feed for division A
+});
+
+// ✅ GOOD: Division matches feed
+const goodRoute = createMockRoute({
+  division: "A",
+  feedId: "gtfs"  // Correct feed for numbered trains
+});
+
+const letteredRoute = createMockRoute({
+  division: "B",
+  feedId: "gtfs-ace"  // Correct feed for lettered trains
+});
+```
+
+**Why:** MTA splits GTFS-RT feeds by division. Division A (numbered trains) use `gtfs`, Division B (lettered trains) use `gtfs-ace`. Mismatch causes empty arrival data.
+
+#### 5. Express Flag Semantics
+
+```typescript
+// Express route should skip stations compared to local
+const expressRoute = createMockRoute({
+  id: "2",
+  isExpress: true,
+  stops: ["725", "728", "730"]  // Fewer stops
+});
+
+const localRoute = createMockRoute({
+  id: "1",
+  isExpress: false,
+  stops: ["725", "726", "727", "728", "729", "730"]  // All stops
+});
+
+// Test express skips intermediate stations
+expect(localRoute.stops.length).toBeGreaterThan(expressRoute.stops.length);
+```
+
+**Why:** The `isExpress` flag affects skip-stop calculation logic. Express routes should have fewer stops than local routes on the same corridor.
+
+#### 6. Timestamp Handling (Not Applicable)
+
+Unlike `createMockArrival`, routes have no timestamp fields. If you need time-based route testing (e.g., schedule variations), create separate test fixtures:
+
+```typescript
+// Routes are static - use separate pattern for time-based testing
+const morningRoute = createMockRoute({ id: "1" });
+const eveningRoute = createMockRoute({ id: "1" });
+
+// Different schedules would be handled by a separate Schedule entity
+```
+
+---
+
+### Real-World Testing Patterns
+
+#### Test Route Color Contrast
+
+```typescript
+describe("Route color accessibility", () => {
+  it("ensures contrast ratio for dark route colors", () => {
+    const darkRoute = createMockRoute({
+      id: "A",
+      color: "#0039A6",
+      textColor: "#FFFFFF"
+    });
+
+    const contrast = calculateContrastRatio(darkRoute.color, darkRoute.textColor);
+    expect(contrast).toBeGreaterThanOrEqual(4.5); // WCAG AA standard
+  });
+
+  it("ensures contrast ratio for light route colors", () => {
+    const lightRoute = createMockRoute({
+      id: "GS",
+      color: "#6CBE45",
+      textColor: "#000000"
+    });
+
+    const contrast = calculateContrastRatio(lightRoute.color, lightRoute.textColor);
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
+  });
+});
+```
+
+#### Test Route Lookup by Division
+
+```typescript
+describe("Division-based feed selection", () => {
+  it("selects gtfs feed for Division A", () => {
+    const route = createMockRoute({
+      division: "A"
+    });
+
+    const feed = selectFeedByDivision(route.division);
+    expect(feed).toBe("gtfs");
+  });
+
+  it("selects gtfs-ace feed for Division B", () => {
+    const route = createMockRoute({
+      id: "A",
+      division: "B",
+      feedId: "gtfs-ace"
+    });
+
+    const feed = selectFeedByDivision(route.division);
+    expect(feed).toBe("gtfs-ace");
+  });
+});
+```
+
+#### Test Shared Corridor Routing
+
+```typescript
+describe("Shared corridor routing", () => {
+  it("finds shared stops between express and local", () => {
+    const local = createMockRoute({
+      id: "1",
+      stops: ["725", "726", "727", "728", "729"]
+    });
+
+    const express = createMockRoute({
+      id: "2",
+      isExpress: true,
+      stops: ["725", "728"]
+    });
+
+    const shared = findSharedStops(local.stops, express.stops);
+    expect(shared).toEqual(["725", "728"]);
+  });
+});
+```
+
+---
+
+**See Also:**
+- {@link createMockStation} - For creating matching station objects
+- {@link createMockArrival} - For testing arrival data on routes
+- {@link createTestFixture} - For complete test fixtures with routes and stations
 
 ---
 
