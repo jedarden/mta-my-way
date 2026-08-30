@@ -678,7 +678,12 @@ export function buildPasswordResetRoutes(): {
   confirmPasswordReset: MiddlewareHandler[];
   changePassword: MiddlewareHandler[];
 } {
-  const handlers = {
+  const handlers: {
+    getPasswordPolicy: MiddlewareHandler;
+    requestPasswordReset: MiddlewareHandler[];
+    confirmPasswordReset: MiddlewareHandler[];
+    changePassword: MiddlewareHandler[];
+  } = {
     getPasswordPolicy: getPasswordPolicyHandler,
     requestPasswordReset: [
       // Apply strict rate limiting (5 requests per minute)

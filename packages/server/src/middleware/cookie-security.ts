@@ -29,6 +29,8 @@ import { securityLogger } from "./security-logging.js";
  * Cookie security options.
  */
 export interface CookieSecurityOptions {
+  /** Cookie name (default: 'refresh_token') */
+  cookieName?: string;
   /** Enable Secure flag (HTTPS only, default: true) */
   secure?: boolean;
   /** Enable HttpOnly flag (prevents JavaScript access, default: true) */
@@ -39,9 +41,9 @@ export interface CookieSecurityOptions {
   path?: string;
   /** Cookie domain (optional) */
   domain?: string;
-  /** Max age in seconds (optional, creates session cookie if not set) */
+  /** Cookie max age in seconds (default: 30 days) */
   maxAge?: number;
-  /** Enable cookie signing (default: true) */
+  /** Signed cookie flag (default: false) */
   signed?: boolean;
 }
 
@@ -521,6 +523,7 @@ export function validateCookieSecurity(setCookieHeaders: string[]): {
 
   for (const header of setCookieHeaders) {
     const cookie = header.split(";")[0];
+    if (!cookie) continue;
     const name = cookie.split("=")[0]?.trim();
 
     if (!name) continue;
