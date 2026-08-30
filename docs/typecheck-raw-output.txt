@@ -2,9 +2,18 @@
 > mta-my-way@0.0.1 typecheck
 > tsc --build
 
-packages/server/src/app.ts(3078,7): error TS2345: Argument of type 'string' is not assignable to parameter of type 'H<BlankEnv, "/", BlankInput, any>'.
-packages/server/src/app.ts(3084,7): error TS2345: Argument of type 'string' is not assignable to parameter of type 'H<BlankEnv, "/", BlankInput, any>'.
-packages/server/src/app.ts(3090,7): error TS2345: Argument of type 'string' is not assignable to parameter of type 'H<BlankEnv, "/", BlankInput, any>'.
+packages/server/src/app.ts(3104,42): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'MiddlewareHandler | undefined' is not assignable to parameter of type 'H<BlankEnv, "/api/auth/password/reset", {}, Response>'.
+      Type 'undefined' is not assignable to type 'H<BlankEnv, "/api/auth/password/reset", {}, Response>'.
+packages/server/src/app.ts(3112,7): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'MiddlewareHandler | undefined' is not assignable to parameter of type 'H<BlankEnv, "/api/auth/password/reset/confirm", {}, Response>'.
+      Type 'undefined' is not assignable to type 'H<BlankEnv, "/api/auth/password/reset/confirm", {}, Response>'.
+packages/server/src/app.ts(3120,7): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'MiddlewareHandler | undefined' is not assignable to parameter of type 'H<BlankEnv, "/api/auth/password/change", {}, Response>'.
+      Type 'undefined' is not assignable to type 'H<BlankEnv, "/api/auth/password/change", {}, Response>'.
 packages/server/src/middleware/cookie-security.ts(461,5): error TS2339: Property 'cookieName' does not exist on type 'CookieSecurityOptions'.
 packages/server/src/middleware/cookie-security.ts(524,18): error TS18048: 'cookie' is possibly 'undefined'.
 packages/server/src/middleware/dynamic-rbac-cache.ts(525,3): error TS2322: Type 'Set<Permission>' is not assignable to type 'boolean'.
@@ -15,29 +24,6 @@ packages/server/src/middleware/enhanced-jwt-security.ts(716,3): error TS2322: Ty
 packages/server/src/middleware/http-request-smuggling.ts(297,41): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string'.
 packages/server/src/middleware/http-response-splitting.ts(151,28): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
 packages/server/src/middleware/security-headers.ts(424,59): error TS18048: 'payloadBase64' is possibly 'undefined'.
-packages/server/src/middleware/security-headers.ts(502,9): error TS18048: 'authScheme' is possibly 'undefined'.
-packages/server/src/middleware/security-headers.ts(505,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
-  Type 'undefined' is not assignable to type 'string | null'.
-packages/server/src/middleware/security-headers.ts(509,7): error TS18048: 'authScheme' is possibly 'undefined'.
-packages/server/src/middleware/security-headers.ts(509,48): error TS18048: 'authScheme' is possibly 'undefined'.
-packages/server/src/middleware/security-headers.ts(510,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
-  Type 'undefined' is not assignable to type 'string | null'.
-packages/server/src/middleware/subresource-integrity.ts(180,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
-  Type 'undefined' is not assignable to type 'string'.
-packages/server/src/migration/cli.ts(572,3): error TS2322: Type 'string | undefined' is not assignable to type 'void'.
-  Type 'string' is not assignable to type 'void'.
-packages/server/src/migration/migration.ts(149,48): error TS2339: Property 'COPYFILE_EXCL' does not exist on type 'typeof constants'.
-packages/server/src/migration/validation.ts(197,30): error TS2339: Property 'length' does not exist on type '{}'.
-packages/server/src/migration/validation.ts(406,21): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Record<string, unknown>'.
-packages/server/src/migration/validation.ts(410,62): error TS18046: 'row' is of type 'unknown'.
-packages/server/src/push/briefing.ts(192,23): error TS2339: Property 'length' does not exist on type 'Promise<PushSubscriptionRecord[]>'.
-packages/server/src/push/briefing.ts(194,23): error TS2488: Type 'Promise<PushSubscriptionRecord[]>' must have a '[Symbol.iterator]()' method that returns an iterator.
-packages/server/src/push/briefing.ts(244,44): error TS2339: Property 'length' does not exist on type 'Promise<PushSubscriptionRecord[]>'.
-packages/server/src/push/index.ts(27,27): error TS2339: Property 'length' does not exist on type 'Promise<PushSubscriptionRecord[]>'.
-packages/server/src/push/index.ts(36,61): error TS2345: Argument of type 'Promise<PushSubscriptionRecord[]>' is not assignable to parameter of type 'PushSubscriptionRecord[]'.
-  Type 'Promise<PushSubscriptionRecord[]>' is missing the following properties from type 'PushSubscriptionRecord[]': length, pop, push, concat, and 29 more.
-packages/server/src/trip-tracking.ts(123,16): error TS6133: '_getDb' is declared but its value is never read.
-packages/server/src/trip-tracking.ts(262,3): error TS2740: Type 'Promise<TripRecord | null>' is missing the following properties from type 'TripRecord': id, date, origin, destination, and 5 more.
 packages/web/src/components/alerts/AlertBanner.test.tsx(108,36): error TS2322: Type '{ id: string; severity: "severe"; source: "official"; headline: string; description: string; affectedLines: string[]; activePeriod: { start: number; end: number; }; cause: string; effect: string; } | { ...; } | { ...; } | undefined' is not assignable to type 'StationAlert'.
   Type 'undefined' is not assignable to type 'StationAlert'.
 packages/web/src/components/alerts/AlertBanner.test.tsx(122,58): error TS2322: Type '{ id: string; severity: "severe"; source: "official"; headline: string; description: string; affectedLines: string[]; activePeriod: { start: number; end: number; }; cause: string; effect: string; } | { ...; } | { ...; } | undefined' is not assignable to type 'StationAlert'.
@@ -674,22 +660,22 @@ packages/web/src/lib/serviceWorkerRegistration.test.ts(95,33): error TS2339: Pro
 packages/web/src/lib/serviceWorkerRegistration.test.ts(114,35): error TS2339: Property 'triggerOnNeedRefresh' does not exist on type '(options?: { immediate?: boolean | undefined; onRegistered?: ((registration: ServiceWorkerRegistration | undefined) => void) | undefined; onRegisterError?: ((error: unknown) => void) | undefined; onNeedRefresh?: (() => void) | undefined; onOfflineReady?: (() => void) | undefined; } | undefined) => () => void'.
 packages/web/src/screens/HomeScreen.test.tsx(17,42): error TS6133: 'waitFor' is declared but its value is never read.
 packages/web/src/screens/HomeScreen.test.tsx(36,7): error TS6133: 'favorite' is declared but its value is never read.
-packages/web/src/screens/HomeScreen.test.tsx(109,34): error TS2345: Argument of type '{ onboardingComplete: boolean; commutes: { id: string; name: string; origin: { stationId: string; stationName: string; }; destination: { stationId: string; stationName: string; }; preferredLines: string[]; }[]; tapHistory: never[]; }' is not assignable to parameter of type 'FavoritesState'.
+packages/web/src/screens/HomeScreen.test.tsx(110,34): error TS2345: Argument of type '{ onboardingComplete: boolean; commutes: { id: string; name: string; origin: { stationId: string; stationName: string; }; destination: { stationId: string; stationName: string; }; preferredLines: string[]; }[]; tapHistory: never[]; }' is not assignable to parameter of type 'FavoritesState'.
   Type '{ onboardingComplete: boolean; commutes: { id: string; name: string; origin: { stationId: string; stationName: string; }; destination: { stationId: string; stationName: string; }; preferredLines: string[]; }[]; tapHistory: never[]; }' is missing the following properties from type 'FavoritesState': favorites, addFavorite, updateFavorite, removeFavorite, and 10 more.
-packages/web/src/screens/HomeScreen.test.tsx(116,34): error TS2345: Argument of type '{ hapticFeedback: boolean; }' is not assignable to parameter of type 'SettingsState'.
+packages/web/src/screens/HomeScreen.test.tsx(117,34): error TS2345: Argument of type '{ hapticFeedback: boolean; }' is not assignable to parameter of type 'SettingsState'.
   Type '{ hapticFeedback: boolean; }' is missing the following properties from type 'SettingsState': theme, showUnassignedTrips, refreshInterval, alertSeverityFilter, and 11 more.
-packages/web/src/screens/HomeScreen.test.tsx(154,7): error TS2322: Type '{ id: string; stationId: string; stationName: string; lines: string[]; direction: string; }[]' is not assignable to type 'Favorite[]'.
+packages/web/src/screens/HomeScreen.test.tsx(155,7): error TS2322: Type '{ id: string; stationId: string; stationName: string; lines: string[]; direction: string; }[]' is not assignable to type 'Favorite[]'.
   Property 'sortOrder' is missing in type '{ id: string; stationId: string; stationName: string; lines: string[]; direction: string; }' but required in type 'Favorite'.
-packages/web/src/screens/HomeScreen.test.tsx(161,57): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'UsePrefetchReturn'.
-packages/web/src/screens/HomeScreen.test.tsx(186,36): error TS2345: Argument of type '{ onboardingComplete: boolean; commutes: never[]; tapHistory: never[]; }' is not assignable to parameter of type 'FavoritesState'.
+packages/web/src/screens/HomeScreen.test.tsx(162,57): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'UsePrefetchReturn'.
+packages/web/src/screens/HomeScreen.test.tsx(187,36): error TS2345: Argument of type '{ onboardingComplete: boolean; commutes: never[]; tapHistory: never[]; }' is not assignable to parameter of type 'FavoritesState'.
   Type '{ onboardingComplete: boolean; commutes: never[]; tapHistory: never[]; }' is missing the following properties from type 'FavoritesState': favorites, addFavorite, updateFavorite, removeFavorite, and 10 more.
-packages/web/src/screens/HomeScreen.test.tsx(216,61): error TS2345: Argument of type '{ favorites: never[]; hasFavorites: false; updateFavorite: Mock<Procedure>; removeFavorite: Mock<Procedure>; reorderFavorites: Mock<Procedure>; }' is not assignable to parameter of type '{ favorites: Favorite[]; hasFavorites: boolean; onboardingComplete: boolean; addFavorite: (favorite: Omit<Favorite, "id" | "sortOrder">) => string; updateFavorite: (id: string, updates: Partial<Favorite>) => void; ... 4 more ...; completeOnboarding: () => void; }'.
+packages/web/src/screens/HomeScreen.test.tsx(217,61): error TS2345: Argument of type '{ favorites: never[]; hasFavorites: false; updateFavorite: Mock<Procedure>; removeFavorite: Mock<Procedure>; reorderFavorites: Mock<Procedure>; }' is not assignable to parameter of type '{ favorites: Favorite[]; hasFavorites: boolean; onboardingComplete: boolean; addFavorite: (favorite: Omit<Favorite, "id" | "sortOrder">) => string; updateFavorite: (id: string, updates: Partial<Favorite>) => void; ... 4 more ...; completeOnboarding: () => void; }'.
   Type '{ favorites: never[]; hasFavorites: false; updateFavorite: Mock<Procedure>; removeFavorite: Mock<Procedure>; reorderFavorites: Mock<Procedure>; }' is missing the following properties from type '{ favorites: Favorite[]; hasFavorites: boolean; onboardingComplete: boolean; addFavorite: (favorite: Omit<Favorite, "id" | "sortOrder">) => string; updateFavorite: (id: string, updates: Partial<...>) => void; ... 4 more ...; completeOnboarding: () => void; }': onboardingComplete, addFavorite, togglePin, recordTap, completeOnboarding
-packages/web/src/screens/HomeScreen.test.tsx(251,36): error TS2345: Argument of type '{ onboardingComplete: boolean; commutes: never[]; tapHistory: never[]; }' is not assignable to parameter of type 'FavoritesState'.
+packages/web/src/screens/HomeScreen.test.tsx(252,36): error TS2345: Argument of type '{ onboardingComplete: boolean; commutes: never[]; tapHistory: never[]; }' is not assignable to parameter of type 'FavoritesState'.
   Type '{ onboardingComplete: boolean; commutes: never[]; tapHistory: never[]; }' is missing the following properties from type 'FavoritesState': favorites, addFavorite, updateFavorite, removeFavorite, and 10 more.
-packages/web/src/screens/HomeScreen.test.tsx(299,9): error TS2322: Type '{ id: string; stationId: string; stationName: string; lines: string[]; direction: string; }[]' is not assignable to type 'Favorite[]'.
+packages/web/src/screens/HomeScreen.test.tsx(300,9): error TS2322: Type '{ id: string; stationId: string; stationName: string; lines: string[]; direction: string; }[]' is not assignable to type 'Favorite[]'.
   Property 'sortOrder' is missing in type '{ id: string; stationId: string; stationName: string; lines: string[]; direction: string; }' but required in type 'Favorite'.
-packages/web/src/screens/HomeScreen.test.tsx(464,61): error TS2345: Argument of type '{ favorites: never[]; hasFavorites: false; updateFavorite: Mock<Procedure>; removeFavorite: Mock<Procedure>; reorderFavorites: Mock<Procedure>; }' is not assignable to parameter of type '{ favorites: Favorite[]; hasFavorites: boolean; onboardingComplete: boolean; addFavorite: (favorite: Omit<Favorite, "id" | "sortOrder">) => string; updateFavorite: (id: string, updates: Partial<Favorite>) => void; ... 4 more ...; completeOnboarding: () => void; }'.
+packages/web/src/screens/HomeScreen.test.tsx(465,61): error TS2345: Argument of type '{ favorites: never[]; hasFavorites: false; updateFavorite: Mock<Procedure>; removeFavorite: Mock<Procedure>; reorderFavorites: Mock<Procedure>; }' is not assignable to parameter of type '{ favorites: Favorite[]; hasFavorites: boolean; onboardingComplete: boolean; addFavorite: (favorite: Omit<Favorite, "id" | "sortOrder">) => string; updateFavorite: (id: string, updates: Partial<Favorite>) => void; ... 4 more ...; completeOnboarding: () => void; }'.
   Type '{ favorites: never[]; hasFavorites: false; updateFavorite: Mock<Procedure>; removeFavorite: Mock<Procedure>; reorderFavorites: Mock<Procedure>; }' is missing the following properties from type '{ favorites: Favorite[]; hasFavorites: boolean; onboardingComplete: boolean; addFavorite: (favorite: Omit<Favorite, "id" | "sortOrder">) => string; updateFavorite: (id: string, updates: Partial<...>) => void; ... 4 more ...; completeOnboarding: () => void; }': onboardingComplete, addFavorite, togglePin, recordTap, completeOnboarding
 packages/web/src/stores/fareStore.ts(74,9): error TS6133: 'breakEvenRides' is declared but its value is never read.
-Exit code: 1 (typecheck failed with errors)
+EXIT_CODE: 0
