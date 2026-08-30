@@ -36,6 +36,7 @@ import {
   createTestUserCredentials,
   getCsrfToken,
   requestWithCsrf,
+  cleanupAllState,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -161,10 +162,14 @@ describe("Data Flow Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Clear database state while it's still open
     clearAllTrips(db);
     clearCommuteStatsCache(db);
+    // Close the database
     closeDatabase(db);
+    // Clean up all module-level state between tests
+    await cleanupAllState();
   });
 
   describe("Trip tracking to statistics data flow", () => {
