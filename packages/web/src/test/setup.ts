@@ -12,7 +12,6 @@ expect.extend(matchers);
 // Reset ALL mocks before each test to prevent state leakage
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.clearAllTimers();
 
   // Reset the cache storage mock to clear any cached data from previous tests
   mockCacheStorage.reset();
@@ -25,7 +24,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
-  vi.clearAllTimers();
 });
 
 // Create a shared mock for registerSW that tests can import and spy on
