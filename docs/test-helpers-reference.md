@@ -7655,6 +7655,72 @@ const hubStation = createMockStation({
 });
 ```
 
+#### 5. Static IDs (Not Auto-Generated)
+
+**❗ `createMockStation` and `createMockRoute` use static default IDs, not auto-generated unique IDs**
+
+Unlike other mock functions in this library (like `createMockSession`, `createMockSecurityEvent`, `createMockPasswordResetToken`) that explicitly generate unique identifiers each time they're called, `createMockStation` and `createMockRoute` return the same static default IDs on every call.
+
+```typescript
+// ❌ EXPECTATION: Each call gets a unique ID
+const station1 = createMockStation();
+const station2 = createMockStation();
+console.log(station1.id === station2.id); // true! Both are "725"
+
+// ❌ EXPECTATION: Routes have unique IDs by default
+const route1 = createMockRoute();
+const route2 = createMockRoute();
+console.log(route1.id === route2.id); // true! Both are "1"
+
+// ✅ CORRECT: Explicitly override IDs for uniqueness
+const uniqueStations = [
+  createMockStation({ id: "725" }),
+  createMockStation({ id: "726" }),
+  createMockStation({ id: "727" })
+];
+
+// ✅ HELPER: Generate unique IDs using a counter
+let stationCounter = 100;
+function createUniqueStation(overrides?: Partial<Station>) {
+  return createMockStation({
+    id: String(stationCounter++),
+    ...overrides
+  });
+}
+
+const unique1 = createUniqueStation(); // id: "100"
+const unique2 = createUniqueStation(); // id: "101"
+const unique3 = createUniqueStation(); // id: "102"
+
+// ✅ HELPER: Generate unique route IDs
+let routeCounter = 1;
+function createUniqueRoute(overrides?: Partial<Route>) {
+  return createMockRoute({
+    id: String(routeCounter++),
+    ...overrides
+  });
+}
+
+const routeA = createUniqueRoute({ id: "A", shortName: "A" }); // id: "A"
+const routeB = createUniqueRoute({ id: "B", shortName: "B" }); // id: "B"
+```
+
+**Why This Design?**
+- Stations and routes in the MTA system have stable, well-known IDs from the GTFS feed
+- Tests typically use specific stations (Times Square, Penn Station) with known IDs
+- For unique test data, override the `id` field explicitly rather than relying on auto-generation
+
+**Contrast with Other Mock Functions:**
+
+| Function | ID Behavior | Default ID |
+|----------|-------------|------------|
+| `createMockStation` | Static default | `"725"` |
+| `createMockRoute` | Static default | `"1"` |
+| `createMockSession` | Auto-generated | Random 16-char string |
+| `createMockSecurityEvent` | Auto-generated | Random unique string |
+| `createMockApiKey` | Static default | `"key_test_123"` |
+| `createMockPasswordResetToken` | Auto-generated | Random unique string |
+
 #### 5. No Built-in Validation
 
 **Test helpers do NOT validate inputs - they create objects with any values**
