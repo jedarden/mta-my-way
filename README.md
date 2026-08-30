@@ -92,6 +92,121 @@ The container exposes port 3000.
 | `EMAIL_PROVIDER` | No | `console` | `ses`, `smtp`, `sendgrid`, or `console` |
 | `EMAIL_FROM` | No | `noreply@mtamyway.com` | Sender address for transactional email |
 | `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, `error` |
+| `BASE_URL` | No | `http://localhost:3001` | Base URL for OAuth callbacks |
+| `GOOGLE_OAUTH_CLIENT_ID` | For Google OAuth | — | From Google Cloud Console |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | For Google OAuth | — | From Google Cloud Console |
+| `GITHUB_OAUTH_CLIENT_ID` | For GitHub OAuth | — | From GitHub developer settings |
+| `GITHUB_OAUTH_CLIENT_SECRET` | For GitHub OAuth | — | From GitHub developer settings |
+
+## OAuth 2.0 Authentication
+
+This application supports OAuth 2.0 authentication with both **Google** and **GitHub** providers using the **Authorization Code flow with PKCE** (Proof Key for Code Exchange, RFC 7636).
+
+### How PKCE Works
+
+1. **Authorization Request**: The server generates a random `code_verifier` (32 bytes) and creates a `code_challenge` by hashing it with SHA-256 and base64url-encoding. The challenge (not the verifier) is sent to the OAuth provider along with the authorization request.
+2. **User Authorization**: User is redirected to the provider (Google/GitHub) to grant permissions.
+3. **Code Exchange**: Provider redirects back with a temporary `code`. The server exchanges this code for an access token by sending the original `code_verifier`.
+4. **Token Validation**: Provider verifies the `code_verifier` matches the `code_challenge` from step 1, preventing authorization code interception attacks.
+
+**Security**: The PKCE verifier never leaves the server. Only a single-use `state` parameter is sent to the browser, making the flow secure without requiring a client secret.
+
+### Callback URL Configuration
+
+OAuth providers require pre-registered callback URLs. The application constructs these using the `BASE_URL` environment variable:
+
+| Provider | Default Callback URL | Environment Variable Override |
+|----------|---------------------|-------------------------------|
+| Google | `{BASE_URL}/auth/google/callback` | `GOOGLE_OAUTH_REDIRECT_URI` |
+| GitHub | `{BASE_URL}/auth/github/callback` | `GITHUB_OAUTH_REDIRECT_URI` |
+
+**Example**: If `BASE_URL=https://mtamyway.com`, the Google callback URL will be `https://mtamyway.com/auth/google/callback`.
+
+### Setup Instructions
+
+#### Google OAuth
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create a new project or select an existing one
+3. Navigate to **APIs & Services** → **Credentials**
+4. Click **Create Credentials** → **OAuth 2.0 Client ID**
+5. Choose **Web application**
+6. Add these **Authorized redirect URIs**:
+   - Development: `http://localhost:3001/auth/google/callback`
+   - Production: `https://your-domain.com/auth/google/callback`
+7. Copy the **Client ID** and **Client Secret** to your `.env` file:
+   ```bash
+   GOOGLE_OAUTH_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+   GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
+   ```
+
+#### GitHub OAuth
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click **OAuth Apps** → **New OAuth App**
+3. Fill in the application details:
+   - **Application name**: MTA My Way
+   - **Homepage URL**: `https://your-domain.com` (or `http://localhost:3001` for development)
+   - **Authorization callback URL**: `{BASE_URL}/auth/github/callback`
+     - Development: `http://localhost:3001/auth/github/callback`
+     - Production: `https://your-domain.com/auth/github/callback`
+4. Click **Register application**
+5. Copy the **Client ID** and generate a **Client Secret** to your `.env` file:
+   ```bash
+   GITHUB_OAUTH_CLIENT_ID=your-github-client-id
+   GITHUB_OAUTH_CLIENT_SECRET=your-github-client-secret
+   ```
+
+### Open Redirect Protection
+
+The application includes strict security controls to prevent open redirect attacks during OAuth flows:
+
+- **OAUTH_ALLOWED_HOSTNAMES**: A hardcoded allowlist of permitted callback hostnames
+  - `localhost`, `127.0.0.1` (for local development)
+  - `mtamyway.com`, `www.mtamyway.com` (for production)
+- **Validation**: All redirect URLs are validated against this allowlist before use
+- **Blocking**: Suspicious TLDs, external redirects, and URL encoding attacks are blocked
+
+**To add additional hostnames**: Edit `packages/server/src/middleware/open-redirect.ts` and add your domain to the `OAUTH_ALLOWED_HOSTNAMES` array.
+
+### Local Development
+
+For local OAuth testing:
+
+1. Set up your provider credentials with the local callback URL:
+   - Google: `http://localhost:3001/auth/google/callback`
+   - GitHub: `http://localhost:3001/auth/github/callback`
+2. Configure environment variables:
+   ```bash
+   BASE_URL=http://localhost:3001
+   GOOGLE_OAUTH_CLIENT_ID=your-dev-client-id
+   GOOGLE_OAUTH_CLIENT_SECRET=your-dev-client-secret
+   GITHUB_OAUTH_CLIENT_ID=your-dev-client-id
+   GITHUB_OAUTH_CLIENT_SECRET=your-dev-client-secret
+   ```
+3. Start the development server and test OAuth flow
+
+### Production Deployment
+
+For production:
+
+1. Set `BASE_URL` to your production domain:
+   ```bash
+   BASE_URL=https://your-domain.com
+   ```
+2. Update OAuth provider callback URLs in your provider consoles to match production
+3. Ensure `ALLOWED_HOSTS` is set for host header protection (required in production)
+4. Verify your domain is added to `OAUTH_ALLOWED_HOSTNAMES` in the code
+5. Store credentials securely (use environment variables, never commit to git)
+
+### Security Notes
+
+- **Credentials**: Never commit OAuth client secrets to version control
+- **HTTPS**: OAuth requires HTTPS in production (providers reject non-HTTPS callbacks)
+- **State Verification**: The server generates and validates state parameters to prevent CSRF attacks
+- **PKCE Required**: The application only supports PKCE flow (RFC 7636) for security
+- **Session Management**: OAuth credentials are never stored; only a session cookie is issued
+- **Single-Use State**: OAuth state values are one-time and expire after 10 minutes
 
 ## Development Commands
 
