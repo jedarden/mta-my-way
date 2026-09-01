@@ -127,7 +127,7 @@ describe("Feed Poller", () => {
     // Mock cache functions - use actual function implementations
     vi.mocked(cache.getAllParsedFeeds).mockReturnValue(new Map());
     vi.mocked(cache.getAllFeedAges).mockReturnValue(new Map());
-    vi.mocked(cache.isCircuitOpen).mockReturnValue(false);
+    vi.mocked(cache.isCircuitOpen).mockImplementation((feedId: string) => false);
     vi.mocked(cache.updateArrivals).mockImplementation(() => {});
     vi.mocked(cache.updatePositions).mockImplementation(() => {});
 
@@ -245,12 +245,9 @@ describe("Feed Poller", () => {
   });
 
   describe("circuit breaker", () => {
-    beforeEach(() => {
-      initPoller(mockStations, mockRoutes);
-    });
-
     it("should skip feeds with open circuits", async () => {
-      vi.mocked(cache.isCircuitOpen).mockReturnValue(true);
+      initPoller(mockStations, mockRoutes);
+      vi.mocked(cache.isCircuitOpen).mockImplementation((feedId: string) => true);
 
       startPoller();
       await vi.runOnlyPendingTimersAsync();
@@ -259,7 +256,8 @@ describe("Feed Poller", () => {
     });
 
     it("should process feeds when circuit is closed", async () => {
-      vi.mocked(cache.isCircuitOpen).mockReturnValue(false);
+      initPoller(mockStations, mockRoutes);
+      vi.mocked(cache.isCircuitOpen).mockImplementation((feedId: string) => false);
 
       startPoller();
       await vi.runOnlyPendingTimersAsync();
@@ -269,11 +267,8 @@ describe("Feed Poller", () => {
   });
 
   describe("position map building", () => {
-    beforeEach(() => {
-      initPoller(mockStations, mockRoutes);
-    });
-
     it("should build positions map from vehicle positions", async () => {
+      initPoller(mockStations, mockRoutes);
       const mockPositions = [
         {
           tripId: "trip1",
@@ -298,6 +293,7 @@ describe("Feed Poller", () => {
     });
 
     it("should handle empty vehicle positions", async () => {
+      initPoller(mockStations, mockRoutes);
       vi.mocked(delayDetector.extractVehiclePositions).mockReturnValue([]);
 
       startPoller();
@@ -309,11 +305,8 @@ describe("Feed Poller", () => {
   });
 
   describe("error handling", () => {
-    beforeEach(() => {
-      initPoller(mockStations, mockRoutes);
-    });
-
     it("should handle errors during feed fetch gracefully", async () => {
+      initPoller(mockStations, mockRoutes);
       // Mock fetchFeed to simulate network errors
       const mockTracedFetch = vi.mocked(tracing.tracedFetch);
       mockTracedFetch.mockRejectedValueOnce(new Error("Network error"));
@@ -326,6 +319,7 @@ describe("Feed Poller", () => {
     });
 
     it("should continue polling after errors", async () => {
+      initPoller(mockStations, mockRoutes);
       let fetchCount = 0;
       const mockTracedFetch = vi.mocked(tracing.tracedFetch);
       mockTracedFetch.mockImplementation(async () => {

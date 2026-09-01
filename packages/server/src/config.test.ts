@@ -104,21 +104,47 @@ describe("config", () => {
 
   describe("getShellEnv", () => {
     it("should return SHELL value when set", () => {
+      const originalShell = process.env["SHELL"];
       process.env["SHELL"] = "/bin/bash";
       expect(getShellEnv()).toBe("/bin/bash");
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      } else {
+        delete process.env["SHELL"];
+      }
     });
 
     it("should return default value when SHELL is unset", () => {
+      const originalShell = process.env["SHELL"];
+      delete process.env["SHELL"];
       expect(getShellEnv()).toBe("/bin/sh");
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      }
     });
 
     it("should return custom default value when SHELL is unset", () => {
+      const originalShell = process.env["SHELL"];
+      delete process.env["SHELL"];
       expect(getShellEnv("/usr/bin/zsh")).toBe("/usr/bin/zsh");
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      }
     });
 
     it("should return default value when SHELL is empty string", () => {
+      const originalShell = process.env["SHELL"];
       process.env["SHELL"] = "";
       expect(getShellEnv()).toBe("/bin/sh");
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      } else {
+        delete process.env["SHELL"];
+      }
     });
 
     it("should return actual SHELL value for common shells", () => {
@@ -140,17 +166,37 @@ describe("config", () => {
 
   describe("hasShellEnv", () => {
     it("should return false when SHELL is unset", () => {
+      const originalShell = process.env["SHELL"];
+      delete process.env["SHELL"];
       expect(hasShellEnv()).toBe(false);
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      }
     });
 
     it("should return false when SHELL is empty string", () => {
+      const originalShell = process.env["SHELL"];
       process.env["SHELL"] = "";
       expect(hasShellEnv()).toBe(false);
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      } else {
+        delete process.env["SHELL"];
+      }
     });
 
     it("should return true when SHELL is set", () => {
+      const originalShell = process.env["SHELL"];
       process.env["SHELL"] = "/bin/bash";
       expect(hasShellEnv()).toBe(true);
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      } else {
+        delete process.env["SHELL"];
+      }
     });
 
     it("should return true for various shell paths", () => {
@@ -162,11 +208,17 @@ describe("config", () => {
         "/usr/local/bin/bash",
         "/bin/fish",
       ];
+      const originalShell = process.env["SHELL"];
 
       for (const shell of testShells) {
         process.env["SHELL"] = shell;
         expect(hasShellEnv()).toBe(true);
-        // Clean up for next iteration
+      }
+
+      // Restore original value
+      if (originalShell !== undefined) {
+        process.env["SHELL"] = originalShell;
+      } else {
         delete process.env["SHELL"];
       }
     });
