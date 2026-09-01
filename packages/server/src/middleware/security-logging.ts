@@ -46,6 +46,9 @@ interface SecurityEvent {
   path?: string;
   statusCode?: number;
   details?: Record<string, unknown>;
+  action?: string;
+  userId?: string;
+  resourceId?: string;
 }
 
 /**
@@ -84,7 +87,7 @@ function defaultLogFn(event: SecurityEvent): void {
       ipAddress: event.ip,
       path: event.path,
       method: event.method,
-      success: !event.action.includes("failure") && !event.action.includes("blocked") && !event.action.includes("exceeded"),
+      success: !event.action?.includes("failure") && !event.action?.includes("blocked") && !event.action?.includes("exceeded"),
       metadata: {
         userAgent: event.userAgent,
         statusCode: event.statusCode,
@@ -93,7 +96,11 @@ function defaultLogFn(event: SecurityEvent): void {
     });
   } catch (error) {
     // If audit log is not available, at least we logged to structured logger
-    structuredLogger.error("Failed to write security event to audit log", { error, event });
+    structuredLogger.error(
+      "Failed to write security event to audit log",
+      error instanceof Error ? error : new Error(String(error)),
+      { event }
+    );
   }
 }
 
