@@ -88,10 +88,10 @@ function defaultLogFn(event: SecurityEvent): void {
             : event.severity === "medium"
               ? "warning"
               : "info",
-      action: event.action,
-      userId: event.userId,
+      action: event.action || "security_event",
+      performedBy: event.userId,
       resourceId: event.resourceId,
-      ipAddress: event.ip,
+      clientIp: event.ip,
       path: event.path,
       method: event.method,
       success:

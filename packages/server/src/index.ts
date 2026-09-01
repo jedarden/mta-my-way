@@ -33,6 +33,7 @@ import { initPoller, startPoller } from "./poller.js";
 import { configurePushDatabase } from "./push/subscriptions.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
+import { runStartupChecks } from "./startup-check.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 import { initTripTracking } from "./trip-tracking.js";
 
@@ -56,6 +57,9 @@ async function loadJsonFile<T>(filename: string): Promise<T> {
 }
 
 async function main(): Promise<void> {
+  // Run startup checks first - verify required runtime artifacts are present
+  runStartupChecks();
+
   // Initialize all observability subsystems (OTel, tracing, metrics — logger is import-time)
   await initObservability();
 
