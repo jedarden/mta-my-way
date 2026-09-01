@@ -21,8 +21,8 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSession, hashApiKey, registerApiKey } from "../middleware/authentication.js";
 import type { ApiKey } from "../middleware/authentication.js";
-import { sessionSecurity } from "../middleware/session-security.js";
 import { securityLogger } from "../middleware/security-logging.js";
+import { sessionSecurity } from "../middleware/session-security.js";
 
 describe("IP Binding Enforcement Tests", () => {
   // Test IP addresses
@@ -309,12 +309,7 @@ describe("IP Binding Enforcement Tests", () => {
       app.get("/api/test", (c) => c.json({ success: true }));
 
       // Simulate DHCP renewal - IP changed but within same subnet
-      const dhcpRenewedIPs = [
-        "192.168.1.51",
-        "192.168.1.52",
-        "192.168.1.100",
-        "192.168.1.200",
-      ];
+      const dhcpRenewedIPs = ["192.168.1.51", "192.168.1.52", "192.168.1.100", "192.168.1.200"];
 
       for (const ip of dhcpRenewedIPs) {
         const res = await app.request("/api/test", {
@@ -334,16 +329,14 @@ describe("IP Binding Enforcement Tests", () => {
       app.get("/api/test", (c) => c.json({ success: true }));
 
       // Mobile networks often change IPs but stay within same subnet
-      const mobileIPs = [
-        "100.100.100.101",
-        "100.100.100.102",
-      ];
+      const mobileIPs = ["100.100.100.101", "100.100.100.102"];
 
       for (const ip of mobileIPs) {
         const res = await app.request("/api/test", {
           headers: {
             "X-Forwarded-For": ip,
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+            "User-Agent":
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
           },
         });
 
@@ -354,7 +347,8 @@ describe("IP Binding Enforcement Tests", () => {
       const res = await app.request("/api/test", {
         headers: {
           "X-Forwarded-For": "100.100.101.100", // Different subnet
-          "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+          "User-Agent":
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
         },
       });
 
@@ -367,11 +361,7 @@ describe("IP Binding Enforcement Tests", () => {
       app.get("/api/test", (c) => c.json({ success: true }));
 
       // Corporate network with same /24 subnet
-      const corporateIPs = [
-        "10.0.1.51",
-        "10.0.1.100",
-        "10.0.1.200",
-      ];
+      const corporateIPs = ["10.0.1.51", "10.0.1.100", "10.0.1.200"];
 
       for (const ip of corporateIPs) {
         const res = await app.request("/api/test", {

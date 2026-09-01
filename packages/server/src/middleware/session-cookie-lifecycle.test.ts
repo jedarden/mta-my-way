@@ -19,6 +19,8 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  type ApiKey,
+  type AuthSession,
   createSession,
   hashApiKey,
   invalidateSession,
@@ -26,8 +28,6 @@ import {
   refreshSession,
   registerApiKey,
   revokeSession,
-  type ApiKey,
-  type AuthSession,
 } from "./authentication.js";
 import { clearSessionCookie, getSessionCookie, setSessionCookie } from "./cookie-security.js";
 import { clearCsrfTokenStore, csrfProtection } from "./csrf-protection.js";

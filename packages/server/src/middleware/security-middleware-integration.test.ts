@@ -14,22 +14,22 @@
 
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  disableRateLimiting,
+  enableRateLimiting,
+  rateLimiter,
+  resetRateLimiter,
+} from "../test/rate-limiter-harness.js";
 import { hashApiKey, optionalAuth, registerApiKey } from "./authentication.js";
 import type { ApiKey } from "./authentication.js";
+import { requireAdmin } from "./authorization.js";
 import { clearCsrfTokenStore, csrfProtection } from "./csrf-protection.js";
 import {
+  type HostHeaderProtectionOptions,
   hostHeaderProtection,
   validateHostHeader,
-  type HostHeaderProtectionOptions,
 } from "./host-header-protection.js";
 import { securityHeaders } from "./security-headers.js";
-import { requireAdmin } from "./authorization.js";
-import {
-  enableRateLimiting,
-  disableRateLimiting,
-  resetRateLimiter,
-  rateLimiter,
-} from "../test/rate-limiter-harness.js";
 
 describe("Security Middleware Integration Tests", () => {
   describe("Host-Header + CSRF Protection Integration", () => {
@@ -41,10 +41,13 @@ describe("Security Middleware Integration Tests", () => {
       app = new Hono();
 
       // Apply host-header protection first, then CSRF
-      app.use("/api/*", hostHeaderProtection({
-        allowedHosts: ["api.example.com", "localhost"],
-        blockLocalhost: false,
-      }));
+      app.use(
+        "/api/*",
+        hostHeaderProtection({
+          allowedHosts: ["api.example.com", "localhost"],
+          blockLocalhost: false,
+        })
+      );
       app.use("/api/*", csrfProtection({ excludePaths: [] }));
 
       // Test endpoints
@@ -148,10 +151,13 @@ describe("Security Middleware Integration Tests", () => {
       app = new Hono();
 
       // Apply host-header protection, then security headers
-      app.use("/api/*", hostHeaderProtection({
-        allowedHosts: ["api.example.com"],
-        blockLocalhost: false,
-      }));
+      app.use(
+        "/api/*",
+        hostHeaderProtection({
+          allowedHosts: ["api.example.com"],
+          blockLocalhost: false,
+        })
+      );
       app.use("/api/*", securityHeaders());
 
       app.get("/api/test", (c) => c.json({ ok: true }));
@@ -216,10 +222,13 @@ describe("Security Middleware Integration Tests", () => {
       registerApiKey(testApiKey);
 
       // Apply host-header protection, then auth
-      app.use("/api/*", hostHeaderProtection({
-        allowedHosts: ["api.example.com"],
-        blockLocalhost: false,
-      }));
+      app.use(
+        "/api/*",
+        hostHeaderProtection({
+          allowedHosts: ["api.example.com"],
+          blockLocalhost: false,
+        })
+      );
       app.use("/api/*", optionalAuth({ allowSessions: false }));
 
       // Define routes AFTER middleware
@@ -287,10 +296,13 @@ describe("Security Middleware Integration Tests", () => {
       app = new Hono();
 
       // Apply host-header protection, then authorization
-      app.use("/api/*", hostHeaderProtection({
-        allowedHosts: ["api.example.com"],
-        blockLocalhost: false,
-      }));
+      app.use(
+        "/api/*",
+        hostHeaderProtection({
+          allowedHosts: ["api.example.com"],
+          blockLocalhost: false,
+        })
+      );
       app.use("/api/admin/*", requireAdmin());
 
       app.get("/api/admin/users", (c) => c.json({ users: [] }));
@@ -329,10 +341,13 @@ describe("Security Middleware Integration Tests", () => {
       app = new Hono();
 
       // Apply host-header protection, then rate limiting
-      app.use("/api/*", hostHeaderProtection({
-        allowedHosts: ["api.example.com"],
-        blockLocalhost: false,
-      }));
+      app.use(
+        "/api/*",
+        hostHeaderProtection({
+          allowedHosts: ["api.example.com"],
+          blockLocalhost: false,
+        })
+      );
       app.use("/api/*", rateLimiter());
 
       app.get("/api/test", (c) => c.json({ ok: true }));
@@ -450,10 +465,13 @@ describe("Security Middleware Integration Tests", () => {
 
       // Apply full security middleware chain in production order
       // 1. Host-header protection (first line of defense)
-      app.use("/api/*", hostHeaderProtection({
-        allowedHosts: ["api.example.com", "localhost"],
-        blockLocalhost: false,
-      }));
+      app.use(
+        "/api/*",
+        hostHeaderProtection({
+          allowedHosts: ["api.example.com", "localhost"],
+          blockLocalhost: false,
+        })
+      );
 
       // 2. Security headers (apply to all valid requests)
       app.use("/api/*", securityHeaders());
@@ -686,10 +704,13 @@ describe("Security Middleware Integration Tests", () => {
 
     beforeEach(() => {
       app = new Hono();
-      app.use("/api/*", hostHeaderProtection({
-        allowedHosts: ["api.example.com"],
-        blockLocalhost: false,
-      }));
+      app.use(
+        "/api/*",
+        hostHeaderProtection({
+          allowedHosts: ["api.example.com"],
+          blockLocalhost: false,
+        })
+      );
       app.get("/api/test", (c) => c.json({ ok: true }));
     });
 

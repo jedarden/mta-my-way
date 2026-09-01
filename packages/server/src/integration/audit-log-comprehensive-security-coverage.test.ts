@@ -25,38 +25,38 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  type AuditEvent,
+  type AuditEventCategory,
+  type AuditEventSeverity,
   addAuditEvent,
   clearAuditLog,
   getAuditLogStats,
   queryAuditLog,
   resetAuditLog,
-  type AuditEvent,
-  type AuditEventCategory,
-  type AuditEventSeverity,
 } from "../middleware/audit-log.js";
 import {
+  type AuthContext,
   authentication,
   generateApiKey,
   hashApiKey,
   registerApiKey,
-  type AuthContext,
 } from "../middleware/authentication.js";
 import {
+  type ResourceType,
   authorization,
   requireResourceAccess,
   requireScope,
-  type ResourceType,
 } from "../middleware/authorization.js";
-import { csrfProtection, generateCsrfToken } from "../middleware/csrf-protection.js";
-import { rateLimiter } from "../middleware/rate-limiter.js";
-import { pathTraversalPrevention } from "../middleware/path-traversal.js";
-import { hppProtection } from "../middleware/parameter-pollution.js";
-import { ssrfProtection } from "../middleware/ssrf-protection.js";
-import { hostHeaderProtection } from "../middleware/host-header-protection.js";
-import { jsonDepthProtection } from "../middleware/json-depth-protection.js";
-import { httpMethodRestrictions } from "../middleware/http-method-restrictions.js";
-import { responseSizeLimits } from "../middleware/response-size-limits.js";
 import { contentType } from "../middleware/content-type.js";
+import { csrfProtection, generateCsrfToken } from "../middleware/csrf-protection.js";
+import { hostHeaderProtection } from "../middleware/host-header-protection.js";
+import { httpMethodRestrictions } from "../middleware/http-method-restrictions.js";
+import { jsonDepthProtection } from "../middleware/json-depth-protection.js";
+import { hppProtection } from "../middleware/parameter-pollution.js";
+import { pathTraversalPrevention } from "../middleware/path-traversal.js";
+import { rateLimiter } from "../middleware/rate-limiter.js";
+import { responseSizeLimits } from "../middleware/response-size-limits.js";
+import { ssrfProtection } from "../middleware/ssrf-protection.js";
 import { requestId } from "./request-id.js";
 import { securityHeaders } from "./security-headers.js";
 import { cleanupAllState } from "./test-helpers.js";
@@ -161,14 +161,17 @@ async function makeTestRequest(
 /**
  * Verify audit event has all required security context.
  */
-function verifySecurityContext(event: AuditEvent, expectedContext: {
-  hasIp?: boolean;
-  hasUserAgent?: boolean;
-  hasPath?: boolean;
-  hasMethod?: boolean;
-  hasUser?: boolean;
-  hasTimestamp?: boolean;
-}): void {
+function verifySecurityContext(
+  event: AuditEvent,
+  expectedContext: {
+    hasIp?: boolean;
+    hasUserAgent?: boolean;
+    hasPath?: boolean;
+    hasMethod?: boolean;
+    hasUser?: boolean;
+    hasTimestamp?: boolean;
+  }
+): void {
   if (expectedContext.hasIp) {
     expect(event.clientIp).toBeDefined();
     expect(event.clientIp).not.toBe("unknown");
@@ -548,7 +551,9 @@ describe("audit log - comprehensive security middleware coverage", () => {
       }
 
       const securityEvents = queryAuditLog({ category: "security" });
-      const pathTraversalEvents = securityEvents.filter((e) => e.action === "path_traversal_blocked");
+      const pathTraversalEvents = securityEvents.filter(
+        (e) => e.action === "path_traversal_blocked"
+      );
 
       expect(pathTraversalEvents.length).toBeGreaterThan(0);
       if (pathTraversalEvents[0]) {
@@ -644,9 +649,14 @@ describe("audit log - comprehensive security middleware coverage", () => {
       ];
 
       for (const url of internalUrls) {
-        await makeTestRequest(app, "GET", TEST_CONFIG.endpoints.public + "?url=" + encodeURIComponent(url), {
-          ip: TEST_CONFIG.ips.attacker,
-        });
+        await makeTestRequest(
+          app,
+          "GET",
+          TEST_CONFIG.endpoints.public + "?url=" + encodeURIComponent(url),
+          {
+            ip: TEST_CONFIG.ips.attacker,
+          }
+        );
       }
 
       const securityEvents = queryAuditLog({ category: "security" });
@@ -664,12 +674,7 @@ describe("audit log - comprehensive security middleware coverage", () => {
     });
 
     it("logs host header attack blocks", async () => {
-      const maliciousHosts = [
-        "evil.com",
-        "attacker.evil.com",
-        "localhost",
-        "127.0.0.1",
-      ];
+      const maliciousHosts = ["evil.com", "attacker.evil.com", "localhost", "127.0.0.1"];
 
       for (const host of maliciousHosts) {
         await makeTestRequest(app, "GET", TEST_CONFIG.endpoints.public, {
@@ -857,10 +862,15 @@ describe("audit log - comprehensive security middleware coverage", () => {
         userAgent: attackerUA,
         authorization: "Bearer invalid:bad",
       });
-      await makeTestRequest(app, "GET", TEST_CONFIG.endpoints.public + "?url=http://localhost:6379", {
-        ip: attackerIp,
-        userAgent: attackerUA,
-      });
+      await makeTestRequest(
+        app,
+        "GET",
+        TEST_CONFIG.endpoints.public + "?url=http://localhost:6379",
+        {
+          ip: attackerIp,
+          userAgent: attackerUA,
+        }
+      );
 
       // Get all events from attacker
       const attackerEvents = getEventsByIp(attackerIp);

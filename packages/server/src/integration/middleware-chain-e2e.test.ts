@@ -15,15 +15,15 @@
  * integrate correctly as a complete pipeline.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
 import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { initDelayPredictor } from "../delay-predictor.js";
 import {
   cleanupAllState,
   createTestAdminCredentials,
-  createTestUserCredentials,
   createTestReadCredentials,
+  createTestUserCredentials,
   getCsrfToken,
   requestWithAuthAndCsrf,
   requestWithCsrf,
@@ -580,9 +580,7 @@ describe("E2E Middleware Chain Integration", () => {
       );
 
       // Make many requests from the same IP
-      const requests = Array.from({ length: 65 }, () =>
-        app.request("/api/stations")
-      );
+      const requests = Array.from({ length: 65 }, () => app.request("/api/stations"));
 
       const responses = await Promise.all(requests);
 

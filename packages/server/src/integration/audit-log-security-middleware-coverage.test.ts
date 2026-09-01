@@ -17,21 +17,21 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  type AuditEvent,
+  type AuditEventCategory,
   addAuditEvent,
   clearAuditLog,
   queryAuditLog,
-  type AuditEvent,
-  type AuditEventCategory,
 } from "../middleware/audit-log.js";
 import { authentication, optionalAuth } from "../middleware/authentication.js";
 import { requireResourceAccess } from "../middleware/authorization.js";
 import { csrfProtection } from "../middleware/csrf-protection.js";
-import { rateLimiter } from "../middleware/rate-limiter.js";
-import { pathTraversalPrevention } from "../middleware/path-traversal.js";
-import { hppProtection } from "../middleware/parameter-pollution.js";
-import { ssrfProtection } from "../middleware/ssrf-protection.js";
 import { hostHeaderProtection } from "../middleware/host-header-protection.js";
 import { jsonDepthProtection } from "../middleware/json-depth-protection.js";
+import { hppProtection } from "../middleware/parameter-pollution.js";
+import { pathTraversalPrevention } from "../middleware/path-traversal.js";
+import { rateLimiter } from "../middleware/rate-limiter.js";
+import { ssrfProtection } from "../middleware/ssrf-protection.js";
 import { cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ describe("audit logging - security middleware coverage", () => {
     // Capture audit events for verification
     testEvents = [];
     const originalAdd = addAuditEvent;
-    // @ts-ignore - Monkey patch for testing
+    // @ts-expect-error - Monkey patch for testing
     globalThis.addAuditEvent = (event: Omit<AuditEvent, "id" | "timestamp">): string => {
       const id = originalAdd(event);
       const saved = queryAuditLog({ limit: 1 })[0];
@@ -209,7 +209,14 @@ describe("audit logging - security middleware coverage", () => {
 
       const failedEvent = failedEvents[0];
       if (failedEvent) {
-        verifyEventStructure(failedEvent, ["id", "timestamp", "category", "action", "success", "error"]);
+        verifyEventStructure(failedEvent, [
+          "id",
+          "timestamp",
+          "category",
+          "action",
+          "success",
+          "error",
+        ]);
         verifyTimestamp(failedEvent);
         expect(failedEvent.success).toBe(false);
         expect(failedEvent.error).toBeDefined();
@@ -308,7 +315,14 @@ describe("audit logging - security middleware coverage", () => {
 
       const failedEvent = failedEvents[0];
       if (failedEvent) {
-        verifyEventStructure(failedEvent, ["id", "timestamp", "category", "action", "success", "error"]);
+        verifyEventStructure(failedEvent, [
+          "id",
+          "timestamp",
+          "category",
+          "action",
+          "success",
+          "error",
+        ]);
         verifyTimestamp(failedEvent);
         expect(failedEvent.success).toBe(false);
         expect(failedEvent.resourceType).toBe("trip");
@@ -459,7 +473,13 @@ describe("audit logging - security middleware coverage", () => {
 
       expect(pathTraversalEvent).toBeDefined();
       if (pathTraversalEvent) {
-        verifyEventStructure(pathTraversalEvent, ["id", "timestamp", "category", "action", "severity"]);
+        verifyEventStructure(pathTraversalEvent, [
+          "id",
+          "timestamp",
+          "category",
+          "action",
+          "severity",
+        ]);
         verifyTimestamp(pathTraversalEvent);
         expect(pathTraversalEvent.severity).toBe("error");
         expect(pathTraversalEvent.success).toBe(false);

@@ -9,18 +9,24 @@
  * - Integration between enhanced-authentication and enhanced-jwt-security
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComplexIndex, RouteIndex, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
-import { createApp } from "../app.js";
-import { cleanupAllState, TEST_STATIONS, createTestUserCredentials, createTestReadCredentials, createTestAdminCredentials } from "../integration/test-helpers.js";
-import { initDelayPredictor } from "../delay-predictor.js";
+import { ROLES, generateRandomToken } from "@mta-my-way/shared/testing/security-helpers";
 import {
   createMockAuthToken,
   createMockSecurityMiddleware,
   createTestContext,
 } from "@mta-my-way/shared/testing/test-helpers";
-import { generateRandomToken, ROLES } from "@mta-my-way/shared/testing/security-helpers";
 import type { Hono } from "hono";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createApp } from "../app.js";
+import { initDelayPredictor } from "../delay-predictor.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  createTestAdminCredentials,
+  createTestReadCredentials,
+  createTestUserCredentials,
+} from "../integration/test-helpers.js";
 
 const STATIONS: StationIndex = {
   "101": {
@@ -235,7 +241,7 @@ describe("Authentication and Authorization Integration", () => {
         })
       );
       const responses = await Promise.all(requests);
-      const rateLimitedCount = responses.filter(r => r.status === 429).length;
+      const rateLimitedCount = responses.filter((r) => r.status === 429).length;
       expect(rateLimitedCount).toBeGreaterThanOrEqual(0);
     });
   });
@@ -348,7 +354,7 @@ describe("Authentication and Authorization Integration", () => {
         }),
       ];
       const responses = await Promise.all(requests);
-      responses.forEach(response => {
+      responses.forEach((response) => {
         expect([200, 401]).toContain(response.status);
       });
     });

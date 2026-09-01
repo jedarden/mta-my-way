@@ -25,26 +25,29 @@ describe("CSRF protection on state-changing API operations", () => {
     app = new Hono();
 
     // Apply CSRF protection middleware (matching production configuration)
-    app.use("/api/*", csrfProtection({
-      excludePaths: [
-        "/api/health",
-        "/api/metrics",
-        "/api/stations",
-        "/api/routes",
-        "/api/static",
-        "/api/arrivals",
-        "/api/alerts",
-        "/api/equipment",
-        "/api/trip",
-        "/api/positions",
-        "/api/push/vapid-public-key",
-        "/api/journal",
-        "/api/auth/oauth",
-        "/api/auth/password",
-        "/api/csrf-token",
-        "/api/security/csp-report",
-      ],
-    }));
+    app.use(
+      "/api/*",
+      csrfProtection({
+        excludePaths: [
+          "/api/health",
+          "/api/metrics",
+          "/api/stations",
+          "/api/routes",
+          "/api/static",
+          "/api/arrivals",
+          "/api/alerts",
+          "/api/equipment",
+          "/api/trip",
+          "/api/positions",
+          "/api/push/vapid-public-key",
+          "/api/journal",
+          "/api/auth/oauth",
+          "/api/auth/password",
+          "/api/csrf-token",
+          "/api/security/csp-report",
+        ],
+      })
+    );
 
     // CSRF token endpoint
     app.get("/api/csrf-token", (c) => {
@@ -329,7 +332,10 @@ describe("CSRF protection on state-changing API operations", () => {
           body: JSON.stringify({ test: true }),
         });
 
-        expect(res.status).toBe(403, `Expected ${route.method} ${route.path} to require CSRF token`);
+        expect(res.status).toBe(
+          403,
+          `Expected ${route.method} ${route.path} to require CSRF token`
+        );
       }
     });
 
@@ -344,7 +350,10 @@ describe("CSRF protection on state-changing API operations", () => {
           method: "delete",
         });
 
-        expect(res.status).toBe(403, `Expected ${route.method} ${route.path} to require CSRF token`);
+        expect(res.status).toBe(
+          403,
+          `Expected ${route.method} ${route.path} to require CSRF token`
+        );
       }
     });
 
@@ -361,7 +370,10 @@ describe("CSRF protection on state-changing API operations", () => {
           body: JSON.stringify({ test: true }),
         });
 
-        expect(res.status).toBe(403, `Expected ${route.method} ${route.path} to require CSRF token`);
+        expect(res.status).toBe(
+          403,
+          `Expected ${route.method} ${route.path} to require CSRF token`
+        );
       }
     });
 
@@ -379,7 +391,10 @@ describe("CSRF protection on state-changing API operations", () => {
           body: JSON.stringify({ test: true }),
         });
 
-        expect(res.status).toBe(200, `Expected ${route.method} ${route.path} to be excluded from CSRF`);
+        expect(res.status).toBe(
+          200,
+          `Expected ${route.method} ${route.path} to be excluded from CSRF`
+        );
       }
     });
   });

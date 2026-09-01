@@ -1191,8 +1191,8 @@ describe("Audit logging for middleware security events", () => {
           "CF-Connecting-IP": "10.0.0.112",
         },
         body: JSON.stringify({
-          comment: '<img src=x onerror=alert(1)>',
-          link: 'javascript:document.cookie',
+          comment: "<img src=x onerror=alert(1)>",
+          link: "javascript:document.cookie",
         }),
       });
 
@@ -1246,13 +1246,11 @@ describe("Audit logging for middleware security events", () => {
 
       const allEvents = queryAuditLog({
         action: "open_redirect_blocked",
-        clientIp: "10.0.0.120"
+        clientIp: "10.0.0.120",
       });
 
       // Filter by time to get only this test's events
-      const events = allEvents.filter(
-        (e) => e.timestamp >= beforeMs && e.timestamp <= afterMs
-      );
+      const events = allEvents.filter((e) => e.timestamp >= beforeMs && e.timestamp <= afterMs);
 
       expect(events.length).toBeGreaterThanOrEqual(1);
 
@@ -1286,13 +1284,11 @@ describe("Audit logging for middleware security events", () => {
 
       const allEvents = queryAuditLog({
         action: "open_redirect_blocked",
-        clientIp: "10.0.0.121"
+        clientIp: "10.0.0.121",
       });
 
       // Filter by time to get only this test's events
-      const events = allEvents.filter(
-        (e) => e.timestamp >= beforeMs && e.timestamp <= afterMs
-      );
+      const events = allEvents.filter((e) => e.timestamp >= beforeMs && e.timestamp <= afterMs);
 
       expect(events.length).toBeGreaterThanOrEqual(1);
 
@@ -1492,9 +1488,7 @@ describe("Audit logging for middleware security events", () => {
 
       // Query without time filter first, then filter manually
       const allEvents = queryAuditLog({ clientIp: testIp });
-      const events = allEvents.filter(
-        (e) => e.timestamp >= beforeMs && e.timestamp <= afterMs
-      );
+      const events = allEvents.filter((e) => e.timestamp >= beforeMs && e.timestamp <= afterMs);
 
       // Should have at least path traversal event
       const pathTraversalEvents = events.filter((e) => e.action === "path_traversal_blocked");
@@ -1634,9 +1628,10 @@ describe("Audit logging for middleware security events", () => {
       // Verify the event was logged
       const securityEvents = queryAuditLogs({ limit: 10 });
       const csrfEvents = securityEvents.filter(
-        (e) => e.category === "authentication" &&
-        e.action === "csrf_validation_failed" &&
-        e.actor?.ipAddress === "10.0.0.130"
+        (e) =>
+          e.category === "authentication" &&
+          e.action === "csrf_validation_failed" &&
+          e.actor?.ipAddress === "10.0.0.130"
       );
 
       // The security logger should have logged the event
@@ -1656,9 +1651,10 @@ describe("Audit logging for middleware security events", () => {
       // Verify events are tracked
       const securityEvents = queryAuditLogs({ limit: 20 });
       const csrfEvents = securityEvents.filter(
-        (e) => e.category === "authentication" &&
-        e.action === "csrf_validation_failed" &&
-        e.actor?.ipAddress === testIp
+        (e) =>
+          e.category === "authentication" &&
+          e.action === "csrf_validation_failed" &&
+          e.actor?.ipAddress === testIp
       );
 
       expect(csrfEvents.length).toBeGreaterThanOrEqual(0);
@@ -1670,9 +1666,9 @@ describe("Audit logging for middleware security events", () => {
   // =========================================================================
 
   describe("Rate limiting audit logging", () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       // Clear rate limit state before each test
-      const { _clearAllRateLimits } = require("../middleware/auth-rate-limit.js");
+      const { _clearAllRateLimits } = await import("../middleware/auth-rate-limit.js");
       _clearAllRateLimits();
       // Also clear the audit log
       clearAuditLog();
@@ -1702,7 +1698,10 @@ describe("Audit logging for middleware security events", () => {
 
       const securityEvents = queryAuditLogs({ limit: 20 });
       const rateLimitEvents = securityEvents.filter(
-        (e) => e.category === "security" && e.action === "rate_limit_exceeded" && e.actor?.ipAddress === testIp
+        (e) =>
+          e.category === "security" &&
+          e.action === "rate_limit_exceeded" &&
+          e.actor?.ipAddress === testIp
       );
 
       expect(rateLimitEvents.length).toBeGreaterThanOrEqual(1);
@@ -1734,9 +1733,10 @@ describe("Audit logging for middleware security events", () => {
 
       const securityEvents = queryAuditLogs({ limit: 30 });
       const rateLimitEvents = securityEvents.filter(
-        (e) => e.category === "security" &&
-        e.action === "rate_limit_exceeded" &&
-        e.actor?.ipAddress === testIp
+        (e) =>
+          e.category === "security" &&
+          e.action === "rate_limit_exceeded" &&
+          e.actor?.ipAddress === testIp
       );
 
       // Should see multiple rate limit events with backoff
@@ -1766,9 +1766,10 @@ describe("Audit logging for middleware security events", () => {
 
       const securityEvents = queryAuditLogs({ limit: 20 });
       const rateLimitEvent = securityEvents.find(
-        (e) => e.category === "security" &&
-        e.action === "rate_limit_exceeded" &&
-        e.actor?.ipAddress === testIp
+        (e) =>
+          e.category === "security" &&
+          e.action === "rate_limit_exceeded" &&
+          e.actor?.ipAddress === testIp
       );
 
       expect(rateLimitEvent).toBeDefined();
@@ -1793,9 +1794,10 @@ describe("Audit logging for middleware security events", () => {
       // Verify the event is logged
       const securityEvents = queryAuditLogs({ limit: 10 });
       const authzEvents = securityEvents.filter(
-        (e) => e.category === "authorization" &&
-        e.action === "access_denied" &&
-        e.actor?.ipAddress === testIp
+        (e) =>
+          e.category === "authorization" &&
+          e.action === "access_denied" &&
+          e.actor?.ipAddress === testIp
       );
 
       expect(authzEvents.length).toBeGreaterThanOrEqual(0);
@@ -1816,9 +1818,10 @@ describe("Audit logging for middleware security events", () => {
       // Verify events are tracked
       const securityEvents = queryAuditLogs({ limit: 20 });
       const authzEvents = securityEvents.filter(
-        (e) => e.category === "authorization" &&
-        e.action === "access_denied" &&
-        e.actor?.ipAddress === testIp
+        (e) =>
+          e.category === "authorization" &&
+          e.action === "access_denied" &&
+          e.actor?.ipAddress === testIp
       );
 
       expect(authzEvents.length).toBeGreaterThanOrEqual(0);
@@ -2047,9 +2050,7 @@ describe("Audit logging for middleware security events", () => {
       });
 
       const events = queryAuditLogs({ limit: 20 });
-      const chainEvents = events.filter(
-        (e) => e.metadata.correlationId === correlationId
-      );
+      const chainEvents = events.filter((e) => e.metadata.correlationId === correlationId);
 
       expect(chainEvents.length).toBe(3);
 

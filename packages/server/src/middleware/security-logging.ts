@@ -12,6 +12,7 @@
 
 import type { Context, MiddlewareHandler } from "hono";
 import { logger as structuredLogger } from "../observability/logger.js";
+import { addAuditEvent } from "./audit-log.js";
 
 /**
  * Security event severity levels.
@@ -77,17 +78,26 @@ function defaultLogFn(event: SecurityEvent): void {
 
   // Also log to audit log for compliance and long-term retention
   try {
-    const { addAuditEvent } = require("./audit-log.js");
     addAuditEvent({
       category: "security",
-      severity: event.severity === "critical" ? "error" : event.severity === "high" ? "error" : event.severity === "medium" ? "warning" : "info",
+      severity:
+        event.severity === "critical"
+          ? "error"
+          : event.severity === "high"
+            ? "error"
+            : event.severity === "medium"
+              ? "warning"
+              : "info",
       action: event.action,
       userId: event.userId,
       resourceId: event.resourceId,
       ipAddress: event.ip,
       path: event.path,
       method: event.method,
-      success: !event.action?.includes("failure") && !event.action?.includes("blocked") && !event.action?.includes("exceeded"),
+      success:
+        !event.action?.includes("failure") &&
+        !event.action?.includes("blocked") &&
+        !event.action?.includes("exceeded"),
       metadata: {
         userAgent: event.userAgent,
         statusCode: event.statusCode,
