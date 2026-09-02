@@ -5,12 +5,14 @@ mtamyway-7bd2a141) into the single authoritative reference for this umbrella.
 Covers: final IngressRoute rules table, service→deployment mappings,
 live-vs-manifest reconciliation, and the route-leakage verdict.
 
-**Date:** 2026-09-02 (live state re-read during consolidation)
+**Date:** 2026-09-02 (live state re-read during consolidation; §1–§2
+re-verified the same day under sub-child mtamyway-0b795445)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
 mtamyway-77ee82ce (manifest/router-config isolation) · child 3
-mtamyway-fab296c6 (this doc)
+mtamyway-fab296c6 (this doc), split into four section children — sub-child 1
+mtamyway-0b795445 covers §1–§2
 **Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
 read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
 cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
@@ -27,6 +29,16 @@ mta` → empty; `get all -n mta-my-way` → `No resources found`). Every mta-my-
 resource lives in the **apexalgo-iad** cluster, matching the manifest directory
 `declarative-config/k8s/apexalgo-iad/mta-my-way/`. All live state below was read
 from `http://traefik-apexalgo-iad:8001`.
+
+Re-verified under mtamyway-0b795445 (2026-09-02): the ardenone-cluster negative
+result still holds (`get ns | grep -i mta` and `get ingressroutes -A | grep -i
+mta` both empty; no mta `IngressRouteTCP`/`IngressRouteUDP` either — the only
+TCP route on either cluster is the unrelated `devpod-observer/kubectl-proxy-tcp`),
+and on apexalgo-iad the single IngressRoute still carries exactly the four rules
+of §2, with EndpointSlices at `mta-my-way` 0 endpoints, `mta-my-way-core` 3/3
+`ready=false`/`serving=false`, `mta-my-way-stateful` 1 not-ready endpoint
+(internal, unrouted), and `mta-my-way-sse` still the namespace's only
+middleware.
 
 ## 2. Final IngressRoute rules table
 
