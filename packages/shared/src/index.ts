@@ -331,6 +331,33 @@ export {
   type RetryResult,
 } from "./utils/retry.js";
 
+// HTTP response validation utilities
+export {
+  validateStatusCode,
+  validateStatusCodes,
+  validateStatusRange,
+  validateSuccess,
+  validateError,
+  validateRequiredHeaders,
+  validateHeaderValues,
+  validateForbiddenHeaders,
+  validateHeaders,
+  validateResponseTime,
+  validateResponse,
+  measureResponseTime,
+  getStatusDescription,
+  getStatusRange,
+  isRetryableStatus,
+  formatDuration,
+  formatValidationError,
+  formatValidationResults,
+  type ValidationResult,
+  type ResponseTiming,
+  type TimingValidationOptions,
+  type HeaderValidationOptions,
+  StatusRange,
+} from "./utils/response-validation.js";
+
 // Environment variable parsing utilities
 export { parseEnvBool, readShellEnv } from "./utils/env.js";
 export type { ShellEnvResult } from "./utils/env.js";

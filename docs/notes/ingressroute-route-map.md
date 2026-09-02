@@ -1,149 +1,267 @@
-# IngressRoute → Backend Route Map
+# MTA My Way — IngressRoute Rules, Service Mappings & Route-Isolation Verdict
 
-**Date:** 2026-09-02
-**Bead:** mtamyway-7bd2a141 (parent: mtamyway-6895e35e)
-**Method:** declarative-config manifests + read-only kubectl (`http://traefik-apexalgo-iad:8001`). No cluster mutation performed.
+**Consolidated document** — extends the earlier route-map writeup (bead
+mtamyway-7bd2a141) into the single authoritative reference for this umbrella.
+Covers: final IngressRoute rules table, service→deployment mappings,
+live-vs-manifest reconciliation, and the route-leakage verdict.
 
-## Scope correction: the routes live in `apexalgo-iad`, not `ardenone-cluster`
+**Date:** 2026-09-02 (live state re-read during consolidation)
+**Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
+mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
+`docs/notes/public-entrypoint-live-verification.md`) · child 2
+mtamyway-77ee82ce (manifest/router-config isolation) · child 3
+mtamyway-fab296c6 (this doc)
+**Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
+read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
+cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
+reports `docs/ingressroute-validation-findings.md` and
+`docs/api-health-route-isolation-report.md` (both still on disk — their removal
+is the follow-up child's job, not this one's).
 
-The task pointed at `http://traefik-ardenone-cluster:8001`. That cluster has **no**
-mta-my-way resources at all — no namespace, no IngressRoutes, no services
-(`get ns | grep -i mta` → empty; `get ingressroutes -A | grep -i mta` → empty;
-`get all -n mta-my-way` → `No resources found`). Every mta-my-way resource lives
-in the **apexalgo-iad** cluster, matching the manifest directory
+## 1. Scope correction: the routes live in `apexalgo-iad`, not `ardenone-cluster`
+
+The original task pointed at `http://traefik-ardenone-cluster:8001`. That
+cluster has **no** mta-my-way resources at all — no namespace, no IngressRoutes,
+no services (`get ns | grep -i mta` → empty; `get ingressroutes -A | grep -i
+mta` → empty; `get all -n mta-my-way` → `No resources found`). Every mta-my-way
+resource lives in the **apexalgo-iad** cluster, matching the manifest directory
 `declarative-config/k8s/apexalgo-iad/mta-my-way/`. All live state below was read
 from `http://traefik-apexalgo-iad:8001`.
 
-## Inventory
+## 2. Final IngressRoute rules table
 
-| Object | Kind | Age | Git manifest | Live == git? |
-|---|---|---|---|---|
-| `mta-my-way` (ns `mta-my-way`) | IngressRoute | 153d | `ingressroute.yaml` | yes (4 rules, TLS, annotations all match) |
-| `mta-my-way-sse` | Middleware | — | `ingressroute.yaml` | yes |
-| `mta-my-way` | Service :3000 | 153d | **removed from git** (monolith retire commits `4ac1d48d`, `b4c7faa8`, `cb0fd902`) | orphan |
-| `mta-my-way` | Deployment (0/0) | 153d | **removed from git** (same retire) | orphan |
-| `mta-my-way-core` | Service :3000 | 13d | `service-core.yaml` | yes |
-| `mta-my-way-core` | Deployment (0/2) | 13d | `deployment-core.yaml` | yes (`ronaldraygun/mta-my-way:0.0.289`) |
-| `mta-my-way-stateful` | Service :3001 | 13d | `service-stateful.yaml` | yes |
-| `mta-my-way-stateful` | Deployment (0/1) | 13d | `deployment-stateful.yaml` | yes (`ronaldraygun/mta-my-way:0.0.289`) |
+There is exactly **one** IngressRoute — `mta-my-way/mta-my-way` — and no
+separate "stateful" IngressRoute exists. Searched: every live IngressRoute in
+apexalgo-iad (`get ingressroutes -A` filtered on "mta"), every
+`IngressRouteTCP/UDP` (none), the whole declarative-config tree (`grep -rnil
+mta` → only `k8s/apexalgo-iad/mta-my-way/ingressroute.yaml`), and full git
+history for ever-added `*mta*` manifests. The "public vs stateful" split lives
+at the **service** level, not the ingress level.
 
-**There is exactly ONE IngressRoute — no separate "stateful" IngressRoute exists.**
-Searched: every live IngressRoute in apexalgo-iad (`get ingressroutes -A`, filtered
-by host/service name containing "mta" → only `mta-my-way/mta-my-way`), every
-`IngressRouteTCP/UDP` (none), the whole declarative-config tree (`grep -rnil mta`
-→ only `k8s/apexalgo-iad/mta-my-way/ingressroute.yaml`), and full git history for
-ever-added `*mta*` manifests (only that one `ingressroute.yaml` ever existed).
-The "public vs stateful" split is at the **service** level, not the IngressRoute
-level: the stateful subsystem is internal-only, reached by core through
-`STATEFUL_SERVICE_URL=http://mta-my-way-stateful:3001` (`deployment-core.yaml:71`),
-never through any ingress rule. The parent bead's expected rule set
-(`/api/arrivals` public / `/auth`, `/session`, `/admin` stateful) does not match
-the live configuration.
+Shared by all rules: host `mtamyway.com` · entryPoints `websecure` · TLS
+`certResolver: letsencrypt`. Annotations: `external-dns…/hostname:
+mtamyway.com`, `…/target: cef7d924-cd61-43dc-89ad-1df7de2699bf.cfargotunnel.com`,
+`…/ttl: "300"`.
 
-## Route rules (all 4, both "public" and "stateful" backends)
+| # | Path match | Middlewares | Target service | Port | Backend state (live) | Predicted live result * |
+|---|---|---|---|---|---|---|
+| 1 | `PathPrefix(/push/)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** (152+ days) | 502/503 from Traefik (no upstream) |
+| 2 | `PathPrefix(/auth/)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** | 502/503 from Traefik |
+| 3 | `PathPrefix(/password-reset/)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** | 502/503 from Traefik |
+| 4 | catch-all — everything else: `/`, `/arrivals`, `/stations`, `/alerts`, PWA assets, **and** the app's real `/api/*` paths | `mta-my-way-sse` (headers: `X-Accel-Buffering: no`, `Cache-Control: no-cache`) | `mta-my-way-core` | 3000 | **UNHEALTHY — 3 endpoints, all `ready=false`/`serving=false`** | 502/503 from Traefik |
 
-Host for every rule: `mtamyway.com` · entryPoints: `websecure` · TLS: `certResolver: letsencrypt`
-Annotations: `external-dns…/hostname: mtamyway.com`, `…/target: cef7d924-cd61-43dc-89ad-1df7de2699bf.cfargotunnel.com`, `…/ttl: "300"`
+\* "Predicted" because live HTTP responses cannot be observed today — the host
+does not resolve (§6). Traefik returns a gateway error when a routed service
+has no ready endpoints; the exact code depends on Traefik version/config, hence
+502 **or** 503.
 
-| # | Path match | Middlewares | Target service | Port | Backend state |
-|---|---|---|---|---|---|
-| 1 | `PathPrefix(/push/)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** |
-| 2 | `PathPrefix(/auth/)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** |
-| 3 | `PathPrefix(/password-reset/)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** |
-| 4 | (catch-all — everything else: `/`, `/arrivals`, `/stations`, `/alerts`, PWA assets) | `mta-my-way-sse` (headers: `X-Accel-Buffering: no`, `Cache-Control: no-cache`) | `mta-my-way-core` | 3000 | **UNHEALTHY — 2 endpoints, both `ready=false`** |
+Single middleware in the namespace, attached only to rule 4:
+`mta-my-way-sse` → `spec.headers.customRequestHeaders: {X-Accel-Buffering:
+"no"}`, `customResponseHeaders: {X-Accel-Buffering: "no", Cache-Control:
+"no-cache"}` (live spec identical to `ingressroute.yaml`).
 
 `mta-my-way-stateful` (:3001) appears in **no** rule — internal only, by design.
 
-## Live backend state (read 2026-09-02)
-
-| Backend | Endpoints | Backing pods | Evidence |
-|---|---|---|---|
-| `mta-my-way` :3000 | **none** (EndpointSlice `mta-my-way-bm49w` has `endpoints: []`) | none — Deployment 0/0; all 7 ReplicaSets `DESIRED 0` (newest 37d old) | Service is an ArgoCD orphan: its manifest was deleted from git (monolith retire), but the live object was never pruned. Service age 153d corroborates the prior "no endpoints 152+ days" finding. |
-| `mta-my-way-core` :3000 | 2, **both `ready: false`, `serving: false`** | `…-xkztj` 10.20.74.99 Running but **CrashLoopBackOff** (51 restarts); `…-7ftcx` 10.20.74.82 **ImagePullBackOff**; `…-hdg4b` no IP, **Pending** — `0/3 nodes available: 3 Insufficient cpu` | Rollout stuck: 3 ReplicaSets (0.0.289, plus older) all coexist at 1 desired. |
-| `mta-my-way-stateful` :3001 | 1, **`ready: false`** | `…-xglg5` 10.20.74.74 **ImagePullBackOff** | Not ingress-referenced, but core's stateful proxying depends on it, so it is equally down. |
-
-### Root causes behind the unhealthy pods
-
-1. **CrashLoop (core):** image `0.0.289` is missing a build artifact — container
-   exits immediately with `ERR_MODULE_NOT_FOUND:
-   file:///app/packages/server/dist/proto/compiled.js` (from `kubectl logs`, current
-   and `--previous`, identical). The image is broken, not the node.
-2. **ImagePullBackOff (core + stateful):** nodes rewrite
-   `ronaldraygun/mta-my-way:0.0.289` to `localhost:7439/ronaldraygun/mta-my-way:0.0.289`
-   (node-local registry mirror) and the mirror answers **not found** for `0.0.289`
-   (`Failed to pull image … not found`). One core pod only starts because the image
-   is cached on its node — and then hits cause 1.
-3. **Pending (core):** insufficient CPU on all 3 nodes; cannot schedule even the
-   broken image.
-
-## Additional findings (beyond backend liveness)
-
-### A. Ingress is unreachable from the internet: the domain is NXDOMAIN
-
-- `dig mtamyway.com A` → **status: NXDOMAIN**; `dig mtamyway.com NS` → empty with
-  `com. SOA` in authority — the name has **no delegation at all** (unregistered or
-  never delegated to Cloudflare).
-- The external-dns target `cef7d924-….cfargotunnel.com` → **NOERROR with zero
-  answers** (NODATA) — no DNS record exists for that tunnel UUID either.
-- The cluster's external-dns for this cluster is down:
-  `utilities/external-dns-apexalgo-iad-6ffc7c97b-vgb2z` is `0/1
-  CreateContainerConfigError` for **4d16h**. Even with the domain delegated, no
-  record would be created. (The other instance, `externaldns-ardenone-com`, is
-  Running — it manages a different zone.)
-- cloudflared itself is healthy (3× `Running` in `traefik`), running token-based
-  (`--token`), so its ingress config comes from the Cloudflare dashboard, not the
-  cluster configmap. The tunnel leg is fine once DNS exists.
-
-### B. ArgoCD has stopped reconciling the app entirely
-
-`argocd/mta-my-way`: sync `Unknown`, health `Unknown`, condition
-`InvalidSpecError: error getting cluster by server
-"https://hcp-99476ebb-4133-4a21-ac6a-6e2bdf6794c0.spot.rackspace.com": cluster … not found`.
-The Rackspace Spot control-plane endpoint ArgoCD has registered no longer exists.
-Consequences visible in the cluster: the retired monolith Deployment/Service are
-still live, three core ReplicaSets coexist mid-rollout, and no git fix (including
-the monolith retire) has reached the cluster. **Every remediation below depends on
-fixing this first.**
-
-### C. Path mismatch: three routes target paths the app does not serve
+### Path mismatch (rules vs what the app serves)
 
 The app registers everything under `/api/*` (`packages/server/src/app.ts`:
-`/api/push/*`, `/api/auth/*`, `/api/auth/password`, `/api/push/vapid-public-key`,
-password-reset routes) plus `/health` at the root. Routes 1–3 match `/push/`,
-`/auth/`, `/password-reset/` — with no `stripPrefix`/rewrite middleware, so even a
-healthy legacy backend would have returned 404 for every request those rules
-capture. The correct prefixes are `/api/push/`, `/api/auth/`, `/api/auth/password-reset/`
-(or a catch-all `/api/` split). Confirms and extends the mismatch noted in
-`docs/ingressroute-validation-findings.md`.
+`/api/push/*`, `/api/auth/*`, `/api/auth/password/*` at `app.ts:2935–2968`,
+`/api/trips*`, `/api/journal/*`) plus `/health` and `/api/health` at their own
+paths. Rules 1–3 match `/push/`, `/auth/`, `/password-reset/` — with no
+`stripPrefix`/rewrite middleware, so even a healthy legacy backend would have
+returned 404 for every request those rules capture. The correct prefixes are
+`/api/push/`, `/api/auth/`, `/api/auth/password-reset/` (or a catch-all `/api/`
+split). The parent bead's expected rule set (`/api/arrivals` public /
+`/auth`, `/session`, `/admin` stateful) also does not match the live config.
 
-## Net effect
+## 3. Service → deployment mapping
 
-**Zero of the four rules can serve traffic.** Rules 1–3 target a service with no
-endpoints; rule 4 targets pods that are CrashLooping/pull-failing/Pending; and the
-host `mtamyway.com` does not resolve in DNS regardless.
+All three services and their backing deployments, live state as of the
+consolidation re-read:
 
-## Recommended remediation (ordered by dependency)
+| Service (live) | Port | Selector | Backing Deployment | Replicas desired/ready | Image | Manifest in git? | Referenced by IngressRoute? |
+|---|---|---|---|---|---|---|---|
+| `mta-my-way` | 3000 | `app.kubernetes.io/name=mta-my-way` | `mta-my-way` (legacy monolith) | 0 / 0 (all 7 ReplicaSets desired 0) | `ronaldraygun/mta-my-way:0.0.82` | **No** — deleted in monolith retire (`cb0fd902`, `4ac1d48d`, `b4c7faa8`) | Yes — rules 1–3 (dead backend) |
+| `mta-my-way-core` | 3000 | `app.kubernetes.io/name=mta-my-way-core` | `mta-my-way-core` | 2 / 0 | `ronaldraygun/mta-my-way:0.0.289` | Yes — `service-core.yaml`, `deployment-core.yaml` | Yes — rule 4 (catch-all) |
+| `mta-my-way-stateful` | 3001 | `app.kubernetes.io/name=mta-my-way-stateful` | `mta-my-way-stateful` | 1 / 0 | `ronaldraygun/mta-my-way:0.0.289` | Yes — `service-stateful.yaml`, `deployment-stateful.yaml` | **No — internal only** |
+
+### Environment wiring (the internal-only stateful path)
+
+| Deployment | Key env (manifest = live) | Meaning |
+|---|---|---|
+| `mta-my-way-core` | `CORE_ONLY=true`, `STATEFUL_SERVICE_URL=http://mta-my-way-stateful:3001` (`deployment-core.yaml:67`,`:70`) | Stateless tier. Never mounts push/trips/journal routes (`app.ts:2014`, `app.ts:2179`); reaches the stateful subsystem only over cluster-internal DNS via `STATEFUL_SERVICE_URL` (`packages/server/src/services/stateful-client.ts:31–32`) |
+| `mta-my-way-stateful` | `CORE_ONLY=false`, `PORT=3001` (`deployment-stateful.yaml:60`,`:63`) | Stateful tier (SQLite single-writer, `replicas: 1`, PVC + Recreate) |
+
+## 4. Live-vs-manifest reconciliation
+
+| Object | Git manifest | Live | Agreement |
+|---|---|---|---|
+| IngressRoute `mta-my-way` | `ingressroute.yaml` (4 rules, TLS, annotations) | Identical — `last-applied-configuration` annotation matches the current manifest, and a manual spec diff is clean | ✅ match |
+| Middleware `mta-my-way-sse` | `ingressroute.yaml` | Spec matches | ✅ match |
+| Service + Deployment `mta-my-way` (legacy) | **Removed from git** (monolith retire) | **Still live** (age 153d, deployment 0/0, service no endpoints) | ❌ **orphan** — ArgoCD cannot prune it (see InvalidSpecError below) |
+| Service + Deployment `mta-my-way-core` | `service-core.yaml` / `deployment-core.yaml` (:3000, replicas 2, env above) | Matches (selector/ports/env/image) | ✅ match |
+| Service + Deployment `mta-my-way-stateful` | `service-stateful.yaml` / `deployment-stateful.yaml` (:3001, replicas 1, env above) | Matches | ✅ match |
+| Rollout state | One desired ReplicaSet per deployment | **Three `mta-my-way-core` ReplicaSets simultaneously at `DESIRED 1`** (`6bd9f88b54`, `7fbcbdb69c`, `9b48f8bdc`) + three older at 0 | ❌ stuck mid-rollout — no pod ever became ready, so the rollout never advanced |
+| external-dns record | Annotation targets the Cloudflare tunnel UUID | `mtamyway.com` **NXDOMAIN**; tunnel UUID has **no record**; `external-dns-apexalgo-iad` pod `0/1 CreateContainerConfigError` for **4d18h** (re-verified) | ❌ annotation never materialized |
+| ArgoCD app `mta-my-way` | managed by declarative-config | sync `Unknown`, health `Unknown`, condition `InvalidSpecError: error getting cluster by server "https://hcp-99476ebb-….spot.rackspace.com": cluster … not found` (re-verified) | ❌ **reconciliation stopped entirely** — no git change (including the monolith retire) has reached the cluster |
+
+Live pod detail (re-read during consolidation; shifted slightly since the first
+read): core pods `…-xkztj` CrashLoopBackOff (75 restarts, exit
+`ERR_MODULE_NOT_FOUND: file:///app/packages/server/dist/proto/compiled.js` —
+broken image, not broken node), `…-7ftcx` ImagePullBackOff (node rewrites the
+image to `localhost:7439/…` and the local registry mirror answers **not found**
+for `0.0.289`), `…-hdg4b` was Pending on insufficient CPU at first read and has
+since scheduled onto another node and joined the CrashLoop (12 restarts).
+Stateful pod `…-xglg5` ImagePullBackOff — not ingress-referenced, but core's
+stateful proxying depends on it, so it is equally down.
+
+## 5. Route-leakage verdict
+
+**Verdict: no leakage of the stateful subsystem through the public host —
+PROVEN at the router-config/manifest level. Live HTTP confirmation BLOCKED,
+with the blocker evidence in §6 (this is the umbrella's sanctioned fallback
+path).**
+
+What decides it:
+
+1. **The stateful service is in no router rule — proven by exhaustive
+   enumeration.** The cluster has exactly one IngressRoute (§2), verified
+   live and matching git. It references exactly two services: `mta-my-way`
+   (:3000, rules 1–3) and `mta-my-way-core` (:3000, rule 4). `mta-my-way-stateful`
+   (:3001) appears in no rule, in no other IngressRoute/IngressRouteTCP/UDP in
+   the cluster, and in no manifest in git. Traefik routes only to services named
+   in rules, so **no public request can reach `mta-my-way-stateful` through the
+   router** — this is a property of the router config, not of request outcomes.
+2. **The app's real stateful paths fall to core, which does not serve them.**
+   `/api/push/*`, `/api/trips*`, `/api/journal/*` (and `/api/auth/*` beyond the
+   password endpoints) match the catch-all → `mta-my-way-core`, which runs
+   `CORE_ONLY=true` and never mounts those routes (`app.ts:2014`, `:2179`) —
+   404 at the application. Core's only bridge to stateful is
+   `STATEFUL_SERVICE_URL` over cluster-internal DNS, reachable only from inside
+   the cluster.
+3. **Caveat A — the legacy stateful-ish paths *are* routed, but to a dead
+   backend.** `/push/`, `/auth/`, `/password-reset/` have rules pointing at
+   `mta-my-way`, which has had zero endpoints for 152+ days. Predicted outcome
+   is a Traefik 502/503 — i.e. no data exposure, but for "backend is dead"
+   reasons rather than isolation reasons. Even if revived, the legacy
+   deployment runs image `0.0.82`, which predates the current app's route set.
+4. **Caveat B — live HTTP could not be observed at all.** Child 1's curl attempt
+   (`docs/notes/public-entrypoint-live-verification.md`) hit the documented
+   completable-blocker outcome: all 12 public and stateful paths fail at DNS
+   resolution (curl exit 6, `http_code=000`). "Stateful paths return no 2xx" is
+   therefore **trivially true today but vacuous** — nothing resolves, so no
+   path of any kind returns anything. The non-vacuous isolation proof is the
+   router-config enumeration in point 1 plus the application-level
+   route-mounting verified in code (`CORE_ONLY` conditional mounting,
+   `app.ts:2014`, `:2179`).
+
+## 6. Remaining blockers (why live verification is impossible today)
+
+1. **DNS — the public host does not exist because the domain is not
+   registered.** `mtamyway.com` is NXDOMAIN on three independent resolvers, has
+   **no NS delegation**, and the Verisign .com registry RDAP returns **404** —
+   the domain is **not registered** (child 1's RDAP evidence, root cause of the
+   DNS failure). The external-dns target
+   `cef7d924-….cfargotunnel.com` also has zero answers — no record for the
+   tunnel UUID. `cloudflared` itself is healthy (3× Running in `traefik`,
+   token-based), so the tunnel leg works once DNS exists.
+2. **external-dns for this cluster is down.** `utilities/external-dns-apexalgo-iad-6ffc7c97b-vgb2z`
+   is `0/1 CreateContainerConfigError` for 4d18h (re-verified) — likely a
+   missing/misnamed secret key in its env. Even with the domain registered and
+   delegated, no record would be created. (The other instance,
+   `externaldns-ardenone-com`, is Running — it manages a different zone.)
+3. **No healthy backend behind any rule.** Legacy: 0 endpoints, 153d. Core: 0/2
+   ready — one pod CrashLooping on a broken image (missing
+   `dist/proto/compiled.js`), one pull-failing on the `localhost:7439` registry
+   mirror, one CPU-starved until it could schedule and then CrashLooping too.
+   Stateful: ImagePullBackOff.
+4. **ArgoCD has stopped reconciling the app.** `InvalidSpecError` — the
+   registered Rackspace Spot control-plane URL no longer exists. Consequences
+   visible in the cluster: the retired monolith Deployment/Service are still
+   live, three core ReplicaSets coexist mid-rollout, and no git fix has reached
+   the cluster. **Every remediation depends on fixing this first.**
+
+## 7. Umbrella acceptance criteria — verified live vs manifest level
+
+Umbrella mtamyway-d26515d5, criterion by criterion:
+
+| # | Criterion | Outcome | Level |
+|---|---|---|---|
+| 1 | curl-based verification against the public entrypoint: public paths return expected success statuses; stateful paths on the public host do not route | **Half-blocked, half-vacuous.** Child 1 executed the curls — all 12 paths fail at DNS (exit 6, `http_code=000`), so the success-status half is **unachievable** and the do-not-route half passes only **vacuously** (nothing resolves). Evidence: `docs/notes/public-entrypoint-live-verification.md`. | attempted live; blocked by DNS |
+| 2 | If live verification is blocked, record the blocker with evidence and verify at the manifest/router-config level instead | **DONE.** Blockers recorded with fresh evidence (§6); router-config isolation verified (§2, §5). | **manifest/router-config** |
+| 3 | Consolidated document with the final rules table, service mappings, route-leakage verdict | **DONE** — this document (§2, §3, §5). | manifest + live read |
+| 4 | The two prior ad-hoc reports are reconciled or superseded by the consolidated doc | **DONE** — reconciled in §8. Physical deletion deliberately deferred to the follow-up child per the split plan. | n/a |
+
+Child-level roll-up: child 1 (live entrypoint) → executed, closed on the
+documented blocker path with `docs/notes/public-entrypoint-live-verification.md`;
+child 2 (manifest/router-config isolation) → done, findings folded into
+§2/§4/§5; child 3 (this doc) → consolidation; child 4 → delete the two ad-hoc
+reports.
+
+## 8. Reconciliation of the two ad-hoc reports
+
+### `docs/ingressroute-validation-findings.md` (2026-09-01, bead mtamyway-6895e35e)
+
+Consistent with this document — no endpoints for 152+ days, path mismatch,
+unhealthy deployments. **Superseded by this doc** (which adds the exhaustive
+single-IngressRoute proof, the exact rules/middlewares, the ArgoCD/DNS blockers,
+and the verdict). One correction to carry forward: its "Zero-Scale Deployments"
+is imprecise — only the legacy monolith is truly scaled to zero (`0/0` desired).
+Core and stateful have non-zero *desired* replicas (2 and 1) and **zero ready
+pods** because of CrashLoop/ImagePull failures. Scaling up is not the fix;
+fixing the image, the registry mirror, and scheduling is.
+
+### `docs/api-health-route-isolation-report.md` (2026-09-01)
+
+Two different reliability tiers in one document:
+
+- **Application-level claims — valid, grounded in code.** The `CORE_ONLY`
+  conditional mounting (`app.ts:2014`, `:2179`; `config.ts:58`), the
+  auth/CSRF/same-origin/rate-limit/validation layers, and the endpoint
+  inventory match the codebase. Its e2e test claims apply to the application
+  process, not to the public entrypoint.
+- **Routing-level claims — wrong, superseded by this doc.** Its "Traffic
+  Splitting Architecture" section describes rules `/api/push/*` → full
+  deployment, `/api/trips*` → full, `/api/journal/*` → full, `/api/auth/*` →
+  full, `/*` → core. **No such IngressRoute exists.** The real rules are §2:
+  `/push/`, `/auth/`, `/password-reset/` → the retired legacy service (dead),
+  catch-all → core. Its "✅ All public API endpoints healthy" verdict likewise
+  does not apply to the live public entrypoint, which has no DNS and no healthy
+  backend — that verdict can only have come from tests against a locally run
+  server.
+
+Both files remain on disk untouched; the follow-up child deletes them once this
+document lands.
+
+## 9. Recommended remediation (ordered by dependency)
 
 1. **Re-register the apexalgo-iad cluster in ArgoCD** (its control-plane URL
    changed) so reconciliation resumes; prune the orphaned monolith
    Deployment/Service once sync works.
-2. **Fix the image:** make `0.0.289`+ include `packages/server/dist/proto/compiled.js`
-   (build step emitting `dist/proto/`), and populate/repair the node-local registry
-   mirror at `localhost:7439` (or drop the mirror) so new tags are pullable.
-3. **Fix core scheduling:** free or request less CPU on apexalgo-iad nodes so the
-   core pod schedules.
-4. **Fix external-dns** (`CreateContainerConfigError` — likely a missing/misnamed
-   secret key in its env) and delegate `mtamyway.com` to Cloudflare so the
-   external-dns annotation can create the tunnel CNAME.
-5. **Correct the route paths** to the app's real `/api/…` prefixes (and consider
-   re-pointing rules 1–3 at `mta-my-way-core`, which already proxies stateful calls
-   to `mta-my-way-stateful:3001` — the legacy service should then be deleted, not
-   revived).
+2. **Fix the image:** make `0.0.289`+ include
+   `packages/server/dist/proto/compiled.js` (build step emitting `dist/proto/`),
+   and populate/repair the node-local registry mirror at `localhost:7439` (or
+   drop the mirror) so new tags are pullable.
+3. **Fix core scheduling:** free or request less CPU on apexalgo-iad nodes so
+   the core pod schedules reliably.
+4. **Register and delegate `mtamyway.com`, and fix external-dns**
+   (`CreateContainerConfigError`) so the external-dns annotation can create the
+   tunnel CNAME. Registration is a registrar purchase — an operator action.
+5. **Correct the route paths** to the app's real `/api/…` prefixes (and
+   consider re-pointing rules 1–3 at `mta-my-way-core`, which already proxies
+   stateful calls to `mta-my-way-stateful:3001` — the legacy service should then
+   be deleted, not revived).
+6. **Only then re-run live curl verification** against the public entrypoint to
+   convert §5's router-config-level verdict into live-HTTP evidence.
 
-## Evidence commands
+## 10. Evidence commands
 
 All read-only, against `http://traefik-apexalgo-iad:8001`:
-`get ingressroutes/middlewares/services/endpointslices/deployments/pods/events -n mta-my-way`,
-`get applications -n argocd mta-my-way -o json`, `logs <pod> [-n mta-my-way] [--previous]`,
-`get pods -A | grep external-dns|cloudflared`. DNS via `dig` (default resolver and
-`@1.1.1.1`). Manifests read from `declarative-config/k8s/apexalgo-iad/mta-my-way/`.
+`get ingressroutes/middlewares/services/endpointslices/deployments/replicasets/pods/events -n mta-my-way`,
+`get applications -n argocd mta-my-way -o json`,
+`logs <pod> -n mta-my-way [--previous]`,
+`get pods -n utilities | grep external-dns`. DNS via `dig` (default resolver
+and `@1.1.1.1`); registration via Verisign .com RDAP. Manifests read from
+`declarative-config/k8s/apexalgo-iad/mta-my-way/`. App routes:
+`packages/server/src/app.ts`, `packages/server/src/config.ts`,
+`packages/server/src/services/stateful-client.ts`.
