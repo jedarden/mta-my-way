@@ -54,6 +54,42 @@
  * - createFetchMock: Create fetch mock for testing (accepts array of url/response pairs with optional method)
  * - assertFetchCalled: Assert fetch was called with specific url and options
  *
+ * **API Response Helpers** (./api-response-helpers.ts)
+ * - assertSuccessStatus: Assert response has successful status (2xx)
+ * - assertStatus: Assert response has specific status code
+ * - assertClientErrorStatus: Assert response has client error status (4xx)
+ * - assertServerErrorStatus: Assert response has server error status (5xx)
+ * - assertStatusInRange: Assert response is one of allowed status codes
+ * - assertNotFound: Assert response is not found (404)
+ * - assertBadRequest: Assert response is bad request (400)
+ * - parseJson: Parse JSON response body safely
+ * - assertJsonResponse: Assert response is valid JSON
+ * - assertArrayResponse: Assert response body is an array
+ * - assertObjectResponse: Assert response body is an object
+ * - assertHasProperties: Assert object has required properties
+ * - assertPropertyType: Assert property has specific type
+ * - assertArrayItemsHaveProperties: Assert all items in array have required properties
+ * - assertNonEmptyString: Assert string is non-empty
+ * - assertNumberInRange: Assert number is within valid range
+ * - assertNonEmptyArray: Assert array is non-empty
+ * - expectSuccessResponse: Test successful API response pattern
+ * - expectErrorResponse: Test error response pattern
+ * - expectPaginatedResponse: Test paginated response pattern
+ * - expectHealthResponse: Test health endpoint response pattern
+ * - logApiResponse: Log request/response details for debugging
+ * - logTestSection: Log test suite section headers
+ * - createDebugLogger: Create a debug logger for a specific test context
+ * - assertPerformance: Assert operation completed within maximum time
+ * - measurePerformance: Measure execution time of an async function
+ * - createPerformanceTester: Create a performance test helper
+ * - validateStationStructure: Validate station response structure
+ * - validateRouteStructure: Validate route response structure
+ * - validateAlertStructure: Validate alert response structure
+ * - validateArrivalStructure: Validate arrival response structure
+ * - validateTransferStructure: Validate transfer connection structure
+ * - runEndpointTests: Run assertions against multiple endpoints
+ * - createEndpointTestSuite: Create a test suite builder for consistent endpoint testing
+ *
  * **Rate Limiter Harness** (./rate-limiter-harness.ts)
  * - type AuthVars: Type for authentication test variables
  * - IP_A, IP_B: Test IP addresses (127.0.0.1, 127.0.0.2)
@@ -84,7 +120,7 @@
  *
  * **Usage Example:**
  * ```ts
- * import { MockLogger, assertLogged, createInMemoryDatabase, seedTestData, createTestContext, API_ENDPOINTS } from './test';
+ * import { MockLogger, assertLogged, createInMemoryDatabase, seedTestData, createTestContext, API_ENDPOINTS, assertSuccessResponse, validateStationStructure } from './test';
  *
  * const logger = new MockLogger();
  * logger.info('test message', { key: 'value' });
@@ -97,6 +133,11 @@
  *
  * const testContext = createTestContext();
  * const url = buildUrl(API_ENDPOINTS.stations, testContext.baseUrl);
+ *
+ * // Test an endpoint with new helpers
+ * const response = await app.request('/api/stations/101');
+ * const station = await expectSuccessResponse(response);
+ * validateStationStructure(station);
  * ```
  */
 
@@ -165,6 +206,53 @@ export {
   createFetchMock,
   assertFetchCalled,
 } from "./http.js";
+
+// ============================================================================
+// API Response Helpers
+// ============================================================================
+export {
+  // Response Status Assertion Helpers
+  assertSuccessStatus,
+  assertStatus,
+  assertClientErrorStatus,
+  assertServerErrorStatus,
+  assertStatusInRange,
+  assertNotFound,
+  assertBadRequest,
+  // Response Structure/Data Type Validators
+  parseJson,
+  assertJsonResponse,
+  assertArrayResponse,
+  assertObjectResponse,
+  assertHasProperties,
+  assertPropertyType,
+  assertArrayItemsHaveProperties,
+  assertNonEmptyString,
+  assertNumberInRange,
+  assertNonEmptyArray,
+  // Common Test Patterns
+  expectSuccessResponse,
+  expectErrorResponse,
+  expectPaginatedResponse,
+  expectHealthResponse,
+  // Logging/Debugging Helpers
+  logApiResponse,
+  logTestSection,
+  createDebugLogger,
+  // Performance Assertion Helpers
+  assertPerformance,
+  measurePerformance,
+  createPerformanceTester,
+  // Endpoint-Specific Validation Helpers
+  validateStationStructure,
+  validateRouteStructure,
+  validateAlertStructure,
+  validateArrivalStructure,
+  validateTransferStructure,
+  // Batch Test Helpers
+  runEndpointTests,
+  createEndpointTestSuite,
+} from "./api-response-helpers.js";
 
 // ============================================================================
 // Rate Limiter Harness
