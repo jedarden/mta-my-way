@@ -38,7 +38,8 @@ and on apexalgo-iad the single IngressRoute still carries exactly the four rules
 of §2, with EndpointSlices at `mta-my-way` 0 endpoints, `mta-my-way-core` 3/3
 `ready=false`/`serving=false`, `mta-my-way-stateful` 1 not-ready endpoint
 (internal, unrouted), and `mta-my-way-sse` still the namespace's only
-middleware.
+middleware. Its `last-applied-configuration` annotation still matches the
+current `ingressroute.yaml` spec, so live and git agree at this re-read too.
 
 ## 2. Final IngressRoute rules table
 
