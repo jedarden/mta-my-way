@@ -46,3 +46,6 @@ test-results/
 
 # Needle worker state (runtime artifacts)
 .needle/.beads/.bf_history/
+
+# NEEDLE execution traces are local diagnostics.
+**/.beads/traces/
