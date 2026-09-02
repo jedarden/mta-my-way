@@ -18,3 +18,6 @@ export * from "./security-helpers";
 
 // Observability testing utilities
 export * from "./observability-helpers";
+
+// Response validation utilities
+export * from "./response-validation";
