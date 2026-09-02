@@ -72,9 +72,19 @@
  * - resetRateLimiter: Reset rate limiter state
  * - setRateLimiterTestMode: Set rate limiter test mode
  *
+ * **API Endpoint Configuration** (./api-endpoint-config.ts)
+ * - API_ENDPOINTS: Object containing all API endpoint paths
+ * - TIMEOUTS: Timeout configuration for different endpoint categories
+ * - RETRY_CONFIG: Retry configuration for failed requests
+ * - createTestContext: Create test context for API endpoint testing
+ * - getBaseUrl: Get base URL for current environment
+ * - buildUrl: Build full URL for an endpoint
+ * - getTimeoutForEndpoint: Get timeout for a specific endpoint
+ * - isTestMode: Check if running in test mode
+ *
  * **Usage Example:**
  * ```ts
- * import { MockLogger, assertLogged, createInMemoryDatabase, seedTestData } from './test';
+ * import { MockLogger, assertLogged, createInMemoryDatabase, seedTestData, createTestContext, API_ENDPOINTS } from './test';
  *
  * const logger = new MockLogger();
  * logger.info('test message', { key: 'value' });
@@ -84,6 +94,9 @@
  * seedTestData(db, {
  *   users: [{ id: 1, name: 'Alice' }],
  * });
+ *
+ * const testContext = createTestContext();
+ * const url = buildUrl(API_ENDPOINTS.stations, testContext.baseUrl);
  * ```
  */
 
@@ -175,3 +188,49 @@ export {
   resetRateLimiter,
   setRateLimiterTestMode,
 } from "./rate-limiter-harness.js";
+
+// ============================================================================
+// API Endpoint Configuration
+// ============================================================================
+export {
+  // Types
+  type TestEnvironment,
+  type ApiTestContext,
+  // Environment
+  currentEnvironment,
+  isEnvironment,
+  isTestMode,
+  // Base URLs
+  BASE_URL,
+  BASE_URLS,
+  getBaseUrl,
+  getBaseUrlForEnvironment,
+  // Endpoint paths
+  API_ENDPOINTS,
+  ALL_ENDPOINTS,
+  ENDPOINT_PATTERNS,
+  // Timeouts
+  TIMEOUTS,
+  getTimeoutForEndpoint,
+  // Retry configuration
+  RETRY_CONFIG,
+  calculateRetryDelay,
+  isRetryableStatusCode,
+  isRetryableError,
+  // Test context
+  createTestContext,
+  createTestContextForEnvironment,
+  createHealthTestContext,
+  createRealtimeTestContext,
+  createComplexTestContext,
+  // Environment configuration
+  getEnvironmentConfig,
+  // Endpoint categories
+  ENDPOINT_CATEGORIES,
+  getEndpointCategory,
+  // Utilities
+  buildUrl,
+  buildUrlWithPathParams,
+  buildUrlWithQueryParams,
+  isValidEndpoint,
+} from "./api-endpoint-config.js";
