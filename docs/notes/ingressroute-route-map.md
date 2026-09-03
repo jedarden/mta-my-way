@@ -933,3 +933,59 @@ the one open sibling mtamyway-7bd2a141 remains the only item that could be
 cited against the parent, and the §9 list remains genuinely outstanding but
 outside both beads' scope. Closing either bead is still the harness's
 decision and was not taken here.
+
+### Re-verification on fourth re-dispatch (2026-09-03 19:14–19:27 UTC, mtamyway-8ccd3076)
+
+The addendum was re-verified fresh once more at a fourth dispatch — same
+read-only toolset (kubectl at `http://traefik-apexalgo-iad:8001`, `dig`,
+Verisign .com RDAP, on-disk hashes), no cluster mutation — and **every
+load-bearing claim above holds, with zero corrections this time**:
+
+- **Router config — unchanged, exact structural equality again.** Cluster-wide
+  enumeration re-counts the same **21 IngressRoutes, 2 IngressRouteTCP, 0
+  IngressRouteUDP**; the only mta-referencing route is still
+  `mta-my-way/mta-my-way`, its four rules re-dumped live cell-for-cell the §2
+  table (three path rules → `mta-my-way:3000`, catch-all →
+  `mta-my-way-core:3000` behind `mta-my-way-sse`), TLS `letsencrypt`, and
+  `mta-my-way-stateful` in **zero** HTTP, TCP or UDP rules cluster-wide. The
+  live spec was re-diffed leaf-by-leaf against `ingressroute.yaml` —
+  **19/19 IngressRoute leaves and 3/3 `mta-my-way-sse` leaves, zero
+  live-only, zero manifest-only, zero value diffs** — and the live-only
+  `argocd.argoproj.io/tracking-id` annotation is still present (metadata
+  only).
+- **DNS/RDAP — unchanged.** `mtamyway.com` returns zero A, AAAA and NS
+  answers on the default resolver and on `@1.1.1.1` and `@9.9.9.9`; the
+  tunnel UUID `cef7d924-cd61-43dc-89ad-1df7de2699bf.cfargotunnel.com` has zero
+  A answers and its AAAA is still the non-routable ULA wildcard
+  `fd10:aec2:5dae::` — answered identically for a fabricated name re-checked
+  this pass, exactly as the §6 correction characterizes it. Verisign .com
+  RDAP still answers **HTTP 404** via the exit-56 truncated-read signature —
+  still unregistered. Live evidence still does **not** exist; no
+  evidence-level upgrade is available and the §5 verdict remains unchanged.
+- **Backends — still zero ready, and the 18:43-UTC stateful shape is still
+  current.** Legacy `mta-my-way` 0/0 with v1 Endpoints holding no subsets;
+  core 0 ready / 3 not-ready endpoints (one CrashLoopBackOff, one
+  ImagePullBackOff, one Error-phase churn; restart counts now 18/18/0); the
+  stateful pod is still ImagePullBackOff **with pod IP** 10.20.74.116, and
+  its EndpointSlice and v1 Endpoints each still hold exactly **one not-ready
+  endpoint** (`ready=false`, `serving=false`) — no further correction needed,
+  the re-dispatch stamp above remains the accurate description.
+- **Blocker environment — unchanged in substance.** external-dns is the same
+  pod `external-dns-apexalgo-iad-6ffc7c97b-vgb2z`, still
+  `CreateContainerConfigError`, age now **5d22h**; the
+  `externaldns-ardenone-com` instance is still Running (1/1); `cloudflared`
+  is still 3× Running (pod ages churned only).
+- **Reports, siblings, verdicts.** Both ad-hoc reports re-hashed on disk —
+  still `f289744ff6a9…` and `39c440b3178e…`, byte-for-byte the §8 values. All
+  eleven sibling beads §13 cites as closed are still Closed
+  (mtamyway-e4710698 / 77ee82ce / fab296c6 / 7fad73c2 / 3bd2414e / 532aca9a /
+  18a17309 / 93dacd4e / 40ddc27a / 3b383d4a / f33f968d) and
+  **mtamyway-7bd2a141 is still the one Open sibling**; the umbrella
+  mtamyway-d26515d5 and parent mtamyway-6895e35e are both still Open.
+
+**Verdicts restated at this read: mtamyway-d26515d5 (umbrella) and
+mtamyway-6895e35e (parent) both remain CLOSURE-READY**, per-criterion
+evidence levels as tabled above, §5's router-config-level verdict unchanged
+with no upgrade claimed; the §9 list remains genuinely outstanding but
+outside both beads' scope, and closing either bead remains the harness's
+decision, not taken here.
