@@ -6,7 +6,8 @@ Covers: final IngressRoute rules table, service→deployment mappings,
 live-vs-manifest reconciliation, and the route-leakage verdict.
 
 **Date:** 2026-09-02 (live state re-read during consolidation; §1–§2
-re-verified the same day under sub-child mtamyway-0b795445)
+re-verified the same day under sub-child mtamyway-0b795445 and again
+2026-09-03 under sub-child mtamyway-90809e33)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -40,6 +41,22 @@ of §2, with EndpointSlices at `mta-my-way` 0 endpoints, `mta-my-way-core` 3/3
 (internal, unrouted), and `mta-my-way-sse` still the namespace's only
 middleware. Its `last-applied-configuration` annotation still matches the
 current `ingressroute.yaml` spec, so live and git agree at this re-read too.
+
+Re-verified again under mtamyway-90809e33 (2026-09-03): same negatives and
+same four rules, row for row. apexalgo-iad still has exactly one IngressRoute
+(`mta-my-way/mta-my-way`) and one middleware (`mta-my-way-sse`), no
+`IngressRouteTCP/UDP` matching mta, entryPoints `websecure` / TLS
+`certResolver: letsencrypt`, and the same external-dns annotations
+(`hostname: mtamyway.com`, tunnel-UUID `target`, `ttl: "300"`); live spec
+diffs clean against the git `ingressroute.yaml`. Backend state per §2 row:
+`mta-my-way` EndpointSlice **0 endpoints**; `mta-my-way-core` **3 endpoints,
+all not ready** (pods `0/1` — two CrashLoopBackOff, one ImagePullBackOff);
+`mta-my-way-stateful` **1 endpoint, not ready** (pod `0/1`
+ImagePullBackOff), still in no rule. (This read corroborated readiness via
+pod status and the v1 Endpoints object — core/stateful list only
+notReadyAddresses, legacy lists none — because the EndpointSlice's
+`ready`/`serving` conditions were unset at read time.) Both ad-hoc reports
+remain on disk untouched; their deletion stays with the follow-up child.
 
 ## 2. Final IngressRoute rules table
 
