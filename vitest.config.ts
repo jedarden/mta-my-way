@@ -37,9 +37,18 @@ export default defineConfig({
     },
     setupFiles: [],
     // Ensure proper test isolation across all projects
+    //
+    // sequence.concurrent MUST stay false (the vitest default): with it enabled,
+    // tests inside a file run in parallel and vitest defers afterEach hooks until
+    // the whole concurrent batch finishes. That ships every after-each cleanup —
+    // including @testing-library/react auto-cleanup — too late, so rendered DOM
+    // leaks into subsequent tests ("Found multiple elements with the role ...").
+    //
+    // The per-package configs never set this flag, which is why the same test
+    // file passed under packages/web but failed from this root config.
     sequence: {
       shuffle: false, // Run tests in order for reproducibility
-      concurrent: true, // Allow concurrent test execution
+      concurrent: false,
     },
     // Timeout for hooks to avoid hanging tests
     hookTimeout: 10000,

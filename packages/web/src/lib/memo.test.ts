@@ -91,10 +91,14 @@ describe("memoization utilities", () => {
       };
       const memoized = memoizeAsync(fn);
 
-      expect(await memoized(5)).toBe(10);
+      // Fake timers are active (see beforeEach), so the fn's internal
+      // setTimeout(10) must be advanced before the promise can settle.
+      const first = memoized(5);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(await first).toBe(10);
       expect(callCount).toBe(1);
 
-      expect(await memoized(5)).toBe(10);
+      expect(await memoized(5)).toBe(10); // Served from cache
       expect(callCount).toBe(1); // Not called again
     });
 
@@ -108,11 +112,13 @@ describe("memoization utilities", () => {
       const memoized = memoizeAsync(fn);
 
       // Launch concurrent requests
-      const [result1, result2, result3] = await Promise.all([
-        memoized(5),
-        memoized(5),
-        memoized(5),
-      ]);
+      const requests = Promise.all([memoized(5), memoized(5), memoized(5)]);
+
+      // Fake timers are active (see beforeEach): advance past the fn's
+      // internal setTimeout(50) so the shared request can settle.
+      await vi.advanceTimersByTimeAsync(50);
+
+      const [result1, result2, result3] = await requests;
 
       expect(result1).toBe(10);
       expect(result2).toBe(10);

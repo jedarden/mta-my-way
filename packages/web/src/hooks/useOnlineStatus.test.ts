@@ -10,10 +10,15 @@ import { useOnlineStatus } from "./useOnlineStatus";
 
 describe("useOnlineStatus", () => {
   const originalNavigator = navigator.onLine;
-  const addEventListenerSpy = vi.spyOn(window, "addEventListener");
-  const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
+  // Spies are created fresh in beforeEach: the shared setup file calls
+  // vi.restoreAllMocks() in its own afterEach, which detaches module-scope
+  // spies after the first test and leaves their mock.calls permanently empty.
+  let addEventListenerSpy: ReturnType<typeof vi.spyOn>;
+  let removeEventListenerSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    addEventListenerSpy = vi.spyOn(window, "addEventListener");
+    removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
     vi.clearAllMocks();
     // Reset to online by default
     Object.defineProperty(navigator, "onLine", {

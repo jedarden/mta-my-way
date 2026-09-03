@@ -91,7 +91,9 @@ describe("useIntersectionObserver", () => {
     resetMocks();
 
     mockIntersectionObserverFn = vi.fn(
-      (callback, options) => new MockIntersectionObserver(callback, options)
+      function (callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        return new MockIntersectionObserver(callback, options);
+      }
     );
 
     Object.defineProperty(global, "IntersectionObserver", {
@@ -269,7 +271,9 @@ describe("useLazyLoad", () => {
     resetMocks();
 
     mockIntersectionObserverFnLazy = vi.fn(
-      (callback, options) => new MockIntersectionObserver(callback, options)
+      function (callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        return new MockIntersectionObserver(callback, options);
+      }
     );
 
     Object.defineProperty(global, "IntersectionObserver", {
@@ -307,7 +311,9 @@ describe("useLazyLoad", () => {
     resetMocks();
 
     const localMockFn = vi.fn(
-      (callback, options) => new MockIntersectionObserver(callback, options)
+      function (callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        return new MockIntersectionObserver(callback, options);
+      }
     );
 
     Object.defineProperty(global, "IntersectionObserver", {
