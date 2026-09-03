@@ -119,9 +119,11 @@ Single middleware in the namespace, attached only to rule 4:
 ### Path mismatch (rules vs what the app serves)
 
 The app registers everything under `/api/*` (`packages/server/src/app.ts`:
-`/api/push/*`, `/api/auth/*`, `/api/auth/password/*` at `app.ts:2935–2968`,
-`/api/trips*`, `/api/journal/*`) plus `/health` and `/api/health` at their own
-paths. Rules 1–3 match `/push/`, `/auth/`, `/password-reset/` — with no
+`/api/push/*` at `app.ts:2016–2122`, `/api/auth/*` (OAuth + password) at
+`app.ts:2905–2971`, `/api/trips*`/`/api/journal/*` at `app.ts:2181–2479`) plus
+`/health` and `/api/health` at their own paths. *(Range citation tightened
+2026-09-03, mtamyway-7fad73c2 re-dispatch: the previous single range
+`app.ts:2935–2968` covered only the password routes.)* Rules 1–3 match `/push/`, `/auth/`, `/password-reset/` — with no
 `stripPrefix`/rewrite middleware, so even a healthy legacy backend would have
 returned 404 for every request those rules capture. The correct prefixes are
 `/api/push/`, `/api/auth/`, `/api/auth/password-reset/` (or a catch-all `/api/`
