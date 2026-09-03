@@ -58,6 +58,15 @@ notReadyAddresses, legacy lists none — because the EndpointSlice's
 `ready`/`serving` conditions were unset at read time.) Both ad-hoc reports
 remain on disk untouched; their deletion stays with the follow-up child.
 
+Re-verified under mtamyway-007709be (2026-09-03 01:05 UTC, this split child):
+unchanged. ardenone-cluster still has **zero** mta-my-way resources of any
+kind — `get namespaces | grep -i mta`, `get ingressroutes -A | grep -i mta`,
+and `get middlewares -A | grep -i mta` all empty, `get all -n mta-my-way` →
+`No resources found` — and apexalgo-iad still has **exactly one** mta
+IngressRoute (`mta-my-way/mta-my-way`) and **exactly one** mta middleware
+(`mta-my-way/mta-my-way-sse`), confirmed by counting namespace/name over full
+`-A -o json` listings of both resource types rather than grep alone.
+
 ## 2. Final IngressRoute rules table
 
 There is exactly **one** IngressRoute — `mta-my-way/mta-my-way` — and no
