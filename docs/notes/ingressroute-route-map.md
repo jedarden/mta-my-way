@@ -9,14 +9,16 @@ live-vs-manifest reconciliation, and the route-leakage verdict.
 re-verified the same day under sub-child mtamyway-0b795445 and again
 2026-09-03 under sub-children mtamyway-90809e33 and mtamyway-007709be; §3
 re-verified 2026-09-03 under sub-child mtamyway-31ca9ebc; §4/§6/§7
-re-verified 2026-09-03 under sub-child mtamyway-de63ea97)
+re-verified 2026-09-03 under sub-child mtamyway-de63ea97; §5 re-verified and
+the closing summary added 2026-09-03 under sub-child mtamyway-15b024d1)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
 mtamyway-77ee82ce (manifest/router-config isolation) · child 3
 mtamyway-fab296c6 (this doc), split into four section children — sub-child 1
 mtamyway-0b795445 covers §1–§2, sub-child 2 mtamyway-31ca9ebc covers §3,
-sub-child 3 mtamyway-de63ea97 covers §4/§6/§7
+sub-child 3 mtamyway-de63ea97 covers §4/§6/§7, sub-child 4 mtamyway-15b024d1
+covers §5 and the closing summary (§11)
 **Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
 read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
 cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
@@ -261,6 +263,27 @@ What decides it:
    route-mounting verified in code (`CORE_ONLY` conditional mounting,
    `app.ts:2014`, `:2179`).
 
+Re-verified under mtamyway-15b024d1 (2026-09-03, this split child) with an
+enumeration stronger than the original: rather than filtering IngressRoutes by
+name, **every IngressRoute in the cluster** (`-A`) was listed and filtered on
+the services its routes reference, so a cross-namespace reference from an
+innocuously named route could not hide, and **every IngressRouteTCP/UDP in the
+cluster** was filtered the same way. The result is unchanged and decisive: the
+only mta-my-way service references anywhere in the router config are the four
+of §2 — `mta-my-way:3000` three times (rules 1–3) and `mta-my-way-core:3000`
+once (rule 4, `mta-my-way-sse` still its only middleware) — and
+`mta-my-way-stateful` appears in none of them, in no TCP/UDP route, and in no
+manifest in git. The stateful EndpointSlice still holds exactly 1 endpoint
+(`ready=false`/`serving=false`), i.e. the internal tier exists and is reachable
+only through its cluster-internal DNS name. The DNS blocker was also re-checked
+fresh at this read: `mtamyway.com` and the tunnel UUID both return zero
+answers, so live HTTP confirmation remains blocked and the verdict remains
+**proven at the router-config level, not by observed requests**. The verdict's
+code citations were re-read and hold: `app.ts:2014` and `app.ts:2179` are the
+`!CORE_ONLY` gates that keep push/trips/journal unmounted on core, and
+`stateful-client.ts:31–32` resolves `STATEFUL_SERVICE_URL` to
+`http://mta-my-way-stateful:3001`.
+
 ## 6. Remaining blockers (why live verification is impossible today)
 
 1. **DNS — the public host does not exist because the domain is not
@@ -394,3 +417,33 @@ and `@1.1.1.1`); registration via Verisign .com RDAP. Manifests read from
 `declarative-config/k8s/apexalgo-iad/mta-my-way/`. App routes:
 `packages/server/src/app.ts`, `packages/server/src/config.ts`,
 `packages/server/src/services/stateful-client.ts`.
+
+## 11. Closing summary
+
+This document is the **single authoritative consolidated reference** for
+umbrella mtamyway-d26515d5: every finding from its children, from the
+mtamyway-fab296c6 section split, and from the two superseded ad-hoc reports is
+reconciled here, and future work should cite this file rather than the ad-hoc
+reports. Its sections, in order:
+
+- §1 — scope correction (the routes live in `apexalgo-iad`, not
+  `ardenone-cluster`)
+- §2 — the final IngressRoute rules table, plus the rules-vs-app path mismatch
+- §3 — service → deployment mapping, including the internal-only stateful wiring
+- §4 — live-vs-manifest reconciliation (and the stopped ArgoCD reconciliation)
+- §5 — the route-leakage verdict
+- §6 — remaining blockers (why live verification is impossible today)
+- §7 — umbrella acceptance criteria roll-up
+- §8 — reconciliation of the two ad-hoc reports
+- §9 — recommended remediation, ordered by dependency
+- §10 — evidence commands
+
+Supersession, stated explicitly once more:
+`docs/ingressroute-validation-findings.md` and
+`docs/api-health-route-isolation-report.md` **remain on disk, untouched, and
+are superseded by this document**. Their deletion is the follow-up child's job
+(umbrella child 4), not this one's — this child deliberately leaves both files
+in place, and both were re-checked on disk at this child's close. The
+route-leakage verdict of §5 stands **PROVEN at the router-config/manifest
+level** as of the mtamyway-15b024d1 re-read recorded there, with live HTTP
+confirmation still blocked by the §6 DNS blocker.
