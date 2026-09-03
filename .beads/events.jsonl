@@ -2427,3 +2427,13 @@
 {"bead":"mtamyway-d26515d5","duration_ms":658418,"event":"complete","exit_code":0,"outcome":"success","strand":"pluck","ts":"2026-09-03T16:38:02.000005815+00:00","worker":"glm-mta"}
 {"bead":"mtamyway-3b383d4a","event":"claim","strand":"pluck","ts":"2026-09-03T16:38:07.252036767+00:00","worker":"glm-mta"}
 {"adapter":"claude-code-glm-4.7","bead":"mtamyway-3b383d4a","event":"dispatch","model":"glm-4.7","strand":"pluck","ts":"2026-09-03T16:38:07.431635354+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-75bfb76d","duration_ms":1659702,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-03T16:40:19.583841170+00:00","worker":"glm-face"}
+{"bead":"mtamyway-75bfb76d","event":"claim","strand":"explore","ts":"2026-09-03T16:40:39.242734427+00:00","worker":"glm-vibe"}
+{"adapter":"claude-code-glm-4.7","bead":"mtamyway-75bfb76d","event":"dispatch","model":"glm-4.7","strand":"explore","ts":"2026-09-03T16:40:39.425446385+00:00","worker":"glm-vibe"}
+{"bead":"mtamyway-75bfb76d","duration_ms":1093572,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-03T16:41:00.748897668+00:00","worker":"glm-adc"}
+{"bead":"mtamyway-75bfb76d","event":"claim","strand":"explore","ts":"2026-09-03T16:41:11.510982286+00:00","worker":"glm-adc"}
+{"adapter":"claude-code-glm-4.7","bead":"mtamyway-75bfb76d","event":"dispatch","model":"glm-4.7","strand":"explore","ts":"2026-09-03T16:41:11.703455206+00:00","worker":"glm-adc"}
+{"bead":"mtamyway-3b383d4a","event":"claim","strand":"explore","ts":"2026-09-03T16:43:25.226928058+00:00","worker":"glm-roam-16"}
+{"adapter":"claude-code-glm-4.7","bead":"mtamyway-3b383d4a","event":"dispatch","model":"glm-4.7","strand":"explore","ts":"2026-09-03T16:43:25.474817442+00:00","worker":"glm-roam-16"}
+{"bead":"mtamyway-75bfb76d","duration_ms":545261,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-03T16:49:44.717243007+00:00","worker":"glm-vibe"}
+{"bead":"mtamyway-75bfb76d","duration_ms":1276414,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-03T17:02:28.145303269+00:00","worker":"glm-adc"}
