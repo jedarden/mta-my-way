@@ -7,13 +7,14 @@ live-vs-manifest reconciliation, and the route-leakage verdict.
 
 **Date:** 2026-09-02 (live state re-read during consolidation; §1–§2
 re-verified the same day under sub-child mtamyway-0b795445 and again
-2026-09-03 under sub-child mtamyway-90809e33)
+2026-09-03 under sub-children mtamyway-90809e33 and mtamyway-007709be; §3
+re-verified 2026-09-03 under sub-child mtamyway-31ca9ebc)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
 mtamyway-77ee82ce (manifest/router-config isolation) · child 3
 mtamyway-fab296c6 (this doc), split into four section children — sub-child 1
-mtamyway-0b795445 covers §1–§2
+mtamyway-0b795445 covers §1–§2, sub-child 2 mtamyway-31ca9ebc covers §3
 **Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
 read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
 cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
@@ -115,14 +116,39 @@ split). The parent bead's expected rule set (`/api/arrivals` public /
 
 ## 3. Service → deployment mapping
 
-All three services and their backing deployments, live state as of the
-consolidation re-read:
+Coverage is exhaustive: `get services -n mta-my-way` returns **exactly these
+three** Services and nothing else — every Service in the namespace has a row
+below, and none is a deployment-less/ExternalName service (each selector maps
+1:1 onto a live Deployment).
 
-| Service (live) | Port | Selector | Backing Deployment | Replicas desired/ready | Image | Manifest in git? | Referenced by IngressRoute? |
-|---|---|---|---|---|---|---|---|
-| `mta-my-way` | 3000 | `app.kubernetes.io/name=mta-my-way` | `mta-my-way` (legacy monolith) | 0 / 0 (all 7 ReplicaSets desired 0) | `ronaldraygun/mta-my-way:0.0.82` | **No** — deleted in monolith retire (`cb0fd902`, `4ac1d48d`, `b4c7faa8`) | Yes — rules 1–3 (dead backend) |
-| `mta-my-way-core` | 3000 | `app.kubernetes.io/name=mta-my-way-core` | `mta-my-way-core` | 2 / 0 | `ronaldraygun/mta-my-way:0.0.289` | Yes — `service-core.yaml`, `deployment-core.yaml` | Yes — rule 4 (catch-all) |
-| `mta-my-way-stateful` | 3001 | `app.kubernetes.io/name=mta-my-way-stateful` | `mta-my-way-stateful` | 1 / 0 | `ronaldraygun/mta-my-way:0.0.289` | Yes — `service-stateful.yaml`, `deployment-stateful.yaml` | **No — internal only** |
+Re-verified under mtamyway-31ca9ebc (2026-09-03 02:33 UTC, this split child)
+by a fresh read-only read of
+services/endpointslices/endpoints/deployments/replicasets/pods at
+`http://traefik-apexalgo-iad:8001`. This read had the EndpointSlice
+`ready`/`serving` conditions properly populated — the mtamyway-90809e33 read
+had found them unset and corroborated readiness via pod status instead — so
+the readiness column below is endpoint-native, not inferred. Nothing moved:
+`mta-my-way` still **0 endpoints** with its Deployment `0/0` across all seven
+ReplicaSets; `mta-my-way-core` still **3 endpoints, every one
+`ready=false`/`serving=false`** (pods: 2× CrashLoopBackOff, 1×
+ImagePullBackOff; still three ReplicaSets simultaneously at `DESIRED 1`);
+`mta-my-way-stateful` still **1 endpoint, not ready** (ImagePullBackOff).
+Images unchanged (`0.0.82` legacy, `0.0.289` core and stateful).
+
+| Service (live) | Port | Selector | Backing Deployment | Replicas desired/ready | Image | Live endpoints (ready/total) | Manifest in git? | Referenced by IngressRoute? |
+|---|---|---|---|---|---|---|---|---|
+| **ORPHAN — retired from git, still live** `mta-my-way` (legacy monolith) | 3000 | `app.kubernetes.io/name=mta-my-way` | `mta-my-way` (legacy monolith, scaled to zero) | 0 / 0 (all 7 ReplicaSets desired 0) | `ronaldraygun/mta-my-way:0.0.82` | **0 / 0 — DEAD since retire (~152+ days)** | **No** — deleted in monolith retire (`cb0fd902`, `4ac1d48d`, `b4c7faa8`); live-only leftover ArgoCD cannot prune (§4 InvalidSpecError) | Yes — rules 1–3 (dead backend) |
+| `mta-my-way-core` | 3000 | `app.kubernetes.io/name=mta-my-way-core` | `mta-my-way-core` | 2 / 0 | `ronaldraygun/mta-my-way:0.0.289` | **0 / 3 — all `ready=false`/`serving=false`** (2 CrashLoopBackOff, 1 ImagePullBackOff) | Yes — `service-core.yaml`, `deployment-core.yaml` | Yes — rule 4 (catch-all) |
+| `mta-my-way-stateful` | 3001 | `app.kubernetes.io/name=mta-my-way-stateful` | `mta-my-way-stateful` | 1 / 0 | `ronaldraygun/mta-my-way:0.0.289` | **0 / 1 — not ready** (ImagePullBackOff) | Yes — `service-stateful.yaml`, `deployment-stateful.yaml` | **No — internal only** |
+
+The lone orphan is the legacy monolith pair: both the Service **and** its
+Deployment `mta-my-way` exist only in the cluster. Their manifests were
+removed from `declarative-config/k8s/apexalgo-iad/mta-my-way/` in the monolith
+retire commits, and because ArgoCD reconciliation for this app is stopped
+(§4), nothing pruned them — the Service has carried zero endpoints for
+152+ days and every one of the Deployment's seven ReplicaSets sits at
+`DESIRED 0`. It is kept in this table (rather than dropped) precisely so the
+rules-table references in §2 rows 1–3 resolve to a real, explained object.
 
 ### Environment wiring (the internal-only stateful path)
 
