@@ -13,7 +13,14 @@ import {
   setCached,
 } from "./apiCache";
 
-// Mock the Cache API
+// Mock the Cache API. The mocks are declared at module scope so tests can
+// reach them, but wired in beforeEach: the shared setup file calls
+// vi.restoreAllMocks() in its own afterEach, which under vitest 3 (the
+// per-package runner) resets these plain vi.fn() implementations after the
+// first test — leaving caches.open() resolving undefined and every
+// interaction assertion seeing zero calls. (vitest 4, the root runner, only
+// restores spyOn spies, which is why this file passed there.) Same
+// detachment family as the useOnlineStatus spies fixed in b0f8806.
 const mockCache = {
   match: vi.fn(),
   put: vi.fn(),
@@ -22,17 +29,18 @@ const mockCache = {
 };
 
 const mockCaches = {
-  open: vi.fn().mockResolvedValue(mockCache),
+  open: vi.fn(),
 };
-
-Object.defineProperty(global, "caches", {
-  value: mockCaches,
-  writable: true,
-});
 
 describe("apiCache", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCaches.open.mockResolvedValue(mockCache);
+    Object.defineProperty(global, "caches", {
+      value: mockCaches,
+      writable: true,
+      configurable: true,
+    });
   });
 
   describe("getCacheStrategyForPath", () => {
