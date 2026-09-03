@@ -509,14 +509,16 @@ stating which claims were wrong and why. Per file:
   Playwright runner, and the Response Time figures were corrected to note
   they are targets **stricter than the suite's configured thresholds**
   (health < 1s, static < 2s, dynamic < 3s — `public-api-health.e2e.ts:42–44`),
-  never assertions of any test.
+  never assertions of any test; a second pass at this child's close added the
+  two inline qualifiers this list names for the executive-summary lead sentence
+  and the conclusion's closing line, which had been left to the banner alone.
 
 Both files are now committed to git by that child (previously untracked), so
 the §12 hashes below describe the **pre-reconciliation** contents — verified
 still exact at that child's start — and the post-reconciliation sha256s are
 `f289744ff6a9b8c1bed82d4b65fe20d04195076ba389ebe6e35e8e9bc78ff397` (findings)
-and `e5d9aef2bb02b078fd254afe1a5b10d9e0d37897c328b138916e70469b38fca6`
-(api-health). Deletion is no longer pending: supersession-in-place is the
+and `39c440b3178ee767930ab23b27be01ba24babb338cef83a54dea21a013f26091`
+(api-health, after the second-pass qualifiers described above). Deletion is no longer pending: supersession-in-place is the
 final state, chosen because it keeps the original evidence readable while
 routing every reader here.
 

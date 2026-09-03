@@ -40,7 +40,7 @@
 
 ## Executive Summary
 
-This validation confirms that MTA My Way's public API endpoints remain healthy and responsive while stateful-only routes are properly isolated through authentication, authorization, and deployment mode controls.
+This validation confirms that MTA My Way's public API endpoints remain healthy and responsive while stateful-only routes are properly isolated through authentication, authorization, and deployment mode controls. *(qualified 2026-09-03: local e2e only — see the qualified Key Finding below and the banner; never observed at the live public entrypoint, which has no DNS and no ready backend)*
 
 **Key Findings:**
 - ✅ *(qualified 2026-09-03: local e2e only — never verified at the live public entrypoint, which has no DNS and no ready backend; see banner)* All public API endpoints (arrivals, stations, alerts) are healthy and responsive
@@ -373,7 +373,7 @@ The public API health and route isolation validation confirms that MTA My Way's 
 - **Traffic splitting works correctly** between stateless and stateful deployments *(❌ wrong as an ingress claim — no such IngressRoute exists; the split is application-level only, via `CORE_ONLY` mounting. See the Traffic Splitting Architecture note above and the banner.)*
 - **Security layers are functioning** as designed
 
-No critical issues were identified. The system is operating as designed with proper safeguards in place.
+No critical issues were identified. The system is operating as designed with proper safeguards in place. *(qualified 2026-09-03: true of the application process under local e2e; the live public entrypoint is down — no DNS, no ready backend — so "operating" holds at the application level only; see banner)*
 
 ---
 
