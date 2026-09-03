@@ -70,6 +70,8 @@ pod status and the v1 Endpoints object — core/stateful list only
 notReadyAddresses, legacy lists none — because the EndpointSlice's
 `ready`/`serving` conditions were unset at read time.) Both ad-hoc reports
 remain on disk untouched; their deletion stays with the follow-up child.
+*(Outcome update 2026-09-03, mtamyway-7fad73c2: superseded in place instead —
+§8.)*
 
 Re-verified under mtamyway-007709be (2026-09-03 01:05 UTC, this split child):
 unchanged. ardenone-cluster still has **zero** mta-my-way resources of any
@@ -410,7 +412,7 @@ Umbrella mtamyway-d26515d5, criterion by criterion:
 | 1 | curl-based verification against the public entrypoint: public paths return expected success statuses; stateful paths on the public host do not route | **Half-blocked, half-vacuous.** Child 1 executed the curls — all 12 paths fail at DNS (exit 6, `http_code=000`), so the success-status half is **unachievable** and the do-not-route half passes only **vacuously** (nothing resolves). Evidence: `docs/notes/public-entrypoint-live-verification.md`. | attempted live; blocked by DNS |
 | 2 | If live verification is blocked, record the blocker with evidence and verify at the manifest/router-config level instead | **DONE.** Blockers recorded with fresh evidence (§6); router-config isolation verified (§2, §5). | **manifest/router-config** |
 | 3 | Consolidated document with the final rules table, service mappings, route-leakage verdict | **DONE** — this document (§2, §3, §5). | manifest + live read |
-| 4 | The two prior ad-hoc reports are reconciled or superseded by the consolidated doc | **DONE** — reconciled in §8. Physical deletion deliberately deferred to the follow-up child per the split plan. | n/a |
+| 4 | The two prior ad-hoc reports are reconciled or superseded by the consolidated doc | **DONE** — reconciled in §8. Physical deletion deliberately deferred to the follow-up child per the split plan. *Outcome update 2026-09-03: superseded in place instead by mtamyway-7fad73c2 (§8).* | n/a |
 
 Child-level roll-up: child 1 (live entrypoint) → executed, closed on the
 documented blocker path with `docs/notes/public-entrypoint-live-verification.md`;
@@ -611,7 +613,7 @@ final child of the parent's second split.
 | 1 | One consolidated document in docs/notes/ containing the final rules table, the service-to-deployment mapping table, the live-vs-manifest reconciliation, and the route-leakage verdict | §2 (rules, middlewares, target services, ports, backend state) · §3 (mapping, incl. the internal-only stateful wiring) · §4 (reconciliation) · §5 (verdict) | ✅ PASS | manifest + live read — every pillar was re-read live on 2026-09-03 under its own section stamp, and the router-config half re-enumerated again at certification (below) |
 | 2 | Scope correction (apexalgo-iad, not ardenone-cluster) folded in, building on docs/notes/ingressroute-route-map.md rather than duplicating it | §1 | ✅ PASS | live enumeration of both clusters (latest stamp mtamyway-007709be); this file **is** the extended route-map document — extended in place across every split, never duplicated |
 | 3 | State clearly which umbrella criteria were verified live vs at manifest level, plus remaining blockers (DNS, 0-replica deployments, image-pull failures) | §7 (per-criterion outcome + level) · §6 (the four blockers) | ✅ PASS | §6 evidence retaken fresh 2026-09-03 (04:30 UTC stamp); the DNS blocker re-checked again at certification (below) |
-| 4 | Do not delete the two ad-hoc reports — that is the next child's job | §8 (reconciliation) + supersession in the header and §11 | ✅ PASS | both re-checked on disk at certification: present, untracked, mtime 2026-09-01, contents unchanged — deletion remains with umbrella mtamyway-d26515d5's follow-up child |
+| 4 | Do not delete the two ad-hoc reports — that is the next child's job | §8 (reconciliation) + supersession in the header and §11 | ✅ PASS | both re-checked on disk at certification: present, untracked, mtime 2026-09-01, contents unchanged — deletion remains with umbrella mtamyway-d26515d5's follow-up child. *Outcome 2026-09-03: superseded in place by mtamyway-7fad73c2, not deleted (§8)* |
 
 Certification checks (mtamyway-93dacd4e, 2026-09-03, read-only throughout):
 
@@ -646,4 +648,7 @@ Certification checks (mtamyway-93dacd4e, 2026-09-03, read-only throughout):
 
 Closing this child completes the parent's second split and makes
 mtamyway-fab296c6 ready to close; umbrella mtamyway-d26515d5 still has its own
-child 4 (delete the two ad-hoc reports) outstanding after that.
+child 4 (delete the two ad-hoc reports) outstanding after that. *(Outcome
+update 2026-09-03, mtamyway-7fad73c2: that child superseded both reports in
+place rather than deleting them — with it closed, the umbrella's work is
+complete, §8.)*
