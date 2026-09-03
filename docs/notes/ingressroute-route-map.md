@@ -10,7 +10,9 @@ re-verified the same day under sub-child mtamyway-0b795445 and again
 2026-09-03 under sub-children mtamyway-90809e33 and mtamyway-007709be; §3
 re-verified 2026-09-03 under sub-child mtamyway-31ca9ebc; §4/§6/§7
 re-verified 2026-09-03 under sub-child mtamyway-de63ea97; §5 re-verified and
-the closing summary added 2026-09-03 under sub-child mtamyway-15b024d1)
+the closing summary added 2026-09-03 under sub-child mtamyway-15b024d1;
+certified against the parent bead's acceptance criteria 2026-09-03 under
+mtamyway-93dacd4e — see §12)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -18,7 +20,9 @@ mtamyway-77ee82ce (manifest/router-config isolation) · child 3
 mtamyway-fab296c6 (this doc), split into four section children — sub-child 1
 mtamyway-0b795445 covers §1–§2, sub-child 2 mtamyway-31ca9ebc covers §3,
 sub-child 3 mtamyway-de63ea97 covers §4/§6/§7, sub-child 4 mtamyway-15b024d1
-covers §5 and the closing summary (§11)
+covers §5 and the closing summary (§11); the parent was split a second time
+the same day (children mtamyway-3bd2414e, mtamyway-532aca9a, mtamyway-18a17309
+— all closed) and certified by mtamyway-93dacd4e (§12)
 **Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
 read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
 cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
@@ -513,6 +517,8 @@ reports. Its sections, in order:
 - §8 — reconciliation of the two ad-hoc reports
 - §9 — recommended remediation, ordered by dependency
 - §10 — evidence commands
+- §12 — certification against the parent bead's acceptance criteria
+  (mtamyway-fab296c6)
 
 Supersession, stated explicitly once more:
 `docs/ingressroute-validation-findings.md` and
@@ -523,3 +529,53 @@ in place, and both were re-checked on disk at this child's close. The
 route-leakage verdict of §5 stands **PROVEN at the router-config/manifest
 level** as of the mtamyway-15b024d1 re-read recorded there, with live HTTP
 confirmation still blocked by the §6 DNS blocker.
+
+## 12. Certification against the parent bead's acceptance criteria
+
+§7 above rolls up the **umbrella's** (mtamyway-d26515d5) criteria; this section
+maps the **parent's own** four (mtamyway-fab296c6, "Write the consolidated
+IngressRoute rules and service mappings document in docs/notes/") to the
+sections that satisfy them. Recorded by mtamyway-93dacd4e (2026-09-03), the
+final child of the parent's second split.
+
+| # | Parent criterion | Satisfied by | Pass | Verification level |
+|---|---|---|---|---|
+| 1 | One consolidated document in docs/notes/ containing the final rules table, the service-to-deployment mapping table, the live-vs-manifest reconciliation, and the route-leakage verdict | §2 (rules, middlewares, target services, ports, backend state) · §3 (mapping, incl. the internal-only stateful wiring) · §4 (reconciliation) · §5 (verdict) | ✅ PASS | manifest + live read — every pillar was re-read live on 2026-09-03 under its own section stamp, and the router-config half re-enumerated again at certification (below) |
+| 2 | Scope correction (apexalgo-iad, not ardenone-cluster) folded in, building on docs/notes/ingressroute-route-map.md rather than duplicating it | §1 | ✅ PASS | live enumeration of both clusters (latest stamp mtamyway-007709be); this file **is** the extended route-map document — extended in place across every split, never duplicated |
+| 3 | State clearly which umbrella criteria were verified live vs at manifest level, plus remaining blockers (DNS, 0-replica deployments, image-pull failures) | §7 (per-criterion outcome + level) · §6 (the four blockers) | ✅ PASS | §6 evidence retaken fresh 2026-09-03 (04:30 UTC stamp); the DNS blocker re-checked again at certification (below) |
+| 4 | Do not delete the two ad-hoc reports — that is the next child's job | §8 (reconciliation) + supersession in the header and §11 | ✅ PASS | both re-checked on disk at certification: present, untracked, mtime 2026-09-01, contents unchanged — deletion remains with umbrella mtamyway-d26515d5's follow-up child |
+
+Certification checks (mtamyway-93dacd4e, 2026-09-03, read-only throughout):
+
+- **§5 verdict is stated with its evidence level — confirmed.** §5 records
+  the verdict as **PROVEN at the router-config/manifest level** with live HTTP
+  confirmation **BLOCKED** by the §6 DNS blocker. Re-enumerated fresh at
+  certification time against `http://traefik-apexalgo-iad:8001`: of 21
+  IngressRoutes in the cluster exactly one matches mta
+  (`mta-my-way/mta-my-way`) and it references exactly `mta-my-way:3000` and
+  `mta-my-way-core:3000` — `mta-my-way-stateful` appears in none of them; 0 of
+  2 IngressRouteTCP and 0 of 0 IngressRouteUDP reference an mta service; the
+  stateful EndpointSlice still holds exactly 1 endpoint
+  (`ready=false`/`serving=false`), i.e. the internal tier exists and is
+  unrouted. Fresh DNS re-check: `mtamyway.com` returns zero answers on the
+  default resolver, `@1.1.1.1`, and `@9.9.9.9`, and the tunnel UUID still has
+  no record — the blocker still blocks, so the verdict's evidence level is
+  unchanged.
+- **§1–§11 cross-references resolve — confirmed.** All 54 `§`-references in the
+  document were audited programmatically against the actual headings: zero
+  dangling, and every reference resolves (§12, this section, is additionally
+  reachable from the Date/Beads header lines and the §11 index). With this
+  section added, the document remains the single authoritative consolidated
+  reference per the header and §11.
+- **Both ad-hoc reports are on disk untouched — confirmed.**
+  `docs/ingressroute-validation-findings.md` (sha256
+  `8fc4cc5eac290035fb3061fa9d244574d4d7be2e8fbd9a8f640c9d33230b77ea`) and
+  `docs/api-health-route-isolation-report.md` (sha256
+  `0fde763723b779e12a8e507af6fe9563f128814bdc45a442a530ce4cf1730dad`) are both
+  present, untracked, and last modified 2026-09-01. These hashes are recorded
+  so the follow-up child can prove non-modification as well as non-deletion
+  when it removes them.
+
+Closing this child completes the parent's second split and makes
+mtamyway-fab296c6 ready to close; umbrella mtamyway-d26515d5 still has its own
+child 4 (delete the two ad-hoc reports) outstanding after that.
