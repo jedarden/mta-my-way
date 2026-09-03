@@ -2446,3 +2446,8 @@
 {"bead":"mtamyway-f33f968d","duration_ms":2105783,"event":"complete","exit_code":0,"outcome":"success","strand":"pluck","ts":"2026-09-03T17:50:23.192289269+00:00","worker":"glm-mta"}
 {"bead":"mtamyway-8ccd3076","event":"claim","strand":"pluck","ts":"2026-09-03T17:50:28.151923029+00:00","worker":"glm-mta"}
 {"adapter":"claude-code-glm-4.7","bead":"mtamyway-8ccd3076","event":"dispatch","model":"glm-4.7","strand":"pluck","ts":"2026-09-03T17:50:28.342684024+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-75bfb76d","duration_ms":2135603,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-03T17:55:42.534490564+00:00","worker":"glm-roam-17"}
+{"bead":"mtamyway-3b383d4a","event":"claim","strand":"explore","ts":"2026-09-03T18:20:57.406816774+00:00","worker":"glm-vibe"}
+{"adapter":"claude-code-glm-4.7","bead":"mtamyway-3b383d4a","event":"dispatch","model":"glm-4.7","strand":"explore","ts":"2026-09-03T18:20:57.623709328+00:00","worker":"glm-vibe"}
+{"bead":"mtamyway-8ccd3076","event":"claim","strand":"explore","ts":"2026-09-03T18:22:35.266434768+00:00","worker":"glm-roam-17"}
+{"adapter":"claude-code-glm-4.7","bead":"mtamyway-8ccd3076","event":"dispatch","model":"glm-4.7","strand":"explore","ts":"2026-09-03T18:22:35.460581204+00:00","worker":"glm-roam-17"}
