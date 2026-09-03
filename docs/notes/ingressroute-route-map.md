@@ -209,6 +209,9 @@ rules-table references in §2 rows 1–3 resolve to a real, explained object.
 | Service + Deployment `mta-my-way` (legacy) | **Removed from git** (monolith retire) | **Still live** (age 153d, deployment 0/0, service no endpoints) | ❌ **orphan** — ArgoCD cannot prune it (see InvalidSpecError below) |
 | Service + Deployment `mta-my-way-core` | `service-core.yaml` / `deployment-core.yaml` (:3000, replicas 2, env above) | Matches (selector/ports/env/image) | ✅ match |
 | Service + Deployment `mta-my-way-stateful` | `service-stateful.yaml` / `deployment-stateful.yaml` (:3001, replicas 1, env above) | Matches | ✅ match |
+| Namespace `mta-my-way` | `namespace.yaml` (labels `app.kubernetes.io/managed-by: argocd`, `name: mta-my-way`) | Active (154d); every manifest label present and equal; live adds only the API-server-generated `kubernetes.io/metadata.name` | ✅ match |
+| PVC `mta-my-way-data` | `pvc.yaml` (5Gi, RWO, `storageClassName: sata`) | Bound, 5Gi, RWO, `sata`; live adds only server-assigned `volumeName`/`volumeMode` | ✅ match |
+| SealedSecret `mta-my-way-secrets` | `sealedsecret.yaml` (two VAPID `encryptedData` keys + Opaque template) | Spec exactly equal including `encryptedData`; controller status `Synced=True`, derived Secret `mta-my-way-secrets` present with both keys | ✅ match |
 | Rollout state | One desired ReplicaSet per deployment | **Three `mta-my-way-core` ReplicaSets simultaneously at `DESIRED 1`** (`6bd9f88b54`, `7fbcbdb69c`, `9b48f8bdc`) + three older at 0 | ❌ stuck mid-rollout — no pod ever became ready, so the rollout never advanced |
 | external-dns record | Annotation targets the Cloudflare tunnel UUID | `mtamyway.com` **NXDOMAIN**; tunnel UUID has **no record**; `external-dns-apexalgo-iad` pod `0/1 CreateContainerConfigError` for **4d18h** (re-verified) | ❌ annotation never materialized |
 | ArgoCD app `mta-my-way` | managed by declarative-config | sync `Unknown`, health `Unknown`, condition `InvalidSpecError: error getting cluster by server "https://hcp-99476ebb-….spot.rackspace.com": cluster … not found` (re-verified) | ❌ **reconciliation stopped entirely** — no git change (including the monolith retire) has reached the cluster |
@@ -246,6 +249,31 @@ no longer exists, the ImagePullBackOff pod is now `…-x9kr4`
 kubelet at 926 pull attempts over 3h33m. Core's pod trio is unchanged
 (`…-zf2xh` CrashLoopBackOff 25 restarts/109m, `…-fdxrb` CrashLoopBackOff 45
 restarts/4h9m, `…-nl8nw` ImagePullBackOff).
+
+Re-verified at the same bead's re-dispatch (2026-09-03 04:30 UTC) with coverage
+extended to the **whole manifest directory** — every file in
+`declarative-config/k8s/apexalgo-iad/mta-my-way/` now has a row above. The
+Namespace, PVC, and SealedSecret rows are new this read (all three match; the
+two `*.disabled` files are inert by name and have no live counterpart), and
+every comparison was structural, not eyeballed: IngressRoute and Middleware
+specs are exactly equal in both directions (19 and 3 leaves), with the
+`last-applied-configuration` annotation still equal to the manifest spec; both
+Services and both Deployments are equal on **every** manifest-controlled field
+— selector, ports, replicas, strategy, images, env, liveness/readiness probes,
+`securityContext`, `terminationGracePeriodSeconds`, `imagePullSecrets:
+docker-hub-registry`, prometheus annotations — with the only live-only keys
+being API-server defaults (`clusterIP`/`ipFamilies`/`internalTrafficPolicy` on
+Services; `successThreshold: 1` and `scheme: HTTP` inside probes;
+`imagePullPolicy`, `dnsPolicy`, `restartPolicy` and peers on pod templates;
+`volumeName`/`volumeMode` on the PVC; `kubernetes.io/metadata.name` on the
+namespace). **No row moved and no third disagreement appeared** — the orphan
+monolith pair and the stuck core rollout below are still the only ones, with
+the legacy v1 Endpoints object empty and the three core ReplicaSets
+`6bd9f88b54`/`7fbcbdb69c`/`9b48f8bdc` still simultaneously at `DESIRED 1`
+(pods `…-zf2xh` CrashLoopBackOff 41 restarts/3h9m, `…-2g7xq` CrashLoopBackOff
+12 restarts/46m, `…-spzcz` ImagePullBackOff; stateful `…-wkdl6`
+ImagePullBackOff). One blocker diagnosis advanced from suspected to proven this
+read — see §6.
 
 ## 5. Route-leakage verdict
 
@@ -319,8 +347,14 @@ code citations were re-read and hold: `app.ts:2014` and `app.ts:2179` are the
    tunnel UUID. `cloudflared` itself is healthy (3× Running in `traefik`,
    token-based), so the tunnel leg works once DNS exists.
 2. **external-dns for this cluster is down.** `utilities/external-dns-apexalgo-iad-6ffc7c97b-vgb2z`
-   is `0/1 CreateContainerConfigError` for 4d18h (re-verified) — likely a
-   missing/misnamed secret key in its env. Even with the domain registered and
+   is `0/1 CreateContainerConfigError` (re-verified at **5d8h** on the
+   04:30 UTC read) — and the cause is now **proven, not suspected**: its
+   Deployment env sets `CF_API_TOKEN` from `secretKeyRef {name:
+   cloudflare-apexalgo-iad-secret, key: CF_API_TOKEN}` in namespace
+   `utilities`, and **no such Secret exists there** — the namespace's only
+   Cloudflare Secret is `cloudflare-externaldns-secret` (234d), which backs the
+   other, Running instance. A missing `secretKeyRef` target is exactly what
+   produces `CreateContainerConfigError`. Even with the domain registered and
    delegated, no record would be created. (The other instance,
    `externaldns-ardenone-com`, is Running — it manages a different zone.)
 3. **No healthy backend behind any rule.** Legacy: 0 endpoints, 153d. Core: 0/2
@@ -345,6 +379,19 @@ module '/app/packages/server/dist/proto/compiled.js'`; deployments remain at
 unchanged (legacy `0.0.82`, core/stateful `0.0.289` — core/stateful pull and
 crash failures are the cause, not scaling); and the ArgoCD condition text is
 unchanged.
+
+Re-confirmed once more at the same bead's re-dispatch (2026-09-03 04:30 UTC):
+`mtamyway.com` zero answers on all three resolvers again, tunnel UUID still
+zero answers, Verisign .com RDAP still **404**; the core crash line was
+re-captured `--previous` and now also names the importer —
+`ERR_MODULE_NOT_FOUND: Cannot find module
+'/app/packages/server/dist/proto/compiled.js' imported from
+/app/packages/server/dist/alerts-parser.js`; stateful events show
+`Back-off pulling image "localhost:7439/ronaldraygun/mta-my-way:0.0.289"`
+(175 back-offs logged); `cloudflared` still 3× Running (pod ages churned to
+38m/50m/5d4h, replica count intact); and the ArgoCD `InvalidSpecError` text is
+character-identical. Blocker 2 additionally advanced from suspected to proven
+this read (missing Secret, above).
 
 ## 7. Umbrella acceptance criteria — verified live vs manifest level
 
@@ -372,7 +419,12 @@ reconciliation of §4 is now an exact structural equality check of every live
 spec against its git manifest, all matching, with the orphan and the stuck
 rollout the only disagreements. Criteria 3 and 4 stand as written; both
 ad-hoc reports were re-checked on disk and remain untouched (their deletion
-still belongs to the follow-up child).
+still belongs to the follow-up child). Re-checked again at the same bead's
+re-dispatch (2026-09-03 04:30 UTC): no criterion's level or outcome moved, the
+§4 reconciliation now covers **every** manifest in the directory (nine objects
+across eight files, all matching; the two `*.disabled` files are inert), and
+§6's blocker 2 is proven at the root-cause level — both of which strengthen
+criterion 2's manifest/router-config verification further.
 
 ## 8. Reconciliation of the two ad-hoc reports
 
