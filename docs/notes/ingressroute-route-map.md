@@ -8,13 +8,15 @@ live-vs-manifest reconciliation, and the route-leakage verdict.
 **Date:** 2026-09-02 (live state re-read during consolidation; §1–§2
 re-verified the same day under sub-child mtamyway-0b795445 and again
 2026-09-03 under sub-children mtamyway-90809e33 and mtamyway-007709be; §3
-re-verified 2026-09-03 under sub-child mtamyway-31ca9ebc)
+re-verified 2026-09-03 under sub-child mtamyway-31ca9ebc; §4/§6/§7
+re-verified 2026-09-03 under sub-child mtamyway-de63ea97)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
 mtamyway-77ee82ce (manifest/router-config isolation) · child 3
 mtamyway-fab296c6 (this doc), split into four section children — sub-child 1
-mtamyway-0b795445 covers §1–§2, sub-child 2 mtamyway-31ca9ebc covers §3
+mtamyway-0b795445 covers §1–§2, sub-child 2 mtamyway-31ca9ebc covers §3,
+sub-child 3 mtamyway-de63ea97 covers §4/§6/§7
 **Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
 read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
 cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
@@ -195,6 +197,30 @@ since scheduled onto another node and joined the CrashLoop (12 restarts).
 Stateful pod `…-xglg5` ImagePullBackOff — not ingress-referenced, but core's
 stateful proxying depends on it, so it is equally down.
 
+Re-verified under mtamyway-de63ea97 (2026-09-03 03:21 UTC, this split child) by
+a fresh read-only read plus an exact structural comparison — each live spec
+parsed and compared for equality against its git manifest rather than eyeballed
+(`declarative-config` at `9de677a6`, the `k8s/apexalgo-iad/mta-my-way/` tree
+clean). **No row of the table moved.** IngressRoute and Middleware specs are
+exactly equal to `ingressroute.yaml` (and the live
+`last-applied-configuration` annotation still equals the manifest spec);
+`service-core.yaml`, `service-stateful.yaml`, `deployment-core.yaml`, and
+`deployment-stateful.yaml` all match live on selector/ports, image, replicas,
+and env. The monolith Service+Deployment remain live-only orphans (legacy
+EndpointSlice empty, deployment 0/0 across all seven ReplicaSets); the three
+`mta-my-way-core` ReplicaSets `6bd9f88b54`/`7fbcbdb69c`/`9b48f8bdc` are still
+simultaneously at `DESIRED 1`; external-dns is still `CreateContainerConfigError`,
+aged to **5d6h**; the ArgoCD `InvalidSpecError` message is character-identical;
+`cloudflared` is 3× Running. This read again had the EndpointSlice `ready`
+conditions populated (legacy `[]` endpoints, core 3× `notReady`, stateful 1×
+`notReady`) — endpoint-native agreement with the table, not inferred from pod
+status. Churn since the 02:51 read: the stateful pod was recreated — `…-xglg5`
+no longer exists, the ImagePullBackOff pod is now `…-x9kr4`
+(`mta-my-way-stateful-5fb9bfb7dc-x9kr4`, same `DESIRED 1` ReplicaSet), with the
+kubelet at 926 pull attempts over 3h33m. Core's pod trio is unchanged
+(`…-zf2xh` CrashLoopBackOff 25 restarts/109m, `…-fdxrb` CrashLoopBackOff 45
+restarts/4h9m, `…-nl8nw` ImagePullBackOff).
+
 ## 5. Route-leakage verdict
 
 **Verdict: no leakage of the stateful subsystem through the public host —
@@ -261,6 +287,18 @@ What decides it:
    live, three core ReplicaSets coexist mid-rollout, and no git fix has reached
    the cluster. **Every remediation depends on fixing this first.**
 
+All four re-confirmed live under mtamyway-de63ea97 (2026-09-03 03:21 UTC,
+this split child): `mtamyway.com` still NXDOMAIN on the default resolver,
+`@1.1.1.1`, and `@9.9.9.9`, the tunnel UUID still has zero answers, and
+Verisign .com RDAP still returns **404** (unregistered); external-dns is the
+same pod at **5d6h** `CreateContainerConfigError`; the core crash log was
+re-captured `--previous` and still ends in `ERR_MODULE_NOT_FOUND: Cannot find
+module '/app/packages/server/dist/proto/compiled.js'`; deployments remain at
+**0 ready replicas** (legacy 0/0 desired, core 0/2, stateful 0/1) with images
+unchanged (legacy `0.0.82`, core/stateful `0.0.289` — core/stateful pull and
+crash failures are the cause, not scaling); and the ArgoCD condition text is
+unchanged.
+
 ## 7. Umbrella acceptance criteria — verified live vs manifest level
 
 Umbrella mtamyway-d26515d5, criterion by criterion:
@@ -277,6 +315,17 @@ documented blocker path with `docs/notes/public-entrypoint-live-verification.md`
 child 2 (manifest/router-config isolation) → done, findings folded into
 §2/§4/§5; child 3 (this doc) → consolidation; child 4 → delete the two ad-hoc
 reports.
+
+Verification status re-checked under mtamyway-de63ea97 (2026-09-03 03:21 UTC,
+split sub-child 3 of mtamyway-fab296c6): no criterion's level or outcome moved.
+Criterion 1 is still live-blocked at DNS — the blocker evidence in §6 was
+retaken fresh at the same read that re-verified §4, not carried forward.
+Criterion 2's manifest/router-config level was strengthened this read: the
+reconciliation of §4 is now an exact structural equality check of every live
+spec against its git manifest, all matching, with the orphan and the stuck
+rollout the only disagreements. Criteria 3 and 4 stand as written; both
+ad-hoc reports were re-checked on disk and remain untouched (their deletion
+still belongs to the follow-up child).
 
 ## 8. Reconciliation of the two ad-hoc reports
 
