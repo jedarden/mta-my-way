@@ -154,6 +154,30 @@ re-added them the same day, and `95850c44` ("prune step", also 2026-08-30)
 deleted them for good — it is the last commit in the repo's history to touch
 either file, and neither exists at HEAD.
 
+Re-verified once more at the same bead's re-dispatch (2026-09-03 04:04 UTC) by a
+fresh read-only read of
+services/deployments/replicasets/pods/endpoints/endpointslices plus an
+IngressRoute service cross-check at the same endpoint. Every cell of the table
+below is unchanged: still exactly three Services; `mta-my-way` 0 endpoints with
+its Deployment 0/0 across all seven ReplicaSets; `mta-my-way-core` 2 desired /
+0 ready, the same three ReplicaSets (`6bd9f88b54`, `7fbcbdb69c`, `9b48f8bdc`)
+still simultaneously at `DESIRED 1`, and 0 of 3 endpoints ready;
+`mta-my-way-stateful` 1 desired / 0 ready, its single endpoint not ready;
+images unchanged (`0.0.82` legacy, `0.0.289` core and stateful). The
+EndpointSlice `ready`/`serving` conditions were unset at this read (as at the
+mtamyway-90809e33 read), so readiness is endpoint-native via the v1 Endpoints
+object instead — `mta-my-way` no subsets, core `ready=[0] notReady=[3]`,
+stateful `ready=[0] notReady=[1]`. Pod identities churned again without moving
+a cell: core is now `…-zf2xh` (CrashLoopBackOff, 36 restarts), `…-2g7xq`
+(CrashLoopBackOff, 7) and `…-spzcz` (ImagePullBackOff) — still
+2× CrashLoopBackOff + 1× ImagePullBackOff — and stateful is `…-wkdl6`
+(ImagePullBackOff). The IngressRoute still references exactly
+`mta-my-way:3000` (rules 1–3) and `mta-my-way-core:3000` (catch-all),
+`mta-my-way-stateful` in none; the cited retire sequence
+(`8231717e` → `bab2c396` → `95850c44`) re-verified in the declarative-config
+history, `95850c44` still the last commit to touch either legacy manifest and
+neither file present at HEAD.
+
 | Service (live) | Port | Selector | Backing Deployment | Replicas desired/ready | Image | Live endpoints (ready/total) | Manifest in git? | Referenced by IngressRoute? |
 |---|---|---|---|---|---|---|---|---|
 | **ORPHAN — retired from git, still live** `mta-my-way` (legacy monolith) | 3000 | `app.kubernetes.io/name=mta-my-way` | `mta-my-way` (legacy monolith, scaled to zero) | 0 / 0 (all 7 ReplicaSets desired 0) | `ronaldraygun/mta-my-way:0.0.82` | **0 / 0 — DEAD since retire (~152+ days)** | **No** — deleted in the monolith retire (`8231717e` step 2 of 2, then re-added by re-adoption `bab2c396`, finally deleted by prune step `95850c44` — all 2026-08-30, verified in declarative-config history); live-only leftover ArgoCD cannot prune (§4 InvalidSpecError) | Yes — rules 1–3 (dead backend) |
