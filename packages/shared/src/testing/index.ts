@@ -21,3 +21,6 @@ export * from "./observability-helpers";
 
 // Response validation utilities
 export * from "./response-validation";
+
+// Middleware testing utilities
+export * from "./middleware";
