@@ -12,7 +12,8 @@ re-verified 2026-09-03 under sub-child mtamyway-31ca9ebc; §4/§6/§7
 re-verified 2026-09-03 under sub-child mtamyway-de63ea97; §5 re-verified and
 the closing summary added 2026-09-03 under sub-child mtamyway-15b024d1;
 certified against the parent bead's acceptance criteria 2026-09-03 under
-mtamyway-93dacd4e — see §12)
+mtamyway-93dacd4e — see §12; the umbrella's two ad-hoc reports were
+superseded in place by child 4 mtamyway-7fad73c2 on 2026-09-03 — see §8)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -22,13 +23,16 @@ mtamyway-0b795445 covers §1–§2, sub-child 2 mtamyway-31ca9ebc covers §3,
 sub-child 3 mtamyway-de63ea97 covers §4/§6/§7, sub-child 4 mtamyway-15b024d1
 covers §5 and the closing summary (§11); the parent was split a second time
 the same day (children mtamyway-3bd2414e, mtamyway-532aca9a, mtamyway-18a17309
-— all closed) and certified by mtamyway-93dacd4e (§12)
+— all closed) and certified by mtamyway-93dacd4e (§12) · umbrella child 4
+mtamyway-7fad73c2 (supersede the two ad-hoc reports in place — §8)
 **Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
 read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
 cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
 reports `docs/ingressroute-validation-findings.md` and
 `docs/api-health-route-isolation-report.md` (both still on disk — their removal
-is the follow-up child's job, not this one's).
+is the follow-up child's job, not this one's. *Outcome update 2026-09-03,
+mtamyway-7fad73c2: that child superseded both in place with banners rather
+than deleting them — see §8.)*
 
 ## 1. Scope correction: the routes live in `apexalgo-iad`, not `ardenone-cluster`
 
@@ -430,6 +434,15 @@ across eight files, all matching; the two `*.disabled` files are inert), and
 §6's blocker 2 is proven at the root-cause level — both of which strengthen
 criterion 2's manifest/router-config verification further.
 
+Criterion 4's deferred follow-up was completed under mtamyway-7fad73c2
+(2026-09-03, this umbrella's child 4): rather than deleting the two ad-hoc
+reports, it superseded them **in place** — each now opens with a banner naming
+this document as the authoritative reference and stating which of its claims
+were wrong and why, with inline qualifiers on the remaining wrong or
+unverified claims (full outcome in §8). The banner route satisfies the
+umbrella's "reconciled or superseded" wording while preserving the original
+evidence.
+
 ## 8. Reconciliation of the two ad-hoc reports
 
 ### `docs/ingressroute-validation-findings.md` (2026-09-01, bead mtamyway-6895e35e)
@@ -463,7 +476,59 @@ Two different reliability tiers in one document:
   server.
 
 Both files remain on disk untouched; the follow-up child deletes them once this
-document lands.
+document lands. *(Superseded in place instead — outcome below.)*
+
+### Reconciliation outcome (mtamyway-7fad73c2, 2026-09-03, this umbrella's child 4)
+
+Both ad-hoc reports were **superseded in place rather than deleted**: each now
+opens with a banner naming this document as the authoritative reference and
+stating which claims were wrong and why. Per file:
+
+- `docs/ingressroute-validation-findings.md` — the banner confirms its three
+  headline problems (dead `mta-my-way` backend, rules-vs-app path mismatch,
+  unhealthy deployments) and corrects the imprecise "Zero-Scale Deployments"
+  claim and the resulting "scale up deployments" action: only the legacy
+  monolith is truly at `0/0` desired; core and stateful want 2 and 1 and have
+  zero *ready* pods for image/registry/scheduling reasons (§3, §6, §9). Its
+  "dead `localhost:7439` registry mirror" shorthand was also tightened to the
+  §4/§6 evidence — the mirror *answers not found* for the image rather than
+  being unreachable. Its Next Steps pointer now targets this document instead
+  of the companion report.
+- `docs/api-health-route-isolation-report.md` — the banner marks the Traffic
+  Splitting Architecture section **wrong** (it describes an IngressRoute that
+  does not exist; the real rules are §2) and every "healthy / responsive" ✅
+  **unverified as stated**: the cited e2e suites run against a server the
+  repo boots locally on `http://localhost:3001`
+  (`tests/e2e/playwright.config.ts`), while the live entrypoint has no DNS
+  and no ready backend (§3, §6). Inline notes qualify each affected claim
+  (executive summary, the public-endpoint table's response times, the
+  Performance Validation block, expected results, findings, conclusion), the
+  report's mocha-style test commands were corrected to the suite's actual
+  Playwright runner, and the Response Time figures were corrected to note
+  they are targets **stricter than the suite's configured thresholds**
+  (health < 1s, static < 2s, dynamic < 3s — `public-api-health.e2e.ts:42–44`),
+  never assertions of any test.
+
+Both files are now committed to git by that child (previously untracked), so
+the §12 hashes below describe the **pre-reconciliation** contents — verified
+still exact at that child's start — and the post-reconciliation sha256s are
+`f289744ff6a9b8c1bed82d4b65fe20d04195076ba389ebe6e35e8e9bc78ff397` (findings)
+and `e5d9aef2bb02b078fd254afe1a5b10d9e0d37897c328b138916e70469b38fca6`
+(api-health). Deletion is no longer pending: supersession-in-place is the
+final state, chosen because it keeps the original evidence readable while
+routing every reader here.
+
+The banners' present-tense claims about the live world were re-taken fresh at
+this child's close (2026-09-03, read-only): `mtamyway.com` still returns zero
+answers on the default resolver, `@1.1.1.1`, and `@9.9.9.9`, and Verisign .com
+RDAP still returns **404** (unregistered); backend state is unchanged —
+`mta-my-way` Endpoints still empty, `mta-my-way-core` still 3 not-ready
+endpoints (2× CrashLoopBackOff, 1× ImagePullBackOff), `mta-my-way-stateful`
+still 1 not-ready endpoint (ImagePullBackOff). Every code and test-file
+citation in both banners was also re-checked against the repo
+(`app.ts:2014`/`:2179`, `config.ts:58`, `playwright.config.ts`,
+`tests/e2e/public-api-health.e2e.ts`, `tests/e2e/health.e2e.ts`,
+`tests/e2e/api-validation.e2e.ts`, `docs/api/openapi.yaml`).
 
 ## 9. Recommended remediation (ordered by dependency)
 
@@ -525,7 +590,10 @@ Supersession, stated explicitly once more:
 `docs/api-health-route-isolation-report.md` **remain on disk, untouched, and
 are superseded by this document**. Their deletion is the follow-up child's job
 (umbrella child 4), not this one's — this child deliberately leaves both files
-in place, and both were re-checked on disk at this child's close. The
+in place, and both were re-checked on disk at this child's close. *Outcome
+update 2026-09-03, mtamyway-7fad73c2: child 4 superseded both in place with
+banners instead of deleting them, so they are no longer untouched and no
+deletion is pending — supersession-in-place is the final state (§8).* The
 route-leakage verdict of §5 stands **PROVEN at the router-config/manifest
 level** as of the mtamyway-15b024d1 re-read recorded there, with live HTTP
 confirmation still blocked by the §6 DNS blocker.
