@@ -135,9 +135,24 @@ ImagePullBackOff; still three ReplicaSets simultaneously at `DESIRED 1`);
 `mta-my-way-stateful` still **1 endpoint, not ready** (ImagePullBackOff).
 Images unchanged (`0.0.82` legacy, `0.0.289` core and stateful).
 
+A second read under the same bead (02:51 UTC) re-confirmed every cell of the
+table above unchanged — core's pod set had churned (new CrashLoopBackOff pod
+`…-zf2xh`, 21 restarts at an 85m age, joining `…-fdxrb` at 40; `…-nl8nw` still
+ImagePullBackOff) and the stateful pod was caught mid `ErrImagePull` rather
+than in the backoff phase — and produced one correction: the three commit
+hashes this row previously cited for the manifest deletion (`cb0fd902`,
+`4ac1d48d`, `b4c7faa8`) do not exist in the declarative-config history
+(`git cat-file -t` fails on all three against a clean, up-to-date clone), so
+they are replaced above with the verified retire sequence: `8231717e`
+("retire the monolith Deployment/Service (step 2 of 2)") deleted
+`deployment.yaml`/`service.yaml` and their `.disabled` copies, `bab2c396`
+re-added them the same day, and `95850c44` ("prune step", also 2026-08-30)
+deleted them for good — it is the last commit in the repo's history to touch
+either file, and neither exists at HEAD.
+
 | Service (live) | Port | Selector | Backing Deployment | Replicas desired/ready | Image | Live endpoints (ready/total) | Manifest in git? | Referenced by IngressRoute? |
 |---|---|---|---|---|---|---|---|---|
-| **ORPHAN — retired from git, still live** `mta-my-way` (legacy monolith) | 3000 | `app.kubernetes.io/name=mta-my-way` | `mta-my-way` (legacy monolith, scaled to zero) | 0 / 0 (all 7 ReplicaSets desired 0) | `ronaldraygun/mta-my-way:0.0.82` | **0 / 0 — DEAD since retire (~152+ days)** | **No** — deleted in monolith retire (`cb0fd902`, `4ac1d48d`, `b4c7faa8`); live-only leftover ArgoCD cannot prune (§4 InvalidSpecError) | Yes — rules 1–3 (dead backend) |
+| **ORPHAN — retired from git, still live** `mta-my-way` (legacy monolith) | 3000 | `app.kubernetes.io/name=mta-my-way` | `mta-my-way` (legacy monolith, scaled to zero) | 0 / 0 (all 7 ReplicaSets desired 0) | `ronaldraygun/mta-my-way:0.0.82` | **0 / 0 — DEAD since retire (~152+ days)** | **No** — deleted in the monolith retire (`8231717e` step 2 of 2, then re-added by re-adoption `bab2c396`, finally deleted by prune step `95850c44` — all 2026-08-30, verified in declarative-config history); live-only leftover ArgoCD cannot prune (§4 InvalidSpecError) | Yes — rules 1–3 (dead backend) |
 | `mta-my-way-core` | 3000 | `app.kubernetes.io/name=mta-my-way-core` | `mta-my-way-core` | 2 / 0 | `ronaldraygun/mta-my-way:0.0.289` | **0 / 3 — all `ready=false`/`serving=false`** (2 CrashLoopBackOff, 1 ImagePullBackOff) | Yes — `service-core.yaml`, `deployment-core.yaml` | Yes — rule 4 (catch-all) |
 | `mta-my-way-stateful` | 3001 | `app.kubernetes.io/name=mta-my-way-stateful` | `mta-my-way-stateful` | 1 / 0 | `ronaldraygun/mta-my-way:0.0.289` | **0 / 1 — not ready** (ImagePullBackOff) | Yes — `service-stateful.yaml`, `deployment-stateful.yaml` | **No — internal only** |
 
