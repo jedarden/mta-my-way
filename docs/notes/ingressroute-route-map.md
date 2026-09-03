@@ -888,3 +888,48 @@ does **not** now exist, so no upgrade of the evidence level is available and
 none is claimed. The only stale wording found anywhere in this document is the
 §6 tunnel-UUID sub-claim, corrected above; the verdict sentence of §5 requires
 no change.
+
+### Re-verification on re-dispatch (2026-09-03 18:43–18:45 UTC, mtamyway-8ccd3076)
+
+This addendum was re-verified fresh at re-dispatch — same read-only toolset
+(kubectl at `http://traefik-apexalgo-iad:8001`, `dig`, Verisign .com RDAP),
+no cluster mutation — and **every load-bearing claim above holds unchanged**:
+
+- **Router config — unchanged.** Cluster-wide enumeration returns the same
+  21 IngressRoutes, 2 IngressRouteTCP, 0 IngressRouteUDP; the only
+  mta-referencing route is still `mta-my-way/mta-my-way`, its four rules
+  re-dumped live and cell-for-cell the §2 table (three path rules →
+  `mta-my-way:3000`, catch-all → `mta-my-way-core:3000` behind
+  `mta-my-way-sse`, whose headers were re-read intact), TLS
+  `letsencrypt`, and `mta-my-way-stateful` in **zero** HTTP and TCP rules
+  cluster-wide.
+- **DNS/RDAP — unchanged.** `mtamyway.com` still returns zero A, AAAA and NS
+  answers on the default resolver and on `@1.1.1.1` and `@9.9.9.9`; Verisign
+  RDAP still answers **HTTP 404** via the exit-56 truncated-read signature —
+  still unregistered. The `*.cfargotunnel.com` wildcard AAAA still answers
+  the same non-routable ULA placeholder for a fabricated name, confirming the
+  §6 correction above. Live evidence still does **not** exist; no
+  evidence-level upgrade is available and the §5 verdict remains unchanged.
+- **Backends — still zero ready, with one stale snapshot corrected.** Every
+  mta pod was recreated at 18:08 UTC — the environment is being redeployed,
+  which is §9 remediation work and outside the umbrella's scope. Legacy
+  `mta-my-way` still has zero addresses (deployment 0/0). Core still has 0
+  ready / 3 not-ready endpoints (two CrashLoopBackOff, one ImagePullBackOff).
+  The correction: this addendum's point 2 recorded the stateful pod as
+  ContainerCreating with no pod IP and both its EndpointSlice and v1
+  Endpoints empty; as of this pass the stateful pod is ImagePullBackOff
+  **with pod IP** 10.20.74.116, and its EndpointSlice and v1 Endpoints each
+  hold exactly **one not-ready endpoint** (`ready=false`, `serving=false`) —
+  the mtamyway-15b024d1 shape, superseding the endpointless
+  mtamyway-3b383d4a shape point 2 described. Read point 2's stateful
+  sentence as stamped to the 17:47–17:58 UTC pass. This is neutral for
+  criterion 1 and the §5 verdict — the tier was and remains in no router
+  rule, so nothing is reachable through the public host either way, and the
+  internal tier is still not ready even on cluster-internal DNS.
+
+**Verdicts restated at this read: mtamyway-d26515d5 (umbrella) and
+mtamyway-6895e35e (parent) both remain CLOSURE-READY** on the roll-up above;
+the one open sibling mtamyway-7bd2a141 remains the only item that could be
+cited against the parent, and the §9 list remains genuinely outstanding but
+outside both beads' scope. Closing either bead is still the harness's
+decision and was not taken here.
