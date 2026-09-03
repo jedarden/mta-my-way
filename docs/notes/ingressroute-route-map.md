@@ -648,7 +648,12 @@ Certification checks (mtamyway-93dacd4e, 2026-09-03, read-only throughout):
   `0fde763723b779e12a8e507af6fe9563f128814bdc45a442a530ce4cf1730dad`) are both
   present, untracked, and last modified 2026-09-01. These hashes are recorded
   so the follow-up child can prove non-modification as well as non-deletion
-  when it removes them.
+  when it removes them. *(Outcome update 2026-09-03, mtamyway-7fad73c2: the
+  follow-up child superseded both in place with banners and committed them to
+  git rather than deleting them, so they are no longer untouched or untracked
+  and no removal is pending — the hashes above now describe the
+  pre-reconciliation contents, and the post-reconciliation sha256s are
+  recorded in §8.)*
 
 Closing this child completes the parent's second split and makes
 mtamyway-fab296c6 ready to close; umbrella mtamyway-d26515d5 still has its own
