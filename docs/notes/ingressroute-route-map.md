@@ -19,7 +19,9 @@ mtamyway-3b383d4a — the router config is unchanged and the stateful
 EndpointSlice is now empty, see §5; §6 re-verified the same day
 (17:19–17:25 UTC) under mtamyway-f33f968d — all four blockers re-taken fresh
 and still holding, see §6); umbrella closure readiness certified 2026-09-03
-(17:47–17:58 UTC) under mtamyway-8ccd3076 — see §13)
+(17:47–17:58 UTC) under mtamyway-8ccd3076 — see §13; the whole document
+re-verified against a fresh same-day evidence pass (21:57–22:10 UTC) under
+mtamyway-aab3d8ab — see §14)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -56,7 +58,13 @@ from `http://traefik-apexalgo-iad:8001`.
 Re-verified under mtamyway-0b795445 (2026-09-02): the ardenone-cluster negative
 result still holds (`get ns | grep -i mta` and `get ingressroutes -A | grep -i
 mta` both empty; no mta `IngressRouteTCP`/`IngressRouteUDP` either — the only
-TCP route on either cluster is the unrelated `devpod-observer/kubectl-proxy-tcp`),
+TCP route on either cluster is the unrelated `devpod-observer/kubectl-proxy-tcp`
+*(correction 2026-09-03, mtamyway-aab3d8ab: each cluster carries a second,
+equally unrelated TCP route — `monitoring/victorialogs-mesh-tcp` on
+ardenone-cluster, created 2026-04-03 and so overlooked by this stamp rather
+than newly appeared, and `devpod-observer/sealed-secrets-reader-proxy-tcp` on
+apexalgo-iad, which §2/§13 name correctly. Neither is mta, so the negative
+itself stands)*),
 and on apexalgo-iad the single IngressRoute still carries exactly the four rules
 of §2, with EndpointSlices at `mta-my-way` 0 endpoints, `mta-my-way-core` 3/3
 `ready=false`/`serving=false`, `mta-my-way-stateful` 1 not-ready endpoint
@@ -705,6 +713,8 @@ reports. Its sections, in order:
   (mtamyway-fab296c6)
 - §13 — certification addendum: umbrella closure readiness
   (mtamyway-8ccd3076)
+- §14 — re-verification against fresh evidence, with the §1 TCP-route
+  correction (mtamyway-aab3d8ab)
 
 Supersession, stated explicitly once more:
 `docs/ingressroute-validation-findings.md` and
@@ -989,3 +999,120 @@ evidence levels as tabled above, §5's router-config-level verdict unchanged
 with no upgrade claimed; the §9 list remains genuinely outstanding but
 outside both beads' scope, and closing either bead remains the harness's
 decision, not taken here.
+
+## 14. Re-verification against fresh evidence (2026-09-03 21:57–22:10 UTC, mtamyway-aab3d8ab)
+
+Recorded by child 3 of 4 of the umbrella's fourth split (its acceptance
+criterion: check this document against the evidence of the two prior children
+— the live attempt and the router-config enumeration — and append a dated
+re-verification note). One process finding first, because it shapes where the
+evidence below comes from:
+
+**The two prior children of this split closed without persisting artifacts.**
+mtamyway-b570bf80 (child 1, live curl attempt) and mtamyway-78cf93f5 (child 2,
+router-config enumeration) were both closed at 2026-09-03 21:55 UTC, eight
+minutes after dispatch, with a generic gate close-reason and no notes;
+`docs/notes/public-entrypoint-live-verification.md` is untouched since
+2026-09-02 and no new re-enumeration note exists anywhere on disk. Their
+*scopes* are unambiguous, so this pass simply **re-took both evidence passes
+fresh itself** (read-only throughout: kubectl at
+`http://traefik-apexalgo-iad:8001`, `dig` on three resolvers, Verisign .com
+RDAP, on-disk hashes, and a leaf-level live-vs-manifest diff against a clean
+declarative-config checkout at `d818489e`). Everything below is therefore
+first-hand evidence from this pass, not carried-forward citations. No cluster
+mutation was performed.
+
+### Outcome: every load-bearing claim holds — one letter-level correction (§1), zero verdict changes
+
+**§2 rules table — cell-for-cell identical.** Cluster-wide enumeration
+(`-A -o json`, all three route kinds) re-counts **21 IngressRoutes, 2
+IngressRouteTCP** (`devpod-observer/kubectl-proxy-tcp`,
+`devpod-observer/sealed-secrets-reader-proxy-tcp`), **0 IngressRouteUDP**, and
+exactly one mta-referencing route — `mta-my-way/mta-my-way`. Its four rules,
+re-dumped live this pass: `Host(⋯) && PathPrefix(/push/)`, `(/auth/)`,
+`(/password-reset/)` each with no middleware → `mta-my-way:3000`;
+`Host(⋯)` catch-all → `mta-my-way-core:3000` behind `mta-my-way-sse` —
+cell-for-cell the §2 table. entryPoints `websecure`, TLS
+`certResolver: letsencrypt`, and the three external-dns annotations
+(`hostname: mtamyway.com`, tunnel-UUID `target`, `ttl: "300"`) all equal;
+`mta-my-way-sse` is still the namespace's only middleware and its headers
+spec re-read intact. The live-only `argocd.argoproj.io/tracking-id`
+annotation is still present (metadata only, no routing effect). Beyond the
+cells, the live specs were re-diffed leaf-by-leaf against
+`declarative-config/k8s/apexalgo-iad/mta-my-way/ingressroute.yaml`:
+**19/19 IngressRoute spec leaves and 3/3 Middleware leaves, zero live-only,
+zero manifest-only, zero value diffs** — exact structural equality again.
+
+**§3 service→deployment table — every manifest-controlled cell unchanged.**
+Still exactly three Services (`mta-my-way`:3000, `mta-my-way-core`:3000,
+`mta-my-way-stateful`:3001). Legacy `mta-my-way`: 0/0 desired/ready with all
+**seven** ReplicaSets re-read at `desired=0`, image `0.0.82`, v1 Endpoints
+with no subsets and an empty EndpointSlice — still DEAD, still unrouted-except-by-rules-1–3.
+`mta-my-way-core`: 2/0, image `0.0.289`, **3 endpoints every one
+`ready=false`/`serving=false`**, still the same three ReplicaSets
+(`6bd9f88b54`, `7fbcbdb69c`, `9b48f8bdc`) simultaneously at `DESIRED 1`, pod
+shape still 2× CrashLoopBackOff (restart counts now 49/49) + 1×
+ImagePullBackOff. `mta-my-way-stateful`: 1/0, image `0.0.289`, its single
+endpoint **not-ready with a pod IP** (10.20.74.116) on ImagePullBackOff — the
+mtamyway-8ccd3076 re-dispatch shape of §13's last stamp, no further
+correction. Pod identities churned (core `…-fww77`/`…-c8lqt`/`…-dmcqk`,
+stateful `…-5px8k`) without moving a cell. The env-wiring table holds on
+**both** sides: manifest lines re-read at `deployment-core.yaml:67`/`:70` and
+`deployment-stateful.yaml:60`/`:63`, and the live Deployment env re-read equal
+(core `CORE_ONLY=true` + `STATEFUL_SERVICE_URL=http://mta-my-way-stateful:3001`;
+stateful `PORT=3001` + `CORE_ONLY=false`). `mta-my-way-stateful` appears in
+**no** rule of any kind.
+
+**§4 reconciliation — no row moved.** IngressRoute/Middleware equality above;
+PVC `mta-my-way-data` re-read `sata`, RWO, 5Gi, `Bound`; SealedSecret
+`mta-my-way-secrets` re-read `Synced=True` with both VAPID `encryptedData`
+keys; the ArgoCD app is still sync `Unknown` / health `Unknown` with the
+character-identical `InvalidSpecError` against the same dead Rackspace
+control-plane URL; `external-dns-apexalgo-iad-6ffc7c97b-vgb2z` is still
+`CreateContainerConfigError` (created 2026-08-28 20:31 UTC, age now ~6d1h —
+monotonic), the `externaldns-ardenone-com` instance still Running; `cloudflared`
+still 3× Running.
+
+**§5 verdict — unchanged, and its router half re-proven.** The stateful
+service appears in zero HTTP/TCP/UDP rules cluster-wide (full enumeration
+above), live HTTP confirmation is still blocked (below), so the verdict
+stands **PROVEN at the router-config/manifest level, BLOCKED live**, and no
+evidence-level upgrade is available or claimed. The §1 scope correction also
+re-verified: ardenone-cluster holds zero mta resources of any kind (0 hits
+across 117 namespaces, 89 IngressRoutes, 2 IngressRouteTCP, 33 middlewares).
+
+**§6 blockers — all four re-taken fresh, all still holding.** (1)
+`mtamyway.com` returns zero A, AAAA and NS answers on the default resolver,
+`@1.1.1.1` and `@9.9.9.9`; the tunnel UUID still has zero A answers and its
+AAAA is the non-routable ULA wildcard `fd10:aec2:5dae::`, answered
+**identically for a freshly fabricated name** re-checked this pass — the §13
+correction's characterization, not a record of this tunnel; Verisign .com RDAP
+answers **HTTP 404** via the exit-56 truncated-read signature — still
+unregistered. (2) external-dns as above. (3) zero ready replicas anywhere, as
+§3 above. (4) ArgoCD as above. A fresh curl pass against `https://mtamyway.com`
+(public `/`, `/api/arrivals`, `/api/stations`, `/api/alerts`; stateful
+`/auth`, `/session`, `/admin`) returned `http_code=000`, exit 6 (DNS) on all
+seven — criterion 1's success half remains unachievable and its do-not-route
+half remains vacuously true, exactly as §7 row 1 records.
+
+**§7/§8/§13 support claims — verified.** Both ad-hoc reports re-hashed
+byte-for-byte at the §8 values (`f289744ff6a9…`, `39c440b3178e…`), banners
+present; every code citation re-checked and holding (`app.ts:2014`,
+`:2016–2122`, `:2179`, `:2181–2479`, `:2905–2971`, `/health` at `app.ts:416`,
+`/api/health` at `app.ts:570`, `config.ts:58`,
+`stateful-client.ts:31–32`, `playwright.config.ts` localhost:3001,
+`public-api-health.e2e.ts:42–44` thresholds).
+
+**One discrepancy found and fixed in place — §1's TCP-route sentence.** The
+mtamyway-0b795445 stamp said "the only TCP route on either cluster is the
+unrelated `devpod-observer/kubectl-proxy-tcp`". Each cluster in fact carries a
+second, equally unrelated TCP route — `monitoring/victorialogs-mesh-tcp` on
+ardenone-cluster (created 2026-04-03, i.e. overlooked by that stamp rather
+than newly appeared) and `devpod-observer/sealed-secrets-reader-proxy-tcp` on
+apexalgo-iad (named correctly in §2/§13). Neither is mta, so the negative and
+every downstream verdict stand; the sentence is corrected in place above with
+a bracketed note. This is the only delta found anywhere in the document.
+
+**Disposition:** confirmation with one in-place letter-level correction.
+The §5 route-leakage verdict, the §2 rules table, the §3 mappings and the §6
+blocker set all re-verify fresh; nothing in this document requires a blocker.
