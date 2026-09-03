@@ -13,7 +13,10 @@ re-verified 2026-09-03 under sub-child mtamyway-de63ea97; §5 re-verified and
 the closing summary added 2026-09-03 under sub-child mtamyway-15b024d1;
 certified against the parent bead's acceptance criteria 2026-09-03 under
 mtamyway-93dacd4e — see §12; the umbrella's two ad-hoc reports were
-superseded in place by child 4 mtamyway-7fad73c2 on 2026-09-03 — see §8)
+superseded in place by child 4 mtamyway-7fad73c2 on 2026-09-03 — see §8;
+§2/§3/§5 re-verified once more 2026-09-03 (16:44 UTC) under sub-child
+mtamyway-3b383d4a — the router config is unchanged and the stateful
+EndpointSlice is now empty, see §5)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -116,6 +119,21 @@ Single middleware in the namespace, attached only to rule 4:
 
 `mta-my-way-stateful` (:3001) appears in **no** rule — internal only, by design.
 
+Re-verified under mtamyway-3b383d4a (2026-09-03 16:44 UTC, this split child) by
+enumerating **every** IngressRoute, IngressRouteTCP and IngressRouteUDP in the
+cluster (`-A -o json`, service-referenced rather than name-filtered): 21 HTTP
+IngressRoutes, 2 IngressRouteTCP (both `devpod-observer` proxies —
+`kubectl-proxy-tcp`, `sealed-secrets-reader-proxy-tcp`, neither mta), 0
+IngressRouteUDP. Exactly **one** route references an mta service —
+`mta-my-way/mta-my-way` — and its four rules are cell-for-cell identical to the
+table above: `/push/`, `/auth/`, `/password-reset/` (no middleware) →
+`mta-my-way:3000`, catch-all → `mta-my-way-core:3000` behind `mta-my-way-sse`
+(still the namespace's only middleware, spec unchanged); entryPoints
+`websecure`, TLS `certResolver: letsencrypt`, and the same three external-dns
+annotations. The namespace still holds exactly three Services
+(`mta-my-way`:3000, `mta-my-way-core`:3000, `mta-my-way-stateful`:3001), and
+**zero drift** at the router level.
+
 ### Path mismatch (rules vs what the app serves)
 
 The app registers everything under `/api/*` (`packages/server/src/app.ts`:
@@ -189,6 +207,31 @@ a cell: core is now `…-zf2xh` (CrashLoopBackOff, 36 restarts), `…-2g7xq`
 (`8231717e` → `bab2c396` → `95850c44`) re-verified in the declarative-config
 history, `95850c44` still the last commit to touch either legacy manifest and
 neither file present at HEAD.
+
+Re-verified under mtamyway-3b383d4a (2026-09-03 16:44 UTC, this split child) by
+a fresh read-only read of deployments/replicasets/pods/endpointslices/endpoints.
+Every manifest-controlled cell of the table is unchanged — still exactly three
+Services; images still `0.0.82` legacy / `0.0.289` core and stateful; legacy
+`mta-my-way` desired 0 / ready 0 across all seven ReplicaSets (all `desired=0`)
+with an empty EndpointSlice; `mta-my-way-core` desired 2 / ready 0 with the
+same three ReplicaSets (`6bd9f88b54`, `7fbcbdb69c`, `9b48f8bdc`) still
+simultaneously at `DESIRED 1` (deployment `status.replicas` 3 vs 2 desired, so
+one pod over count) and 3 endpoints, every one `ready=false`/`serving=false`
+(pods `…-ctmpc` and `…-ms9nw` CrashLoopBackOff 15 restarts each, both 53m old,
+`…-fppxq` ImagePullBackOff 3h9m — still 2× CrashLoop + 1× ImagePull); the
+parent bead's 0-replica finding is **confirmed in its ready sense** — desired
+counts are 0/2/1 as recorded, and every deployment has zero ready replicas.
+
+One real drift, on the stateful row: the failure mode has moved from image
+pull to volume mount. Pod `…-5fb9bfb7dc-25cbn` (same ReplicaSet) is
+Pending/ContainerCreating with **no pod IP**, 0 restarts, and a fresh
+`FailedMount` event (16:39:29Z) — `applyFSGroup failed … readdirent
+/var/lib/kubelet/pods/…/volumes/kubernetes.io~csi/pvc-75855d3f-…/mount:
+input/output error` on the `mta-my-way-data` PVC. With no pod IP the stateful
+EndpointSlice (`mta-my-way-stateful-nb27g`) now holds **0 endpoints** — the v1
+Endpoints object is empty too — so the table's stateful "Live endpoints" cell
+reads 0/1 with the endpoint absent entirely, not merely not-ready. See §5 for
+what this does to the verdict's "internal tier exists" phrasing.
 
 | Service (live) | Port | Selector | Backing Deployment | Replicas desired/ready | Image | Live endpoints (ready/total) | Manifest in git? | Referenced by IngressRoute? |
 |---|---|---|---|---|---|---|---|---|
@@ -347,6 +390,24 @@ code citations were re-read and hold: `app.ts:2014` and `app.ts:2179` are the
 `!CORE_ONLY` gates that keep push/trips/journal unmounted on core, and
 `stateful-client.ts:31–32` resolves `STATEFUL_SERVICE_URL` to
 `http://mta-my-way-stateful:3001`.
+
+Re-verified under mtamyway-3b383d4a (2026-09-03 16:44 UTC, this split child).
+The isolation half of the verdict is unchanged and was re-proven by the same
+strong enumeration: across all 21 HTTP IngressRoutes, 2 IngressRouteTCP and 0
+IngressRouteUDP in the cluster, the only mta service references anywhere are
+`mta-my-way:3000` (rules 1–3) and `mta-my-way-core:3000` (rule 4) —
+`mta-my-way-stateful` appears in no route of any kind. The evidence level is
+unchanged too: live HTTP confirmation remains blocked by the §6 DNS blocker
+(not re-tested this read — the domain-level blockers are unchanged and were
+re-taken fresh at 04:30 UTC). What moved is the stateful tier's internal
+health: its EndpointSlice is now **empty (0 endpoints)** rather than holding
+one not-ready endpoint, because the pod has no IP while stuck on a PVC mount
+I/O error (§3 stamp). That is a *strengthening*, not a weakening, of the
+no-leakage verdict — the internal tier currently has no endpoints at all, so
+it is not reachable even through its cluster-internal DNS name — but the
+verdict sentence "the internal tier exists and is reachable only through its
+cluster-internal DNS name" should be read as recorded at the mtamyway-15b024d1
+read; as of this read the tier exists and is unrouted *and* has no endpoints.
 
 ## 6. Remaining blockers (why live verification is impossible today)
 
@@ -631,7 +692,9 @@ Certification checks (mtamyway-93dacd4e, 2026-09-03, read-only throughout):
   2 IngressRouteTCP and 0 of 0 IngressRouteUDP reference an mta service; the
   stateful EndpointSlice still holds exactly 1 endpoint
   (`ready=false`/`serving=false`), i.e. the internal tier exists and is
-  unrouted. Fresh DNS re-check: `mtamyway.com` returns zero answers on the
+  unrouted. *(Update 2026-09-03 16:44 UTC, mtamyway-3b383d4a: the slice is now
+  empty — 0 endpoints, the pod IPless on a PVC mount I/O error; see the §3 and
+  §5 stamps.)* Fresh DNS re-check: `mtamyway.com` returns zero answers on the
   default resolver, `@1.1.1.1`, and `@9.9.9.9`, and the tunnel UUID still has
   no record — the blocker still blocks, so the verdict's evidence level is
   unchanged.
