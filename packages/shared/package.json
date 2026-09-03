@@ -22,6 +22,10 @@
     "./testing/test-helpers": {
       "types": "./src/testing/test-helpers.ts",
       "import": "./src/testing/test-helpers.ts"
+    },
+    "./testing/middleware": {
+      "types": "./src/testing/middleware/index.ts",
+      "import": "./src/testing/middleware/index.ts"
     }
   },
   "scripts": {
