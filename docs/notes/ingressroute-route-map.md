@@ -18,7 +18,8 @@ superseded in place by child 4 mtamyway-7fad73c2 on 2026-09-03 — see §8;
 mtamyway-3b383d4a — the router config is unchanged and the stateful
 EndpointSlice is now empty, see §5; §6 re-verified the same day
 (17:19–17:25 UTC) under mtamyway-f33f968d — all four blockers re-taken fresh
-and still holding, see §6)
+and still holding, see §6); umbrella closure readiness certified 2026-09-03
+(17:47–17:58 UTC) under mtamyway-8ccd3076 — see §13)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -702,6 +703,8 @@ reports. Its sections, in order:
 - §10 — evidence commands
 - §12 — certification against the parent bead's acceptance criteria
   (mtamyway-fab296c6)
+- §13 — certification addendum: umbrella closure readiness
+  (mtamyway-8ccd3076)
 
 Supersession, stated explicitly once more:
 `docs/ingressroute-validation-findings.md` and
@@ -775,3 +778,113 @@ child 4 (delete the two ad-hoc reports) outstanding after that. *(Outcome
 update 2026-09-03, mtamyway-7fad73c2: that child superseded both reports in
 place rather than deleting them — with it closed, the umbrella's work is
 complete, §8.)*
+
+## 13. Certification addendum — umbrella closure readiness (2026-09-03, mtamyway-8ccd3076)
+
+Appended by the final child (child 4 of 4) of the umbrella's third split so a
+subsequent dispatch can close mtamyway-d26515d5 without redoing verification.
+Closing the umbrella is the dispatching harness's decision and is deliberately
+**not** taken here; neither is closing the parent. Everything below rests on a
+fresh read-only pass taken 2026-09-03 17:47–17:58 UTC — kubectl at
+`http://traefik-apexalgo-iad:8001`, `dig` (default resolver, `@1.1.1.1`,
+`@9.9.9.9`), Verisign .com RDAP, and on-disk hashes. **No cluster mutation was
+performed.**
+
+### Fresh evidence this certification rests on
+
+1. **Router config — unchanged, and equal to git in both directions.**
+   Cluster-wide enumeration (`-A -o json`) returns **21 IngressRoutes, 2
+   IngressRouteTCP** (the two `devpod-observer` proxies), **0 IngressRouteUDP**,
+   and exactly one mta-referencing route — `mta-my-way/mta-my-way` — whose
+   four rules are cell-for-cell the §2 table (`/push/`, `/auth/`,
+   `/password-reset/` → `mta-my-way:3000`; catch-all → `mta-my-way-core:3000`
+   behind `mta-my-way-sse`), with `mta-my-way-stateful` in **no** rule of any
+   kind. Beyond enumeration, the live IngressRoute **spec** was re-diffed
+   leaf-by-leaf against `ingressroute.yaml` (declarative-config clone, clean
+   at the manifest tree): **19/19 leaves, zero live-only, zero manifest-only,
+   zero value diffs** — an exact structural equality, stronger than the
+   `last-applied-configuration` annotation check — and `mta-my-way-sse` is
+   equal too (3/3 leaves). The live-only `argocd.argoproj.io/tracking-id`
+   annotation noted by mtamyway-f33f968d is still present (metadata only, no
+   routing effect).
+2. **Backends — still zero ready replicas anywhere.** Legacy `mta-my-way`: v1
+   Endpoints with no subsets. Core: 3 notReady endpoints (2× Error-phase
+   CrashLoop churn at 30 restarts each, 1× ImagePullBackOff). Stateful: pod
+   still `ContainerCreating` with **no pod IP** on the `mta-my-way-data` PVC
+   mount I/O error — its EndpointSlice and v1 Endpoints are both empty, so the
+   §5/§3-stamp state (unrouted *and* currently endpointless) still holds.
+3. **DNS — the public host still does not exist.** `mtamyway.com` returns
+   zero A, AAAA and NS answers on the default resolver, `@1.1.1.1` and
+   `@9.9.9.9`; Verisign .com RDAP still answers **HTTP 404** (curl exit 56,
+   the truncated-read signature recorded throughout this document) — the
+   domain is still unregistered. **One §6 evidence correction:** blocker 1's
+   sub-claim "the tunnel UUID has no record / zero answers" is now stale at
+   the letter — `*.cfargotunnel.com` carries a **wildcard AAAA**,
+   `fd10:aec2:5dae::`, TTL 86400, identical from all three resolvers. It is a
+   non-routable IPv6 unique-local placeholder, not evidence that this tunnel
+   exists or is reachable: a fabricated name, the all-zeros UUID, and the
+   literal `*.cfargotunnel.com` all answer the same address, while the zone
+   apex and our UUID's A record answer nothing, and no `fd10::/8` address has
+   a public route. It does not unblock live HTTP. Blocker 1 stands, with this
+   wildcard characterization replacing the "zero answers" wording.
+4. **Both ad-hoc reports — byte-for-byte as §8 recorded them.** sha256
+   re-computed on disk: `f289744ff6a9…` (findings) and `39c440b3178e…`
+   (api-health), each matching §8's post-reconciliation value in full.
+
+### Umbrella criteria roll-up (mtamyway-d26515d5)
+
+| # | Criterion | Satisfied by | Evidence level (current) |
+|---|---|---|---|
+| 1 | curl-based verification against the public entrypoint: public paths return expected success statuses; stateful paths on the public host do not route, confirming no leakage | §5 (verdict + Caveats A/B), §7 row 1, and child 1's executed curls in `docs/notes/public-entrypoint-live-verification.md` | **attempted live — blocked.** All 12 paths fail at DNS (exit 6, `http_code=000`): the success half is unachievable and the do-not-route half passes only vacuously. The non-vacuous isolation proof is at the **manifest/router-config** level (§5 point 1, re-proven by this addendum's pass). |
+| 2 | If live verification is blocked, record the blocker with evidence and verify at the manifest/router-config level instead | §6 (the four blockers, retaken fresh by mtamyway-f33f968d at 17:19–17:25 UTC and refreshed again by this addendum's pass), §2/§5 (the config-level verification) | **manifest/router-config** — the umbrella's own sanctioned fallback, exercised in full; §4's reconciliation is now exact structural equality of every live spec against its git manifest |
+| 3 | Consolidated document in docs/notes/ with the final rules table, service mappings, and a route-leakage verdict | this document — §2 (rules), §3 (mappings), §5 (verdict) | **manifest + live read** — every pillar re-read live on 2026-09-03 under its own section stamp, most recently by this addendum's pass |
+| 4 | The two prior ad-hoc reports are reconciled or superseded by the consolidated doc | §8 — superseded **in place** by mtamyway-7fad73c2 (banners + inline qualifiers), both committed to git | **n/a** (documentation state, not a live-world claim) — both files on disk at this addendum's hashes, matching §8 |
+
+### Closure readiness
+
+- **mtamyway-d26515d5 (umbrella): CLOSURE-READY.** All four criteria are
+  satisfied — criterion 1 on the sanctioned fallback its own criterion 2
+  defines, criteria 2–4 outright — and every child of all three splits is
+  closed: first split mtamyway-e4710698 / mtamyway-77ee82ce /
+  mtamyway-fab296c6 / mtamyway-7fad73c2; second split mtamyway-3bd2414e /
+  mtamyway-532aca9a / mtamyway-18a17309 plus certifier mtamyway-93dacd4e;
+  third split mtamyway-40ddc27a / mtamyway-3b383d4a / mtamyway-f33f968d, plus
+  this child. Nothing within the umbrella's scope is outstanding. The §9
+  remediation list is **outside** the umbrella's scope — those are
+  environment-remediation items (ArgoCD re-registration, image/mirror,
+  scheduling, domain registration, external-dns, route-path correction, then a
+  live-curl re-run), not verification work this umbrella promised to deliver.
+- **mtamyway-6895e35e (parent): CLOSURE-READY**, with one thing to know and
+  one open bead to consider. The thing to know: the parent's criteria 1–3
+  ("confirm public IngressRoute only exposes `/api/arrivals`, `/api/stations`,
+  `/api/alerts`", "verify stateful IngressRoute handles `/auth`, `/session`,
+  `/admin`", "test that public routes route to the correct backend service")
+  resolve as **documented corrections of the parent's assumptions**, not
+  confirmations of them — no separate stateful IngressRoute exists and the
+  public route is a catch-all (§2 path-mismatch), and routing is verified at
+  the config level with live HTTP blocked (§5/§6). A verify/confirm bead is
+  completed by a verification that falsifies its premise when the finding is
+  recorded with evidence, which §1/§2/§5 do; the parent should close on that
+  reading. The open bead: **mtamyway-7bd2a141** ("Audit IngressRoute manifests
+  and map route rules to backend services", an open sibling under the parent) —
+  its deliverable (rules table, endpoint state, dead-backend flagging, written
+  to `docs/notes/ingressroute-route-map.md`) is satisfied in substance by this
+  document, which extends that bead's writeup in place, but the bead itself is
+  still open. Whether to close it alongside the umbrella (as
+  satisfied-by-this-doc) is the harness's call; it is the only item that could
+  be cited to block the parent.
+- **Genuinely outstanding, outside both beads:** the §9 remediation list
+  (unchanged in substance by this pass), the live-only ArgoCD tracking-id
+  annotation (metadata only), and the wildcard-AAAA wording correction above.
+
+### Verdict consistency with §5
+
+§5's verdict stands **unchanged**: no leakage of the stateful subsystem
+through the public host, **PROVEN at the router-config/manifest level**, with
+live HTTP confirmation **BLOCKED** by the §6 DNS blocker. This addendum
+re-proved the router half by the same exhaustive enumeration plus an exact
+structural spec equality, and re-took the DNS blocker fresh: live evidence
+does **not** now exist, so no upgrade of the evidence level is available and
+none is claimed. The only stale wording found anywhere in this document is the
+§6 tunnel-UUID sub-claim, corrected above; the verdict sentence of §5 requires
+no change.
