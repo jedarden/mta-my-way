@@ -16,7 +16,9 @@ mtamyway-93dacd4e — see §12; the umbrella's two ad-hoc reports were
 superseded in place by child 4 mtamyway-7fad73c2 on 2026-09-03 — see §8;
 §2/§3/§5 re-verified once more 2026-09-03 (16:44 UTC) under sub-child
 mtamyway-3b383d4a — the router config is unchanged and the stateful
-EndpointSlice is now empty, see §5)
+EndpointSlice is now empty, see §5; §6 re-verified the same day
+(17:19–17:25 UTC) under mtamyway-f33f968d — all four blockers re-taken fresh
+and still holding, see §6)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -27,7 +29,10 @@ sub-child 3 mtamyway-de63ea97 covers §4/§6/§7, sub-child 4 mtamyway-15b024d1
 covers §5 and the closing summary (§11); the parent was split a second time
 the same day (children mtamyway-3bd2414e, mtamyway-532aca9a, mtamyway-18a17309
 — all closed) and certified by mtamyway-93dacd4e (§12) · umbrella child 4
-mtamyway-7fad73c2 (supersede the two ad-hoc reports in place — §8)
+mtamyway-7fad73c2 (supersede the two ad-hoc reports in place — §8) · the
+umbrella's third split re-verified the document the same day (child 1
+mtamyway-40ddc27a DNS/RDAP, child 2 mtamyway-3b383d4a router/backend state,
+child 3 mtamyway-f33f968d reconciliation stamp)
 **Method:** `declarative-config/k8s/apexalgo-iad/mta-my-way/` manifests +
 read-only kubectl (`http://traefik-apexalgo-iad:8001`) + `dig`/RDAP. **No
 cluster mutation was performed.** Supersedes, and reconciles, the two ad-hoc
@@ -133,6 +138,21 @@ table above: `/push/`, `/auth/`, `/password-reset/` (no middleware) →
 annotations. The namespace still holds exactly three Services
 (`mta-my-way`:3000, `mta-my-way-core`:3000, `mta-my-way-stateful`:3001), and
 **zero drift** at the router level.
+
+Re-verified under mtamyway-f33f968d (2026-09-03 17:19–17:25 UTC, child 3 of
+the umbrella's third split) by the same full cluster-wide enumeration: still
+21 HTTP IngressRoutes, 2 IngressRouteTCP (the same two `devpod-observer`
+proxies), 0 IngressRouteUDP, and still exactly one mta route —
+`mta-my-way/mta-my-way`, its four rules cell-for-cell identical to the table
+above, `mta-my-way-sse` still the namespace's only middleware, and still
+exactly three Services. One metadata-level note this split's child 2
+deferred here (mtamyway-3b383d4a): the live IngressRoute also carries a
+fourth, live-only annotation, `argocd.argoproj.io/tracking-id` (value
+`mta-my-way-ns-apexalgo-iad:…`) — present on the live object only, absent
+from the git `ingressroute.yaml`, and naming an ArgoCD app that no longer
+exists in `argocd`; it is metadata only with no routing effect, and the four
+rules, entryPoints, TLS and the three external-dns annotations still match
+the manifest exactly.
 
 ### Path mismatch (rules vs what the app serves)
 
@@ -465,6 +485,37 @@ re-captured `--previous` and now also names the importer —
 38m/50m/5d4h, replica count intact); and the ArgoCD `InvalidSpecError` text is
 character-identical. Blocker 2 additionally advanced from suspected to proven
 this read (missing Secret, above).
+
+Re-verified under mtamyway-f33f968d (2026-09-03 17:19–17:25 UTC, child 3 of
+the umbrella's third split) — all four re-taken fresh, read-only, and
+unchanged in substance:
+
+1. **DNS:** `mtamyway.com` returns zero answers for A, AAAA and NS on the
+   default resolver, `@1.1.1.1` and `@9.9.9.9`; the tunnel UUID
+   `cef7d924-….cfargotunnel.com` still has zero answers; Verisign .com RDAP
+   still answers **404** — unregistered (the curl exits 56 on a truncated
+   read, but the HTTP status is the valid registry answer, consistent with
+   every prior read recorded in this document).
+2. **external-dns:** the same pod `external-dns-apexalgo-iad-6ffc7c97b-vgb2z`
+   is still `0/1 CreateContainerConfigError`, age now **5d20h**; the other
+   instance (`externaldns-ardenone-com-…`) is still Running (1/1).
+3. **No healthy backend:** unchanged in shape — legacy 0/0; core 0/2 ready,
+   still 2× CrashLoopBackOff + 1× ImagePullBackOff (restart counts churned to
+   23/23/0; all three ReplicaSets `6bd9f88b54`/`7fbcbdb69c`/`9b48f8bdc` still
+   simultaneously at `DESIRED 1`); stateful 0/1 with the §3-stamp refinement
+   — the pod sits in `ContainerCreating` with **no pod IP** on the
+   `mta-my-way-data` PVC mount I/O error, so blocker 3's earlier one-liner
+   "Stateful: ImagePullBackOff" describes the pre-16:44-UTC failure mode; the
+   EndpointSlice is empty either way (`mta-my-way-stateful-nb27g` re-read at
+   0 endpoints, the v1 Endpoints object with no subsets).
+4. **ArgoCD:** still sync `Unknown` / health `Unknown` with the
+   character-identical `InvalidSpecError` ("cluster … not found") against the
+   same dead Rackspace control-plane URL.
+
+With §2, §3 and §5 re-verified at 16:44 UTC under mtamyway-3b383d4a and §6
+re-taken fresh here, every section of this document now rests on same-day
+evidence, and live HTTP verification remains impossible for exactly the four
+reasons recorded above.
 
 ## 7. Umbrella acceptance criteria — verified live vs manifest level
 
