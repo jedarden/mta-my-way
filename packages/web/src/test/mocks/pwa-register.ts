@@ -3,43 +3,57 @@
  * This module is provided by vite-plugin-pwa during build but not available in tests.
  */
 
-export function registerSW(options?: {
+/** Options serviceWorkerRegistration.ts passes to registerSW(). */
+export interface RegisterSWOptions {
   immediate?: boolean;
   onRegistered?: (registration: ServiceWorkerRegistration | undefined) => void;
   onRegisterError?: (error: unknown) => void;
   onNeedRefresh?: () => void;
   onOfflineReady?: () => void;
-}) {
-  // Store callbacks for test access
-  (registerSW as any)._mockOptions = options;
-
-  return () => {
-    // Unregister function
-  };
 }
 
-// Expose methods for tests to trigger callbacks
-(registerSW as any).triggerOnRegistered = (registration?: ServiceWorkerRegistration) => {
-  const options = (registerSW as any)._mockOptions;
-  options?.onRegistered?.(registration);
-};
+/**
+ * The mock object: the callable the product imports, plus the captured state
+ * and trigger helpers tests use to drive its callbacks.
+ */
+export interface RegisterSWMock {
+  (options?: RegisterSWOptions): () => void;
+  /** Options captured from the most recent call */
+  _mockOptions: RegisterSWOptions | undefined;
+  mockReset(): void;
+  triggerOnRegistered(registration?: ServiceWorkerRegistration): void;
+  triggerOnRegisterError(error: unknown): void;
+  triggerOnNeedRefresh(): void;
+  triggerOnOfflineReady(): void;
+}
 
-(registerSW as any).triggerOnRegisterError = (error: unknown) => {
-  const options = (registerSW as any)._mockOptions;
-  options?.onRegisterError?.(error);
-};
+export const registerSW: RegisterSWMock = Object.assign(
+  (options?: RegisterSWOptions) => {
+    // Store callbacks for test access
+    registerSW._mockOptions = options;
 
-(registerSW as any).triggerOnNeedRefresh = () => {
-  const options = (registerSW as any)._mockOptions;
-  options?.onNeedRefresh?.();
-};
-
-(registerSW as any).triggerOnOfflineReady = () => {
-  const options = (registerSW as any)._mockOptions;
-  options?.onOfflineReady?.();
-};
-
-// Reset mock state
-(registerSW as any).mockReset = () => {
-  (registerSW as any)._mockOptions = undefined;
-};
+    return () => {
+      // Unregister function
+    };
+  },
+  {
+    _mockOptions: undefined,
+    // Reset mock state
+    mockReset() {
+      registerSW._mockOptions = undefined;
+    },
+    // Expose methods for tests to trigger callbacks
+    triggerOnRegistered(registration?: ServiceWorkerRegistration) {
+      registerSW._mockOptions?.onRegistered?.(registration);
+    },
+    triggerOnRegisterError(error: unknown) {
+      registerSW._mockOptions?.onRegisterError?.(error);
+    },
+    triggerOnNeedRefresh() {
+      registerSW._mockOptions?.onNeedRefresh?.();
+    },
+    triggerOnOfflineReady() {
+      registerSW._mockOptions?.onOfflineReady?.();
+    },
+  }
+);

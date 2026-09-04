@@ -5,19 +5,26 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BackgroundSyncManager, getBackgroundSyncManager } from "./backgroundSync";
+import {
+  BackgroundSyncManager,
+  type SyncManager,
+  getBackgroundSyncManager,
+} from "./backgroundSync";
 
-// Mock ServiceWorkerRegistration globally
+const createMockSyncManager = (): SyncManager => ({
+  register: vi.fn<(tag: string) => Promise<void>>(),
+  getTags: vi.fn<() => Promise<string[]>>(),
+});
+
+// Mock ServiceWorkerRegistration globally. `sync` is declared read-only on the
+// product interface (backgroundSync.ts), so the fixture keeps its own mutable
+// class property to satisfy and mirror it.
 class MockServiceWorkerRegistration implements Partial<ServiceWorkerRegistration> {
-  sync?: {
-    register: (tag: string) => Promise<SyncRegistration>;
-  };
+  sync: SyncManager = createMockSyncManager();
 }
 
 // Set up sync on the prototype before the class is used
-MockServiceWorkerRegistration.prototype.sync = {
-  register: vi.fn().mockResolvedValue({ sync: "mta-sync-tag" }),
-};
+MockServiceWorkerRegistration.prototype.sync = createMockSyncManager();
 
 // Mock IndexedDB
 const mockDB = {
@@ -72,13 +79,9 @@ vi.stubGlobal("indexedDB", {
 });
 
 // Mock Service Worker API
-const mockSyncRegistration = { sync: "mta-sync-tag" };
-
 const mockServiceWorker = {
   ready: Promise.resolve({
-    sync: {
-      register: vi.fn().mockResolvedValue(mockSyncRegistration),
-    },
+    sync: createMockSyncManager(),
   }),
 };
 
@@ -152,7 +155,7 @@ describe("BackgroundSyncManager", () => {
 
       // Restore navigator and sync
       vi.stubGlobal("navigator", originalNavigator);
-      ServiceWorkerRegistration.prototype.sync = originalSync;
+      (ServiceWorkerRegistration.prototype as { sync?: unknown }).sync = originalSync;
     });
   });
 
@@ -198,7 +201,7 @@ describe("BackgroundSyncManager", () => {
         body: '{"data":"test"}',
       });
 
-      const addCall = mockObjectStore.add.mock.calls[0];
+      const addCall = mockObjectStore.add.mock.calls[0]!;
       const requestData = addCall[0];
 
       expect(requestData).toMatchObject({
@@ -216,7 +219,7 @@ describe("BackgroundSyncManager", () => {
     it("respects custom maxRetries", async () => {
       await manager.queueRequest("/api/test", {}, 5);
 
-      const addCall = mockObjectStore.add.mock.calls[0];
+      const addCall = mockObjectStore.add.mock.calls[0]!;
       const requestData = addCall[0];
 
       expect(requestData.maxRetries).toBe(5);
@@ -462,7 +465,7 @@ describe("BackgroundSyncManager", () => {
 
       // Should update the request with incremented retry count
       expect(mockObjectStore.add).toHaveBeenCalled();
-      const updatedRequest = mockObjectStore.add.mock.calls[0][0];
+      const updatedRequest = mockObjectStore.add.mock.calls[0]![0];
       expect(updatedRequest.retryCount).toBe(1);
     });
 

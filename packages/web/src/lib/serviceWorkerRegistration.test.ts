@@ -17,7 +17,7 @@ describe.skip("serviceWorkerRegistration", () => {
 
   beforeEach(() => {
     // Reset mock state
-    registerSWMock.registerSW.mockReset?.();
+    registerSWMock.registerSW.mockReset();
 
     // Store original serviceWorker for restoration
     originalServiceWorker = navigator.serviceWorker;
@@ -62,7 +62,7 @@ describe.skip("serviceWorkerRegistration", () => {
       const { registerServiceWorker } = await import("./serviceWorkerRegistration");
       registerServiceWorker();
 
-      registerSWMock.registerSW.triggerOnRegistered?.(mockRegistration);
+      registerSWMock.registerSW.triggerOnRegistered(mockRegistration);
 
       expect(consoleLogSpy).toHaveBeenCalledWith("Service Worker registered:", mockRegistration);
 
@@ -76,7 +76,7 @@ describe.skip("serviceWorkerRegistration", () => {
       const { registerServiceWorker } = await import("./serviceWorkerRegistration");
       registerServiceWorker();
 
-      registerSWMock.registerSW.triggerOnRegisterError?.(mockError);
+      registerSWMock.registerSW.triggerOnRegisterError(mockError);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Service Worker registration failed:",
@@ -92,7 +92,7 @@ describe.skip("serviceWorkerRegistration", () => {
       const { registerServiceWorker } = await import("./serviceWorkerRegistration");
       registerServiceWorker();
 
-      registerSWMock.registerSW.triggerOnOfflineReady?.();
+      registerSWMock.registerSW.triggerOnOfflineReady();
 
       expect(consoleLogSpy).toHaveBeenCalledWith("App is ready for offline use");
 
@@ -111,7 +111,7 @@ describe.skip("serviceWorkerRegistration", () => {
       expect(result.current.needRefresh).toBe(false);
 
       act(() => {
-        registerSWMock.registerSW.triggerOnNeedRefresh?.();
+        registerSWMock.registerSW.triggerOnNeedRefresh();
       });
 
       expect(result.current.needRefresh).toBe(true);
