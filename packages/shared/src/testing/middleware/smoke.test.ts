@@ -17,12 +17,22 @@
  */
 
 import {
+  ERROR_SCENARIOS,
   MIDDLEWARE_TEST_PRESETS,
   type MiddlewareLike,
   assertChainOrder,
+  assertErrorResponse,
   assertHeader,
+  assertJsonResponse,
+  assertMiddlewareError,
+  assertMiddlewarePassthrough,
+  assertMiddlewareStatus,
+  assertRateLimited,
   assertResponseJson,
   assertSecurityHeaders,
+  createErrorResponse,
+  createErrorScenario,
+  createJsonResponse,
   createMiddlewareRequest,
   createMiddlewareTestConfig,
   createMockExecutionContext,
@@ -56,6 +66,19 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
     expect(typeof assertChainOrder).toBe("function");
     expect(typeof assertResponseJson).toBe("function");
     expect(typeof createMockExecutionContext).toBe("function");
+  });
+
+  it("exposes the common test pattern helpers through the barrel", () => {
+    expect(typeof createErrorScenario).toBe("function");
+    expect(typeof createJsonResponse).toBe("function");
+    expect(typeof createErrorResponse).toBe("function");
+    expect(typeof assertJsonResponse).toBe("function");
+    expect(typeof assertErrorResponse).toBe("function");
+    expect(typeof assertRateLimited).toBe("function");
+    expect(typeof assertMiddlewarePassthrough).toBe("function");
+    expect(typeof assertMiddlewareStatus).toBe("function");
+    expect(typeof assertMiddlewareError).toBe("function");
+    expect(ERROR_SCENARIOS.tooManyRequests).toBeDefined();
   });
 
   it("runs the mock request, response and context builders through the chain", async () => {
@@ -154,5 +177,45 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
 
     assertSecurityHeaders(response, config.securityHeaders);
     expect(response.status).toBe(200);
+  });
+
+  it("an error scenario drives a generated response and the matching assertion", async () => {
+    const blocking: MiddlewareLike = () => createErrorResponse(ERROR_SCENARIOS.unauthorized);
+
+    await assertMiddlewareError(blocking, createMiddlewareRequest(), ERROR_SCENARIOS.unauthorized);
+    await assertErrorResponse(createErrorResponse(401), { status: 401, error: "Unauthorized" });
+  });
+
+  it("the pattern assertions cover both outcomes of one middleware", async () => {
+    const rateLimit: MiddlewareLike = (request, next) =>
+      request.headers.get("x-rate-remaining") === "0"
+        ? createErrorResponse(ERROR_SCENARIOS.tooManyRequests)
+        : next();
+
+    await assertMiddlewareError(
+      rateLimit,
+      createMiddlewareRequest({ headers: { "x-rate-remaining": "0" } }),
+      ERROR_SCENARIOS.tooManyRequests
+    );
+
+    const passthrough = await assertMiddlewarePassthrough(
+      rateLimit,
+      createMiddlewareRequest(),
+      () => createJsonResponse({ ok: true }, { status: 201 })
+    );
+    await assertJsonResponse(passthrough, 201, { ok: true });
+  });
+
+  it("a one-off scenario is built, rendered and asserted", async () => {
+    const scenario = createErrorScenario(422, { body: { error: "Invalid station" } });
+    const shortCircuit: MiddlewareLike = () => createErrorResponse(scenario);
+
+    const response = await assertMiddlewareStatus(shortCircuit, createMiddlewareRequest(), 422);
+    await assertErrorResponse(response, scenario);
+
+    await assertRateLimited(createErrorResponse(ERROR_SCENARIOS.tooManyRequests), {
+      retryAfter: 60,
+      headers: false,
+    });
   });
 });

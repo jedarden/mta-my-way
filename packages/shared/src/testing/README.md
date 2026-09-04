@@ -1383,6 +1383,7 @@ Middleware testing utilities for exercising the server's middleware without star
 
 - **`middleware-helpers.ts`** — middleware modelled the way Hono writes it: a plain function that receives a real `Request` and either returns a `Response` (short-circuit) or calls `next()` to continue the chain.
 - **`mock-chain.ts`** — middleware modelled the handler way: an Express-style `(request, response, next)` signature over mock objects whose `status`/`json`/`send` writes are recorded, with route `params` and a parsed `query` bag on the request and a simulator that reports the order the chain ran in.
+- **`test-patterns.ts`** — the outcomes a middleware test asserts: named error scenarios for the server's standard `{ error }` envelope, response generators to pair with `createMiddlewareRequest`, composite response assertions, and the three chain outcomes (passed through, short-circuited, short-circuited with an error envelope).
 
 `execution-context.ts` builds the execution context either style of middleware may read — the user behind a request, the auth credentials it presented, and the audit event it produces.
 
@@ -1398,9 +1399,12 @@ packages/shared/src/testing/middleware/
 ├── mock-chain.ts                → Express-style request/response mocks, chain simulator,
 │                                  chain-behaviour assertions
 ├── execution-context.ts         → User, auth and audit context builders
+├── test-patterns.ts             → Error scenarios, response generators, composite
+│                                  response assertions, chain-outcome assertions
 ├── middleware-helpers.test.ts   → Unit tests, one describe block per export
 ├── mock-chain.test.ts           → Unit tests for the mocks, simulator and assertions
 ├── execution-context.test.ts    → Unit tests for the context builders
+├── test-patterns.test.ts        → Unit tests for the scenarios, generators and assertions
 └── smoke.test.ts                → Barrel smoke test
 ```
 
@@ -1429,6 +1433,7 @@ Which file a new middleware test should import from:
 | Unit test for a helper in `middleware-helpers.ts` | `middleware/middleware-helpers.test.ts` | `./middleware-helpers` (relative) |
 | Unit test for a helper in `mock-chain.ts` | `middleware/mock-chain.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
 | Unit test for a helper in `execution-context.ts` | `middleware/execution-context.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
+| Unit test for a helper in `test-patterns.ts` | `middleware/test-patterns.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
 | New middleware's behaviour | `packages/server/src/middleware/<name>.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
 | New helper added to the module | `middleware/smoke.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
 
@@ -1690,6 +1695,193 @@ afterEach(() => {
 
 ---
 
+### Common Test Patterns (`test-patterns.ts`)
+
+Where `middleware-helpers.ts` supplies the *mechanics* of a middleware test — build a request, run a chain, look at one header — `test-patterns.ts` supplies the *outcomes* the server's middleware actually produce, so a test states the contract instead of reassembling it from parts:
+
+- **Error scenarios** — `ERROR_SCENARIOS` / `createErrorScenario` model the standard error envelope the server's middleware emit: a JSON body carrying a non-empty `error` message plus a status, and whatever extras that middleware adds (`retryAfter`, `code`, …).
+- **Response generators** — `createJsonResponse` / `createErrorResponse` are the response-side counterpart of `createMiddlewareRequest`, for stubbing what a terminal handler or downstream service returns.
+- **Response assertions** — `assertJsonResponse` / `assertErrorResponse` / `assertRateLimited` check a whole response at once rather than one field at a time.
+- **Chain-outcome assertions** — `assertMiddlewarePassthrough` / `assertMiddlewareStatus` / `assertMiddlewareError` cover the three things a middleware test ever wants to know: the request went through, it short-circuited with a status, or it short-circuited with the standard error envelope.
+
+Two rules hold across the module. Scenarios are frozen option sets with no lifecycle, so they are safe to define at module scope and share across suites — the same rule `MIDDLEWARE_TEST_PRESETS` follows. And every body-reading assertion clones before reading, so a response stays readable for a later assertion — the same rule `executeMiddleware` applies to requests.
+
+#### `ERROR_SCENARIO_STATUSES: readonly number[]`
+The status codes middleware tests reach for, in ascending order: `400 401 403 404 405 409 413 415 422 429 500 502 503 504`.
+
+Drives the autocomplete on `createErrorScenario` and the validation behind `ERROR_SCENARIOS`; any other 4xx/5xx status is still accepted.
+
+#### `ERROR_SCENARIOS: Readonly<Record<string, MiddlewareErrorScenario>>`
+Named error scenarios shipped with these helpers, one per status in `ERROR_SCENARIO_STATUSES`: `badRequest`, `unauthorized`, `forbidden`, `notFound`, `methodNotAllowed`, `conflict`, `payloadTooLarge`, `unsupportedMediaType`, `unprocessableEntity`, `tooManyRequests`, `internalServerError`, `badGateway`, `serviceUnavailable`, `gatewayTimeout`.
+
+`tooManyRequests` is the full `rate-limiter.ts` contract — its `Retry-After` header, its `retryAfter` body field and its message — rather than a bare status, so a rate-limit test can assert the whole thing in one call. The other scenarios carry the default message for their status.
+
+**Example:**
+```typescript
+import { ERROR_SCENARIOS, assertMiddlewareError, createMiddlewareRequest } from "@mta-my-way/shared/testing/middleware";
+
+const requireAuth: MiddlewareLike = () => createErrorResponse(ERROR_SCENARIOS.unauthorized);
+
+await assertMiddlewareError(
+  requireAuth,
+  createMiddlewareRequest(),
+  ERROR_SCENARIOS.unauthorized
+);
+```
+
+#### `createErrorScenario(status, overrides?): MiddlewareErrorScenario`
+Builds a standard error scenario for a status.
+
+**Parameters:**
+- `status`: any 4xx/5xx, with autocomplete for the statuses in `ERROR_SCENARIO_STATUSES`
+- `overrides` (optional): fields to replace — `name` (defaults to the kebab-cased reason phrase), `body` (defaults to `{ error: <default message for the status> }`), `headers` (defaults to none)
+
+The body default for 429 uses the server's own rate-limiter wording (`"Too many requests"`) rather than the reason phrase, so the default scenario is the one `rate-limiter.ts` actually emits. Overrides replace whole rather than merge — the same flat rule `createMiddlewareTestConfig` applies to presets — so an override carrying extras re-states the `error` message too. Throws for a status outside 4xx–5xx.
+
+**Returns:** A frozen `MiddlewareErrorScenario`, ready for `createErrorResponse` or `assertErrorResponse`
+
+**Example:**
+```typescript
+// The server's rate-limit contract, restated in full
+const limited = createErrorScenario(429, {
+  body: { error: "Too many requests", retryAfter: 60 },
+  headers: { "Retry-After": "60" }
+});
+
+// A one-off scenario with extras on the envelope
+const adminOnly = createErrorScenario(403, { body: { error: "Admin role required" } });
+```
+
+#### `createJsonResponse(body, options?): Response`
+Builds a real `Response` carrying a JSON body — the response-side counterpart of `createMiddlewareRequest`.
+
+**Parameters:**
+- `body`: value to serialize as the JSON body
+- `options` (optional): `status` (default `200`), `headers` (a `content-type` here wins over the JSON default)
+
+Use it to stub what a terminal handler or downstream service returns, so a middleware under test exercises real `Response` semantics rather than a plain object.
+
+**Example:**
+```typescript
+const handler: TerminalHandler = () => createJsonResponse({ ok: true });
+const response = await executeMiddleware(chain, createMiddlewareRequest(), handler);
+```
+
+#### `createErrorResponse(scenario, overrides?): Response`
+Builds a real `Response` carrying the standard error envelope.
+
+**Parameters:**
+- `scenario`: a scenario (`ERROR_SCENARIOS` entry or `createErrorScenario` output), or a bare 4xx/5xx status, which is shorthand for the default scenario for that status
+- `overrides` (optional): fields to replace when `scenario` is a bare status; ignored when a scenario is passed, since a scenario is already frozen
+
+**Returns:** Standard `Response` with the scenario's status, body and headers
+
+**Example:**
+```typescript
+createErrorResponse(401);                          // { error: "Unauthorized" }, status 401
+createErrorResponse(ERROR_SCENARIOS.unauthorized); // the same response
+createErrorResponse(403, { body: { error: "Admin role required" } });
+```
+
+#### `assertJsonResponse(response, expectedStatus, expectedBody?): Promise<void>`
+Asserts that a response is a JSON response, and optionally that its body matches.
+
+Checks the status, the `application/json` content type and — when `expectedBody` is given — the parsed body via `toEqual`, so a mismatch diffs rather than printing two objects. Omits the body check when `expectedBody` is left off, for tests that only care about status and content type.
+
+**Example:**
+```typescript
+const response = await executeMiddleware(chain, createMiddlewareRequest());
+await assertJsonResponse(response, 200, { ok: true });
+```
+
+#### `assertErrorResponse(response, expected?): Promise<void>`
+Asserts that a response carries the standard error envelope.
+
+Checks the status, that the body parses as JSON, that it is an object carrying a non-empty string `error` message, and — per expectation — the exact message, extra body fields and headers.
+
+**Parameters:**
+- `response`: response to inspect
+- `expected` (optional, default `400`): any of
+  - a bare status — `{ status }`
+  - a full scenario — its status, `error` message, extra body fields and headers all checked
+  - a partial expectation — `{ status?, error?, body?, headers? }`, where `body` is matched partially via `toMatchObject`, so a test can tighten one field of a shipped scenario without restating the rest
+
+**Example:**
+```typescript
+await assertErrorResponse(response, ERROR_SCENARIOS.tooManyRequests);   // everything
+await assertErrorResponse(response, { status: 429, error: "Too many requests" }); // two fields
+await assertErrorResponse(response, { status: 429, body: { retryAfter: 60 } });   // one extra field
+```
+
+#### `assertRateLimited(response, expected?): Promise<void>`
+Asserts that a response is the server's rate-limit response.
+
+Checks the 429 status, a whole-number `Retry-After` header, the `{ error, retryAfter }` envelope `rate-limiter.ts` writes and — by default — the `X-RateLimit-Limit`, `X-RateLimit-Remaining` (as `"0"`) and `X-RateLimit-Reset` trio. `assertErrorResponse` covers a bare 429; this one asserts the rate-limit contract on top of it.
+
+**Parameters:**
+- `response`: response to inspect
+- `expected` (optional): `{ retryAfter?, headers?, error? }` — `retryAfter` requires that exact value in both the header and the body; `headers: false` drops the `X-RateLimit-*` check for a 429 from a middleware that does not send the trio
+
+**Example:**
+```typescript
+await assertRateLimited(response, { retryAfter: 60 });  // full rate-limiter.ts contract
+await assertRateLimited(response, { headers: false });  // a 429 without the X-RateLimit headers
+```
+
+#### `assertMiddlewarePassthrough(middleware, request, handler?): Promise<Response>`
+Asserts that a middleware chain let the request through to the terminal handler, and returns the handler's response.
+
+Runs the chain and fails when the handler was never reached — i.e. some layer short-circuited — naming the status it short-circuited with. This is the most common middleware assertion: the negative of "it blocked the request".
+
+**Example:**
+```typescript
+const response = await assertMiddlewarePassthrough(
+  requireAuth,
+  createMiddlewareRequest({ headers: { authorization: "Bearer token123" } })
+);
+await assertJsonResponse(response, 200);
+```
+
+#### `assertMiddlewareStatus(middleware, request, expectedStatus): Promise<Response>`
+Asserts that a middleware chain short-circuits with a status, and returns the response.
+
+Use it when the interesting part is the status rather than an error envelope — a cache hit, a `304`, a redirect.
+
+**Example:**
+```typescript
+const response = await assertMiddlewareStatus(cacheMiddleware, request, 200);
+assertHeader(response, "X-Cache", "HIT");
+```
+
+#### `assertMiddlewareError(middleware, request, expected?): Promise<Response>`
+Asserts that a middleware chain short-circuits with the standard error envelope, and returns the response.
+
+Runs the chain and applies `assertErrorResponse` to the result — the "blocked request" counterpart of `assertMiddlewarePassthrough`. Accepts the same `expected` shapes.
+
+**Example:**
+```typescript
+await assertMiddlewareError(
+  headerValidation,
+  createMiddlewareRequest({ headers: { "user-agent": "" } }),
+  { status: 400, error: "Invalid User-Agent header" }
+);
+```
+
+**Example — both outcomes of one middleware, in one test:**
+```typescript
+const rateLimit: MiddlewareLike = (request, next) =>
+  isOverLimit() ? createErrorResponse(ERROR_SCENARIOS.tooManyRequests) : next();
+
+await assertMiddlewareError(rateLimit, exhaustedRequest, ERROR_SCENARIOS.tooManyRequests);
+
+const accepted = await assertMiddlewarePassthrough(rateLimit, freshRequest, () =>
+  createJsonResponse({ ok: true })
+);
+await assertJsonResponse(accepted, 200, { ok: true });
+```
+
+---
+
 ### Mock Request, Response and Chain Simulation (`mock-chain.ts`)
 
 The handler-shaped counterpart of `executeMiddleware`. Where `middleware-helpers.ts` passes real `Request`/`Response` instances, this module passes mock objects: the request carries route `params` and a parsed `query` bag that a real `Request` has no place for, and the response records every write so a test can assert on the calls as well as the final state.
@@ -1837,6 +2029,18 @@ expect(request.context.audit.performedBy).toBe(context.user.id);
 | `MockUserRole`, `MockApiKeyScope`, `MockAuthMethod` | type | Closed unions mirroring the server's auth literals |
 | `MockAuditEventCategory`, `MockAuditEventSeverity` | type | Closed unions mirroring the server's audit literals |
 
+#### `test-patterns.ts`
+
+| Type | Kind | Purpose |
+|------|------|---------|
+| `MiddlewareErrorScenario` | interface | A standard error response: `name`, `status`, `body`, `headers`, all readonly |
+| `ErrorScenarioStatus` | type | A status `createErrorScenario` knows a default message for |
+| `ErrorScenarioName` | type | The keys of `ERROR_SCENARIOS` |
+| `ErrorScenarioOverrides` | interface | Fields to replace on a scenario — `name`, `body`, `headers` |
+| `JsonResponseOptions` | interface | Options accepted by `createJsonResponse` — `status`, `headers` |
+| `ErrorResponseExpectation` | interface | Partial expectation for `assertErrorResponse` — `status`, `error`, `body`, `headers` |
+| `RateLimitExpectation` | interface | Fields to require of a 429 — `retryAfter`, `headers`, `error` |
+
 ---
 
 ## Smoke Tests (`smoke.test.ts`)
@@ -1861,7 +2065,7 @@ npm test smoke.test.ts
 
 If the smoke test passes, the test infrastructure is functioning correctly.
 
-The middleware module has its own counterpart at `testing/middleware/smoke.test.ts` (`npm test middleware/smoke.test.ts`), which proves the `testing/middleware` barrel resolves and its helpers cooperate; unit-level coverage for the module lives in `middleware-helpers.test.ts`.
+The middleware module has its own counterpart at `testing/middleware/smoke.test.ts` (`npm test middleware/smoke.test.ts`), which proves the `testing/middleware` barrel resolves and its helpers cooperate; unit-level coverage for the module lives in `middleware-helpers.test.ts`, `mock-chain.test.ts`, `execution-context.test.ts` and `test-patterns.test.ts`.
 
 ---
 
@@ -2052,6 +2256,52 @@ describe("securityHeaders middleware", () => {
 });
 ```
 
+### Example 7: Testing a Guard Middleware with the Pattern Helpers
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  ERROR_SCENARIOS,
+  assertJsonResponse,
+  assertMiddlewareError,
+  assertMiddlewarePassthrough,
+  createErrorResponse,
+  createErrorScenario,
+  createJsonResponse,
+  createMiddlewareRequest,
+  type MiddlewareLike
+} from "@mta-my-way/shared/testing/middleware";
+
+describe("requireAdmin middleware", () => {
+  const requireAdmin: MiddlewareLike = (request, next) =>
+    isAdmin(request) ? next() : createErrorResponse(ERROR_SCENARIOS.forbidden);
+
+  it("passes an admin through to the handler", async () => {
+    const response = await assertMiddlewarePassthrough(
+      requireAdmin,
+      createMiddlewareRequest({ headers: { authorization: "Bearer admin-token" } }),
+      () => createJsonResponse({ secret: true })
+    );
+
+    await assertJsonResponse(response, 200, { secret: true });
+  });
+
+  it("rejects a non-admin with the standard error envelope", async () => {
+    await assertMiddlewareError(
+      requireAdmin,
+      createMiddlewareRequest(),
+      ERROR_SCENARIOS.forbidden
+    );
+  });
+
+  it("rejects a session that has expired with a one-off scenario", async () => {
+    const expired = createErrorScenario(401, { body: { error: "Session expired" } });
+
+    await assertMiddlewareError(requireAdmin, requestWithExpiredSession(), expired);
+  });
+});
+```
+
 ---
 
 ## Audit Report
@@ -2064,7 +2314,7 @@ A comprehensive audit was conducted on 2026-08-27 and found:
 - **0 broken or missing helpers** - everything works as expected
 - Smoke tests validate core infrastructure
 
-The audit was extended on 2026-09-04 with a fourth module — [`testing/middleware/`](#middleware-helpers-testingmiddleware), 10 exports (8 functions, 2 constants) plus 9 exported types — which postdates the original audit.
+The audit was extended on 2026-09-04 with a fourth module — [`testing/middleware/`](#middleware-helpers-testingmiddleware), 82 exports across 4 files (31 functions, 8 constants) plus 43 exported types — which postdates the original audit. The same day the module gained [`test-patterns.ts`](#common-test-patterns-testpatternsts): 9 functions and 2 constants plus 7 exported types, covering the standard error envelope, response generators and the chain-outcome assertions.
 
 See [TEST_HELPERS_AUDIT.md](./TEST_HELPERS_AUDIT.md) for the complete audit report including:
 - Detailed function inventory with status

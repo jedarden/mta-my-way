@@ -18,3 +18,6 @@ export * from "./mock-chain";
 
 // User, auth and audit execution context builders
 export * from "./execution-context";
+
+// Common middleware test patterns: error scenarios, response generators and outcome assertions
+export * from "./test-patterns";

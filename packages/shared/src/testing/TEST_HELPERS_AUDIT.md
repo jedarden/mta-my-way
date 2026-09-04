@@ -10,14 +10,14 @@ The MTA My Way testing infrastructure is **comprehensive and well-documented**. 
 
 ### Quick Stats
 
-- **Total Helper Functions:** 88 exports across 4 modules (78 in the original three + 10 middleware)
+- **Total Helper Functions:** 160 exports across 4 modules (78 in the original three + 82 in `testing/middleware/`)
 - **Mock Data Generators:** 8 generators for domain entities
 - **Mock Utilities:** 15 mocks (logger, database, fetch, etc.)
 - **Assertion Helpers:** 18 specialized assertions
 - **Test Setup Utilities:** 7 environment setup functions
 - **Security Utilities:** 23 security testing helpers
 - **Observability Utilities:** 22 observability testing helpers
-- **Middleware Utilities:** 10 exports (8 functions, 2 constants) plus 9 exported types
+- **Middleware Utilities:** 82 exports across 4 files (31 functions, 8 constants, 43 exported types)
 - **Documentation Coverage:** 100% (all functions documented in README.md)
 - **Test Coverage:** Smoke tests validate core infrastructure and the middleware module
 
@@ -366,7 +366,7 @@ The MTA My Way testing infrastructure is **comprehensive and well-documented**. 
 
 ### Status: ✅ Fully Functional (added 2026-09-04, postdates the original audit)
 
-The only module in this directory that is a directory: all helpers live in `middleware/middleware-helpers.ts`, and `middleware/index.ts` is a pure re-export of it, published as the `"./testing/middleware"` subpath in `packages/shared/package.json`.
+The only module in this directory that is a directory: the helpers are split across `middleware/middleware-helpers.ts`, `middleware/mock-chain.ts`, `middleware/execution-context.ts` and `middleware/test-patterns.ts`, and `middleware/index.ts` is a pure re-export of all four, published as the `"./testing/middleware"` subpath in `packages/shared/package.json`.
 
 #### Request Builders (1 function)
 
@@ -436,9 +436,42 @@ The only module in this directory that is a directory: all helpers live in `midd
 - Teardown reverts only the timers its own fixture installed; `resetMiddlewareTestState` checks vitest's actual timer state and so also catches timers a test body started directly
 - `resetMiddlewareTestState` deliberately leaves fixtures alone, so a suite-level fixture survives a between-tests reset
 
-#### Exported Types (9)
+#### Common Test Patterns (`test-patterns.ts`, 9 functions + 2 constants)
 
-`MiddlewareRequestOptions`, `MiddlewareLike`, `TerminalHandler`, `MiddlewareTestConfig`, `MiddlewareTestPresetName`, `MiddlewareTestConfigOverrides`, `MiddlewareTestOptions`, `MiddlewareTestRunOverrides`, `MiddlewareTestFixture`
+Added 2026-09-04. Where `middleware-helpers.ts` supplies the mechanics of a middleware test, this file supplies the outcomes the server's middleware produce: the standard `{ error }` envelope as named scenarios, response generators to pair with `createMiddlewareRequest`, composite response assertions and the three chain outcomes.
+
+| Export | Kind | Purpose | Status |
+|--------|------|---------|--------|
+| `ERROR_SCENARIOS` | const | 14 named error scenarios, one per status in `ERROR_SCENARIO_STATUSES` | ✅ Complete |
+| `ERROR_SCENARIO_STATUSES` | const | The 14 status codes middleware tests reach for | ✅ Complete |
+| `createErrorScenario` | function | Build a frozen scenario for a 4xx/5xx status, with overrides | ✅ Working |
+| `createJsonResponse` | function | Build a real `Response` with a JSON body | ✅ Working |
+| `createErrorResponse` | function | Build a real `Response` carrying the standard error envelope | ✅ Working |
+| `assertJsonResponse` | function | Assert status + JSON content type + optional body via `toEqual` | ✅ Working |
+| `assertErrorResponse` | function | Assert the error envelope: status, non-empty `error`, extras, headers | ✅ Working |
+| `assertRateLimited` | function | Assert the full `rate-limiter.ts` 429 contract | ✅ Working |
+| `assertMiddlewarePassthrough` | function | Assert the chain reached the terminal handler, and return its response | ✅ Working |
+| `assertMiddlewareStatus` | function | Assert the chain short-circuited with a status, and return the response | ✅ Working |
+| `assertMiddlewareError` | function | Assert the chain short-circuited with the error envelope | ✅ Working |
+
+**Notes:**
+- Scenarios are frozen option sets with no lifecycle, so they are safe at module scope — the same rule `MIDDLEWARE_TEST_PRESETS` follows
+- Every body-reading assertion clones before reading, so a response survives a later assertion
+- Overrides replace whole rather than merge, matching `createMiddlewareTestConfig`
+- `createErrorScenario` throws for a status outside 4xx–5xx; the 429 default message is the rate limiter's own `"Too many requests"` rather than the reason phrase
+- `tooManyRequests` models the full rate-limiter contract: `Retry-After: 60` header plus a `retryAfter: 60` body field
+- `assertRateLimited` always requires `Retry-After`; the `X-RateLimit-*` trio is optional via `headers: false`
+- Accepts `number & {}` on the status parameters so any 4xx/5xx type-checks while the shipped statuses autocomplete
+
+#### Exported Types (43 across the module's 4 files)
+
+`middleware-helpers.ts` (10): `MiddlewareRequestOptions`, `MiddlewareLike`, `TerminalHandler`, `MiddlewareTestConfig`, `MiddlewareTestPresetName`, `MiddlewareTestConfigOverrides`, `MiddlewareTestOptions`, `MiddlewareTestRunOverrides`, `MiddlewareTestFixture`
+
+`mock-chain.ts` (13): `MockHttpRequest`, `MockHttpRequestOptions`, `MockHttpResponse`, `MockResponseCall`, `MockMiddleware`, `NamedMockMiddleware`, `MockChainEntry`, `MockTerminalHandler`, `MockErrorHandler`, `NextFunction`, `MiddlewareInvocation`, `MiddlewareChainResult`, `MiddlewareChainOptions`
+
+`execution-context.ts` (13): `MockExecutionContext`, `MockExecutionContextOptions`, `MockUser`, `MockUserOptions`, `MockAuthContext`, `MockAuthContextOptions`, `MockAuditEvent`, `MockAuditEventOptions`, `MockUserRole`, `MockApiKeyScope`, `MockAuthMethod`, `MockAuditEventCategory`, `MockAuditEventSeverity`
+
+`test-patterns.ts` (7): `MiddlewareErrorScenario`, `ErrorScenarioStatus`, `ErrorScenarioName`, `ErrorScenarioOverrides`, `JsonResponseOptions`, `ErrorResponseExpectation`, `RateLimitExpectation`
 
 **Issues Found:** None
 
@@ -543,7 +576,7 @@ import { executeMiddleware } from "@mta-my-way/shared/testing/middleware";
 ### Summary: None Found
 
 After comprehensive audit:
-- ✅ All 88 exported helpers are present and working (78 in the original three modules + 10 middleware)
+- ✅ All 160 exported helpers are present and working (78 in the original three modules + 82 in `testing/middleware/`)
 - ✅ All functions have proper TypeScript types
 - ✅ All functions are documented in README
 - ✅ All exports are properly configured
@@ -594,7 +627,7 @@ The testing infrastructure is production-ready.
 
 The MTA My Way testing infrastructure is **well-designed, comprehensive, and fully functional**. All helpers work correctly, are properly documented, and are exported correctly. The smoke tests provide confidence that the infrastructure is working as expected, including the `testing/middleware` barrel.
 
-The middleware module (`testing/middleware/`) joined the directory after the original 2026-08-27 audit and is now counted as Module 4 above: 10 exports (8 functions, 2 constants) and 9 exported types, all documented in README.md with per-helper examples.
+The middleware module (`testing/middleware/`) joined the directory after the original 2026-08-27 audit and is now counted as Module 4 above: 82 exports across 4 files (31 functions, 8 constants) and 43 exported types, all documented in README.md with per-helper examples.
 
 ### Audit Result: ✅ PASS
 
