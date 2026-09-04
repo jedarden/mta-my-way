@@ -2687,3 +2687,14 @@
 {"bead":"mtamyway-2a94b4e5","duration_ms":2528452,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-04T23:20:10.039614674+00:00","worker":"glm-face"}
 {"bead":"mtamyway-78ec5d0c","event":"claim","strand":"explore","ts":"2026-09-04T23:20:22.075984066+00:00","worker":"glm-face"}
 {"adapter":"claude-code-glm-5.3-flash","bead":"mtamyway-78ec5d0c","event":"dispatch","model":"glm-5.3-flash","strand":"explore","ts":"2026-09-04T23:20:22.292791257+00:00","worker":"glm-face"}
+{"bead":"mtamyway-78ec5d0c","duration_ms":606660,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-04T23:30:29.070487516+00:00","worker":"glm-face"}
+{"bead":"mtamyway-719e28da","duration_ms":3096658,"event":"complete","exit_code":0,"outcome":"success","strand":"pluck","ts":"2026-09-04T23:30:38.334984169+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-78ec5d0c","event":"claim","strand":"explore","ts":"2026-09-04T23:30:39.979047450+00:00","worker":"glm-face"}
+{"adapter":"claude-code-glm-5.3-flash","bead":"mtamyway-78ec5d0c","event":"dispatch","model":"glm-5.3-flash","strand":"explore","ts":"2026-09-04T23:30:40.255666328+00:00","worker":"glm-face"}
+{"bead":"mtamyway-719e28da","event":"claim","strand":"pluck","ts":"2026-09-04T23:30:43.393828621+00:00","worker":"glm-mta"}
+{"adapter":"claude-code-glm-5.3-flash","bead":"mtamyway-719e28da","event":"dispatch","model":"glm-5.3-flash","strand":"pluck","ts":"2026-09-04T23:30:43.703427028+00:00","worker":"glm-mta"}
+{"bead":"mtamyway-78ec5d0c","duration_ms":199328,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-04T23:33:59.701409747+00:00","worker":"glm-face"}
+{"bead":"mtamyway-ceac46ec","event":"claim","strand":"explore","ts":"2026-09-04T23:42:11.180956264+00:00","worker":"glm-trail"}
+{"adapter":"claude-code-glm-5.3-flash","bead":"mtamyway-ceac46ec","event":"dispatch","model":"glm-5.3-flash","strand":"explore","ts":"2026-09-04T23:42:12.108866050+00:00","worker":"glm-trail"}
+{"bead":"mtamyway-2a94b4e5","duration_ms":3601679,"event":"timeout","exit_code":124,"outcome":"timeout","strand":"explore","ts":"2026-09-04T23:46:02.838081049+00:00","worker":"glm-vista"}
+{"bead":"mtamyway-c9c3995f","duration_ms":1955339,"event":"complete","exit_code":0,"outcome":"success","strand":"explore","ts":"2026-09-04T23:47:15.924232077+00:00","worker":"glm-adc"}
