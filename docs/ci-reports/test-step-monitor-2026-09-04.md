@@ -132,3 +132,24 @@ step at all (`mtamyway-692a6a56`).
 Raw evidence: condensed setup + all 97 failure detail blocks retained at
 `/tmp/mta-test-monitor/test-step-evidence-2026-09-04.log` (transient); the
 workflow itself persists in Argo for 2h (TTL 7200s).
+
+## Addendum — re-check ~18:25 UTC, same day
+
+Re-verified against the live cluster rather than the notes above; **nothing
+changed**:
+
+- `mta-my-way-test-only-grxzw` is still queryable inside its TTL and its Pod
+  node reads exactly as reported — phase `Failed`, message `main: Error
+  (exit code 1)`, 656.0s node wall (main container ~556.5s of the 600s
+  deadline).
+- Two further full build runs, `mta-my-way-build-d9kcs` (18:17:10Z) and
+  `mta-my-way-build-7xfrz` (18:17:25Z), both ended `typecheck` → **Failed,
+  exit 2** at 18:20:53Z with `lint` Succeeded, so the pipeline **still never
+  reaches the test step** ~90 minutes after `gmpwz`. `mtamyway-692a6a56`
+  remains the gate.
+- No test-fixing commit landed in between; the only advance on `main` is the
+  CI version auto-bump `0.0.368`.
+
+The classification above therefore still stands as the current state of the
+suite, and every failure class is owned by an existing open bead rather than
+by this monitoring task.
