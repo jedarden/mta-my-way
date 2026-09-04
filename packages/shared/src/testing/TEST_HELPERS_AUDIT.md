@@ -1,23 +1,25 @@
 # Test Helpers Audit Report
 
 **Date:** 2026-08-27  
+**Updated:** 2026-09-04 (Module 4, `testing/middleware/`, added — the module postdates the original audit)  
 **Purpose:** Comprehensive audit of all test helpers in `packages/shared/src/testing/`
 
 ## Executive Summary
 
-The MTA My Way testing infrastructure is **comprehensive and well-documented**. All three helper modules (core, security, observability) are fully functional with no broken or missing helpers detected. The existing README.md provides excellent documentation with usage examples.
+The MTA My Way testing infrastructure is **comprehensive and well-documented**. All four helper modules (core, security, observability, middleware) are fully functional with no broken or missing helpers detected. The existing README.md provides excellent documentation with usage examples.
 
 ### Quick Stats
 
-- **Total Helper Functions:** 78 functions across 3 modules
+- **Total Helper Functions:** 88 exports across 4 modules (78 in the original three + 10 middleware)
 - **Mock Data Generators:** 8 generators for domain entities
 - **Mock Utilities:** 15 mocks (logger, database, fetch, etc.)
 - **Assertion Helpers:** 18 specialized assertions
 - **Test Setup Utilities:** 7 environment setup functions
 - **Security Utilities:** 23 security testing helpers
 - **Observability Utilities:** 22 observability testing helpers
+- **Middleware Utilities:** 10 exports (8 functions, 2 constants) plus 9 exported types
 - **Documentation Coverage:** 100% (all functions documented in README.md)
-- **Test Coverage:** Smoke test validates core infrastructure
+- **Test Coverage:** Smoke tests validate core infrastructure and the middleware module
 
 ---
 
@@ -360,6 +362,84 @@ The MTA My Way testing infrastructure is **comprehensive and well-documented**. 
 
 ---
 
+## Module 4: Middleware Helpers (`testing/middleware/`)
+
+### Status: ✅ Fully Functional (added 2026-09-04, postdates the original audit)
+
+The only module in this directory that is a directory: all helpers live in `middleware/middleware-helpers.ts`, and `middleware/index.ts` is a pure re-export of it, published as the `"./testing/middleware"` subpath in `packages/shared/package.json`.
+
+#### Request Builders (1 function)
+
+| Function | Purpose | Parameters | Return Type | Status |
+|----------|---------|------------|-------------|--------|
+| `createMiddlewareRequest` | Build a real `Request` for middleware input | `options?: MiddlewareRequestOptions` | `Request` | ✅ Working |
+
+**Notes:**
+- Defaults to `GET` on `http://localhost:3001/api/test`; non-string bodies are JSON-serialized with an `application/json` content type
+- Throws when a body is supplied with `GET`/`HEAD`
+- Distinct from `createMockRequest` in `test-helpers.ts`, which returns a plain object by design
+
+#### Middleware Execution (1 function)
+
+| Function | Purpose | Parameters | Status |
+|----------|---------|------------|--------|
+| `executeMiddleware` | Run middleware around a terminal handler | `middleware, request, handler?` | ✅ Working |
+
+**Notes:**
+- Accepts a single middleware or a chain; a chain composes in registration order
+- Each middleware receives its own clone of the request
+- Terminal handler defaults to an empty `200` response
+
+#### Response Assertions (4 exports)
+
+| Function | Purpose | Status |
+|----------|---------|--------|
+| `assertHeader` | Assert a header is present, and optionally equals a value | ✅ Working |
+| `assertNoHeader` | Assert a header is absent | ✅ Working |
+| `assertSecurityHeaders` | Assert a set of security headers is present | ✅ Working |
+| `SECURITY_HEADER_NAMES` | The 10 security header names the server sets | ✅ Complete |
+
+#### Test Configuration (2 exports)
+
+| Function | Purpose | Status |
+|----------|---------|--------|
+| `MIDDLEWARE_TEST_PRESETS` | Named configs: `default`, `securityHeaders` | ✅ Complete |
+| `createMiddlewareTestConfig` | Derive a frozen config from a preset plus overrides | ✅ Working |
+
+**Presets:**
+- `default`: baseline request, no security-header requirement
+- `securityHeaders`: baseline request plus every name in `SECURITY_HEADER_NAMES`
+
+**Notes:**
+- A config is options only — no fixture, no mocks, no teardown — so it is safe at module scope
+- Configs and presets are frozen; merging is a flat shallow replace
+- `createMiddlewareTestConfig` throws on a preset name the presets do not hold
+
+#### Test Setup / Teardown (2 functions)
+
+| Function | Purpose | Status |
+|----------|---------|--------|
+| `setupMiddlewareTest` | Build a request + chain fixture and install its mocks | ✅ Working |
+| `cleanupMiddlewareTest` | Reset what setup installed | ✅ Working |
+
+**Fixture Methods:**
+- `createRequest(overrides?)` - Variant of the fixture's request, merged over its own options
+- `run(overrides?)` - Run the fixture's chain to its terminal handler, scoped to one call
+
+**Notes:**
+- The middleware-scoped counterpart of `setupTestEnvironment`/`cleanupTestEnvironment`: the root pair only installs global mocks, this one also builds the request + chain fixture
+- Also installs the root mocks (`mockEnvironment`, default `true`) and optionally vitest fake timers
+- Setup that throws mid-way tears itself down before rethrowing; teardown tolerates `null`/`undefined` and double calls
+- Running a torn-down fixture throws instead of executing
+
+#### Exported Types (9)
+
+`MiddlewareRequestOptions`, `MiddlewareLike`, `TerminalHandler`, `MiddlewareTestConfig`, `MiddlewareTestPresetName`, `MiddlewareTestConfigOverrides`, `MiddlewareTestOptions`, `MiddlewareTestRunOverrides`, `MiddlewareTestFixture`
+
+**Issues Found:** None
+
+---
+
 ## Smoke Test Coverage
 
 ### File: `smoke.test.ts`
@@ -379,6 +459,22 @@ The smoke test validates:
 10. ✅ Edge cases (empty overrides, partial overrides)
 
 **Test Count:** 14 tests across 2 describe blocks
+
+### File: `middleware/smoke.test.ts`
+
+**Status:** ✅ Comprehensive (added 2026-09-04)
+
+The middleware module's smoke test validates:
+1. ✅ The `testing/middleware` barrel resolves and re-exports every helper
+2. ✅ Setup/teardown pairing around a fixture
+3. ✅ Chain execution in registration order through the terminal handler
+4. ✅ Short-circuiting middleware
+5. ✅ Assertion helpers accepting a response produced by the chain
+6. ✅ A preset config driving both the request builder and the security-header assertion
+
+**Test Count:** 6 tests across 1 describe block
+
+Unit-level coverage for the module lives in `middleware/middleware-helpers.test.ts` (47 tests, one describe block per export).
 
 **Issues Found:** None
 
@@ -418,11 +514,12 @@ The README.md is comprehensive with:
 
 **Status:** ✅ Properly Configured
 
-All three modules are properly exported:
+All four modules are properly exported:
 ```json
 "./testing/security-helpers": { ... }
 "./testing/observability-helpers": { ... }
 "./testing/test-helpers": { ... }
+"./testing/middleware": { ... }
 ```
 
 **Import Path Examples:**
@@ -430,6 +527,7 @@ All three modules are properly exported:
 import { createMockStation } from "@mta-my-way/shared/testing/test-helpers";
 import { createMockApiKey } from "@mta-my-way/shared/testing/security-helpers";
 import { createMockLogger } from "@mta-my-way/shared/testing/observability-helpers";
+import { executeMiddleware } from "@mta-my-way/shared/testing/middleware";
 ```
 
 **Issues Found:** None
@@ -441,11 +539,11 @@ import { createMockLogger } from "@mta-my-way/shared/testing/observability-helpe
 ### Summary: None Found
 
 After comprehensive audit:
-- ✅ All 78 helper functions are present and working
+- ✅ All 88 exported helpers are present and working (78 in the original three modules + 10 middleware)
 - ✅ All functions have proper TypeScript types
 - ✅ All functions are documented in README
 - ✅ All exports are properly configured
-- ✅ Smoke test validates core functionality
+- ✅ Smoke tests validate core functionality and the middleware module
 
 ### Potential Additions (Optional)
 
@@ -464,6 +562,10 @@ While everything is working, here are optional enhancements that could be added:
 3. **Observability Helpers Module:**
    - `createMockErrorReporter()` - Error tracking (Sentry, etc.)
    - `assertMetricsEmitted()` - Assert metrics were emitted
+
+4. **Middleware Helpers Module:**
+   - `createMockMiddleware()` - Prebuilt chain stub for composing with real middleware
+   - `assertHeaderContains()` - Substring/regex match on a header value
 
 **Note:** These are NOT gaps or broken functionality - just potential future enhancements.
 
@@ -486,7 +588,9 @@ The testing infrastructure is production-ready.
 
 ## Conclusion
 
-The MTA My Way testing infrastructure is **well-designed, comprehensive, and fully functional**. All helpers work correctly, are properly documented, and are exported correctly. The smoke test provides confidence that the infrastructure is working as expected.
+The MTA My Way testing infrastructure is **well-designed, comprehensive, and fully functional**. All helpers work correctly, are properly documented, and are exported correctly. The smoke tests provide confidence that the infrastructure is working as expected, including the `testing/middleware` barrel.
+
+The middleware module (`testing/middleware/`) joined the directory after the original 2026-08-27 audit and is now counted as Module 4 above: 10 exports (8 functions, 2 constants) and 9 exported types, all documented in README.md with per-helper examples.
 
 ### Audit Result: ✅ PASS
 
@@ -510,12 +614,15 @@ A
 - assertGaugeSet
 - assertHasProperties
 - assertHealthCheckPasses
+- assertHeader (middleware-helpers)
 - assertHistogramObserved
 - assertLoggerCalled
 - assertLoggerNotCalled
 - assertMeetsSLO
 - assertIsRecent
 - assertIsSorted
+- assertNoHeader (middleware-helpers)
+- assertSecurityHeaders (middleware-helpers)
 - assertSpanCompletedWithin
 - assertSpanCreated
 - assertSpanHasAttributes
@@ -523,6 +630,8 @@ A
 
 C
 - createAuthenticatedContext
+- createMiddlewareRequest (middleware-helpers)
+- createMiddlewareTestConfig (middleware-helpers)
 - createMockApiKey
 - createMockArrival
 - createMockAlert
@@ -555,6 +664,10 @@ C
 - createMockTripRecord
 - createTestFixture
 - createCsrfHeaders
+- cleanupMiddlewareTest (middleware-helpers)
+
+E
+- executeMiddleware (middleware-helpers)
 
 F
 - flushPromises
@@ -575,6 +688,7 @@ M
 
 S
 - sanitizeInput
+- setupMiddlewareTest (middleware-helpers)
 - setupObservabilityMocks
 - setupTestEnvironment
 
@@ -585,13 +699,16 @@ W
 CONSTANTS
 - AUDIT_ACTIONS
 - MALICIOUS_INPUTS
+- MIDDLEWARE_TEST_PRESETS (middleware-helpers)
 - PASSWORD_STRENGTH
 - ROLES
 - SECURITY_EVENT_TYPES
+- SECURITY_HEADER_NAMES (middleware-helpers)
 ```
 
 ---
 
 **Audit Completed By:** Claude (Automated Audit)  
 **Audit Duration:** 2026-08-27  
+**Module 4 Added:** 2026-09-04 (`testing/middleware/`)  
 **Next Audit Recommended:** 2026-09-27 (30 days)

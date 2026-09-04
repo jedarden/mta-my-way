@@ -8,6 +8,7 @@ This directory provides comprehensive testing utilities for MTA My Way, a TypeSc
 - [Core Test Helpers (`test-helpers.ts`)](#core-test-helpers-test-helpersts)
 - [Security Helpers (`security-helpers.ts`)](#security-helpers-security-helpersts)
 - [Observability Helpers (`observability-helpers.ts`)](#observability-helpers-observability-helpersts)
+- [Middleware Helpers (`testing/middleware/`)](#middleware-helpers-testingmiddleware)
 - [Smoke Tests (`smoke.test.ts`)](#smoke-tests-smoketestts)
 - [Usage Examples](#usage-examples)
 - [Known Issues and Missing Helpers](#known-issues-and-missing-helpers)
@@ -16,15 +17,18 @@ This directory provides comprehensive testing utilities for MTA My Way, a TypeSc
 
 ## Overview
 
-The test helpers are organized into three main modules:
+The test helpers are organized into four main modules:
 
 | Module | Purpose | Lines of Code |
 |--------|---------|---------------|
-| `test-helpers.ts` | Core test utilities (mock data, fixtures, assertions) | 522 |
-| `security-helpers.ts` | Security testing (auth, CSRF, rate limiting, input validation) | 527 |
-| `observability-helpers.ts` | Logging, metrics, tracing, performance monitoring | 840 |
+| `test-helpers.ts` | Core test utilities (mock data, fixtures, assertions) | 988 |
+| `security-helpers.ts` | Security testing (auth, CSRF, rate limiting, input validation) | 526 |
+| `observability-helpers.ts` | Logging, metrics, tracing, performance monitoring | 839 |
+| `middleware/` | Middleware testing (request builder, chain runner, header assertions, fixtures) | 537 |
 
 All helpers are built on top of [Vitest](https://vitest.dev/) and use `vi` for mocking.
+
+`response-validation.ts` also lives in this directory; it is exercised by its own test file rather than documented per-helper here.
 
 ---
 
@@ -1373,6 +1377,295 @@ mocks.assertWorking(); // Verify everything still works
 
 ---
 
+## Middleware Helpers (`testing/middleware/`)
+
+Middleware testing utilities for exercising the server's middleware without starting a server. Middleware under test is modelled as a plain function that receives a standard `Request` and either returns a `Response` (short-circuit) or calls `next()` to continue the chain — the same shape Hono middleware follows in `packages/server/src/middleware/`.
+
+Unlike `createMockRequest` in `test-helpers.ts`, which is a plain object by design, these helpers operate on real `Request`/`Response` instances.
+
+### Directory Layout
+
+```
+packages/shared/src/testing/middleware/
+├── index.ts                    → Barrel: re-exports everything from middleware-helpers.ts
+├── middleware-helpers.ts       → All helpers and types (request builder, chain runner,
+│                                 header assertions, test configs, setup/teardown fixture)
+├── middleware-helpers.test.ts  → Unit tests, one describe block per export
+└── smoke.test.ts               → Barrel smoke test
+```
+
+Every helper lives in `middleware-helpers.ts`. `index.ts` contains no logic — it is a pure re-export, so a new helper only needs to be written and JSDoc-documented in `middleware-helpers.ts` to be reachable from the barrel.
+
+### Importing
+
+```typescript
+// From any package — the documented public entry point
+import { executeMiddleware } from "@mta-my-way/shared/testing/middleware";
+
+// Inside the middleware directory itself — sibling-relative (as middleware-helpers.test.ts does)
+import { executeMiddleware } from "./middleware-helpers";
+```
+
+The module is also re-exported by the root testing barrel, so `import { executeMiddleware } from "@mta-my-way/shared/testing"` works too. Prefer the `testing/middleware` subpath in tests that are specifically about middleware: it states what the test is exercising and keeps the middleware helpers greppable.
+
+The subpath is declared in [`packages/shared/package.json`](../../package.json) as `"./testing/middleware"`.
+
+### Writing a Middleware Test
+
+Which file a new middleware test should import from:
+
+| Test kind | File | Import from |
+|-----------|------|-------------|
+| Unit test for a helper in `middleware-helpers.ts` | `middleware/middleware-helpers.test.ts` | `./middleware-helpers` (relative) |
+| New middleware's behaviour | `packages/server/src/middleware/<name>.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
+| New helper added to the module | `middleware/smoke.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
+
+`middleware-helpers.test.ts` holds one `describe` block per export, in the order the exports appear in `middleware-helpers.ts`, plus a final `describe` for fixture pairing; add new cases to the matching block rather than starting a parallel file.
+
+---
+
+### Request Builders
+
+#### `createMiddlewareRequest(options?: MiddlewareRequestOptions): Request`
+Builds a real `Request` for middleware input.
+
+**Parameters:**
+- `options` (optional): Request parts to set — `method` (default `"GET"`), `url` (default `"http://localhost:3001/api/test"`), `headers` (case-insensitive names), `body`
+
+Non-string bodies are JSON-serialized and sent with an `application/json` content type unless one is already provided. Supplying a body with `GET` or `HEAD` throws.
+
+**Returns:** Standard `Request` instance
+
+**Example:**
+```typescript
+const request = createMiddlewareRequest({
+  method: "POST",
+  url: "http://localhost:3001/api/favorites",
+  headers: { authorization: "Bearer token123" },
+  body: { stationId: "725" }
+});
+```
+
+---
+
+### Middleware Execution
+
+#### `executeMiddleware(middleware: MiddlewareLike | MiddlewareLike[], request: Request, handler?: TerminalHandler): Promise<Response>`
+Runs middleware around a terminal handler and returns the resulting response.
+
+**Parameters:**
+- `middleware`: A single middleware or a chain of them
+- `request`: The request entering the chain
+- `handler` (optional): Terminal handler run when every middleware calls `next()` (defaults to an empty `200` response)
+
+Middleware compose like Hono's registration order: in `[a, b]`, `a` runs first, then `b`, then the handler. Each middleware receives its own clone of `request`, so a middleware that reads the body does not consume it for downstream layers.
+
+**Returns:** The response produced by the chain
+
+**Example:**
+```typescript
+const limited: MiddlewareLike = (_request, next) =>
+  isOverLimit() ? new Response("Too Many Requests", { status: 429 }) : next();
+
+const response = await executeMiddleware(limited, createMiddlewareRequest());
+expect(response.status).toBe(429);
+```
+
+---
+
+### Response Assertions
+
+#### `assertHeader(response: Response, name: string, expected?: string): void`
+Asserts that a response carries a header, and optionally that its value matches.
+
+**Parameters:**
+- `response`: Response to inspect
+- `name`: Header name (case-insensitive)
+- `expected` (optional): Exact value to require — omit to only require presence
+
+**Throws:** When the header is absent or does not equal `expected`
+
+**Example:**
+```typescript
+assertHeader(response, "X-Frame-Options", "DENY");
+assertHeader(response, "Content-Type"); // presence only
+```
+
+---
+
+#### `assertNoHeader(response: Response, name: string): void`
+Asserts that a response omits a header.
+
+**Parameters:**
+- `response`: Response to inspect
+- `name`: Header name (case-insensitive)
+
+**Throws:** When the header is present
+
+**Example:**
+```typescript
+assertNoHeader(response, "Set-Cookie");
+```
+
+---
+
+#### `assertSecurityHeaders(response: Response, required?: readonly string[]): void`
+Asserts that a response carries the expected security headers.
+
+**Parameters:**
+- `response`: Response to inspect
+- `required` (optional): Header names to require (defaults to `SECURITY_HEADER_NAMES`)
+
+**Throws:** Listing the headers that are missing
+
+**Example:**
+```typescript
+assertSecurityHeaders(response);
+assertSecurityHeaders(response, ["X-Frame-Options", "Content-Security-Policy"]);
+```
+
+---
+
+#### `SECURITY_HEADER_NAMES: readonly string[]`
+The security header names set by the server's `securityHeaders` middleware.
+
+`Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, `Cross-Origin-Embedder-Policy`, `X-Permitted-Cross-Domain-Policies`
+
+Only the names are listed here — values (CSP directives, HSTS max-age, …) are policy owned by the middleware and should be asserted explicitly where they matter.
+
+**Example:**
+```typescript
+assertSecurityHeaders(response, SECURITY_HEADER_NAMES);
+```
+
+---
+
+### Test Configuration (Presets)
+
+#### `MIDDLEWARE_TEST_PRESETS: Readonly<{ default: MiddlewareTestConfig; securityHeaders: MiddlewareTestConfig }>`
+Named middleware test configurations shipped with these helpers.
+
+**Presets:**
+- `default`: the standard request `createMiddlewareRequest` builds, and no security-header requirement — for tests that exercise chain behaviour rather than the security-header contract
+- `securityHeaders`: the baseline request plus every name in `SECURITY_HEADER_NAMES`
+
+A config is a `MiddlewareRequestOptions` bag plus the `securityHeaders` a response produced under it must carry, so one object drives both halves of a middleware test. Configs are options only — no fixture, no mocks, no teardown — so they are safe to define at module scope and share across suites, and they are frozen so a test cannot poison a preset.
+
+**Example:**
+```typescript
+const config = createMiddlewareTestConfig(
+  { method: "POST", body: { stationId: "725" } },
+  MIDDLEWARE_TEST_PRESETS.securityHeaders
+);
+const response = await executeMiddleware(chain, createMiddlewareRequest(config));
+assertSecurityHeaders(response, config.securityHeaders);
+```
+
+---
+
+#### `createMiddlewareTestConfig(overrides?: MiddlewareTestConfigOverrides, preset?: MiddlewareTestPresetName | MiddlewareTestConfig): MiddlewareTestConfig`
+Builds a middleware test configuration from a preset plus overrides.
+
+**Parameters:**
+- `overrides`: Fields to set on top of the preset (`name` included)
+- `preset`: Preset to derive from, by name (`"default"` | `"securityHeaders"`) or as a config (defaults to `"default"`)
+
+Merging is a flat, shallow replace, so a preset value is either kept or replaced whole — an overriding `headers` object does not merge with the preset's.
+
+**Returns:** A frozen config combining the preset with the overrides; the base preset is never modified
+
+**Throws:** When `preset` is a string the presets do not hold
+
+**Example:**
+```typescript
+const config = createMiddlewareTestConfig({ url: "http://localhost:3001/api/favorites" });
+const response = await executeMiddleware(chain, createMiddlewareRequest(config));
+
+const narrowed = createMiddlewareTestConfig({ securityHeaders: ["X-Frame-Options"] }, "securityHeaders");
+assertSecurityHeaders(response, narrowed.securityHeaders);
+```
+
+---
+
+### Test Setup / Teardown
+
+#### `setupMiddlewareTest(options?: MiddlewareTestOptions): MiddlewareTestFixture`
+Builds a middleware test fixture and installs its mocks. Pairs with `cleanupMiddlewareTest`: call this in `beforeEach` and the teardown in `afterEach`.
+
+**Options:**
+- `request`: Request parts for the fixture's standard request (forwarded to `createMiddlewareRequest`)
+- `middleware`: Chain the fixture runs, in registration order (defaults to `[]`)
+- `handler`: Terminal handler the chain ends at (defaults to an empty `200` response)
+- `fakeTimers`: Install vitest fake timers, reverted by teardown (defaults to `false`)
+- `mockEnvironment`: Also install the testing-root `setupTestEnvironment` mocks (defaults to `true`)
+
+**Returns:** Fixture with:
+- `request`: The standard request entering the chain
+- `middleware`: The fixture's chain, in registration order
+- `handler`: The terminal handler the chain ends at
+- `createRequest(overrides?)`: Variant of the fixture's request — overrides merge over the options the fixture was created with, so `{ method: "POST" }` keeps the fixture's URL and headers
+- `run(overrides?)`: Runs the fixture's chain to its terminal handler; per-call overrides replace a part for that run only and do not change the fixture
+
+Setup that throws mid-way tears itself down before rethrowing.
+
+**Example:**
+```typescript
+let fixture: MiddlewareTestFixture;
+
+beforeEach(() => {
+  fixture = setupMiddlewareTest({
+    request: { url: "http://localhost:3001/api/favorites" },
+    middleware: [requireAuth]
+  });
+});
+
+afterEach(() => {
+  cleanupMiddlewareTest(fixture);
+});
+
+it("lets an authenticated request through", async () => {
+  const response = await fixture.run({
+    request: fixture.createRequest({ headers: { authorization: "Bearer token123" } })
+  });
+  expect(response.status).toBe(200);
+});
+```
+
+---
+
+#### `cleanupMiddlewareTest(fixture?: MiddlewareTestFixture | null): void`
+Resets the state `setupMiddlewareTest` created.
+
+**Parameters:**
+- `fixture` (optional): Fixture returned by `setupMiddlewareTest`, if setup completed
+
+Restores real timers when setup installed them, then applies the same reset as the testing-root `cleanupTestEnvironment` — restoring every spy and unstubbing every global, including ones the test body added on top of the fixture. Running a torn-down fixture's `run()` throws instead of executing. Safe to call with `null`/`undefined` or twice, so an `afterEach` needs no guard around a `beforeEach` that failed partway.
+
+**Example:**
+```typescript
+afterEach(() => {
+  cleanupMiddlewareTest(fixture);
+});
+```
+
+---
+
+### Exported Types
+
+| Type | Kind | Purpose |
+|------|------|---------|
+| `MiddlewareRequestOptions` | interface | Request parts accepted by `createMiddlewareRequest` |
+| `MiddlewareLike` | type | A middleware: `(request, next) => Response \| Promise<Response>` |
+| `TerminalHandler` | type | Handler run when every middleware calls `next()` |
+| `MiddlewareTestConfig` | interface | A preset: request options plus required `securityHeaders` |
+| `MiddlewareTestPresetName` | type | `"default" \| "securityHeaders"` |
+| `MiddlewareTestConfigOverrides` | type | `Partial<MiddlewareTestConfig>` — per-config replacements |
+| `MiddlewareTestOptions` | interface | Options accepted by `setupMiddlewareTest` |
+| `MiddlewareTestRunOverrides` | interface | Per-call replacements for `fixture.run()` |
+| `MiddlewareTestFixture` | interface | Fixture returned by `setupMiddlewareTest` |
+
+---
+
 ## Smoke Tests (`smoke.test.ts`)
 
 The `smoke.test.ts` file validates that the test infrastructure itself is working correctly.
@@ -1394,6 +1687,8 @@ npm test smoke.test.ts
 ```
 
 If the smoke test passes, the test infrastructure is functioning correctly.
+
+The middleware module has its own counterpart at `testing/middleware/smoke.test.ts` (`npm test middleware/smoke.test.ts`), which proves the `testing/middleware` barrel resolves and its helpers cooperate; unit-level coverage for the module lives in `middleware-helpers.test.ts`.
 
 ---
 
@@ -1539,6 +1834,53 @@ describe("Input Validation", () => {
 
 ---
 
+### Example 6: Testing Middleware
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import {
+  executeMiddleware,
+  createMiddlewareRequest,
+  assertSecurityHeaders,
+  setupMiddlewareTest,
+  cleanupMiddlewareTest,
+  type MiddlewareLike,
+  type MiddlewareTestFixture
+} from "@mta-my-way/shared/testing/middleware";
+
+describe("securityHeaders middleware", () => {
+  let fixture: MiddlewareTestFixture;
+
+  beforeEach(() => {
+    fixture = setupMiddlewareTest();
+  });
+
+  afterEach(() => {
+    cleanupMiddlewareTest(fixture);
+  });
+
+  it("adds security headers to every response", async () => {
+    const chain: MiddlewareLike[] = [securityHeaders()];
+
+    const response = await executeMiddleware(chain, createMiddlewareRequest());
+
+    assertSecurityHeaders(response);
+    expect(response.status).toBe(200);
+  });
+
+  it("runs through the fixture so each test starts clean", async () => {
+    const response = await fixture.run({
+      middleware: [securityHeaders()],
+      handler: () => new Response("ok")
+    });
+
+    assertSecurityHeaders(response);
+  });
+});
+```
+
+---
+
 ## Audit Report
 
 **Status:** ✅ All test helpers are functional and well-documented.
@@ -1548,6 +1890,8 @@ A comprehensive audit was conducted on 2026-08-27 and found:
 - **100% documentation coverage** - all functions documented
 - **0 broken or missing helpers** - everything works as expected
 - Smoke tests validate core infrastructure
+
+The audit was extended on 2026-09-04 with a fourth module — [`testing/middleware/`](#middleware-helpers-testingmiddleware), 10 exports (8 functions, 2 constants) plus 9 exported types — which postdates the original audit.
 
 See [TEST_HELPERS_AUDIT.md](./TEST_HELPERS_AUDIT.md) for the complete audit report including:
 - Detailed function inventory with status
