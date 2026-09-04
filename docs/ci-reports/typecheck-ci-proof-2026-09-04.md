@@ -3,6 +3,11 @@
 Bead: `mtamyway-ceac46ec` (the CI half of umbrella `mtamyway-692a6a56`'s
 done-when). Depends on the local-green child `mtamyway-c9c3995f`.
 
+> **Final verdict (23:50Z, addendum 3 at the bottom): PROVEN.** On the current
+> pushed `origin/main` head `9e40601`, two pipeline runs record `lint`
+> Succeeded, `typecheck` Succeeded, and entry into step group [2] `test`.
+> The title above describes only the first dispatch's state.
+
 ## Addendum — later the same evening
 
 This report is the first half of the story; read it together with
@@ -148,3 +153,100 @@ see.
    run enter `test`. Workflow name, phase, and the step transition recorded
    here. Never force `docker-build` or any later step to manufacture the
    transition.
+
+## Addendum 3 — the transition is proven; bead `mtamyway-ceac46ec` closed green (23:50Z)
+
+All three conditions from the list above are now met, and the observed runs
+already existed — no run was burned to produce them.
+
+### The gate opened first
+
+`mtamyway-c9c3995f` re-verified **true** at ~23:35Z on its third attempt and
+closed at 23:39:54Z, this time measuring the way CI sees the tree: `git
+archive` of pushed `origin/main` `b34e747` (`0.0.381`) extracted to a scratch
+dir with `node_modules` copied in → `npm run typecheck` exit **0** and
+`npx tsc --build --force` exit **0**, plus a positive control (an injected
+TS2322 into a shipped source file flips the read to exit 1, proving the
+harness detects errors rather than merely exiting zero). It re-ran clean at
+`fc92ac9` after concurrent workers advanced the head. Details:
+[`typecheck-local-green-verify-2026-09-04.md`](./typecheck-local-green-verify-2026-09-04.md).
+The three fixture-fix children are all landed and pushed: `3445221`
+(`be5712ba`, 13), `dabc1bc` (`78ec5d0c`, 16), `c0b41cf` (`2a94b4e5`, 8).
+
+### Template re-confirmed from the live object
+
+`kubectl --server=http://traefik-iad-ci:8001 get workflowtemplate
+mta-my-way-build -n argo-workflows` — created 2026-08-26T19:58:27Z,
+resourceVersion 74694127, entrypoint `build`:
+
+```
+[0] resolve-version
+[1] lint  ∥  typecheck
+[2] test
+[3] docker-build
+[4] update-declarative-config
+```
+
+Unchanged from the correction above: `lint` and `typecheck` are two parallel
+pods, so the done-when's "lint node exits 0 and the run reaches the step after
+it" is satisfied only when **both** group-[1] pods exit 0 and the run enters
+group [2].
+
+### The proof — two runs on the current pushed head
+
+`origin/main` head `9e4060108903e59c4450bdb67040cafd0b7ebcd2` (`0.0.384`)
+pushed two runs via the argo-events sensor (`mta-my-way-sensor` → trigger
+`mta-my-way-build`). Both `resolve-version` pods publish the same sha output
+parameter, pinning each run to that commit:
+
+| Run | Created (Z) | Finished (Z) | `resolve-version` | `lint` | `typecheck` | `test` | Run phase |
+|---|---|---|---|---|---|---|---|
+| `mta-my-way-build-hdr42` | 23:34:02 | 23:46:46 | Succeeded | **Succeeded** | **Succeeded** | Failed (`main: Error (exit code 1)`) | Failed |
+| `mta-my-way-build-5jwrm` | 23:34:25 | 23:48:09 | Succeeded | **Succeeded** | **Succeeded** | Failed (pod deadline) | Failed |
+
+**Both runs record a green `lint` node, a green `typecheck` node, and a
+transition into step group [2] `test`** — the exact fact this bead exists to
+observe. That the runs' overall phase is Failed is the *test* group failing
+after the transition, which this bead's constraints explicitly put out of
+scope: acceptance is that the run *reaches* the step after lint, and
+`docker-build` was never touched to manufacture anything.
+
+Three further runs corroborate the same node shape on the two immediately
+preceding heads, so the green is a property of the tree and not of one
+accidental commit:
+
+| Run | sha | Version | `lint` / `typecheck` | Entered `test` |
+|---|---|---|---|---|
+| `mta-my-way-build-kp4nt` | `b34e747` | 0.0.381 | Succeeded / Succeeded | yes (23:07:08 → 23:21:49) |
+| `mta-my-way-build-9tgwl` | `b34e747` | 0.0.381 | Succeeded / Succeeded | yes (23:07:23 → 23:21:52) |
+| `mta-my-way-build-x6qg4` | `58976ad` | 0.0.383 | Succeeded / Succeeded | yes (23:31:18 → 23:46:43) |
+
+For contrast, `mta-my-way-build-zjb94` on head `59bacc5` (`0.0.379`, 22:35Z)
+still shows `typecheck` **Failed, exit 2** — and `59bacc5` already contains
+`3445221` and `dabc1bc`, so the only `packages/` delta between that failing
+head and the green heads is `c0b41cf`'s two fixture files (`HomeScreen.test.tsx`,
+`FavoritesList.test.tsx`, `git diff --stat 59bacc5 b34e747 -- packages/`).
+A same-day A/B on the same pipeline that isolates the final fix commit as the
+one flipping CI's typecheck green.
+
+### Why no fresh run was submitted
+
+The local-green child's verified close carries an explicit handoff:
+*`mtamyway-ceac46ec` needs no new run submitted for the typecheck half — `kp4nt`
+and `9tgwl` already are that run on the then-current origin/main head with the
+group [1] → group [2] transition recorded.* Two further runs (`hdr42`,
+`5jwrm`) then landed on the *newest* pushed head, so submitting another would
+re-measure a tree CI had measured twice within the preceding fifteen minutes.
+The residual risk a fresh run would retire — that the pushed tree had drifted
+since the measured commit — is bounded instead by diff: `9e40601` and its
+intermediate commits touch only `VERSION` and these reports, no file under
+`packages/`.
+
+### Residual — the test group, not typecheck
+
+`hdr42` failed `test` with `main: Error (exit code 1)`; `5jwrm`, `x6qg4`,
+`kp4nt` and `9tgwl` with `Pod was active on the node longer than the specified
+deadline`. Both are test-step problems with a separate owner — classified in
+[`test-step-monitor-2026-09-04.md`](./test-step-monitor-2026-09-04.md), which
+remains the open CI work. Nothing in this addendum claims the pipeline is green
+end to end.
