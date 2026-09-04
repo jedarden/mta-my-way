@@ -21,7 +21,9 @@ EndpointSlice is now empty, see §5; §6 re-verified the same day
 and still holding, see §6); umbrella closure readiness certified 2026-09-03
 (17:47–17:58 UTC) under mtamyway-8ccd3076 — see §13; the whole document
 re-verified against a fresh same-day evidence pass (21:57–22:10 UTC) under
-mtamyway-aab3d8ab — see §14)
+mtamyway-aab3d8ab — see §14; the whole document re-confirmed 2026-09-04
+(14:19 UTC) under mtamyway-37ddf981, child 3 of umbrella mtamyway-622f4cd7 —
+see §15)
 **Beads:** umbrella mtamyway-d26515d5 (parent mtamyway-6895e35e) · child 1
 mtamyway-e4710698 (live entrypoint attempt → DNS-blocked, evidence in
 `docs/notes/public-entrypoint-live-verification.md`) · child 2
@@ -715,6 +717,9 @@ reports. Its sections, in order:
   (mtamyway-8ccd3076)
 - §14 — re-verification against fresh evidence, with the §1 TCP-route
   correction (mtamyway-aab3d8ab)
+- §15 — 2026-09-04 rules reconciliation and stateful-isolation re-confirmation,
+  plus a four-site `!CORE_ONLY` gate inventory (mtamyway-37ddf981, umbrella
+  mtamyway-622f4cd7)
 
 Supersession, stated explicitly once more:
 `docs/ingressroute-validation-findings.md` and
@@ -1116,3 +1121,141 @@ a bracketed note. This is the only delta found anywhere in the document.
 **Disposition:** confirmation with one in-place letter-level correction.
 The §5 route-leakage verdict, the §2 rules table, the §3 mappings and the §6
 blocker set all re-verify fresh; nothing in this document requires a blocker.
+
+## 15. Rules reconciliation and stateful isolation, 2026-09-04 (mtamyway-37ddf981)
+
+Recorded by child 3 of 5 of umbrella **mtamyway-622f4cd7** ("Validate public
+API health and route isolation") — a different umbrella from the
+mtamyway-d26515d5 chain the rest of this document serves. That bead's brief was
+a read-only reconciliation of the live IngressRoute against the manifest,
+building the final rules table and confirming whether the stateful deployment
+is reachable by any rule, stated against the application route inventory this
+document already carries in §2. This section is therefore a **dated
+re-statement of §2/§3/§4/§5 against a fresh 2026-09-04 evidence pass**, not a
+new derivation: every claim below was re-read live on 2026-09-04 14:19 UTC at
+`http://traefik-apexalgo-iad:8001` and diffed against
+`declarative-config/k8s/apexalgo-iad/mta-my-way/` at `ab19a8e2` (manifest tree
+clean). **Read-only kubectl throughout — `get` verbs only, no cluster resource
+was mutated.**
+
+### 15.1 Dated rules table (2026-09-04)
+
+Exactly **one** IngressRoute references an mta service, cluster-wide: of **21**
+HTTP IngressRoutes in apexalgo-iad, 2 IngressRouteTCP
+(`devpod-observer/kubectl-proxy-tcp`,
+`devpod-observer/sealed-secrets-reader-proxy-tcp`) and 0 IngressRouteUDP, only
+`mta-my-way/mta-my-way` names an mta service — matching the §2 enumeration
+exactly. Shared by all rules: host `mtamyway.com` · entryPoints `websecure` ·
+TLS `certResolver: letsencrypt`.
+
+| # | Match | Middleware | Target service | Port | Backend state 2026-09-04 |
+|---|---|---|---|---|---|
+| 1 | `Host(\`mtamyway.com\`) && PathPrefix(\`/push/\`)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints**; Deployment 0/0 desired, 7 ReplicaSets all `desired=0`, image `0.0.82` |
+| 2 | `Host(\`mtamyway.com\`) && PathPrefix(\`/auth/\`)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** (as above) |
+| 3 | `Host(\`mtamyway.com\`) && PathPrefix(\`/password-reset/\`)` | none | `mta-my-way` (legacy monolith) | 3000 | **DEAD — 0 endpoints** (as above) |
+| 4 | `Host(\`mtamyway.com\`)` — catch-all | `mta-my-way-sse` | `mta-my-way-core` | 3000 | **UNHEALTHY — 3 endpoints, all `ready=false`/`serving=false`** (2× CrashLoopBackOff at 22 restarts, 1× ImagePullBackOff) |
+
+`mta-my-way-sse` remains the namespace's only middleware and is attached only
+to rule 4.
+
+### 15.2 Verdict: `mta-my-way-stateful` is referenced by no rule
+
+**As of 2026-09-04, `mta-my-way-stateful` is referenced by zero router rules —
+confirmed.** The live IngressRoute spec contains the string
+`mta-my-way-stateful` **zero** times; the only services any rule names are
+`mta-my-way:3000` (rules 1–3) and `mta-my-way-core:3000` (rule 4). Beyond the
+one IngressRoute, the cluster-wide enumeration above re-checks both TCP routes
+and the UDP set: no route of any kind references the stateful service. Its
+EndpointSlice `mta-my-way-stateful-nb27g` holds exactly **one endpoint,
+`ready=false`/`serving=false`** with pod IP `10.20.150.151` (Deployment 1/0
+desired/ready, image `0.0.289`, pod in ImagePullBackOff) — the
+mtamyway-8ccd3076 shape of §13, not the endpointless mtamyway-3b383d4a shape.
+So the stateful tier is **unrouted by the ingress and not ready internally**:
+unreachable from the public host by construction, and unreachable even over
+cluster-internal DNS until its pod pulls its image.
+
+This re-confirms §5's verdict unchanged, at the same evidence level:
+**no leakage of the stateful subsystem through the public host, proven at the
+router-config/manifest level**; live HTTP confirmation remains blocked by the
+§6 DNS blocker (unregistered domain), which was not re-tested this pass — the
+§14 stamp re-took it fresh the previous day and nothing in this pass's
+router-level findings bears on it.
+
+### 15.3 Live-versus-manifest structural comparison
+
+Exact structural equality, leaf-by-leaf, not eyeballed:
+
+| Object | Result |
+|---|---|
+| IngressRoute `mta-my-way` spec | ✅ **19/19 leaves identical** — zero live-only, zero manifest-only, zero value diffs |
+| Middleware `mta-my-way-sse` spec | ✅ **3/3 leaves identical** — zero diffs either direction |
+| Service + Deployment `mta-my-way-core` | ✅ match (port 3000, selector, replicas 2, image `0.0.289`, env incl. `CORE_ONLY=true` + `STATEFUL_SERVICE_URL=http://mta-my-way-stateful:3001`) |
+| Service + Deployment `mta-my-way-stateful` | ✅ match (port 3001, selector, replicas 1, image `0.0.289`, env incl. `PORT=3001` + `CORE_ONLY=false`) |
+| Service + Deployment `mta-my-way` (legacy) | ❌ **still the namespace's only drift — live-only orphans.** Neither `deployment.yaml` nor `service.yaml` exists at declarative-config HEAD, yet both objects are live (Service 155d, 0 endpoints; Deployment `desired=0`, image `0.0.82`) |
+| `mta-my-way-core` rollout state | ❌ **still stuck mid-rollout** — ReplicaSets `9b48f8bdc` (2026-08-27), `6bd9f88b54` (2026-08-30) and `7fbcbdb69c` (2026-09-01) are simultaneously at `DESIRED 1` against a deployment `desired=2`, and 3 pods exist where 2 are wanted, none ready |
+
+Two live-only metadata keys sit on the IngressRoute and are **not** spec drift,
+consistent with every prior stamp:
+`argocd.argoproj.io/tracking-id` and
+`kubectl.kubernetes.io/last-applied-configuration`. Both are annotation-level,
+carry no routing effect, and the `last-applied-configuration` value still
+matches the manifest spec exactly.
+
+The orphan and the stuck rollout are the same two disagreements §4 recorded;
+**no third disagreement appeared and no row of §4 moved.** Because ArgoCD
+reconciliation for this app is still stopped (§6 blocker 4, the
+`InvalidSpecError` against the dead Rackspace control-plane URL), nothing has
+pruned the orphan pair and no git change has reached the cluster since.
+
+### 15.4 Rule-versus-application path mismatch, against the route inventory
+
+The application route inventory (§2 "Path mismatch", re-derived from
+`packages/server/src/app.ts` at HEAD for this pass) is that the app serves
+essentially everything under `/api/*`, plus `/health`, `/status`, `/api/metrics`
+and `/.well-known/security.txt` at their own paths. Checked against that
+inventory, the four rules score as follows:
+
+| Rule | Prefix the app actually serves | Verdict |
+|---|---|---|
+| 1 — `/push/` | `/api/push/*` (`app.ts:2019`, `:2035`, `:2075`, `:2122`; same-origin at `:2016`) | **MISMATCH** — no app route exists at `/push/*`. The rule would 404 even against a healthy backend, and it targets the dead legacy one. |
+| 2 — `/auth/` | bare `/auth/:providerId`, `/auth/:providerId/callback`, `/auth/signout` (`app.ts:2886`, `:2889`, `:2894`) — **the only rule whose prefix has a real app counterpart**; the bulk of auth lives at `/api/auth/*` and falls through to the catch-all | **PARTIAL** — prefix matches, but see the gate note below, and it still targets the dead backend. |
+| 3 — `/password-reset/` | `/api/auth/password/*` (`app.ts:2941` policy, plus reset / reset-confirm / change) | **MISMATCH** — no app route exists at `/password-reset/*`. Same double failure as rule 1. |
+| 4 — catch-all | everything else, including all the read paths the PWA actually calls (`/api/arrivals`, `/api/stations`, `/api/alerts`, `/api/equipment`, `/api/predictions/*`, `/api/positions/*`, `/api/trip/*`) | ✅ **CORRECT** — this is the rule doing all the work. |
+
+No rule carries a `stripPrefix` or rewrite middleware, so rules 1 and 3 could
+not have reached the app's real paths even if their backend were alive.
+
+**Gate note, strengthening §5's application half.** The `!CORE_ONLY` gates that
+keep stateful routes unmounted on core are now identified at **four** sites,
+not the two §5 cites: `app.ts:2014` (push), `app.ts:2179` (trips/journal) —
+the two §5 names, both still accurate — plus `app.ts:2789` (OAuth, which
+contains the bare `/auth/*` routes) and `app.ts:2923` (password reset). All
+four were verified by brace-depth analysis, not by reading indentation. The
+consequence for rule 2 is sharper than §5 states it: even if rules 1–3 were
+re-pointed at `mta-my-way-core`, rule 2's `/auth/*` traffic would still 404,
+because core does not mount those routes at all. The designed path for
+stateful work remains core → `STATEFUL_SERVICE_URL`
+(`http://mta-my-way-stateful:3001`, `stateful-client.ts:31–32`) over
+cluster-internal DNS — never through the ingress.
+
+### 15.5 Acceptance criteria roll-up (mtamyway-37ddf981)
+
+| # | Criterion | Outcome |
+|---|---|---|
+| 1 | Dated rules table listing every rule match, target service and port | §15.1 — 4 rules, read live 2026-09-04 14:19 UTC |
+| 2 | Explicit verdict on whether `mta-my-way-stateful` is referenced by any rule | §15.2 — **referenced by none**, zero occurrences in the live spec, cluster-wide across HTTP/TCP/UDP |
+| 3 | Live-versus-manifest structural comparison with drift called out | §15.3 — exact leaf equality on both routing objects; the legacy orphan pair and the stuck core rollout are the only drift, both pre-existing (§4) |
+| 4 | Rule-versus-application path mismatch against the route inventory, dead legacy backend flagged | §15.4 — rules 1 and 3 mismatch outright, rule 2 partial; the dead legacy backend `mta-my-way:3000` (0 endpoints, retired from git, still live) is the target of all three |
+| 5 | Read-only kubectl only | ✅ — `get` verbs exclusively; no `apply`/`patch`/`delete`/`scale`/`edit`/`annotate`/`rollout`, no ArgoCD sync, no manifest change in `declarative-config` |
+
+### 15.6 Handoff to child 5
+
+Child 5 (mtamyway-e18d65c2) writes the consolidated report for umbrella
+mtamyway-622f4cd7 and is instructed to reconcile with this document rather than
+restate it. For that purpose: this section adds **no** new disagreement with
+§2–§6, so child 5 can cite §15 as a dated confirmation stamp rather than a
+correction. The two refinements it should carry forward are the **four-site**
+`!CORE_ONLY` gate list of §15.4 (§5 names two) and the sharper statement that
+rule 2's prefix is gate-blocked on core as well as dead-backend-blocked.
+Everything else — the rules table, the isolation verdict, the drift set and the
+blocker list — is unchanged from §14's 2026-09-03 pass.
