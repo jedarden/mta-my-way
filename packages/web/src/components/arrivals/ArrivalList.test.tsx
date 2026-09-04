@@ -11,6 +11,7 @@
  * - Track trip button handling
  */
 
+import type { ArrivalTime } from "@mta-my-way/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -57,7 +58,7 @@ vi.mock("./ArrivalRow.jsx", () => ({
   ),
 }));
 
-const mockNorthboundArrivals = [
+const mockNorthboundArrivals: ArrivalTime[] = [
   {
     tripId: "trip-1",
     line: "1",
@@ -66,6 +67,7 @@ const mockNorthboundArrivals = [
     confidence: "high",
     isAssigned: true,
     isExpress: false,
+    feedName: "gtfs",
     feedAge: 10,
     direction: "N" as const,
     arrivalTime: 1234567890,
@@ -79,6 +81,7 @@ const mockNorthboundArrivals = [
     confidence: "medium",
     isAssigned: true,
     isExpress: true,
+    feedName: "gtfs",
     feedAge: 10,
     direction: "N" as const,
     arrivalTime: 1234567890,
@@ -86,7 +89,7 @@ const mockNorthboundArrivals = [
   },
 ];
 
-const mockSouthboundArrivals = [
+const mockSouthboundArrivals: ArrivalTime[] = [
   {
     tripId: "trip-3",
     line: "1",
@@ -95,6 +98,7 @@ const mockSouthboundArrivals = [
     confidence: "high",
     isAssigned: true,
     isExpress: false,
+    feedName: "gtfs",
     feedAge: 10,
     direction: "S" as const,
     arrivalTime: 1234567890,

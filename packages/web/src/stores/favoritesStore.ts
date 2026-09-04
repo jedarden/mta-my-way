@@ -4,7 +4,7 @@ import { type PersistOptions, createJSONStorage, persist } from "zustand/middlew
 import { createSafeMigration, setMigrationFailed } from "./migration";
 
 /** Internal state shape (excludes schema version which is handled by persist middleware) */
-interface FavoritesState {
+export interface FavoritesState {
   favorites: Favorite[];
   commutes: Commute[];
   tapHistory: FavoriteTapEvent[];

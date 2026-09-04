@@ -12,6 +12,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeFeedHealth } from "../../test/factories";
 import { DataHealth } from "./DataHealth";
 
 // Mock the shared utilities
@@ -51,42 +52,34 @@ vi.mock("@mta-my-way/shared", () => ({
 const BASE_TIME = new Date("2025-01-01T12:00:00Z").getTime();
 
 const mockFeeds = [
-  {
-    id: "1",
-    name: "123 Line Feed",
-    status: "active",
-    lastSuccessAt: new Date(BASE_TIME - 10_000).toISOString(),
-    avgLatencyMs: 150,
-  },
-  {
+  makeFeedHealth({ id: "1", name: "123 Line Feed", avgLatencyMs: 150 }),
+  makeFeedHealth({
     id: "2",
     name: "ACE Line Feed",
-    status: "active",
     lastSuccessAt: new Date(BASE_TIME - 30_000).toISOString(),
     avgLatencyMs: 200,
-  },
-  {
+  }),
+  makeFeedHealth({
     id: "3",
     name: "BDFM Line Feed",
-    status: "active",
     lastSuccessAt: new Date(BASE_TIME - 60_000).toISOString(),
     avgLatencyMs: 180,
-  },
-  {
+  }),
+  makeFeedHealth({
     id: "4",
     name: "G Line Feed",
     status: "circuit_open",
     lastSuccessAt: new Date(BASE_TIME - 120_000).toISOString(),
     avgLatencyMs: 0,
-  },
-  {
+  }),
+  makeFeedHealth({
     id: "5",
     name: "JZ Line Feed",
     status: "never_polled",
     lastSuccessAt: null,
     avgLatencyMs: 0,
-  },
-] as const;
+  }),
+];
 
 describe("DataHealth", () => {
   beforeEach(() => {
@@ -124,21 +117,21 @@ describe("DataHealth", () => {
 
   describe("freshness indicators", () => {
     it("shows green dot for fresh feeds (<15s)", () => {
-      render(<DataHealth feeds={[mockFeeds[0]]} />);
+      render(<DataHealth feeds={[mockFeeds[0]!]} />);
 
       const dot = screen.getByText("123 Line Feed").previousElementSibling;
       expect(dot).toHaveClass("bg-green-500");
     });
 
     it("shows gray dot for aging feeds (15-45s)", () => {
-      render(<DataHealth feeds={[mockFeeds[1]]} />);
+      render(<DataHealth feeds={[mockFeeds[1]!]} />);
 
       const dot = screen.getByText("ACE Line Feed").previousElementSibling;
       expect(dot).toHaveClass("bg-gray-400");
     });
 
     it("shows amber dot for stale feeds (45-90s)", () => {
-      render(<DataHealth feeds={[mockFeeds[2]]} />);
+      render(<DataHealth feeds={[mockFeeds[2]!]} />);
 
       const dot = screen.getByText("BDFM Line Feed").previousElementSibling;
       expect(dot).toHaveClass("bg-amber-500");
@@ -146,7 +139,7 @@ describe("DataHealth", () => {
 
     it("shows red dot for very stale feeds (>90s)", () => {
       const staleFeed = {
-        ...mockFeeds[2],
+        ...mockFeeds[2]!,
         lastSuccessAt: new Date(BASE_TIME - 120_000).toISOString(),
       };
       render(<DataHealth feeds={[staleFeed]} />);
@@ -158,13 +151,13 @@ describe("DataHealth", () => {
 
   describe("feed age display", () => {
     it("displays age in seconds for fresh feeds", () => {
-      render(<DataHealth feeds={[mockFeeds[0]]} />);
+      render(<DataHealth feeds={[mockFeeds[0]!]} />);
 
       expect(screen.getByText("10s")).toBeInTheDocument();
     });
 
     it("displays age in minutes for older feeds", () => {
-      render(<DataHealth feeds={[mockFeeds[2]]} />);
+      render(<DataHealth feeds={[mockFeeds[2]!]} />);
 
       expect(screen.getByText("1m 0s")).toBeInTheDocument();
     });
@@ -172,13 +165,13 @@ describe("DataHealth", () => {
 
   describe("latency display", () => {
     it("shows latency when available", () => {
-      render(<DataHealth feeds={[mockFeeds[0]]} />);
+      render(<DataHealth feeds={[mockFeeds[0]!]} />);
 
       expect(screen.getByText("150ms")).toBeInTheDocument();
     });
 
     it("does not show latency when zero", () => {
-      render(<DataHealth feeds={[mockFeeds[3]]} />);
+      render(<DataHealth feeds={[mockFeeds[3]!]} />);
 
       expect(screen.queryByText("0ms")).not.toBeInTheDocument();
     });
@@ -186,20 +179,20 @@ describe("DataHealth", () => {
 
   describe("circuit open status", () => {
     it("shows circuit open status for down feeds", () => {
-      render(<DataHealth feeds={[mockFeeds[3]]} />);
+      render(<DataHealth feeds={[mockFeeds[3]!]} />);
 
       expect(screen.getByText("Circuit open")).toBeInTheDocument();
     });
 
     it("shows pulsing red dot for circuit open", () => {
-      render(<DataHealth feeds={[mockFeeds[3]]} />);
+      render(<DataHealth feeds={[mockFeeds[3]!]} />);
 
       const dot = screen.getByText("G Line Feed").previousElementSibling;
       expect(dot).toHaveClass("bg-red-500", "animate-pulse");
     });
 
     it("shows red text for circuit open", () => {
-      render(<DataHealth feeds={[mockFeeds[3]]} />);
+      render(<DataHealth feeds={[mockFeeds[3]!]} />);
 
       const statusText = screen.getByText("Circuit open");
       expect(statusText).toHaveClass("text-red-500");
@@ -208,13 +201,13 @@ describe("DataHealth", () => {
 
   describe("never polled status", () => {
     it("shows never polled status", () => {
-      render(<DataHealth feeds={[mockFeeds[4]]} />);
+      render(<DataHealth feeds={[mockFeeds[4]!]} />);
 
       expect(screen.getByText("Never polled")).toBeInTheDocument();
     });
 
     it("shows pulsing red dot for never polled", () => {
-      render(<DataHealth feeds={[mockFeeds[4]]} />);
+      render(<DataHealth feeds={[mockFeeds[4]!]} />);
 
       const dot = screen.getByText("JZ Line Feed").previousElementSibling;
       expect(dot).toHaveClass("bg-red-500", "animate-pulse");

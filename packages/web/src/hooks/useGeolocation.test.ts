@@ -113,12 +113,9 @@ describe("useGeolocation", () => {
     });
 
     it("listens for permission changes", async () => {
-      let permissionChangeListener: ((event: Event) => void) | undefined;
       const mockStatus = {
         state: "prompt",
-        addEventListener: vi.fn((_event: string, callback: () => void) => {
-          permissionChangeListener = callback;
-        }),
+        addEventListener: vi.fn(),
       };
       mockPermissions.query.mockResolvedValue(mockStatus);
 
@@ -145,6 +142,7 @@ describe("useGeolocation", () => {
           speed: null,
         },
         timestamp: Date.now(),
+        toJSON: () => mockPosition,
       };
 
       let successCallback: ((position: GeolocationPosition) => void) | null = null;
@@ -463,6 +461,7 @@ describe("useGeolocation", () => {
           speed: null,
         },
         timestamp: Date.now(),
+        toJSON: () => mockPosition,
       };
 
       let successCallback: ((position: GeolocationPosition) => void) | null = null;

@@ -6,7 +6,7 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { StalenessLevel, useStaleness } from "./useStaleness";
+import { useStaleness } from "./useStaleness";
 
 describe("useStaleness", () => {
   beforeEach(() => {

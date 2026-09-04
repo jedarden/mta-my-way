@@ -10,51 +10,59 @@
  * - Accessibility attributes
  */
 
+import type { EquipmentStatus } from "@mta-my-way/shared";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { EquipmentBanner } from "./EquipmentBanner";
 
-const mockEquipment = [
-  {
-    type: "elevator",
-    description: "Elevator from street to mezzanine",
-    ada: true,
-    estimatedReturn: "June 2025",
-  },
-  {
-    type: "escalator",
-    description: "Escalator to platform",
-    ada: false,
-    estimatedReturn: "Tomorrow",
-  },
-] as const;
+const mockElevator: EquipmentStatus = {
+  stationId: "127",
+  type: "elevator",
+  description: "Elevator from street to mezzanine",
+  isActive: false,
+  ada: true,
+  estimatedReturn: "June 2025",
+};
 
-const mockEscalatorsOnly = [
-  {
-    type: "escalator",
-    description: "Escalator to street level",
-    ada: false,
-    estimatedReturn: "Friday",
-  },
-] as const;
+const mockEscalator: EquipmentStatus = {
+  stationId: "127",
+  type: "escalator",
+  description: "Escalator to platform",
+  isActive: false,
+  ada: false,
+  estimatedReturn: "Tomorrow",
+};
+
+const mockEscalatorOnly: EquipmentStatus = {
+  stationId: "128",
+  type: "escalator",
+  description: "Escalator to street level",
+  isActive: false,
+  ada: false,
+  estimatedReturn: "Friday",
+};
+
+const mockEquipment: EquipmentStatus[] = [mockElevator, mockEscalator];
+
+const mockEscalatorsOnly: EquipmentStatus[] = [mockEscalatorOnly];
 
 describe("EquipmentBanner", () => {
   describe("elevator outages (ADA impact)", () => {
     it("renders red banner for elevator outages", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       const banner = screen.getByRole("alert");
       expect(banner).toHaveClass("bg-red-50", "border-red-200");
     });
 
     it("shows ADA Access Disrupted header", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       expect(screen.getByText("ADA Access Disrupted")).toBeInTheDocument();
     });
 
     it("shows ADA warning message", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       expect(
         screen.getByText("This station is not currently ADA accessible due to elevator outages.")
@@ -62,7 +70,7 @@ describe("EquipmentBanner", () => {
     });
 
     it("lists elevator outages", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       expect(screen.getByText("Elevator from street to mezzanine")).toBeInTheDocument();
     });
@@ -114,17 +122,19 @@ describe("EquipmentBanner", () => {
 
   describe("estimated return times", () => {
     it("displays estimated return time when available", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       expect(screen.getByText(/Est\. return: June 2025/)).toBeInTheDocument();
     });
 
     it("does not display return time when not available", () => {
-      const noReturnTime = {
+      const noReturnTime: EquipmentStatus = {
+        stationId: "127",
         type: "elevator",
         description: "Elevator out",
+        isActive: false,
         ada: true,
-      } as const;
+      };
 
       render(<EquipmentBanner equipment={[noReturnTime]} stationName="Times Square" />);
 
@@ -157,7 +167,7 @@ describe("EquipmentBanner", () => {
   describe("icons", () => {
     it("renders warning icon", () => {
       const { container } = render(
-        <EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />
+        <EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />
       );
 
       const icon = container.querySelector("svg");
@@ -167,7 +177,7 @@ describe("EquipmentBanner", () => {
 
     it("renders elevator icons for elevator items", () => {
       const { container } = render(
-        <EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />
+        <EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />
       );
 
       const icons = container.querySelectorAll("svg");
@@ -178,7 +188,7 @@ describe("EquipmentBanner", () => {
 
   describe("accessibility", () => {
     it("has proper role and aria-label", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       const banner = screen.getByRole("alert", {
         name: /Equipment outages at Times Square/i,
@@ -187,7 +197,7 @@ describe("EquipmentBanner", () => {
     });
 
     it("encodes station name in aria-label", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="St & 1st Ave" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="St & 1st Ave" />);
 
       const banner = screen.getByRole("alert");
       expect(banner).toHaveAttribute("aria-label");
@@ -204,7 +214,7 @@ describe("EquipmentBanner", () => {
 
   describe("dark mode", () => {
     it("has proper dark mode colors for ADA impact", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       const banner = screen.getByRole("alert");
       expect(banner).toHaveClass("dark:bg-red-950/30", "dark:border-red-800/50");
@@ -218,7 +228,7 @@ describe("EquipmentBanner", () => {
     });
 
     it("has proper text colors in dark mode", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       const header = screen.getByText("ADA Access Disrupted");
       expect(header).toHaveClass("dark:text-red-300");
@@ -232,21 +242,21 @@ describe("EquipmentBanner", () => {
 
   describe("styling", () => {
     it("has rounded corners", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       const banner = screen.getByRole("alert");
       expect(banner).toHaveClass("rounded-lg");
     });
 
     it("has proper padding", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       const banner = screen.getByRole("alert");
       expect(banner).toHaveClass("p-4");
     });
 
     it("has border", () => {
-      render(<EquipmentBanner equipment={[mockEquipment[0]]} stationName="Times Square" />);
+      render(<EquipmentBanner equipment={[mockElevator]} stationName="Times Square" />);
 
       const banner = screen.getByRole("alert");
       expect(banner).toHaveClass("border");

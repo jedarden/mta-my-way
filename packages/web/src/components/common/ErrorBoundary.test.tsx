@@ -190,7 +190,7 @@ describe("ErrorBoundary", () => {
 
       expect(onError).toHaveBeenCalledTimes(1);
 
-      const [error, errorInfo] = onError.mock.calls[0];
+      const [error, errorInfo] = onError.mock.calls[0]!;
       expect(error).toBeInstanceOf(Error);
       expect(error.message).toBe("Test error");
       expect(errorInfo).toHaveProperty("componentStack");
@@ -284,7 +284,7 @@ describe("ErrorBoundary", () => {
     it("handles errors during rendering", () => {
       const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      function BadRender() {
+      function BadRender(): React.ReactElement {
         throw new Error("Render error");
       }
 

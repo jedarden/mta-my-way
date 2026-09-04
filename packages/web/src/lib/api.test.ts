@@ -9,7 +9,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiClientError, api } from "./api";
+import { ApiClientError, type PushSubscribeRequest, api } from "./api";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -59,7 +59,7 @@ describe("API client - CSRF handling", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[1]?.headers?.["X-CSRF-Token"]).toBe("test-token-123");
   });
 
@@ -90,9 +90,9 @@ describe("API client - CSRF handling", () => {
     // Should have 2 calls: one for CSRF token, one for the actual request
     expect(mockFetch).toHaveBeenCalledTimes(2);
     // First call should be to fetch CSRF token
-    expect(mockFetch.mock.calls[0][0]).toContain("/api/csrf-token");
+    expect(mockFetch.mock.calls[0]![0]).toContain("/api/csrf-token");
     // Second call should be the actual API call
-    expect(mockFetch.mock.calls[1][0]).toContain("/api/commute/analyze");
+    expect(mockFetch.mock.calls[1]![0]).toContain("/api/commute/analyze");
   });
 
   it("does not include CSRF token for GET requests", async () => {
@@ -103,7 +103,7 @@ describe("API client - CSRF handling", () => {
 
     await api.getStations();
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[1]?.headers?.["X-CSRF-Token"]).toBeUndefined();
   });
 });
@@ -190,7 +190,7 @@ describe("API client - Error handling", () => {
 
     await api.getStations();
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[1]?.headers?.["x-trace-id"]).toBe("test-trace-123");
   });
 
@@ -376,7 +376,7 @@ describe("API client - Endpoint methods", () => {
         accessibleMode: true,
       });
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       expect(callArgs[0]).toBe("/api/commute/analyze");
       expect(callArgs[1]?.method).toBe("POST");
 
@@ -430,14 +430,17 @@ describe("API client - Endpoint methods", () => {
         json: async () => ({ success: true }),
       });
 
-      const subscription = {
-        subscription: { endpoint: "https://test.com", keys: {} },
+      const subscription: PushSubscribeRequest = {
+        subscription: {
+          endpoint: "https://test.com",
+          keys: { p256dh: "test-p256dh-key", auth: "test-auth-key" },
+        },
         favorites: [],
       };
 
       await api.subscribePush(subscription);
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       expect(callArgs[0]).toBe("/api/push/subscribe");
       expect(callArgs[1]?.method).toBe("POST");
     });
@@ -450,7 +453,7 @@ describe("API client - Endpoint methods", () => {
 
       await api.unsubscribePush({ endpoint: "https://test.com" });
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       expect(callArgs[0]).toBe("/api/push/unsubscribe");
       expect(callArgs[1]?.method).toBe("DELETE");
     });
@@ -466,7 +469,7 @@ describe("API client - Endpoint methods", () => {
         favorites: [{ id: "fav1", stationId: "101", lines: ["1"], direction: "both" }],
       });
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       expect(callArgs[0]).toBe("/api/push/subscription");
       expect(callArgs[1]?.method).toBe("PATCH");
     });
@@ -536,7 +539,7 @@ describe("API client - Request headers", () => {
 
     await api.analyzeCommute({ originId: "101", destinationId: "102" });
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[1]?.headers?.["Content-Type"]).toBe("application/json");
   });
 
@@ -549,7 +552,7 @@ describe("API client - Request headers", () => {
     // This test verifies that trace headers are included
     await api.getStations();
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[1]?.headers).toHaveProperty("x-trace-id");
   });
 });

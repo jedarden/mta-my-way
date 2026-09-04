@@ -2,7 +2,7 @@
  * Tests for usePrefetch hook
  */
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePrefetch } from "./usePrefetch";
 
@@ -54,7 +54,7 @@ vi.mock("../stores/favoritesStore", () => ({
 
 // Import after mocking
 import { prefetchStations } from "../lib/prefetch";
-import { useGeofence } from "./useGeofence";
+import { type GeofenceEvent, useGeofence } from "./useGeofence";
 import { useOnlineStatus } from "./useOnlineStatus";
 
 describe("usePrefetch", () => {
@@ -83,6 +83,7 @@ describe("usePrefetch", () => {
     vi.mocked(useGeofence).mockReturnValue({
       isWatching: false,
       lastEvent: null,
+      gpsFailureCount: 0,
     });
   });
 
@@ -189,6 +190,7 @@ describe("usePrefetch", () => {
       return {
         isWatching: true,
         lastEvent: null,
+        gpsFailureCount: 0,
       };
     });
 
@@ -225,7 +227,7 @@ describe("usePrefetch", () => {
     vi.mocked(useOnlineStatus).mockImplementation(() => isOnline);
 
     // Track geofence entries separately - don't auto-call onEnter when hook is called
-    const capturedHandlers: Array<(event: unknown) => void> = [];
+    const capturedHandlers: Array<(event: GeofenceEvent) => void> = [];
     vi.mocked(useGeofence).mockImplementation((options) => {
       if (options?.onEnter) {
         capturedHandlers.push(options.onEnter);
@@ -233,6 +235,7 @@ describe("usePrefetch", () => {
       return {
         isWatching: true,
         lastEvent: null,
+        gpsFailureCount: 0,
       };
     });
 

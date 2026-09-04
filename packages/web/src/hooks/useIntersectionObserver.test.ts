@@ -12,7 +12,6 @@ let mockOptions: (Record<string, unknown> & IntersectionObserverInit) | null = n
 let mockObserveCalls: Array<Element> = [];
 let mockDisconnectCalls = 0;
 let mockUnobserveCalls: Array<Element> = [];
-let activeObserver: MockIntersectionObserver | null = null;
 let lastObservedElement: Element | null = null;
 
 // Reset mocks before each test
@@ -22,7 +21,6 @@ function resetMocks() {
   mockObserveCalls = [];
   mockDisconnectCalls = 0;
   mockUnobserveCalls = [];
-  activeObserver = null;
   lastObservedElement = null;
 }
 
@@ -47,7 +45,6 @@ class MockIntersectionObserver implements IntersectionObserver {
     this.thresholds = Array.isArray(options.threshold)
       ? options.threshold
       : [options.threshold ?? 0];
-    activeObserver = this;
   }
 
   observe(target: Element) {

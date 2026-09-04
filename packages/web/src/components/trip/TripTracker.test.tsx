@@ -324,10 +324,10 @@ describe("TripTracker - Screen Reader Compatibility", () => {
       const stops = createMockStops();
       // Set up so only destination remains after current stop
       // Current stop is at index 3 (14th St - Union Square), destination is at index 4
-      stops[0].status = "passed"; // Times Square
-      stops[1].status = "passed"; // 34th St
-      stops[2].status = "passed"; // 23rd St
-      stops[3].status = "current"; // 14th St - current position
+      stops[0]!.status = "passed"; // Times Square
+      stops[1]!.status = "passed"; // 34th St
+      stops[2]!.status = "passed"; // 23rd St
+      stops[3]!.status = "current"; // 14th St - current position
       // stops[4] is destination - only 1 stop remaining after current
 
       render(

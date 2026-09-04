@@ -27,6 +27,85 @@ import { useFareStore } from "../stores/fareStore";
 import { useFavoritesStore } from "../stores/favoritesStore";
 import { useJournalStore } from "../stores/journalStore";
 
+// The journal and fare stores don't export their state interfaces, so derive
+// them from the stores themselves. Every fixture below is checked against
+// these real shapes.
+type FavoritesState = ReturnType<typeof useFavoritesStore.getState>;
+type JournalState = ReturnType<typeof useJournalStore.getState>;
+type FareState = ReturnType<typeof useFareStore.getState>;
+
+/** Complete favorites-store state, with the commute the tests match against. */
+const createMockFavoritesState = (overrides: Partial<FavoritesState> = {}): FavoritesState => ({
+  favorites: [],
+  commutes: [
+    {
+      id: "commute1",
+      name: "Work",
+      origin: { stationId: "101", stationName: "South Ferry" },
+      destination: { stationId: "725", stationName: "Times Square" },
+      preferredLines: ["1"],
+      enableTransferSuggestions: false,
+    },
+  ],
+  tapHistory: [],
+  onboardingComplete: false,
+  addFavorite: vi.fn(),
+  updateFavorite: vi.fn(),
+  removeFavorite: vi.fn(),
+  reorderFavorites: vi.fn(),
+  togglePin: vi.fn(),
+  addCommute: vi.fn(),
+  updateCommute: vi.fn(),
+  removeCommute: vi.fn(),
+  toggleCommutePin: vi.fn(),
+  recordTap: vi.fn(),
+  completeOnboarding: vi.fn(),
+  replaceFromSync: vi.fn(),
+  clearLocalData: vi.fn(),
+  ...overrides,
+});
+
+/** Complete journal-store state: data plus every action the real store declares. */
+const createMockJournalState = (overrides: Partial<JournalState> = {}): JournalState => ({
+  stats: {},
+  dayOfWeekStats: {},
+  lastStationVisit: null,
+  setCommuteStats: vi.fn(),
+  addTripRecord: mockAddTripRecord,
+  updateTripRecord: vi.fn(),
+  removeTripRecord: vi.fn(),
+  removeCommuteStats: vi.fn(),
+  clearJournal: vi.fn(),
+  detectAnomaly: vi.fn(),
+  getDayOfWeekStats: vi.fn(),
+  recordStationVisit: vi.fn(),
+  getLastStationVisit: vi.fn(),
+  clearLastStationVisit: vi.fn(),
+  ...overrides,
+});
+
+/** Complete fare-store state: tracking data plus every action the real store declares. */
+const createMockFareState = (overrides: Partial<FareState> = {}): FareState => ({
+  tracking: {
+    weeklyRides: 0,
+    weekStartDate: "",
+    monthlyRides: 0,
+    monthStartDate: "",
+    rideLog: [],
+    currentFare: 2.9,
+    unlimitedPassPrice: 132,
+  },
+  addRideLogEntry: mockAddRideLogEntry,
+  setCurrentFare: vi.fn(),
+  setUnlimitedPassPrice: vi.fn(),
+  resetWeek: vi.fn(),
+  resetMonth: vi.fn(),
+  updateTracking: vi.fn(),
+  clearFareData: vi.fn(),
+  getCapStatus: vi.fn(),
+  ...overrides,
+});
+
 describe("useInferredTrips", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,31 +113,17 @@ describe("useInferredTrips", () => {
     vi.setSystemTime(Date.now());
 
     vi.mocked(useFavoritesStore).mockImplementation((selector) => {
-      const state = {
-        commutes: [
-          {
-            id: "commute1",
-            origin: { stationId: "101", stationName: "South Ferry" },
-            destination: { stationId: "725", stationName: "Times Square" },
-            preferredLines: ["1"],
-          },
-        ],
-        favorites: [],
-      };
+      const state = createMockFavoritesState();
       return selector ? selector(state) : state;
     });
 
     vi.mocked(useJournalStore).mockImplementation((selector) => {
-      const state = {
-        addTripRecord: mockAddTripRecord,
-      };
+      const state = createMockJournalState();
       return selector ? selector(state) : state;
     });
 
     vi.mocked(useFareStore).mockImplementation((selector) => {
-      const state = {
-        addRideLogEntry: mockAddRideLogEntry,
-      };
+      const state = createMockFareState();
       return selector ? selector(state) : state;
     });
   });
@@ -68,29 +133,26 @@ describe("useInferredTrips", () => {
   });
 
   it("does nothing when currentStationId is null", () => {
-    const { result } = renderHook(() => useInferredTrips(null, "Times Square", ["1"]));
+    renderHook(() => useInferredTrips(null, "Times Square", ["1"]));
 
     expect(mockAddTripRecord).not.toHaveBeenCalled();
     expect(mockAddRideLogEntry).not.toHaveBeenCalled();
   });
 
   it("does nothing when station has no lines", () => {
-    const { result } = renderHook(() => useInferredTrips("725", "Times Square", []));
+    renderHook(() => useInferredTrips("725", "Times Square", []));
 
     expect(mockAddTripRecord).not.toHaveBeenCalled();
   });
 
   it("records first station visit", () => {
-    const { rerender } = renderHook(
-      ({ stationId, name, lines }) => useInferredTrips(stationId, name, lines),
-      {
-        initialProps: {
-          stationId: "101",
-          name: "South Ferry",
-          lines: ["1"],
-        },
-      }
-    );
+    renderHook(({ stationId, name, lines }) => useInferredTrips(stationId, name, lines), {
+      initialProps: {
+        stationId: "101",
+        name: "South Ferry",
+        lines: ["1"],
+      },
+    });
 
     expect(mockAddTripRecord).not.toHaveBeenCalled();
   });
@@ -209,10 +271,7 @@ describe("useInferredTrips", () => {
 
   it("does not infer trip if no matching commute found", () => {
     vi.mocked(useFavoritesStore).mockImplementation((selector) => {
-      const state = {
-        commutes: [], // No commutes
-        favorites: [],
-      };
+      const state = createMockFavoritesState({ commutes: [] }); // No commutes
       return selector ? selector(state) : state;
     });
 

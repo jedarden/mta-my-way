@@ -14,7 +14,8 @@
  * - Auto-refresh behavior
  */
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { Commute, Favorite } from "@mta-my-way/shared";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as favoritesHook from "../hooks/useFavorites";
@@ -32,11 +33,7 @@ vi.mock("../components/onboarding/OnboardingFlow", () => ({
 
 const mockFavoriteEditor = vi.hoisted(() => ({
   FavoriteEditor: vi.fn(
-    ({
-      favorite,
-      onSave,
-      onClose,
-    }: { favorite: unknown; onSave: () => void; onClose: () => void }) => (
+    ({ onSave, onClose }: { favorite: unknown; onSave: () => void; onClose: () => void }) => (
       <div data-testid="favorite-editor">
         <button onClick={onSave}>Save</button>
         <button onClick={onClose}>Close</button>
@@ -67,34 +64,106 @@ vi.mock("../stores", () => ({
   useFareStore: vi.fn(),
 }));
 
+// The store modules don't export their state interfaces, so derive them from the
+// hooks they expose. Every fixture below is checked against these real shapes.
+type FavoritesState = ReturnType<typeof useFavoritesStore.getState>;
+type SettingsState = ReturnType<typeof useSettingsStore.getState>;
+type UseFavoritesReturn = ReturnType<typeof favoritesHook.useFavorites>;
+
+/** A complete Favorite fixture (id, stationId, stationName, lines, direction, sortOrder). */
+const createMockFavorite = (overrides: Partial<Favorite> = {}): Favorite => ({
+  id: "fav1",
+  stationId: "101",
+  stationName: "South Ferry",
+  lines: ["1"],
+  direction: "both",
+  sortOrder: 0,
+  ...overrides,
+});
+
+const mockFavorites: Favorite[] = [
+  createMockFavorite(),
+  createMockFavorite({
+    id: "fav2",
+    stationId: "725",
+    stationName: "Times Sq-42 St",
+    lines: ["1", "2", "3"],
+    sortOrder: 1,
+  }),
+];
+
+const mockCommutes: Commute[] = [
+  {
+    id: "commute1",
+    name: "Work",
+    origin: { stationId: "101", stationName: "South Ferry" },
+    destination: { stationId: "725", stationName: "Times Sq-42 St" },
+    preferredLines: ["1"],
+    enableTransferSuggestions: false,
+  },
+];
+
+/** Complete favorites-store state: data plus every action the real store declares. */
+const createMockFavoritesState = (overrides: Partial<FavoritesState> = {}): FavoritesState => ({
+  favorites: [],
+  commutes: [],
+  tapHistory: [],
+  onboardingComplete: false,
+  addFavorite: vi.fn(),
+  updateFavorite: vi.fn(),
+  removeFavorite: vi.fn(),
+  reorderFavorites: vi.fn(),
+  togglePin: vi.fn(),
+  addCommute: vi.fn(),
+  updateCommute: vi.fn(),
+  removeCommute: vi.fn(),
+  toggleCommutePin: vi.fn(),
+  recordTap: vi.fn(),
+  completeOnboarding: vi.fn(),
+  replaceFromSync: vi.fn(),
+  clearLocalData: vi.fn(),
+  ...overrides,
+});
+
+/** Complete settings-store state, matching the store's DEFAULT_SETTINGS. */
+const createMockSettingsState = (overrides: Partial<SettingsState> = {}): SettingsState => ({
+  theme: "system",
+  showUnassignedTrips: false,
+  refreshInterval: 30,
+  alertSeverityFilter: "delays",
+  hapticFeedback: true,
+  accessibleMode: false,
+  quietHours: { enabled: false, startHour: 22, endHour: 7 },
+  setTheme: vi.fn(),
+  setShowUnassignedTrips: vi.fn(),
+  setRefreshInterval: vi.fn(),
+  setAlertSeverityFilter: vi.fn(),
+  setHapticFeedback: vi.fn(),
+  setAccessibleMode: vi.fn(),
+  setQuietHours: vi.fn(),
+  replaceFromSync: vi.fn(),
+  clearLocalData: vi.fn(),
+  ...overrides,
+});
+
+/** Complete useFavorites() return value. */
+const createMockUseFavorites = (
+  overrides: Partial<UseFavoritesReturn> = {}
+): UseFavoritesReturn => ({
+  favorites: [],
+  hasFavorites: false,
+  onboardingComplete: true,
+  addFavorite: vi.fn(),
+  updateFavorite: vi.fn(),
+  removeFavorite: vi.fn(),
+  reorderFavorites: vi.fn(),
+  togglePin: vi.fn(),
+  recordTap: vi.fn(),
+  completeOnboarding: vi.fn(),
+  ...overrides,
+});
+
 describe("HomeScreen", () => {
-  const mockFavorites = [
-    {
-      id: "fav1",
-      stationId: "101",
-      stationName: "South Ferry",
-      lines: ["1"],
-      direction: "both",
-    },
-    {
-      id: "fav2",
-      stationId: "725",
-      stationName: "Times Sq-42 St",
-      lines: ["1", "2", "3"],
-      direction: "both",
-    },
-  ];
-
-  const mockCommutes = [
-    {
-      id: "commute1",
-      name: "Work",
-      origin: { stationId: "101", stationName: "South Ferry" },
-      destination: { stationId: "725", stationName: "Times Sq-42 St" },
-      preferredLines: ["1"],
-    },
-  ];
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -102,18 +171,15 @@ describe("HomeScreen", () => {
 
     // Mock store functions
     vi.mocked(useFavoritesStore).mockImplementation((selector) => {
-      const state = {
+      const state = createMockFavoritesState({
         onboardingComplete: true,
         commutes: mockCommutes,
-        tapHistory: [],
-      };
+      });
       return selector ? selector(state) : state;
     });
 
     vi.mocked(useSettingsStore).mockImplementation((selector) => {
-      const state = {
-        hapticFeedback: false,
-      };
+      const state = createMockSettingsState({ hapticFeedback: false });
       return selector ? selector(state) : state;
     });
 
@@ -151,15 +217,15 @@ describe("HomeScreen", () => {
     });
 
     // Mock hooks
-    vi.mocked(favoritesHook.useFavorites).mockReturnValue({
-      favorites: mockFavorites,
-      hasFavorites: true,
-      updateFavorite: vi.fn(),
-      removeFavorite: vi.fn(),
-      reorderFavorites: vi.fn(),
-    });
+    vi.mocked(favoritesHook.useFavorites).mockReturnValue(
+      createMockUseFavorites({ favorites: mockFavorites, hasFavorites: true })
+    );
 
-    vi.mocked(prefetchHook.usePrefetch).mockReturnValue(undefined);
+    vi.mocked(prefetchHook.usePrefetch).mockReturnValue({
+      isWatching: false,
+      lastGeofenceEvent: null,
+      prefetchAll: vi.fn(),
+    });
 
     // Mock navigator.vibrate
     vi.stubGlobal("navigator", {
@@ -179,11 +245,7 @@ describe("HomeScreen", () => {
   describe("onboarding state", () => {
     it("should show onboarding flow for first-time users", () => {
       vi.mocked(useFavoritesStore).mockImplementation((selector) => {
-        const state = {
-          onboardingComplete: false,
-          commutes: [],
-          tapHistory: [],
-        };
+        const state = createMockFavoritesState({ onboardingComplete: false });
         return selector ? selector(state) : state;
       });
 

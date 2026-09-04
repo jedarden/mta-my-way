@@ -10,6 +10,7 @@
  * - Accessibility
  */
 
+import type { ArrivalTime } from "@mta-my-way/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -59,13 +60,14 @@ vi.mock("./ConfidenceBar.jsx", () => ({
   ),
 }));
 
-const mockArrival = {
+const mockArrival: ArrivalTime = {
   line: "1",
   destination: "Van Cortlandt Park-242 St",
   minutesAway: 5,
   confidence: "high",
   isAssigned: true,
   isExpress: false,
+  feedName: "gtfs-bdfm",
   feedAge: 10,
   tripId: "trip-123",
   direction: "N",
@@ -105,7 +107,7 @@ describe("ArrivalRow", () => {
 
   describe("compact mode", () => {
     it("renders compact layout", () => {
-      const { container } = render(<ArrivalRow arrival={mockArrival} compact={true} />);
+      render(<ArrivalRow arrival={mockArrival} compact={true} />);
 
       // In compact mode, destination is not shown
       expect(screen.queryByText("Van Cortlandt Park-242 St")).not.toBeInTheDocument();

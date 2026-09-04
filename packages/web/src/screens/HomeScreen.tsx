@@ -13,8 +13,6 @@
  * - Empty state with CTA to search/add stations
  */
 
-import { useContextAware } from "../hooks/useContextAware";
-
 import { calculateTapFrequency, formatTimeAgo } from "@mta-my-way/shared";
 import type { Favorite } from "@mta-my-way/shared";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +22,7 @@ import { CommuteCard } from "../components/commute/CommuteCard";
 import { FareTracker } from "../components/fare/FareTracker";
 import { FavoritesList } from "../components/favorites/FavoritesList";
 import Screen from "../components/layout/Screen";
+import { useContextAware } from "../hooks/useContextAware";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePrefetch } from "../hooks/usePrefetch";
 import { useFavoritesStore, useSettingsStore } from "../stores";
@@ -42,8 +41,39 @@ const TIME_AGO_INTERVAL = 15_000;
 /** Minimum pull distance (px) to trigger refresh */
 const PULL_THRESHOLD = 56;
 
-export default function HomeScreen() {
-  const onboardingComplete = useFavoritesStore((s) => s.onboardingComplete);
+/**
+ * First-run experience, shown until onboarding completes.
+ *
+ * Deliberately its own component rather than an early return inside
+ * HomeScreen: an early return above this screen's hooks made the hook count
+ * change when onboarding completed, and React threw "Rendered more hooks than
+ * during the previous render" on the exact transition every first-run user
+ * takes. Separate components give each render path a stable hook order.
+ */
+function OnboardingScreen() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="flex items-center justify-center h-dvh"
+          role="status"
+          aria-live="polite"
+          aria-label="Loading"
+        >
+          <div className="skeleton w-16 h-16 rounded-full" aria-hidden="true" />
+          <span className="sr-only">Loading...</span>
+        </div>
+      }
+    >
+      <ComponentErrorBoundary componentName="OnboardingFlow">
+        <OnboardingFlow />
+      </ComponentErrorBoundary>
+    </Suspense>
+  );
+}
+
+/** The post-onboarding dashboard: favorites, commutes, pull-to-refresh. */
+function HomeDashboard() {
   const { favorites, hasFavorites, updateFavorite, removeFavorite, reorderFavorites } =
     useFavorites();
   const commutes = useFavoritesStore((s) => s.commutes);
@@ -64,29 +94,6 @@ export default function HomeScreen() {
 
   // Start geofence-based prefetching for underground pre-fetch
   usePrefetch();
-
-  // Show onboarding flow for first-time users
-  if (!onboardingComplete) {
-    return (
-      <Suspense
-        fallback={
-          <div
-            className="flex items-center justify-center h-dvh"
-            role="status"
-            aria-live="polite"
-            aria-label="Loading"
-          >
-            <div className="skeleton w-16 h-16 rounded-full" aria-hidden="true" />
-            <span className="sr-only">Loading...</span>
-          </div>
-        }
-      >
-        <ComponentErrorBoundary componentName="OnboardingFlow">
-          <OnboardingFlow />
-        </ComponentErrorBoundary>
-      </Suspense>
-    );
-  }
 
   // Pull-to-refresh
   const [forceRefreshId, setForceRefreshId] = useState(0);
@@ -321,4 +328,15 @@ export default function HomeScreen() {
       </div>
     </Screen>
   );
+}
+
+/**
+ * Route entry point. Reads only the onboarding flag so the dispatch decision
+ * carries a single unconditional hook; each branch is a component with its
+ * own stable hook order.
+ */
+export default function HomeScreen() {
+  const onboardingComplete = useFavoritesStore((s) => s.onboardingComplete);
+
+  return onboardingComplete ? <HomeDashboard /> : <OnboardingScreen />;
 }

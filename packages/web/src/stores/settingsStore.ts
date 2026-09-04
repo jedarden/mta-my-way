@@ -3,13 +3,13 @@ import { create } from "zustand";
 import { type PersistOptions, createJSONStorage, persist } from "zustand/middleware";
 import { createSafeMigration, setMigrationFailed } from "./migration";
 
-interface QuietHours {
+export interface QuietHours {
   enabled: boolean;
   startHour: number; // 0-23
   endHour: number; // 0-23
 }
 
-interface SettingsState {
+export interface SettingsState {
   theme: "light" | "dark" | "system";
   showUnassignedTrips: boolean;
   refreshInterval: number; // seconds, default 30, min 15

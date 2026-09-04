@@ -199,7 +199,7 @@ describe("useErrorHandler", () => {
       let resolveRetry: ((value: unknown) => void) | undefined;
       const retryFn = vi.fn(
         () =>
-          new Promise((resolve) => {
+          new Promise<void>((resolve) => {
             resolveRetry = resolve;
           })
       );

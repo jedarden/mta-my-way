@@ -42,13 +42,19 @@ describe("useTripTracker", () => {
     vi.clearAllMocks();
   });
 
-  const mockTripData = {
+  const mockTripData: api.TripData = {
     tripId: "test-trip-123",
     routeId: "1",
     direction: "N",
     destination: "Van Cortlandt Park",
+    isAssigned: true,
+    trainId: "1234",
     progressPercent: 45,
     currentStopIndex: 3,
+    updatedAt: Math.floor(Date.now() / 1000),
+    feedAge: 12,
+    remainingStops: 2,
+    totalStops: 6,
     stops: [
       {
         stopId: "101",
@@ -56,6 +62,8 @@ describe("useTripTracker", () => {
         stationName: "South Ferry",
         arrivalTime: Math.floor(Date.now() / 1000) - 600,
         departureTime: Math.floor(Date.now() / 1000) - 540,
+        scheduledTrack: null,
+        actualTrack: null,
       },
       {
         stopId: "102",
@@ -63,6 +71,8 @@ describe("useTripTracker", () => {
         stationName: "Rector St",
         arrivalTime: Math.floor(Date.now() / 1000) - 480,
         departureTime: Math.floor(Date.now() / 1000) - 420,
+        scheduledTrack: null,
+        actualTrack: null,
       },
       {
         stopId: "103",
@@ -70,6 +80,8 @@ describe("useTripTracker", () => {
         stationName: "WTC Cortlandt",
         arrivalTime: Math.floor(Date.now() / 1000) - 360,
         departureTime: Math.floor(Date.now() / 1000) - 300,
+        scheduledTrack: null,
+        actualTrack: null,
       },
       {
         stopId: "104",
@@ -77,6 +89,8 @@ describe("useTripTracker", () => {
         stationName: "Franklin St",
         arrivalTime: Math.floor(Date.now() / 1000) + 60,
         departureTime: Math.floor(Date.now() / 1000) + 120,
+        scheduledTrack: null,
+        actualTrack: null,
       },
       {
         stopId: "105",
@@ -84,6 +98,8 @@ describe("useTripTracker", () => {
         stationName: "Canal St",
         arrivalTime: Math.floor(Date.now() / 1000) + 180,
         departureTime: Math.floor(Date.now() / 1000) + 240,
+        scheduledTrack: null,
+        actualTrack: null,
       },
       {
         stopId: "725",
@@ -91,6 +107,8 @@ describe("useTripTracker", () => {
         stationName: "Times Sq-42 St",
         arrivalTime: Math.floor(Date.now() / 1000) + 600,
         departureTime: null,
+        scheduledTrack: null,
+        actualTrack: null,
       },
     ],
   };

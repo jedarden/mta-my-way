@@ -62,9 +62,8 @@ describe("prefetch utilities", () => {
     });
 
     mockCacheInstance.keys.mockImplementation(() => {
-      return Promise.resolve(
-        Array.from(mockCache.keys()).map((url) => ({ url: new URL(url, "http://example.com") }))
-      );
+      // Cache.keys() resolves Request objects, whose url is a plain string.
+      return Promise.resolve(Array.from(mockCache.keys()));
     });
   });
 
@@ -267,11 +266,11 @@ describe("prefetch utilities", () => {
 
   describe("getPrefetchedStationIds", () => {
     it("returns list of cached station IDs", async () => {
-      // Mock cache keys with URL objects that have href properties
+      // Cache.keys() resolves Request objects, whose url is a plain string
       const mockKeys = [
-        { url: { href: "http://example.com/api/arrivals/123", pathname: "/api/arrivals/123" } },
-        { url: { href: "http://example.com/api/arrivals/456", pathname: "/api/arrivals/456" } },
-        { url: { href: "http://example.com/api/arrivals/789", pathname: "/api/arrivals/789" } },
+        { url: "http://example.com/api/arrivals/123" },
+        { url: "http://example.com/api/arrivals/456" },
+        { url: "http://example.com/api/arrivals/789" },
       ];
 
       mockCacheInstance.keys.mockResolvedValue(mockKeys);
@@ -291,9 +290,9 @@ describe("prefetch utilities", () => {
 
     it("handles malformed URLs gracefully", async () => {
       const mockKeys = [
-        { url: { href: "http://example.com/api/arrivals/123", pathname: "/api/arrivals/123" } },
-        { url: { href: "http://example.com/invalid-url", pathname: "/invalid-url" } },
-        { url: { href: "http://example.com/api/arrivals/456", pathname: "/api/arrivals/456" } },
+        { url: "http://example.com/api/arrivals/123" },
+        { url: "http://example.com/invalid-url" },
+        { url: "http://example.com/api/arrivals/456" },
       ];
 
       mockCacheInstance.keys.mockResolvedValue(mockKeys);

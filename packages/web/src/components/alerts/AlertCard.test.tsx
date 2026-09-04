@@ -12,9 +12,10 @@
  * - Accessibility
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import type { ShuttleBusInfo, StationAlert } from "@mta-my-way/shared";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertCard } from "./AlertCard";
 
 // Mock dependencies
@@ -47,14 +48,28 @@ vi.mock("./ShuttleInfo.jsx", () => ({
   ),
 }));
 
-const mockAlert = {
+const mockShuttleInfo: ShuttleBusInfo = {
+  lineId: "1",
+  fromStopId: "127",
+  toStopId: "128",
+  stops: [
+    { nearStationId: "127", description: "Times Sq-42 St" },
+    { nearStationId: "128", description: "34 St-Penn Station" },
+  ],
+  frequencyMinutes: "8-12",
+  lastVerified: "2026-01-01",
+};
+
+const mockAlert: StationAlert = {
   id: "alert-1",
-  severity: "severe" as const,
+  severity: "severe",
+  source: "official",
   headline: "Delays on 1 train",
   description: "1 trains are running with delays due to signal problems at 96 St.",
   affectedLines: ["1"],
-  activePeriod: { start: Math.floor(Date.now() / 1000) - 3600, end: null },
-  shuttleInfo: null,
+  activePeriod: { start: Math.floor(Date.now() / 1000) - 3600 },
+  cause: "signal",
+  effect: "DELAY",
 };
 
 describe("AlertCard", () => {
@@ -185,7 +200,7 @@ describe("AlertCard", () => {
 
   describe("compact mode", () => {
     it("renders in compact mode", () => {
-      const { container } = render(<AlertCard alert={mockAlert} compact={true} />);
+      render(<AlertCard alert={mockAlert} compact={true} />);
 
       expect(screen.getByText(mockAlert.headline)).toBeInTheDocument();
       expect(screen.getByTestId("line-bullet-1")).toBeInTheDocument();
@@ -212,11 +227,7 @@ describe("AlertCard", () => {
     it("shows shuttle info in expanded state", () => {
       const alertWithShuttle = {
         ...mockAlert,
-        shuttleInfo: {
-          type: "rail" as const,
-          startStation: "Times Sq-42 St",
-          endStation: "34 St-Penn Station",
-        },
+        shuttleInfo: mockShuttleInfo,
       };
       render(<AlertCard alert={alertWithShuttle} initiallyExpanded={true} />);
 
@@ -226,11 +237,7 @@ describe("AlertCard", () => {
     it("shows compact shuttle info when collapsed", () => {
       const alertWithShuttle = {
         ...mockAlert,
-        shuttleInfo: {
-          type: "rail" as const,
-          startStation: "Times Sq-42 St",
-          endStation: "34 St-Penn Station",
-        },
+        shuttleInfo: mockShuttleInfo,
       };
       render(<AlertCard alert={alertWithShuttle} />);
 
@@ -319,7 +326,7 @@ describe("AlertCard", () => {
 
   describe("edge cases", () => {
     it("handles alert without id", () => {
-      const alertWithoutId = { ...mockAlert, id: null };
+      const alertWithoutId = { ...mockAlert, id: "" };
       const { container } = render(<AlertCard alert={alertWithoutId} />);
 
       const article = container.querySelector("article");
@@ -336,7 +343,7 @@ describe("AlertCard", () => {
     it("handles null description", () => {
       const alertWithNullDescription = {
         ...mockAlert,
-        description: null as unknown as string,
+        description: "",
       };
       render(<AlertCard alert={alertWithNullDescription} />);
 
@@ -347,7 +354,7 @@ describe("AlertCard", () => {
     it("handles alert with null end time for active period", () => {
       const alertWithNullEnd = {
         ...mockAlert,
-        activePeriod: { start: Math.floor(Date.now() / 1000), end: null },
+        activePeriod: { start: Math.floor(Date.now() / 1000) },
       };
       render(<AlertCard alert={alertWithNullEnd} />);
 

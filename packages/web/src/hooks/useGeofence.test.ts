@@ -272,10 +272,10 @@ describe("useGeofence", () => {
       expect(mockGeolocation.watchPosition).toHaveBeenCalled();
     });
 
-    const options = mockGeolocation.watchPosition.mock.calls[0][2];
-    expect(options.enableHighAccuracy).toBe(false);
-    expect(options.timeout).toBe(15000);
-    expect(options.maximumAge).toBe(30000);
+    const options = mockGeolocation.watchPosition.mock.calls[0]?.[2];
+    expect(options?.enableHighAccuracy).toBe(false);
+    expect(options?.timeout).toBe(15000);
+    expect(options?.maximumAge).toBe(30000);
   });
 
   it("cleans up watch on unmount", async () => {

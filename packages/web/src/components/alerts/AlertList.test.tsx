@@ -11,6 +11,7 @@
  * - Max alerts limit
  */
 
+import type { StationAlert } from "@mta-my-way/shared";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AlertList } from "./AlertList";
@@ -91,38 +92,54 @@ vi.mock("../common/EmptyState", () => ({
   ),
 }));
 
-const mockAlerts = [
+const mockAlerts: StationAlert[] = [
   {
     id: "alert-1",
     headline: "Severe delays",
     severity: "severe",
     affectedLines: ["A", "C"],
-    source: "gtfs",
+    source: "official",
     isRaw: false,
+    description: "A trains are suspended in both directions.",
+    activePeriod: { start: 1_700_000_000 },
+    cause: "SIGNAL_PROBLEM",
+    effect: "NO_SERVICE",
   },
   {
     id: "alert-2",
     headline: "Planned work",
     severity: "warning",
     affectedLines: ["1", "2", "3"],
-    source: "gtfs",
+    source: "official",
     isRaw: false,
+    description: "Planned work affecting 1, 2 and 3 trains.",
+    activePeriod: { start: 1_700_000_000 },
+    cause: "MAINTENANCE",
+    effect: "MODIFIED_SERVICE",
   },
   {
     id: "alert-3",
     headline: "Service change",
     severity: "info",
     affectedLines: ["4"],
-    source: "gtfs",
+    source: "official",
     isRaw: false,
+    description: "4 trains run local in the Bronx.",
+    activePeriod: { start: 1_700_000_000 },
+    cause: "CONSTRUCTION",
+    effect: "MODIFIED_SERVICE",
   },
   {
     id: "alert-4",
     headline: "Raw alert",
     severity: "info",
     affectedLines: [],
-    source: "gtfs",
+    source: "official",
     isRaw: true,
+    description: "Delay. Expect delays in uptown service.",
+    activePeriod: { start: 1_700_000_000 },
+    cause: "UNKNOWN_CAUSE",
+    effect: "UNKNOWN_EFFECT",
   },
   {
     id: "alert-5",
@@ -131,8 +148,12 @@ const mockAlerts = [
     affectedLines: ["7"],
     source: "predicted",
     isRaw: false,
+    description: "7 trains may be running with delays.",
+    activePeriod: { start: 1_700_000_000 },
+    cause: "DELAY",
+    effect: "DELAY",
   },
-] as const;
+];
 
 describe("AlertList", () => {
   describe("loading state", () => {
@@ -199,21 +220,21 @@ describe("AlertList", () => {
     });
 
     it("passes isRaw prop to AlertCard", () => {
-      render(<AlertList alerts={[mockAlerts[3]]} status="success" />);
+      render(<AlertList alerts={[mockAlerts[3]!]} status="success" />);
 
       const card = screen.getByTestId("alert-card-alert-4");
       expect(card).toHaveAttribute("data-raw", "true");
     });
 
     it("passes isPredicted prop for predicted alerts", () => {
-      render(<AlertList alerts={[mockAlerts[4]]} status="success" />);
+      render(<AlertList alerts={[mockAlerts[4]!]} status="success" />);
 
       const card = screen.getByTestId("alert-card-alert-5");
       expect(card).toHaveAttribute("data-predicted", "true");
     });
 
     it("hides empty severity sections", () => {
-      const onlySevere = [mockAlerts[0]];
+      const onlySevere = [mockAlerts[0]!];
       render(<AlertList alerts={onlySevere} status="success" />);
 
       expect(screen.getByText("Service Suspended")).toBeInTheDocument();
@@ -238,7 +259,7 @@ describe("AlertList", () => {
     });
 
     it("passes compact prop to AlertCard", () => {
-      render(<AlertList alerts={[mockAlerts[0]]} status="success" compact />);
+      render(<AlertList alerts={[mockAlerts[0]!]} status="success" compact />);
 
       const card = screen.getByTestId("alert-card-alert-1");
       expect(card).toHaveAttribute("data-compact", "true");
@@ -275,7 +296,7 @@ describe("AlertList", () => {
 
   describe("accessibility", () => {
     it("has proper role and aria-label", () => {
-      render(<AlertList alerts={[mockAlerts[0]]} status="success" />);
+      render(<AlertList alerts={[mockAlerts[0]!]} status="success" />);
 
       const list = screen.getByRole("list", { name: /alerts/i });
       expect(list).toBeInTheDocument();

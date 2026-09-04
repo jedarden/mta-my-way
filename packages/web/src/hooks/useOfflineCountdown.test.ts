@@ -2,7 +2,7 @@
  * Tests for useOfflineCountdown hook
  */
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfflineCountdown } from "./useOfflineCountdown";
 
@@ -195,15 +195,15 @@ describe("useOfflineCountdown", () => {
     });
 
     expect(result.current.arrivals).not.toBeNull();
-    expect(result.current.arrivals?.northbound[0].minutesAway).toBeGreaterThan(1.9);
-    expect(result.current.arrivals?.northbound[0].minutesAway).toBeLessThan(2.1);
+    expect(result.current.arrivals?.northbound[0]?.minutesAway).toBeGreaterThan(1.9);
+    expect(result.current.arrivals?.northbound[0]?.minutesAway).toBeLessThan(2.1);
 
     // Advance by 1 second and check countdown decreased
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
 
-    expect(result.current.arrivals?.northbound[0].minutesAway).toBeLessThan(2);
+    expect(result.current.arrivals?.northbound[0]?.minutesAway).toBeLessThan(2);
   });
 
   it("filters out arrivals that have passed", async () => {
@@ -265,7 +265,7 @@ describe("useOfflineCountdown", () => {
     });
 
     expect(result.current.arrivals?.northbound).toHaveLength(1);
-    expect(result.current.arrivals?.northbound[0].tripId).toBe("trip2");
+    expect(result.current.arrivals?.northbound[0]?.tripId).toBe("trip2");
   });
 
   it("marks arrivals as estimated", async () => {
@@ -330,7 +330,7 @@ describe("useOfflineCountdown", () => {
       prefetchedAt: Date.now(),
     });
 
-    const { result } = renderHook(() => useOfflineCountdown("123"));
+    renderHook(() => useOfflineCountdown("123"));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);

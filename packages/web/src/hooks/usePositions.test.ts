@@ -5,6 +5,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
+import { makeLineDiagram, makeTrainPosition } from "../test/factories";
 import { getTrainOverallProgress, usePositions } from "./usePositions";
 
 // Mock the API module
@@ -36,24 +37,24 @@ describe("usePositions", () => {
   });
 
   it("fetches positions when lineId is provided", async () => {
-    const mockData = {
+    const mockData = makeLineDiagram({
       trains: [
-        {
+        makeTrainPosition({
           tripId: "trip1",
-          line: "1",
+          routeId: "1",
           direction: "N",
           lastStopId: "101",
           nextStopId: "102",
           progress: 0.5,
           isAssigned: true,
           isRerouted: false,
-        },
+        }),
       ],
       stops: [
-        { stopId: "101", stopName: "South Ferry", lat: 40.7, lon: -74.01 },
-        { stopId: "102", stopName: "Rector St", lat: 40.71, lon: -74.02 },
+        { stopId: "101", stopName: "South Ferry", isTerminal: false, isTransferStation: false },
+        { stopId: "102", stopName: "Rector St", isTerminal: false, isTransferStation: false },
       ],
-    };
+    });
 
     mockedApi.getPositions.mockResolvedValue(mockData);
 
@@ -113,24 +114,24 @@ describe("usePositions", () => {
   }, 10000);
 
   it("uses cached data on subsequent fetches", async () => {
-    const mockData = {
+    const mockData = makeLineDiagram({
       trains: [
-        {
+        makeTrainPosition({
           tripId: "trip1",
-          line: "1",
+          routeId: "1",
           direction: "N",
           lastStopId: "101",
           nextStopId: "102",
           progress: 0.5,
           isAssigned: true,
           isRerouted: false,
-        },
+        }),
       ],
       stops: [
-        { stopId: "101", stopName: "South Ferry", lat: 40.7, lon: -74.01 },
-        { stopId: "102", stopName: "Rector St", lat: 40.71, lon: -74.02 },
+        { stopId: "101", stopName: "South Ferry", isTerminal: false, isTransferStation: false },
+        { stopId: "102", stopName: "Rector St", isTerminal: false, isTransferStation: false },
       ],
-    };
+    });
 
     mockedApi.getPositions.mockResolvedValue(mockData);
 
@@ -157,10 +158,10 @@ describe("usePositions", () => {
   }, 10000);
 
   it("auto-refreshes every 30 seconds", async () => {
-    const mockData = {
+    const mockData = makeLineDiagram({
       trains: [],
       stops: [],
-    };
+    });
 
     mockedApi.getPositions.mockResolvedValue(mockData);
 
@@ -185,10 +186,10 @@ describe("usePositions", () => {
   }, 10000);
 
   it("clears interval on unmount", async () => {
-    const mockData = {
+    const mockData = makeLineDiagram({
       trains: [],
       stops: [],
-    };
+    });
 
     mockedApi.getPositions.mockResolvedValue(mockData);
 
@@ -215,10 +216,10 @@ describe("usePositions", () => {
       value: mockVibrate,
     });
 
-    const mockData = {
+    const mockData = makeLineDiagram({
       trains: [],
       stops: [],
-    };
+    });
 
     mockedApi.getPositions.mockResolvedValue(mockData);
 
@@ -239,37 +240,41 @@ describe("usePositions", () => {
   }, 10000);
 
   it("handles lineId changes", async () => {
-    const mockData1 = {
+    const mockData1 = makeLineDiagram({
       trains: [
-        {
+        makeTrainPosition({
           tripId: "trip1",
-          line: "1",
+          routeId: "1",
           direction: "N",
           lastStopId: "101",
           nextStopId: "102",
           progress: 0.5,
           isAssigned: true,
           isRerouted: false,
-        },
+        }),
       ],
-      stops: [{ stopId: "101", stopName: "South Ferry", lat: 40.7, lon: -74.01 }],
-    };
+      stops: [
+        { stopId: "101", stopName: "South Ferry", isTerminal: false, isTransferStation: false },
+      ],
+    });
 
-    const mockData2 = {
+    const mockData2 = makeLineDiagram({
       trains: [
-        {
+        makeTrainPosition({
           tripId: "trip2",
-          line: "2",
+          routeId: "2",
           direction: "S",
           lastStopId: "201",
           nextStopId: "202",
           progress: 0.3,
           isAssigned: true,
           isRerouted: false,
-        },
+        }),
       ],
-      stops: [{ stopId: "201", stopName: "Times Square", lat: 40.75, lon: -73.98 }],
-    };
+      stops: [
+        { stopId: "201", stopName: "Times Square", isTerminal: false, isTransferStation: false },
+      ],
+    });
 
     // Set up initial mock for line 1
     mockedApi.getPositions.mockResolvedValue(mockData1);
@@ -284,7 +289,7 @@ describe("usePositions", () => {
     });
 
     expect(result.current.status).toBe("success");
-    expect(result.current.data?.trains[0].line).toBe("1");
+    expect(result.current.data?.trains[0]?.routeId).toBe("1");
 
     // Change mock for line 2
     mockedApi.getPositions.mockResolvedValue(mockData2);
@@ -297,17 +302,17 @@ describe("usePositions", () => {
     });
 
     expect(result.current.status).toBe("success");
-    expect(result.current.data?.trains[0].line).toBe("2");
+    expect(result.current.data?.trains[0]?.routeId).toBe("2");
   }, 10000);
 
   it("sets status to stale when refetching with existing data", async () => {
     // Use real timers for this test since we need setTimeout to work
     vi.useRealTimers();
 
-    const mockData = {
+    const mockData = makeLineDiagram({
       trains: [],
       stops: [],
-    };
+    });
 
     // Track fetch calls
     let fetchCallCount = 0;
@@ -363,22 +368,22 @@ describe("usePositions", () => {
 
 describe("getTrainOverallProgress", () => {
   it("calculates progress based on stop positions", () => {
-    const train = {
+    const train = makeTrainPosition({
       tripId: "trip1",
-      line: "1",
+      routeId: "1",
       direction: "N",
       lastStopId: "101",
       nextStopId: "103",
       progress: 0.5,
       isAssigned: true,
       isRerouted: false,
-    };
+    });
 
     const stops = [
-      { stopId: "101", stopName: "South Ferry", lat: 40.7, lon: -74.01 },
-      { stopId: "102", stopName: "Rector St", lat: 40.71, lon: -74.02 },
-      { stopId: "103", stopName: "WTC", lat: 40.72, lon: -74.03 },
-      { stopId: "104", stopName: "Chambers", lat: 40.73, lon: -74.04 },
+      { stopId: "101", stopName: "South Ferry", isTerminal: false, isTransferStation: false },
+      { stopId: "102", stopName: "Rector St", isTerminal: false, isTransferStation: false },
+      { stopId: "103", stopName: "WTC", isTerminal: false, isTransferStation: false },
+      { stopId: "104", stopName: "Chambers", isTerminal: false, isTransferStation: false },
     ];
 
     const progress = getTrainOverallProgress(train, stops);
@@ -393,20 +398,20 @@ describe("getTrainOverallProgress", () => {
   });
 
   it("returns 0 when last stop not found", () => {
-    const train = {
+    const train = makeTrainPosition({
       tripId: "trip1",
-      line: "1",
+      routeId: "1",
       direction: "N",
       lastStopId: "999",
       nextStopId: "103",
       progress: 0.5,
       isAssigned: true,
       isRerouted: false,
-    };
+    });
 
     const stops = [
-      { stopId: "101", stopName: "South Ferry", lat: 40.7, lon: -74.01 },
-      { stopId: "103", stopName: "WTC", lat: 40.72, lon: -74.03 },
+      { stopId: "101", stopName: "South Ferry", isTerminal: false, isTransferStation: false },
+      { stopId: "103", stopName: "WTC", isTerminal: false, isTransferStation: false },
     ];
 
     const progress = getTrainOverallProgress(train, stops);
@@ -414,20 +419,20 @@ describe("getTrainOverallProgress", () => {
   });
 
   it("returns 0 when next stop not found", () => {
-    const train = {
+    const train = makeTrainPosition({
       tripId: "trip1",
-      line: "1",
+      routeId: "1",
       direction: "N",
       lastStopId: "101",
       nextStopId: "999",
       progress: 0.5,
       isAssigned: true,
       isRerouted: false,
-    };
+    });
 
     const stops = [
-      { stopId: "101", stopName: "South Ferry", lat: 40.7, lon: -74.01 },
-      { stopId: "103", stopName: "WTC", lat: 40.72, lon: -74.03 },
+      { stopId: "101", stopName: "South Ferry", isTerminal: false, isTransferStation: false },
+      { stopId: "103", stopName: "WTC", isTerminal: false, isTransferStation: false },
     ];
 
     const progress = getTrainOverallProgress(train, stops);
@@ -435,18 +440,20 @@ describe("getTrainOverallProgress", () => {
   });
 
   it("handles single stop", () => {
-    const train = {
+    const train = makeTrainPosition({
       tripId: "trip1",
-      line: "1",
+      routeId: "1",
       direction: "N",
       lastStopId: "101",
       nextStopId: "101",
       progress: 0,
       isAssigned: true,
       isRerouted: false,
-    };
+    });
 
-    const stops = [{ stopId: "101", stopName: "South Ferry", lat: 40.7, lon: -74.01 }];
+    const stops = [
+      { stopId: "101", stopName: "South Ferry", isTerminal: false, isTransferStation: false },
+    ];
 
     const progress = getTrainOverallProgress(train, stops);
     expect(progress).toBe(0);

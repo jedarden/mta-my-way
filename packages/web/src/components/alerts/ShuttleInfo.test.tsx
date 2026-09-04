@@ -10,6 +10,7 @@
  * - Proper sanitization of user input
  */
 
+import type { ShuttleBusInfo } from "@mta-my-way/shared";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ShuttleInfo } from "./ShuttleInfo";
@@ -18,22 +19,25 @@ vi.mock("../../lib/outputEncoding", () => ({
   sanitizeUserInput: (input: string) => input,
 }));
 
-const mockShuttleInfo = {
+const mockShuttleInfo: ShuttleBusInfo = {
+  lineId: "L",
+  fromStopId: "L01",
+  toStopId: "L08",
   stops: [
     {
-      nearStationId: "station-1",
+      nearStationId: "L01",
       description: "Stop at 42nd St - Port Authority",
     },
     {
-      nearStationId: "station-2",
+      nearStationId: "L03",
       description: "Stop at 34th St - Penn Station",
     },
     {
-      nearStationId: "station-3",
+      nearStationId: "L05",
       description: "Stop at 14th St - Union Square",
     },
   ],
-  frequencyMinutes: 10,
+  frequencyMinutes: "10",
   lastVerified: "2 hours ago",
 };
 
@@ -131,7 +135,7 @@ describe("ShuttleInfo", () => {
     it("handles single stop", () => {
       const singleStop = {
         ...mockShuttleInfo,
-        stops: [mockShuttleInfo.stops[0]],
+        stops: [mockShuttleInfo.stops[0]!],
       };
       render(<ShuttleInfo shuttleInfo={singleStop} />);
 
@@ -159,7 +163,7 @@ describe("ShuttleInfo", () => {
     it("handles different frequency values", () => {
       const highFrequency = {
         ...mockShuttleInfo,
-        frequencyMinutes: 5,
+        frequencyMinutes: "5",
       };
       render(<ShuttleInfo shuttleInfo={highFrequency} />);
 

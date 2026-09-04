@@ -11,9 +11,11 @@
  * - Live region announcements
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import type { Favorite } from "@mta-my-way/shared";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeFavorite } from "../../test/factories";
 import { FavoritesList } from "./FavoritesList";
 
 // Mock dependencies
@@ -24,7 +26,6 @@ vi.mock("../../lib/outputEncoding.js", () => ({
 vi.mock("./FavoriteCard.jsx", () => ({
   FavoriteCard: ({
     favorite,
-    forceRefreshId,
     onEdit,
   }: {
     favorite: { id: string; stationName: string };
@@ -38,10 +39,10 @@ vi.mock("./FavoriteCard.jsx", () => ({
   ),
 }));
 
-const mockFavorites = [
-  { id: "fav-1", stationId: "101", stationName: "Times Square", pinned: false },
-  { id: "fav-2", stationId: "102", stationName: "Penn Station", pinned: true },
-  { id: "fav-3", stationId: "103", stationName: "Grand Central", pinned: false },
+const mockFavorites: Favorite[] = [
+  makeFavorite({ id: "fav-1", stationId: "101", stationName: "Times Square", pinned: false }),
+  makeFavorite({ id: "fav-2", stationId: "102", stationName: "Penn Station", pinned: true }),
+  makeFavorite({ id: "fav-3", stationId: "103", stationName: "Grand Central", pinned: false }),
 ];
 
 describe("FavoritesList", () => {
@@ -142,7 +143,7 @@ describe("FavoritesList", () => {
       );
 
       const items = container.querySelectorAll("li");
-      const firstItemButtons = items[0].querySelectorAll('button[aria-label^="Move"]');
+      const firstItemButtons = items[0]!.querySelectorAll('button[aria-label^="Move"]');
       const upButton = Array.from(firstItemButtons).find((b) =>
         b.getAttribute("aria-label")?.includes("up")
       );
@@ -155,7 +156,7 @@ describe("FavoritesList", () => {
       );
 
       const items = container.querySelectorAll("li");
-      const lastItemButtons = items[items.length - 1].querySelectorAll(
+      const lastItemButtons = items[items.length - 1]!.querySelectorAll(
         'button[aria-label^="Move"]'
       );
       const downButton = Array.from(lastItemButtons).find((b) =>
@@ -172,7 +173,7 @@ describe("FavoritesList", () => {
       );
 
       const items = container.querySelectorAll("li");
-      const secondItemButtons = items[1].querySelectorAll('button[aria-label^="Move"]');
+      const secondItemButtons = items[1]!.querySelectorAll('button[aria-label^="Move"]');
       const upButton = Array.from(secondItemButtons).find((b) =>
         b.getAttribute("aria-label")?.includes("up")
       ) as HTMLButtonElement;
@@ -190,7 +191,7 @@ describe("FavoritesList", () => {
       );
 
       const items = container.querySelectorAll("li");
-      const firstItemButtons = items[0].querySelectorAll('button[aria-label^="Move"]');
+      const firstItemButtons = items[0]!.querySelectorAll('button[aria-label^="Move"]');
       const downButton = Array.from(firstItemButtons).find((b) =>
         b.getAttribute("aria-label")?.includes("down")
       ) as HTMLButtonElement;
@@ -219,7 +220,7 @@ describe("FavoritesList", () => {
       render(<FavoritesList favorites={mockFavorites} onEdit={onEdit} onReorder={vi.fn()} />);
 
       const editButton = screen.getAllByText("Edit")[0];
-      await user.click(editButton);
+      await user.click(editButton!);
 
       expect(onEdit).toHaveBeenCalledWith(mockFavorites[0]);
     });

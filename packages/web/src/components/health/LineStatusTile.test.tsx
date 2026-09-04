@@ -9,6 +9,7 @@
  * - Status labels
  */
 
+import type { LineHealthStatus } from "@mta-my-way/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -38,33 +39,38 @@ vi.mock("@mta-my-way/shared", () => ({
   },
 }));
 
-const mockLineStatuses = {
+const MOCK_UPDATED_AT = 1704067200000;
+
+const mockLineStatuses: Record<LineHealthStatus["status"], LineHealthStatus> = {
   normal: {
     lineId: "A",
     status: "normal",
-    summary: null,
+    updatedAt: MOCK_UPDATED_AT,
   },
   minor_delays: {
     lineId: "1",
     status: "minor_delays",
     summary: "Trains running with delays",
+    updatedAt: MOCK_UPDATED_AT,
   },
   significant_delays: {
     lineId: "L",
     status: "significant_delays",
     summary: "Major delays expected",
+    updatedAt: MOCK_UPDATED_AT,
   },
   suspended: {
     lineId: "123",
     status: "suspended",
     summary: "No service",
+    updatedAt: MOCK_UPDATED_AT,
   },
-} as const;
+};
 
 describe("LineStatusTile", () => {
   describe("normal status", () => {
     it("renders with green ring", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.normal} />);
+      render(<LineStatusTile line={mockLineStatuses.normal} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("ring-2", "ring-green-400/50");
@@ -84,7 +90,7 @@ describe("LineStatusTile", () => {
     });
 
     it("has surface background", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.normal} />);
+      render(<LineStatusTile line={mockLineStatuses.normal} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("bg-surface", "dark:bg-dark-surface");
@@ -93,7 +99,7 @@ describe("LineStatusTile", () => {
 
   describe("minor delays status", () => {
     it("renders with yellow ring", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.minor_delays} />);
+      render(<LineStatusTile line={mockLineStatuses.minor_delays} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("ring-2", "ring-yellow-400");
@@ -113,7 +119,7 @@ describe("LineStatusTile", () => {
     });
 
     it("has yellow background", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.minor_delays} />);
+      render(<LineStatusTile line={mockLineStatuses.minor_delays} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("bg-yellow-50", "dark:bg-yellow-950/30");
@@ -122,7 +128,7 @@ describe("LineStatusTile", () => {
 
   describe("significant delays status", () => {
     it("renders with orange ring", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.significant_delays} />);
+      render(<LineStatusTile line={mockLineStatuses.significant_delays} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("ring-2", "ring-orange-400");
@@ -142,7 +148,7 @@ describe("LineStatusTile", () => {
     });
 
     it("has orange background", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.significant_delays} />);
+      render(<LineStatusTile line={mockLineStatuses.significant_delays} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("bg-orange-50", "dark:bg-orange-950/30");
@@ -151,7 +157,7 @@ describe("LineStatusTile", () => {
 
   describe("suspended status", () => {
     it("renders with red ring", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.suspended} />);
+      render(<LineStatusTile line={mockLineStatuses.suspended} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("ring-2", "ring-red-500");
@@ -171,7 +177,7 @@ describe("LineStatusTile", () => {
     });
 
     it("has red background", () => {
-      const { container } = render(<LineStatusTile line={mockLineStatuses.suspended} />);
+      render(<LineStatusTile line={mockLineStatuses.suspended} />);
 
       const button = screen.getByRole("button");
       expect(button).toHaveClass("bg-red-50", "dark:bg-red-950/30");
@@ -295,10 +301,10 @@ describe("LineStatusTile", () => {
 
   describe("unknown lines", () => {
     it("handles unknown line IDs", () => {
-      const unknownLine = {
+      const unknownLine: LineHealthStatus = {
         lineId: "X",
-        status: "normal" as const,
-        summary: null,
+        status: "normal",
+        updatedAt: MOCK_UPDATED_AT,
       };
       render(<LineStatusTile line={unknownLine} />);
 
@@ -306,10 +312,10 @@ describe("LineStatusTile", () => {
     });
 
     it("uses line ID as display name when no metadata", () => {
-      const unknownLine = {
+      const unknownLine: LineHealthStatus = {
         lineId: "X",
-        status: "normal" as const,
-        summary: null,
+        status: "normal",
+        updatedAt: MOCK_UPDATED_AT,
       };
       render(<LineStatusTile line={unknownLine} />);
 

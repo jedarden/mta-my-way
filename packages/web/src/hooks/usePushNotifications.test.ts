@@ -11,7 +11,7 @@
  * - Favorites/quiet hours sync
  */
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePushNotifications } from "./usePushNotifications";
 
@@ -72,66 +72,6 @@ const localStorageMock = (() => {
 Object.defineProperty(global, "localStorage", {
   value: localStorageMock,
 });
-
-// Helper to create a service worker container mock with all required methods
-function createServiceWorkerContainerMock(): any {
-  const mockListeners = new Map<string, Function[]>();
-
-  return {
-    ready: Promise.resolve({
-      pushManager: {
-        getSubscription: vi.fn().mockResolvedValue(null),
-        subscribe: vi.fn().mockResolvedValue({
-          endpoint: "https://test.com",
-          toJSON: () => ({
-            endpoint: "https://test.com",
-            keys: { p256dh: "key", auth: "auth" },
-          }),
-          unsubscribe: vi.fn().mockResolvedValue(true),
-        }),
-      },
-      addEventListener: vi.fn((event: string, handler: Function) => {
-        if (!mockListeners.has(event)) {
-          mockListeners.set(event, []);
-        }
-        mockListeners.get(event)!.push(handler);
-      }),
-      removeEventListener: vi.fn((event: string, handler: Function) => {
-        const handlers = mockListeners.get(event);
-        if (handlers) {
-          const index = handlers.indexOf(handler);
-          if (index > -1) {
-            handlers.splice(index, 1);
-          }
-        }
-      }),
-      // Helper to trigger event handlers
-      _triggerEvent: (event: string, data: unknown) => {
-        const handlers = mockListeners.get(event) || [];
-        handlers.forEach((h) => h(data));
-      },
-    }),
-    addEventListener: vi.fn((event: string, handler: Function) => {
-      if (!mockListeners.has(event)) {
-        mockListeners.set(event, []);
-      }
-      mockListeners.get(event)!.push(handler);
-    }),
-    removeEventListener: vi.fn((event: string, handler: Function) => {
-      const handlers = mockListeners.get(event);
-      if (handlers) {
-        const index = handlers.indexOf(handler);
-        if (index > -1) {
-          handlers.splice(index, 1);
-        }
-      }
-    }),
-    _triggerEvent: (event: string, data: unknown) => {
-      const handlers = mockListeners.get(event) || [];
-      handlers.forEach((h) => h(data));
-    },
-  };
-}
 
 describe("usePushNotifications", () => {
   let mockServiceWorker: ServiceWorkerRegistration;
@@ -249,55 +189,6 @@ describe("usePushNotifications", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-
-  function setupNavigatorMock(
-    serviceWorkerContainer: any,
-    options: { onLine?: boolean; userAgent?: string } = {}
-  ) {
-    vi.unstubAllGlobals();
-    windowOnlineListeners = []; // Reset listeners
-
-    const mockNavigator = {
-      serviceWorker: serviceWorkerContainer,
-      onLine: options.onLine ?? true,
-      userAgent: options.userAgent ?? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
-    };
-    vi.stubGlobal("navigator", mockNavigator);
-
-    // Also set up window mock with event listeners and PushManager
-    const mockWindow = {
-      addEventListener: vi.fn((event: string, handler: Function) => {
-        if (event === "online") {
-          windowOnlineListeners.push(handler);
-        }
-      }),
-      removeEventListener: vi.fn((event: string, handler: Function) => {
-        if (event === "online") {
-          const index = windowOnlineListeners.indexOf(handler);
-          if (index > -1) {
-            windowOnlineListeners.splice(index, 1);
-          }
-        }
-      }),
-      _triggerOnline: () => {
-        windowOnlineListeners.forEach((h) => h());
-      },
-      PushManager: class MockPushManager {},
-      Notification: {
-        permission: "default",
-        requestPermission: vi.fn().mockResolvedValue("granted"),
-      } as unknown as typeof Notification,
-    };
-    vi.stubGlobal("window", mockWindow as any);
-    vi.stubGlobal("Notification", mockWindow.Notification);
-
-    // Mock fetch for sync
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-    });
-
-    return mockNavigator;
-  }
 
   describe("support detection", () => {
     it("should detect Web Push support when all APIs are available", () => {
@@ -521,7 +412,7 @@ describe("usePushNotifications", () => {
         })
       );
 
-      const { result } = renderHook(() => usePushNotifications());
+      renderHook(() => usePushNotifications());
 
       // Simulate online event - the hook's useEffect will handle this
       await act(async () => {
@@ -543,7 +434,7 @@ describe("usePushNotifications", () => {
         })
       );
 
-      const { result } = renderHook(() => usePushNotifications());
+      renderHook(() => usePushNotifications());
 
       await act(async () => {
         (global.window as any)._triggerOnline();

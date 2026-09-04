@@ -105,24 +105,18 @@ describe("useEquipment", () => {
   it("uses injected equipment when provided", async () => {
     const injectedEquipment = [
       {
-        id: "e1",
         stationId: "123",
         type: "elevator" as const,
         description: "Elevator 1",
+        isActive: false,
         ada: true,
-        up: false,
-        down: false,
-        outages: [],
       },
       {
-        id: "s1",
         stationId: "123",
         type: "escalator" as const,
         description: "Escalator 1",
+        isActive: false,
         ada: false,
-        up: false,
-        down: false,
-        outages: [],
       },
     ];
 

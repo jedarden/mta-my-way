@@ -8,7 +8,8 @@
  * - Offline detection
  */
 
-import { act, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PushSubscribeRequest } from "@mta-my-way/shared";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiErrorType, EnhancedApiError, apiEnhanced } from "./apiEnhanced";
 
 // Mock fetch globally
@@ -555,7 +556,7 @@ describe("apiEnhanced endpoints", () => {
       preferredLines: ["1"],
     });
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[0]).toBe("/api/commute/analyze");
     expect(callArgs[1]?.method).toBe("POST");
 
@@ -604,14 +605,17 @@ describe("apiEnhanced endpoints", () => {
       json: async () => ({ success: true }),
     });
 
-    const subscription = {
-      subscription: { endpoint: "https://test.com", keys: {} },
+    const subscription: PushSubscribeRequest = {
+      subscription: {
+        endpoint: "https://test.com",
+        keys: { p256dh: "test-p256dh-key", auth: "test-auth-key" },
+      },
       favorites: [],
     };
 
     await apiEnhanced.subscribePush(subscription);
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[0]).toBe("/api/push/subscribe");
     expect(callArgs[1]?.method).toBe("POST");
   });
@@ -624,7 +628,7 @@ describe("apiEnhanced endpoints", () => {
 
     await apiEnhanced.unsubscribePush({ endpoint: "https://test.com" });
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[0]).toBe("/api/push/unsubscribe");
     expect(callArgs[1]?.method).toBe("DELETE");
   });
@@ -665,7 +669,7 @@ describe("enhancedFetch - trace headers", () => {
 
     await apiEnhanced.getStations();
 
-    const callArgs = mockFetch.mock.calls[0];
+    const callArgs = mockFetch.mock.calls[0]!;
     expect(callArgs[1]?.headers?.["x-trace-id"]).toBe("test-trace-123");
   });
 });
@@ -697,15 +701,11 @@ describe("enhancedFetch - exponential backoff", () => {
       });
     });
 
-    const startTime = Date.now();
     const promise = apiEnhanced.getStations();
 
     // Let the retries happen
     await vi.runAllTimersAsync();
     await promise;
-
-    const endTime = Date.now();
-    const elapsed = endTime - startTime;
 
     // Should have taken at least some time due to backoff
     // Base delay: 1000ms, exponential with jitter

@@ -4,6 +4,7 @@
  * Tests cached API client with application-level caching.
  */
 
+import type { PushSubscribeRequest } from "@mta-my-way/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiCached } from "./apiCached";
 
@@ -363,8 +364,11 @@ describe("apiCached", () => {
       const mockResponse = { success: true };
       mockApi.subscribePush.mockResolvedValue(mockResponse);
 
-      const request = {
-        subscription: { endpoint: "https://test.com", keys: {} },
+      const request: PushSubscribeRequest = {
+        subscription: {
+          endpoint: "https://test.com",
+          keys: { p256dh: "test-p256dh-key", auth: "test-auth-key" },
+        },
         favorites: [],
       };
 
