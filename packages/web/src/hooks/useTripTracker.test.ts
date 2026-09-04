@@ -13,7 +13,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../lib/api";
-import { EnhancedApiError } from "../lib/apiEnhanced";
+import { ApiErrorType, EnhancedApiError } from "../lib/apiEnhanced";
 import { useTripTracker } from "./useTripTracker";
 
 // Mock the API module
@@ -221,7 +221,7 @@ describe("useTripTracker", () => {
     it("should poll every 30 seconds", async () => {
       vi.mocked(api.api.getTrip).mockResolvedValue(mockTripData);
 
-      const { result } = renderHook(() => useTripTracker("test-trip-123"));
+      renderHook(() => useTripTracker("test-trip-123"));
 
       // Wait for initial fetch
       await act(async () => {
@@ -243,9 +243,12 @@ describe("useTripTracker", () => {
     it("should stop polling when tripId changes to null", async () => {
       vi.mocked(api.api.getTrip).mockResolvedValue(mockTripData);
 
-      const { result, rerender } = renderHook(({ tripId }) => useTripTracker(tripId), {
-        initialProps: { tripId: "test-trip-123" },
-      });
+      const { result, rerender } = renderHook(
+        ({ tripId }: { tripId: string | null }) => useTripTracker(tripId),
+        {
+          initialProps: { tripId: "test-trip-123" as string | null },
+        }
+      );
 
       // Wait for initial fetch
       await act(async () => {
@@ -275,8 +278,12 @@ describe("useTripTracker", () => {
 
   describe("error handling", () => {
     it("should handle 404 as trip expiration", async () => {
-      const error = new Error("Not found");
-      (error as { status: number }).status = 404;
+      const error = new EnhancedApiError({
+        type: ApiErrorType.NOT_FOUND,
+        message: "Not found",
+        status: 404,
+        retryable: false,
+      });
       vi.mocked(api.api.getTrip).mockRejectedValue(error);
 
       const { result } = renderHook(() => useTripTracker("test-trip-123"));
@@ -291,7 +298,12 @@ describe("useTripTracker", () => {
     });
 
     it("should show user-friendly error for network failures", async () => {
-      const error = new EnhancedApiError("network", "Failed to fetch", 500);
+      const error = new EnhancedApiError({
+        type: ApiErrorType.NETWORK,
+        message: "Failed to fetch",
+        status: 500,
+        retryable: true,
+      });
       vi.mocked(api.api.getTrip).mockRejectedValue(error);
 
       const { result } = renderHook(() => useTripTracker("test-trip-123"));

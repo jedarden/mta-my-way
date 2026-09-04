@@ -196,7 +196,7 @@ describe("useErrorHandler", () => {
         message: "Network error",
         retryable: true,
       });
-      let resolveRetry: ((value: unknown) => void) | undefined;
+      let resolveRetry: ((value: void | PromiseLike<void>) => void) | undefined;
       const retryFn = vi.fn(
         () =>
           new Promise<void>((resolve) => {

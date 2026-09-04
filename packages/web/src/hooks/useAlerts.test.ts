@@ -8,8 +8,12 @@
  * - Badge count calculation
  */
 
+import type { Commute, Favorite } from "@mta-my-way/shared";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockedFunction } from "vitest";
+import type { FavoritesState, useFavoritesStore } from "../stores/favoritesStore";
+import type { SettingsState } from "../stores/settingsStore";
 import { useAlerts, useAlertsForStation } from "./useAlerts";
 
 // Mock apiEnhanced
@@ -27,21 +31,36 @@ vi.mock("../lib/apiEnhanced", () => ({
 }));
 
 // Mock favoritesStore with Zustand selector pattern
-const mockFavorites = [
-  { id: "fav1", stationId: "101", lines: ["1", "2"], direction: "both" as const },
-  { id: "fav2", stationId: "102", lines: ["A"], direction: "both" as const },
+const mockFavorites: Favorite[] = [
+  {
+    id: "fav1",
+    stationId: "101",
+    stationName: "101 St",
+    lines: ["1", "2"],
+    direction: "both",
+    sortOrder: 0,
+  },
+  {
+    id: "fav2",
+    stationId: "102",
+    stationName: "102 St",
+    lines: ["A"],
+    direction: "both",
+    sortOrder: 1,
+  },
 ];
-const mockCommutes = [
+const mockCommutes: Commute[] = [
   {
     id: "commute1",
     name: "Work",
-    originId: "101",
-    destinationId: "726",
+    origin: { stationId: "101", stationName: "101 St" },
+    destination: { stationId: "726", stationName: "726 St" },
     preferredLines: ["1", "2", "3"],
+    enableTransferSuggestions: false,
   },
 ];
 
-const mockFavoritesState = (overrides = {}) => ({
+const mockFavoritesState = (overrides: Partial<FavoritesState> = {}): FavoritesState => ({
   favorites: mockFavorites,
   commutes: mockCommutes,
   tapHistory: [],
@@ -57,6 +76,8 @@ const mockFavoritesState = (overrides = {}) => ({
   toggleCommutePin: vi.fn(),
   recordTap: vi.fn(),
   completeOnboarding: vi.fn(),
+  replaceFromSync: vi.fn(),
+  clearLocalData: vi.fn(),
   ...overrides,
 });
 
@@ -71,8 +92,8 @@ vi.mock("../stores/favoritesStore", () => ({
 let mockAlertSeverityFilter: "all" | "delays" | "major" = "all";
 
 // Create a fresh state object each time - reads from current mockAlertSeverityFilter
-const createMockSettingsState = (overrides = {}) => ({
-  theme: "system" as const,
+const createMockSettingsState = (overrides: Partial<SettingsState> = {}): SettingsState => ({
+  theme: "system",
   showUnassignedTrips: false,
   refreshInterval: 30,
   alertSeverityFilter: mockAlertSeverityFilter,
@@ -86,14 +107,13 @@ const createMockSettingsState = (overrides = {}) => ({
   setHapticFeedback: vi.fn(),
   setAccessibleMode: vi.fn(),
   setQuietHours: vi.fn(),
+  replaceFromSync: vi.fn(),
+  clearLocalData: vi.fn(),
   ...overrides,
 });
 
-// Import the actual module to allow re-assigning the mock
-import { useSettingsStore as actualUseSettingsStore } from "../stores/settingsStore";
-
 // Create a dynamic selector handler that properly applies the selector
-const mockUseSettingsStore = vi.fn((selector) => {
+const mockUseSettingsStore = vi.fn((selector?: (state: SettingsState) => unknown) => {
   // Always create fresh state to capture current mockAlertSeverityFilter
   const state = createMockSettingsState();
   // Properly apply selector if provided
@@ -101,7 +121,8 @@ const mockUseSettingsStore = vi.fn((selector) => {
 });
 
 vi.mock("../stores/settingsStore", () => ({
-  useSettingsStore: (...args: unknown[]) => mockUseSettingsStore(...args),
+  useSettingsStore: (...args: Parameters<typeof mockUseSettingsStore>) =>
+    mockUseSettingsStore(...args),
 }));
 
 // Export reference to mock for tests to use
@@ -113,7 +134,7 @@ export function setMockAlertSeverityFilter(value: "all" | "delays" | "major") {
 }
 
 describe("useAlerts", () => {
-  let originalMock: any;
+  let originalMock: MockedFunction<typeof useFavoritesStore>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -123,7 +144,7 @@ describe("useAlerts", () => {
     // Reset favoritesStore mock to default values
     const { useFavoritesStore } = await import("../stores/favoritesStore");
     originalMock = vi.mocked(useFavoritesStore);
-    originalMock.mockImplementation((selector) => {
+    originalMock.mockImplementation((selector?: (state: FavoritesState) => unknown) => {
       const state = mockFavoritesState();
       return selector ? selector(state) : state;
     });
@@ -212,8 +233,8 @@ describe("useAlerts", () => {
     // Default filter mode is "mine" - only alerts for user's lines
     // Severe (alert1) should be first, then warning (alert2)
     expect(result.current.alerts).toHaveLength(2);
-    expect(result.current.alerts[0].severity).toBe("severe");
-    expect(result.current.alerts[1].severity).toBe("warning");
+    expect(result.current.alerts[0]?.severity).toBe("severe");
+    expect(result.current.alerts[1]?.severity).toBe("warning");
   });
 
   it("filters alerts to user's favorite lines", async () => {
@@ -243,10 +264,12 @@ describe("useAlerts", () => {
 
   it("handles empty favorites", async () => {
     const { useFavoritesStore } = await import("../stores/favoritesStore");
-    vi.mocked(useFavoritesStore).mockImplementation((selector) => {
-      const state = mockFavoritesState({ favorites: [], commutes: [] });
-      return selector ? selector(state) : state;
-    });
+    vi.mocked(useFavoritesStore).mockImplementation(
+      (selector?: (state: FavoritesState) => unknown) => {
+        const state = mockFavoritesState({ favorites: [], commutes: [] });
+        return selector ? selector(state) : state;
+      }
+    );
 
     mockGetAlerts.mockResolvedValueOnce({
       alerts: mockAlerts,
@@ -287,7 +310,7 @@ describe("useAlerts", () => {
     // Only severe alerts when filter is "major" AND "mine" filter applies
     // alert1 is severe and affects user's lines (1, 2, 3)
     expect(result.current.alerts).toHaveLength(1);
-    expect(result.current.alerts[0].severity).toBe("severe");
+    expect(result.current.alerts[0]?.severity).toBe("severe");
   });
 
   it("filters by severity when setting is 'delays'", async () => {
@@ -480,7 +503,7 @@ describe("useAlertsForStation", () => {
 
     // Should only include alerts affecting lines 1 or 2
     expect(result.current.alerts).toHaveLength(1);
-    expect(result.current.alerts[0].affectedLines).toContain("1");
+    expect(result.current.alerts[0]?.affectedLines).toContain("1");
   });
 
   it("returns empty array when station has no lines", async () => {
@@ -536,7 +559,7 @@ describe("useAlertsForStation", () => {
       meta: { count: 2, lastUpdatedAt: null, matchRate: 1 },
     });
 
-    const { result } = renderHook(() => useAlertsForStation("101", ["1"]));
+    renderHook(() => useAlertsForStation("101", ["1"]));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
