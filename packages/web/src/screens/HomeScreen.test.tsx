@@ -276,13 +276,9 @@ describe("HomeScreen", () => {
     });
 
     it("should show empty state when user has no favorites", () => {
-      vi.mocked(favoritesHook.useFavorites).mockReturnValue({
-        favorites: [],
-        hasFavorites: false,
-        updateFavorite: vi.fn(),
-        removeFavorite: vi.fn(),
-        reorderFavorites: vi.fn(),
-      });
+      vi.mocked(favoritesHook.useFavorites).mockReturnValue(
+        createMockUseFavorites({ favorites: [], hasFavorites: false })
+      );
 
       renderWithRouter(<HomeScreen />);
 
@@ -306,11 +302,7 @@ describe("HomeScreen", () => {
 
     it("should not show commutes section when user has no commutes", () => {
       vi.mocked(useFavoritesStore).mockImplementation((selector) => {
-        const state = {
-          onboardingComplete: true,
-          commutes: [],
-          tapHistory: [],
-        };
+        const state = createMockFavoritesState({ onboardingComplete: true, commutes: [] });
         return selector ? selector(state) : state;
       });
 
@@ -358,13 +350,9 @@ describe("HomeScreen", () => {
     it("should trigger refresh when pull threshold is reached", async () => {
       const { useFavorites } = await import("../hooks/useFavorites");
 
-      vi.mocked(useFavorites).mockReturnValue({
-        favorites: mockFavorites,
-        hasFavorites: true,
-        updateFavorite: vi.fn(),
-        removeFavorite: vi.fn(),
-        reorderFavorites: vi.fn(),
-      });
+      vi.mocked(useFavorites).mockReturnValue(
+        createMockUseFavorites({ favorites: mockFavorites, hasFavorites: true })
+      );
 
       renderWithRouter(<HomeScreen />);
 
@@ -395,24 +383,7 @@ describe("HomeScreen", () => {
   describe("haptic feedback", () => {
     it("should vibrate when haptic feedback is enabled and refresh is triggered", async () => {
       vi.mocked(useSettingsStore).mockImplementation((selector) => {
-        const state = {
-          theme: "system" as const,
-          showUnassignedTrips: false,
-          refreshInterval: 30,
-          alertSeverityFilter: "delays" as const,
-          hapticFeedback: true,
-          accessibleMode: false,
-          quietHours: { enabled: false, startHour: 22, endHour: 7 },
-          setTheme: vi.fn(),
-          setShowUnassignedTrips: vi.fn(),
-          setRefreshInterval: vi.fn(),
-          setAlertSeverityFilter: vi.fn(),
-          setHapticFeedback: vi.fn(),
-          setAccessibleMode: vi.fn(),
-          setQuietHours: vi.fn(),
-          replaceFromSync: vi.fn(),
-          clearLocalData: vi.fn(),
-        };
+        const state = createMockSettingsState({ hapticFeedback: true });
         return selector ? selector(state) : state;
       });
 
@@ -524,13 +495,9 @@ describe("HomeScreen", () => {
     });
 
     it("should not auto-refresh when user has no favorites", () => {
-      vi.mocked(favoritesHook.useFavorites).mockReturnValue({
-        favorites: [],
-        hasFavorites: false,
-        updateFavorite: vi.fn(),
-        removeFavorite: vi.fn(),
-        reorderFavorites: vi.fn(),
-      });
+      vi.mocked(favoritesHook.useFavorites).mockReturnValue(
+        createMockUseFavorites({ favorites: [], hasFavorites: false })
+      );
 
       renderWithRouter(<HomeScreen />);
 

@@ -292,7 +292,6 @@ describe("FavoritesList", () => {
     });
 
     it("keyboard buttons become visible on focus", async () => {
-      const user = userEvent.setup();
       const { container } = render(
         <FavoritesList favorites={mockFavorites} onEdit={vi.fn()} onReorder={vi.fn()} />
       );
@@ -346,7 +345,7 @@ describe("FavoritesList", () => {
 
     it("handles single favorite", () => {
       const { container } = render(
-        <FavoritesList favorites={[mockFavorites[0]]} onEdit={vi.fn()} onReorder={vi.fn()} />
+        <FavoritesList favorites={[mockFavorites[0]!]} onEdit={vi.fn()} onReorder={vi.fn()} />
       );
 
       const items = container.querySelectorAll('[draggable="true"]');
@@ -364,13 +363,11 @@ describe("FavoritesList", () => {
     });
 
     it("handles favorite with special characters in name", () => {
-      const specialName = {
-        ...mockFavorites[0],
+      const specialName: Favorite = {
+        ...mockFavorites[0]!,
         stationName: "St. John's University - Jamaica",
       };
-      const { container } = render(
-        <FavoritesList favorites={[specialName]} onEdit={vi.fn()} onReorder={vi.fn()} />
-      );
+      render(<FavoritesList favorites={[specialName]} onEdit={vi.fn()} onReorder={vi.fn()} />);
 
       expect(screen.getByText("St. John's University - Jamaica")).toBeInTheDocument();
     });
