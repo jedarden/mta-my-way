@@ -6,9 +6,10 @@ Companion to `typecheck-gate-monitor-2026-09-04.md` and `test-step-monitor-2026-
 ## Bottom line
 
 **No mta-my-way-build run was submitted.** The bead forbids burning CI runs on a
-tree that is not clean, and pushed `origin/main` is not clean: it still carries
-**37 typecheck errors** across the same 8 fixture files the fixture-fix chain
-owns. Lint, by contrast, is already green on that exact tree.
+tree that is not clean, and pushed `origin/main` is not clean: typecheck still
+exits 2 on it, in this measurement with **37 errors across the same 8 fixture
+files the fixture-fix chain owns**. Lint, by contrast, is already green on that
+exact tree.
 
 The residual 37 errors are owned by three **open, unassigned** chain children
 whose per-bead counts match this measurement exactly. The chain's verify child
@@ -31,8 +32,31 @@ npm run lint              → exit 0 (biome + eslint clean, 636 files)
 
 The 37-error set is reproducible: an independent first checkout
 (`mtamyway-origin-verify`, node_modules symlinked rather than copied) produced a
-byte-identical error list, so the count is a property of the committed tree and
-not of how dependencies were resolved.
+byte-identical error list.
+
+### Caveat: the absolute count is node_modules-dependent
+
+Both of those checkouts copied the same underlying `node_modules`, so that A/B
+does **not** establish that 37 is the number CI's `npm ci` would print — only
+that this environment is self-consistent. A separate same-day measurement at the
+same commit (`cd9e752`) read **90 errors across 25 files**, the gap being almost
+entirely `TS2304 "Cannot find name 'global'/'process'"` — a Node-globals class
+driven by which `@types/node`/`vitest` versions the snapshot carries
+(`packages/web/tsconfig.json` pins no `"node"` types, so it is fully at the
+mercy of transitive types). The shared checkout's `node_modules` was installed
+from an *uncommitted* `package-lock.json`, so it already diverges from CI's
+install.
+
+The claims that survive that caveat, and which this report rests on:
+
+- `npx tsc --build --force` **exits 2** on pushed `origin/main` here, and two
+  real CI runs at the same commit failed the `typecheck` node with exit code 2.
+- `npm run lint` **exits 0** on the same tree.
+- The residual work is confined to the 8 test-fixture files mapped below; the
+  per-file counts match the three chain children's own scoping (13 + 16 + 8).
+
+Treat 37 as *this environment's* figure, not as an acceptance criterion. Whoever
+closes the verify child should re-derive it in their own checkout.
 
 ## Corroborating CI evidence (runs that already happened)
 
@@ -112,7 +136,7 @@ The shared checkout currently measures **24**, not 37 — but the 13-error
 difference is *not* work already done. Landing the uncommitted testing-helper
 WIP into a clean clone leaves the count at 37 (verified above), so the shared
 tree's lower number comes from uncommitted state that never reached `main`.
-The committed tree is what CI clones: **37 is the number that matters.**
+The committed tree is what CI clones: measure there, not in the shared checkout.
 
 ## Go criteria before the run is submitted
 
