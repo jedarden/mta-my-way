@@ -3,6 +3,40 @@
 Bead: `mtamyway-ceac46ec` (CI half of umbrella `mtamyway-692a6a56`)
 Companion to `typecheck-gate-monitor-2026-09-04.md` and `test-step-monitor-2026-09-04.md`.
 
+## Addendum — later the same day: residual is now 24, not 37
+
+`mtamyway-be5712ba`'s fix landed as `3445221` while this report was being
+written. Re-measuring pushed `origin/main` (@ 61b1587, same node_modules
+snapshot, same `git archive` method) gives **exit 2 with 24 errors across 6
+files** — exactly the 13 service-worker/background-sync errors gone, **zero new
+error files**. Four CI runs between 21:48Z and 21:50Z corroborate: all four show
+`lint` Succeeded and `typecheck` Failed exit code 2.
+
+So the table below is now one third cleared. Remaining owners: `mtamyway-78ec5d0c`
+(16: useAlerts 9, useTripTracker 4, useGeolocation 2, useErrorHandler 1) and
+`mtamyway-2a94b4e5` (8: HomeScreen 4, FavoritesList 4). Everything else in this
+report — no run until the verify child measures 0 on pushed main, and observe the
+`typecheck` node, not just `lint` — still stands.
+
+## Addendum 2 — same evening: the verify child was closed while false a second time
+
+`mtamyway-c9c3995f` was closed again (rev 5, no close reason recorded, notes
+still carrying the reopen text) after the addendum above recorded its reopen.
+It is still false: re-measuring pushed `origin/main` @ **f9aba39** (0.0.375,
+same `git archive` + copied-node_modules method) gives **exit 2 with 24 errors,
+line-for-line identical** to the 24-residual inventory below — same files, same
+line:col, same codes. `3445221`'s 13-error clearance holds; the two open fix
+children (`mtamyway-78ec5d0c` 16, `mtamyway-2a94b4e5` 8) still own everything
+that is left. Reopened again.
+
+CI corroborates more strongly than before: **six** mta-my-way-build runs between
+21:44Z and 21:50Z (`fs94t`, `bhz8b`, `vhkvs`, `4pqbb`, `q857s`, `cj98m`) — every
+one `resolve-version` Succeeded, `lint` Succeeded, `typecheck` **Failed exit
+code 2**. None reached `test` or `docker-build`. No further run was submitted:
+a seventh run of a tree proven red six times over adds nothing.
+
+Go criteria below are unchanged and remain the gate for `mtamyway-ceac46ec`.
+
 ## Bottom line
 
 **No mta-my-way-build run was submitted.** The bead forbids burning CI runs on a
