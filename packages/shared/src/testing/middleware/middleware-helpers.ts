@@ -11,6 +11,11 @@
  * a plain object by design: middleware and the harness here operate on real
  * `Request`/`Response` instances.
  *
+ * `MIDDLEWARE_TEST_PRESETS`/`createMiddlewareTestConfig` hold the *options*: a
+ * named, reusable request + security-header contract a test can spread and
+ * adjust one field of. They are plain option sets with no lifecycle of their
+ * own, so a config can be defined at module scope and shared across suites.
+ *
  * `setupMiddlewareTest`/`cleanupMiddlewareTest` are the middleware-scoped
  * counterpart of `setupTestEnvironment`/`cleanupTestEnvironment`: the root pair
  * only installs global mocks, while this one also builds a request + middleware
@@ -57,6 +62,17 @@ export interface MiddlewareRequestOptions {
   body?: unknown;
 }
 
+/**
+ * Request parts {@link createMiddlewareRequest} applies when a caller omits
+ * them. The `default` preset in {@link MIDDLEWARE_TEST_PRESETS} is built from
+ * this, so a baseline config and a bare `createMiddlewareRequest()` call always
+ * agree.
+ */
+const DEFAULT_REQUEST_OPTIONS: Pick<MiddlewareRequestOptions, "method" | "url"> = {
+  method: "GET",
+  url: "http://localhost:3001/api/test",
+};
+
 /** Methods the fetch spec forbids from carrying a request body. */
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
 
@@ -81,7 +97,7 @@ const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
  * ```
  */
 export function createMiddlewareRequest(options: MiddlewareRequestOptions = {}): Request {
-  const method = (options.method ?? "GET").toUpperCase();
+  const method = (options.method ?? DEFAULT_REQUEST_OPTIONS.method).toUpperCase();
   const headers = new Headers(options.headers);
 
   let body: string | undefined;
@@ -95,7 +111,7 @@ export function createMiddlewareRequest(options: MiddlewareRequestOptions = {}):
     body = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
   }
 
-  return new Request(options.url ?? "http://localhost:3001/api/test", {
+  return new Request(options.url ?? DEFAULT_REQUEST_OPTIONS.url, {
     method,
     headers,
     body,
@@ -222,6 +238,128 @@ export function assertSecurityHeaders(
   if (missing.length > 0) {
     throw new Error(`Response is missing security headers: ${missing.join(", ")}`);
   }
+}
+
+// ============================================================================
+// Test Configuration
+// ============================================================================
+
+/**
+ * A named, reusable set of middleware test options.
+ *
+ * A config is a {@link MiddlewareRequestOptions} bag plus the security headers a
+ * response produced under it must carry, so one object drives both halves of a
+ * middleware test: pass it to {@link createMiddlewareRequest} as-is, and hand
+ * `securityHeaders` to {@link assertSecurityHeaders}.
+ *
+ * Configs are options only — no fixture, no mocks, no teardown — so they are
+ * safe to define at module scope and share across suites. Both the configs and
+ * the arrays they reference are frozen, which keeps a test from poisoning a
+ * preset for the rest of the file.
+ */
+export interface MiddlewareTestConfig extends Readonly<MiddlewareRequestOptions> {
+  /** Label for the config: the preset it derives from, or one passed as an override */
+  readonly name: string;
+  /**
+   * Security headers a response produced under this config must carry, for
+   * {@link assertSecurityHeaders}. The `default` preset requires none; the
+   * `securityHeaders` preset requires every name in {@link SECURITY_HEADER_NAMES}.
+   */
+  readonly securityHeaders: readonly string[];
+}
+
+/**
+ * Named middleware test configurations shipped with these helpers.
+ *
+ * @example Adjusting a preset for one test
+ * ```typescript
+ * const config = createMiddlewareTestConfig(
+ *   { method: "POST", body: { stationId: "725" } },
+ *   MIDDLEWARE_TEST_PRESETS.securityHeaders
+ * );
+ * const response = await executeMiddleware(chain, createMiddlewareRequest(config));
+ * assertSecurityHeaders(response, config.securityHeaders);
+ * ```
+ */
+export const MIDDLEWARE_TEST_PRESETS = Object.freeze({
+  /**
+   * Baseline: the standard request {@link createMiddlewareRequest} builds, and
+   * no security-header requirement — for tests that exercise chain behaviour
+   * rather than the security-header contract.
+   */
+  default: Object.freeze({
+    name: "default",
+    ...DEFAULT_REQUEST_OPTIONS,
+    securityHeaders: Object.freeze([]),
+  }),
+
+  /**
+   * The security-header contract: the baseline request plus every name in
+   * {@link SECURITY_HEADER_NAMES}.
+   */
+  securityHeaders: Object.freeze({
+    name: "securityHeaders",
+    ...DEFAULT_REQUEST_OPTIONS,
+    securityHeaders: SECURITY_HEADER_NAMES,
+  }),
+}) satisfies Record<string, MiddlewareTestConfig>;
+
+/** Names of the presets in {@link MIDDLEWARE_TEST_PRESETS}. */
+export type MiddlewareTestPresetName = keyof typeof MIDDLEWARE_TEST_PRESETS;
+
+/** Per-test replacements for a preset's values; each omitted field falls back to the base preset. */
+export type MiddlewareTestConfigOverrides = Partial<MiddlewareTestConfig>;
+
+/** Look up a preset by name, failing loudly for a name the type system never saw. */
+function middlewareTestPresetByName(name: string): MiddlewareTestConfig {
+  const preset = (MIDDLEWARE_TEST_PRESETS as Record<string, MiddlewareTestConfig | undefined>)[
+    name
+  ];
+
+  if (preset === undefined) {
+    throw new Error(
+      `Unknown middleware test preset ${JSON.stringify(name)} — expected one of: ${Object.keys(
+        MIDDLEWARE_TEST_PRESETS
+      ).join(", ")}`
+    );
+  }
+
+  return preset;
+}
+
+/**
+ * Build a middleware test configuration from a preset plus overrides.
+ *
+ * Merging is a flat, shallow replace — the same rule {@link createMiddlewareRequest}
+ * applies to its own options and {@link setupMiddlewareTest}'s `createRequest`
+ * applies to its fixture's — so a preset value is either kept or replaced whole.
+ * In particular an overriding `headers` object does not merge with the preset's.
+ *
+ * The base preset is never modified, and the returned config is frozen.
+ *
+ * @param overrides - Fields to set on top of the preset (`name` included)
+ * @param preset - Preset to derive from, by name or as a config (defaults to `"default"`)
+ * @returns A frozen config combining the preset with the overrides
+ *
+ * @example Baseline config with one field adjusted
+ * ```typescript
+ * const config = createMiddlewareTestConfig({ url: "http://localhost:3001/api/favorites" });
+ * const response = await executeMiddleware(chain, createMiddlewareRequest(config));
+ * ```
+ *
+ * @example Narrowing the security-headers preset
+ * ```typescript
+ * const config = createMiddlewareTestConfig({ securityHeaders: ["X-Frame-Options"] }, "securityHeaders");
+ * assertSecurityHeaders(response, config.securityHeaders);
+ * ```
+ */
+export function createMiddlewareTestConfig(
+  overrides: MiddlewareTestConfigOverrides = {},
+  preset: MiddlewareTestPresetName | MiddlewareTestConfig = "default"
+): MiddlewareTestConfig {
+  const base = typeof preset === "string" ? middlewareTestPresetByName(preset) : preset;
+
+  return Object.freeze({ ...base, ...overrides });
 }
 
 // ============================================================================

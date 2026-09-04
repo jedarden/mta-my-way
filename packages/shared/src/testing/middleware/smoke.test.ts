@@ -15,10 +15,13 @@
  */
 
 import {
+  MIDDLEWARE_TEST_PRESETS,
   type MiddlewareLike,
   assertHeader,
+  assertSecurityHeaders,
   cleanupMiddlewareTest,
   createMiddlewareRequest,
+  createMiddlewareTestConfig,
   executeMiddleware,
   setupMiddlewareTest,
 } from "@mta-my-way/shared/testing/middleware";
@@ -31,6 +34,9 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
     expect(typeof assertHeader).toBe("function");
     expect(typeof setupMiddlewareTest).toBe("function");
     expect(typeof cleanupMiddlewareTest).toBe("function");
+    expect(typeof createMiddlewareTestConfig).toBe("function");
+    expect(MIDDLEWARE_TEST_PRESETS.default).toBeDefined();
+    expect(MIDDLEWARE_TEST_PRESETS.securityHeaders).toBeDefined();
   });
 
   it("pairs setup and teardown around a fixture", async () => {
@@ -86,6 +92,21 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
       Promise.resolve(new Response(null, { headers: { "X-Frame-Options": "DENY" } }))
     );
 
+    expect(response.status).toBe(200);
+  });
+
+  it("a preset config drives the request builder and the security-header assertion", async () => {
+    const config = createMiddlewareTestConfig({}, MIDDLEWARE_TEST_PRESETS.securityHeaders);
+    const responding: MiddlewareLike = () =>
+      Promise.resolve(
+        new Response(null, {
+          headers: new Headers(config.securityHeaders.map((name) => [name, "value"])),
+        })
+      );
+
+    const response = await executeMiddleware(responding, createMiddlewareRequest(config));
+
+    assertSecurityHeaders(response, config.securityHeaders);
     expect(response.status).toBe(200);
   });
 });

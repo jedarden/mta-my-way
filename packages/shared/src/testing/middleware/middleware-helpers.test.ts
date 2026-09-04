@@ -5,13 +5,16 @@
 import * as middlewareTesting from "@mta-my-way/shared/testing/middleware";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MIDDLEWARE_TEST_PRESETS,
   type MiddlewareLike,
+  type MiddlewareTestPresetName,
   SECURITY_HEADER_NAMES,
   assertHeader,
   assertNoHeader,
   assertSecurityHeaders,
   cleanupMiddlewareTest,
   createMiddlewareRequest,
+  createMiddlewareTestConfig,
   executeMiddleware,
   setupMiddlewareTest,
 } from "./middleware-helpers";
@@ -208,6 +211,150 @@ describe("assertSecurityHeaders", () => {
     expect(() =>
       assertSecurityHeaders(new Response(null, { headers }), ["Referrer-Policy"])
     ).toThrow(/missing security headers: Referrer-Policy/);
+  });
+});
+
+describe("MIDDLEWARE_TEST_PRESETS", () => {
+  it("ships a default preset carrying the baseline request options", () => {
+    const preset = MIDDLEWARE_TEST_PRESETS.default;
+
+    expect(preset.name).toBe("default");
+    expect(preset.method).toBe("GET");
+    expect(preset.url).toBe("http://localhost:3001/api/test");
+    expect(preset.headers).toBeUndefined();
+    expect(preset.body).toBeUndefined();
+    expect(preset.securityHeaders).toEqual([]);
+  });
+
+  it("ships a security-headers preset built on SECURITY_HEADER_NAMES", () => {
+    const preset = MIDDLEWARE_TEST_PRESETS.securityHeaders;
+
+    expect(preset.name).toBe("securityHeaders");
+    expect(preset.securityHeaders).toBe(SECURITY_HEADER_NAMES);
+  });
+
+  it("is frozen so a test cannot poison a preset for the rest of the suite", () => {
+    expect(Object.isFrozen(MIDDLEWARE_TEST_PRESETS)).toBe(true);
+    expect(Object.isFrozen(MIDDLEWARE_TEST_PRESETS.default)).toBe(true);
+    expect(Object.isFrozen(MIDDLEWARE_TEST_PRESETS.securityHeaders)).toBe(true);
+
+    const mutable = MIDDLEWARE_TEST_PRESETS.default as { method?: string };
+
+    expect(() => {
+      mutable.method = "POST";
+    }).toThrow();
+    expect(MIDDLEWARE_TEST_PRESETS.default.method).toBe("GET");
+  });
+
+  it("re-exports the presets from the middleware barrel", () => {
+    expect(middlewareTesting.MIDDLEWARE_TEST_PRESETS).toBe(MIDDLEWARE_TEST_PRESETS);
+    expect(middlewareTesting.createMiddlewareTestConfig).toBe(createMiddlewareTestConfig);
+  });
+});
+
+describe("createMiddlewareTestConfig", () => {
+  it("returns the default preset when called with nothing", () => {
+    expect(createMiddlewareTestConfig()).toEqual(MIDDLEWARE_TEST_PRESETS.default);
+  });
+
+  it("replaces overridden fields and keeps the rest of the preset", () => {
+    const config = createMiddlewareTestConfig({
+      method: "POST",
+      body: { stationId: "725" },
+    });
+
+    expect(config.method).toBe("POST");
+    expect(config.body).toEqual({ stationId: "725" });
+    expect(config.url).toBe(MIDDLEWARE_TEST_PRESETS.default.url);
+    expect(config.securityHeaders).toEqual([]);
+    expect(config.name).toBe("default");
+  });
+
+  it("lets a test spread a preset and adjust one field", () => {
+    const config = createMiddlewareTestConfig({
+      ...MIDDLEWARE_TEST_PRESETS.securityHeaders,
+      url: "http://localhost:3001/api/favorites",
+    });
+
+    expect(config.name).toBe("securityHeaders");
+    expect(config.url).toBe("http://localhost:3001/api/favorites");
+    expect(config.securityHeaders).toBe(SECURITY_HEADER_NAMES);
+  });
+
+  it("derives from a named preset", () => {
+    const config = createMiddlewareTestConfig(
+      { securityHeaders: ["X-Frame-Options"] },
+      "securityHeaders"
+    );
+
+    expect(config.name).toBe("securityHeaders");
+    expect(config.securityHeaders).toEqual(["X-Frame-Options"]);
+    // Narrowing the derived config leaves the preset's own list alone
+    expect(MIDDLEWARE_TEST_PRESETS.securityHeaders.securityHeaders).toBe(SECURITY_HEADER_NAMES);
+  });
+
+  it("accepts a config as the base preset", () => {
+    const narrowed = createMiddlewareTestConfig(
+      { securityHeaders: ["X-Frame-Options"] },
+      "securityHeaders"
+    );
+    const config = createMiddlewareTestConfig({ method: "POST" }, narrowed);
+
+    expect(config.name).toBe("securityHeaders");
+    expect(config.method).toBe("POST");
+    expect(config.securityHeaders).toEqual(["X-Frame-Options"]);
+  });
+
+  it("applies an explicit name override", () => {
+    expect(createMiddlewareTestConfig({ name: "authed" }).name).toBe("authed");
+  });
+
+  it("throws on a preset name the presets do not hold", () => {
+    expect(() => createMiddlewareTestConfig({}, "rateLimited" as MiddlewareTestPresetName)).toThrow(
+      /Unknown middleware test preset "rateLimited"/
+    );
+  });
+
+  it("returns a frozen config and leaves the base preset untouched", () => {
+    const config = createMiddlewareTestConfig({ method: "POST" });
+    const mutable = config as { method?: string };
+
+    expect(Object.isFrozen(config)).toBe(true);
+    expect(() => {
+      mutable.method = "GET";
+    }).toThrow();
+    expect(MIDDLEWARE_TEST_PRESETS.default.method).toBe("GET");
+    expect(createMiddlewareTestConfig().method).toBe("GET");
+  });
+
+  it("drives both the request builder and the security-header assertion", async () => {
+    const config = createMiddlewareTestConfig({}, MIDDLEWARE_TEST_PRESETS.securityHeaders);
+    const applying: MiddlewareLike = (_request, next) =>
+      next().then((response) => {
+        for (const name of config.securityHeaders) {
+          response.headers.set(name, "value");
+        }
+        return response;
+      });
+
+    const response = await executeMiddleware(
+      applying,
+      createMiddlewareRequest(config),
+      () => new Response(null, { status: 200 })
+    );
+
+    expect(response.status).toBe(200);
+    assertSecurityHeaders(response, config.securityHeaders);
+  });
+
+  it("installs nothing — a config is options only", () => {
+    const request = createMiddlewareRequest(createMiddlewareTestConfig());
+
+    expect(request.method).toBe("GET");
+    expect(request.url).toBe("http://localhost:3001/api/test");
+    expect(vi.isMockFunction(console.log)).toBe(false);
+    expect(vi.isMockFunction(performance.now)).toBe(false);
+    expect(vi.isFakeTimers()).toBe(false);
   });
 });
 
