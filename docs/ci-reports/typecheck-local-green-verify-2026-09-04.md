@@ -98,6 +98,16 @@ observe.
 with the step transition recorded above. What remains open on that bead is the
 `test` group, which is a separate failure with a separate owner.
 
+## Addendum — re-verified at the head present at close time
+
+Concurrent workers advanced `origin/main` after the measurement above, so the
+same clean-room procedure was re-run against the new head. `b34e747` →
+`fc92ac9` touches only `VERSION`, `.beads/checkpoint/*` and this report — no
+file under `packages/` — and the re-run confirms it: `npm run typecheck` exit
+**0**, `npx tsc --build --force` exit **0**, zero `error TS` occurrences. The
+green reading is therefore a property of the typecheck surface, not of one
+accidental commit, and holds at both heads.
+
 ## Why the first two closes were wrong
 
 Both predecessors measured a surface CI never sees. The 21:20Z close recorded
