@@ -17,8 +17,10 @@
 import {
   type MiddlewareLike,
   assertHeader,
+  cleanupMiddlewareTest,
   createMiddlewareRequest,
   executeMiddleware,
+  setupMiddlewareTest,
 } from "@mta-my-way/shared/testing/middleware";
 import { describe, expect, it } from "vitest";
 
@@ -27,6 +29,20 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
     expect(typeof executeMiddleware).toBe("function");
     expect(typeof createMiddlewareRequest).toBe("function");
     expect(typeof assertHeader).toBe("function");
+    expect(typeof setupMiddlewareTest).toBe("function");
+    expect(typeof cleanupMiddlewareTest).toBe("function");
+  });
+
+  it("pairs setup and teardown around a fixture", async () => {
+    const fixture = setupMiddlewareTest({
+      request: { url: "http://localhost:3001/api/arrivals/725" },
+    });
+
+    expect(fixture.request.url).toBe("http://localhost:3001/api/arrivals/725");
+    await expect(fixture.run()).resolves.toMatchObject({ status: 200 });
+
+    cleanupMiddlewareTest(fixture);
+    await expect(fixture.run()).rejects.toThrow(/torn down/);
   });
 
   it("runs a middleware chain through the runner to the terminal handler", async () => {

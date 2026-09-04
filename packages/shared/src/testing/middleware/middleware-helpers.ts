@@ -10,7 +10,16 @@
  * These helpers complement `createMockRequest` in `test-helpers.ts`, which is
  * a plain object by design: middleware and the harness here operate on real
  * `Request`/`Response` instances.
+ *
+ * `setupMiddlewareTest`/`cleanupMiddlewareTest` are the middleware-scoped
+ * counterpart of `setupTestEnvironment`/`cleanupTestEnvironment`: the root pair
+ * only installs global mocks, while this one also builds a request + middleware
+ * chain fixture to go with them.
  */
+
+import { vi } from "vitest";
+
+import { cleanupTestEnvironment, setupTestEnvironment } from "../test-helpers";
 
 // ============================================================================
 // Types
@@ -213,4 +222,178 @@ export function assertSecurityHeaders(
   if (missing.length > 0) {
     throw new Error(`Response is missing security headers: ${missing.join(", ")}`);
   }
+}
+
+// ============================================================================
+// Test Setup / Teardown
+// ============================================================================
+
+/** Options for {@link setupMiddlewareTest}. */
+export interface MiddlewareTestOptions {
+  /** Request parts for the fixture's standard request (forwarded to {@link createMiddlewareRequest}) */
+  request?: MiddlewareRequestOptions;
+  /** Middleware chain the fixture runs, in registration order (defaults to `[]`) */
+  middleware?: MiddlewareLike | MiddlewareLike[];
+  /** Terminal handler the chain ends at (defaults to an empty `200` response) */
+  handler?: TerminalHandler;
+  /** Install vitest fake timers, reverted by {@link cleanupMiddlewareTest} (defaults to `false`) */
+  fakeTimers?: boolean;
+  /**
+   * Also install the testing-root `setupTestEnvironment` mocks (console noise,
+   * `performance`). Reverted by {@link cleanupMiddlewareTest}. Defaults to `true`.
+   */
+  mockEnvironment?: boolean;
+}
+
+/** Per-call replacements for a fixture's parts; each omitted part falls back to the fixture's own. */
+export interface MiddlewareTestRunOverrides {
+  /** Request to run instead of the fixture's standard request */
+  request?: Request;
+  /** Chain to run instead of the fixture's chain */
+  middleware?: MiddlewareLike | MiddlewareLike[];
+  /** Handler to run instead of the fixture's terminal handler */
+  handler?: TerminalHandler;
+}
+
+/** Fixture returned by {@link setupMiddlewareTest} and reset by {@link cleanupMiddlewareTest}. */
+export interface MiddlewareTestFixture {
+  /** The standard request entering the chain */
+  request: Request;
+  /** The fixture's chain, in registration order */
+  middleware: MiddlewareLike[];
+  /** The terminal handler the chain ends at */
+  handler: TerminalHandler;
+  /**
+   * Build a variant of the fixture's request. Overrides replace top-level
+   * request parts and are merged over the options the fixture was created
+   * with, so `{ method: "POST" }` keeps the fixture's URL and headers.
+   */
+  createRequest(overrides?: MiddlewareRequestOptions): Request;
+  /**
+   * Run the fixture's chain to its terminal handler. Per-call overrides
+   * replace a part for that run only and do not change the fixture.
+   */
+  run(overrides?: MiddlewareTestRunOverrides): Promise<Response>;
+}
+
+/** Per-fixture bookkeeping teardown needs; kept out of the public fixture shape. */
+interface MiddlewareFixtureState {
+  /** Whether setup installed fake timers, and so owns reverting them */
+  fakeTimers: boolean;
+  /** Set on teardown so a stale fixture fails loudly instead of running */
+  tornDown: boolean;
+}
+
+const fixtureStates = new WeakMap<MiddlewareTestFixture, MiddlewareFixtureState>();
+
+const TORN_DOWN_MESSAGE =
+  "This middleware fixture has been torn down — call setupMiddlewareTest() again";
+
+/** Accept either a single middleware or a chain, without mutating the caller's array. */
+function toMiddlewareChain(middleware?: MiddlewareLike | MiddlewareLike[]): MiddlewareLike[] {
+  if (middleware === undefined) {
+    return [];
+  }
+  return Array.isArray(middleware) ? [...middleware] : [middleware];
+}
+
+/**
+ * Build a middleware test fixture and install its mocks.
+ *
+ * Pairs with {@link cleanupMiddlewareTest}: call this in `beforeEach` and the
+ * teardown in `afterEach`. Beyond the request + chain fixture, setup installs
+ * the testing-root `setupTestEnvironment` mocks unless `mockEnvironment` is
+ * `false`, and optionally vitest fake timers.
+ *
+ * @param options - Fixture parts and which mocks to install
+ * @returns A fixture whose request, chain and handler can be run or overridden per test
+ *
+ * @example Fixture reused across a suite
+ * ```typescript
+ * let fixture: MiddlewareTestFixture;
+ *
+ * beforeEach(() => {
+ *   fixture = setupMiddlewareTest({
+ *     request: { url: "http://localhost:3001/api/favorites" },
+ *     middleware: [requireAuth],
+ *   });
+ * });
+ *
+ * afterEach(() => {
+ *   cleanupMiddlewareTest(fixture);
+ * });
+ *
+ * it("lets an authenticated request through", async () => {
+ *   const response = await fixture.run({
+ *     request: fixture.createRequest({ headers: { authorization: "Bearer token123" } }),
+ *   });
+ *   expect(response.status).toBe(200);
+ * });
+ * ```
+ */
+export function setupMiddlewareTest(options: MiddlewareTestOptions = {}): MiddlewareTestFixture {
+  const baseRequest = options.request ?? {};
+
+  const fixture: MiddlewareTestFixture = {
+    request: createMiddlewareRequest(baseRequest),
+    middleware: toMiddlewareChain(options.middleware),
+    handler: options.handler ?? defaultTerminalHandler,
+
+    createRequest(overrides: MiddlewareRequestOptions = {}) {
+      return createMiddlewareRequest({ ...baseRequest, ...overrides });
+    },
+
+    async run(overrides: MiddlewareTestRunOverrides = {}) {
+      if (fixtureStates.get(fixture)?.tornDown) {
+        throw new Error(TORN_DOWN_MESSAGE);
+      }
+      return executeMiddleware(
+        overrides.middleware === undefined
+          ? fixture.middleware
+          : toMiddlewareChain(overrides.middleware),
+        overrides.request ?? fixture.request,
+        overrides.handler ?? fixture.handler
+      );
+    },
+  };
+
+  fixtureStates.set(fixture, { fakeTimers: options.fakeTimers === true, tornDown: false });
+
+  try {
+    if (options.mockEnvironment !== false) {
+      setupTestEnvironment();
+    }
+    if (options.fakeTimers) {
+      vi.useFakeTimers();
+    }
+  } catch (error) {
+    cleanupMiddlewareTest(fixture);
+    throw error;
+  }
+
+  return fixture;
+}
+
+/**
+ * Reset the state {@link setupMiddlewareTest} created.
+ *
+ * Restores real timers when setup installed them, then applies the same reset
+ * as the testing-root `cleanupTestEnvironment` — restoring every spy and
+ * unstubbing every global, including ones the test body added on top of the
+ * fixture. Safe to call with `null`/`undefined` or twice, so an `afterEach`
+ * needs no guard around a `beforeEach` that failed partway.
+ *
+ * @param fixture - Fixture returned by {@link setupMiddlewareTest}, if setup completed
+ */
+export function cleanupMiddlewareTest(fixture?: MiddlewareTestFixture | null): void {
+  const state = fixture ? fixtureStates.get(fixture) : undefined;
+
+  if (state) {
+    state.tornDown = true;
+  }
+  if (state?.fakeTimers) {
+    vi.useRealTimers();
+  }
+
+  cleanupTestEnvironment();
 }
