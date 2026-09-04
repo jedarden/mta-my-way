@@ -3,6 +3,16 @@
 Bead: `mtamyway-ceac46ec` (the CI half of umbrella `mtamyway-692a6a56`'s
 done-when). Depends on the local-green child `mtamyway-c9c3995f`.
 
+## Addendum — later the same evening
+
+This report is the first half of the story; read it together with
+[`typecheck-ci-run-gate-2026-09-04.md`](./typecheck-ci-run-gate-2026-09-04.md),
+which continues it after `mtamyway-be5712ba`'s 13 fixes landed as `3445221`:
+the residual is now **24** across 6 files, six further CI runs between 21:44Z
+and 21:50Z all corroborate `lint` Succeeded / `typecheck` Failed exit 2, and
+`mtamyway-c9c3995f` was closed-while-false a **second** time and reopened
+again. Nothing below has been superseded — only the error count has moved.
+
 ## Verdict
 
 **The typecheck fix is not proven on CI, and this bead could not go green.**
