@@ -1379,22 +1379,32 @@ mocks.assertWorking(); // Verify everything still works
 
 ## Middleware Helpers (`testing/middleware/`)
 
-Middleware testing utilities for exercising the server's middleware without starting a server. Middleware under test is modelled as a plain function that receives a standard `Request` and either returns a `Response` (short-circuit) or calls `next()` to continue the chain — the same shape Hono middleware follows in `packages/server/src/middleware/`.
+Middleware testing utilities for exercising the server's middleware without starting a server. Two styles are covered, because two contracts exist in the wild:
 
-Unlike `createMockRequest` in `test-helpers.ts`, which is a plain object by design, these helpers operate on real `Request`/`Response` instances.
+- **`middleware-helpers.ts`** — middleware modelled the way Hono writes it: a plain function that receives a real `Request` and either returns a `Response` (short-circuit) or calls `next()` to continue the chain.
+- **`mock-chain.ts`** — middleware modelled the handler way: an Express-style `(request, response, next)` signature over mock objects whose `status`/`json`/`send` writes are recorded, with route `params` and a parsed `query` bag on the request and a simulator that reports the order the chain ran in.
+
+`execution-context.ts` builds the execution context either style of middleware may read — the user behind a request, the auth credentials it presented, and the audit event it produces.
+
+Unlike `createMockRequest` in `test-helpers.ts`, which is a plain object by design, these helpers operate on real `Request`/`Response` instances (`middleware-helpers.ts`) or on spies (`mock-chain.ts`).
 
 ### Directory Layout
 
 ```
 packages/shared/src/testing/middleware/
-├── index.ts                    → Barrel: re-exports everything from middleware-helpers.ts
-├── middleware-helpers.ts       → All helpers and types (request builder, chain runner,
-│                                 header assertions, test configs, setup/teardown fixture)
-├── middleware-helpers.test.ts  → Unit tests, one describe block per export
-└── smoke.test.ts               → Barrel smoke test
+├── index.ts                     → Barrel: re-exports every module below
+├── middleware-helpers.ts        → Request builder, chain runner, header assertions,
+│                                  test configs, setup/teardown fixture
+├── mock-chain.ts                → Express-style request/response mocks, chain simulator,
+│                                  chain-behaviour assertions
+├── execution-context.ts         → User, auth and audit context builders
+├── middleware-helpers.test.ts   → Unit tests, one describe block per export
+├── mock-chain.test.ts           → Unit tests for the mocks, simulator and assertions
+├── execution-context.test.ts    → Unit tests for the context builders
+└── smoke.test.ts                → Barrel smoke test
 ```
 
-Every helper lives in `middleware-helpers.ts`. `index.ts` contains no logic — it is a pure re-export, so a new helper only needs to be written and JSDoc-documented in `middleware-helpers.ts` to be reachable from the barrel.
+`index.ts` contains no logic — it is a pure re-export, so a new helper only needs to be written and JSDoc-documented in its own module to be reachable from the barrel.
 
 ### Importing
 
@@ -1406,7 +1416,7 @@ import { executeMiddleware } from "@mta-my-way/shared/testing/middleware";
 import { executeMiddleware } from "./middleware-helpers";
 ```
 
-The module is also re-exported by the root testing barrel, so `import { executeMiddleware } from "@mta-my-way/shared/testing"` works too. Prefer the `testing/middleware` subpath in tests that are specifically about middleware: it states what the test is exercising and keeps the middleware helpers greppable.
+The module is also re-exported by the root testing barrel (`src/testing/index.ts`), but that barrel has no entry in the package `exports` map — only the per-module subpaths are declared — so a runtime import of `@mta-my-way/shared/testing` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Import a declared subpath. Prefer `testing/middleware` in tests that are specifically about middleware: it states what the test is exercising and keeps the middleware helpers greppable.
 
 The subpath is declared in [`packages/shared/package.json`](../../package.json) as `"./testing/middleware"`.
 
@@ -1417,10 +1427,12 @@ Which file a new middleware test should import from:
 | Test kind | File | Import from |
 |-----------|------|-------------|
 | Unit test for a helper in `middleware-helpers.ts` | `middleware/middleware-helpers.test.ts` | `./middleware-helpers` (relative) |
+| Unit test for a helper in `mock-chain.ts` | `middleware/mock-chain.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
+| Unit test for a helper in `execution-context.ts` | `middleware/execution-context.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
 | New middleware's behaviour | `packages/server/src/middleware/<name>.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
 | New helper added to the module | `middleware/smoke.test.ts` | `@mta-my-way/shared/testing/middleware` (barrel) |
 
-`middleware-helpers.test.ts` holds one `describe` block per export, in the order the exports appear in `middleware-helpers.ts`, plus a final `describe` for fixture pairing; add new cases to the matching block rather than starting a parallel file.
+`middleware-helpers.test.ts` holds one `describe` block per export, in the order the exports appear in `middleware-helpers.ts`, plus a final `describe` for fixture pairing; add new cases to the matching block rather than starting a parallel file. `mock-chain.test.ts` and `execution-context.test.ts` follow the same one-`describe`-per-export shape.
 
 ---
 
@@ -1650,7 +1662,111 @@ afterEach(() => {
 
 ---
 
+### Mock Request, Response and Chain Simulation (`mock-chain.ts`)
+
+The handler-shaped counterpart of `executeMiddleware`. Where `middleware-helpers.ts` passes real `Request`/`Response` instances, this module passes mock objects: the request carries route `params` and a parsed `query` bag that a real `Request` has no place for, and the response records every write so a test can assert on the calls as well as the final state.
+
+The names are deliberately not `createMockRequest`/`createMockResponse` — those exist in `test-helpers.ts` with different shapes, and the root testing barrel `export *`s every module, so a collision would break the barrel.
+
+#### `createMockHttpRequest(options?: MockHttpRequestOptions): MockHttpRequest`
+Builds a mock request carrying headers, body, query and route params.
+
+**Parameters:**
+- `options` (optional): `method` (default `"GET"`, upper-cased), `url` (default `"http://localhost:3001/api/test"`), `headers`, `query`, `params`, `body`, `cookies`, `ip`, `context`
+
+A query string on `url` is parsed into `query`; an explicit `query` entry wins on conflict, so a test can point at a realistic URL and still pin one parameter. `params` is explicit-only — route matching is the router's job, and the mock simulates its output. The body is served as-is through `request.body` and parsed on demand through `request.json()`, so an object body and a raw JSON string both work. Supplying a body with `GET` or `HEAD` throws.
+
+**Returns:** `MockHttpRequest`, with `header(name)`/`get(name)` (case-insensitive), `json()`, `text()`, and `path`
+
+#### `createMockHttpResponse(): MockHttpResponse`
+Builds a mock response whose writes are vitest spies.
+
+`status`, `json`, `send`, `set`, `setHeader` and `end` all record into `response.calls` and update the inspected state, and each returns the response so calls chain. `json`/`send` also close the response, so a chain stops after them whether or not the middleware called `next()`.
+
+**Returns:** `MockHttpResponse` at status `200`, unwritten. Inspect `statusCode`, `headers`, `body`, `jsonBody`, `sentBody`, `ended` and `calls`; assert on any method directly (`expect(response.json).toHaveBeenCalledWith(...)`).
+
+#### `attachContext(request, context): MockHttpRequest`
+Stamps an execution context onto a mock request, in place, returning the same object. Reads as a statement: build the request, then attach the context.
+
+#### `runMiddlewareChain(options: MiddlewareChainOptions): Promise<MiddlewareChainResult>`
+Executes a `(request, response, next)` chain and reports what ran.
+
+**Parameters:**
+- `options.middleware`: the chain, in registration order — each layer is a bare function (named from `fn.name`, falling back to `middleware[n]`) or `{ name, middleware }`
+- `options.request` (optional): defaults to `createMockHttpRequest()`
+- `options.handler` (optional): terminal handler, defaults to writing an empty JSON `200`
+- `options.errorHandler` (optional): receives errors passed to `next()`; without one the error lands on the result instead of throwing
+
+**Returns:** `MiddlewareChainResult` — `request`, `response`, `order` (layer names in order, the terminal handler recorded as `"handler"`), `invocations` (whether each layer called `next()`), `reachedHandler`, `shortCircuited`, and `error` when one went unhandled.
+
+A layer that writes the response stops the chain even if it also calls `next()`. `next(error)` skips the remaining layers to the error handler. A layer calling `next()` twice throws — a chain doing that calls its downstream layers twice, which should fail loudly rather than build a response twice.
+
+#### Assertions
+
+| Helper | Asserts |
+|--------|---------|
+| `assertChainOrder(result, expected)` | The layers ran in `expected` order |
+| `assertChainReachedHandler(result)` | The chain reached its terminal handler |
+| `assertChainShortCircuited(result, expectedStatus?)` | The chain stopped before the handler, optionally with a status |
+| `assertResponseStatus(response, expected)` | The response carries a status |
+| `assertResponseJson(response, expected)` | The response wrote a payload (`toEqual`, so failures diff) |
+
+**Example:**
+```typescript
+const result = await runMiddlewareChain({
+  middleware: [
+    { name: "authenticate", middleware: authenticate },
+    { name: "requireAdmin", middleware: requireAdmin },
+  ],
+  request: createMockHttpRequest({
+    method: "POST",
+    url: "http://localhost:3001/api/admin/purge-cache",
+    headers: { authorization: "Bearer token" },
+    params: { cache: "all" },
+  }),
+  handler: (_request, response) => response.status(201).json({ purged: true }),
+});
+
+assertChainOrder(result, ["authenticate", "requireAdmin", "handler"]);
+assertResponseStatus(result.response, 201);
+assertResponseJson(result.response, { purged: true });
+```
+
+---
+
+### Execution Context Builders (`execution-context.ts`)
+
+The user, auth and audit context a middleware may read. Every builder returns a complete object with deterministic defaults — fixed IDs and a fixed epoch (`MOCK_CONTEXT_TIMESTAMP`), never `Date.now()` — so a test can read any field without setting it first and snapshots stay stable.
+
+Shapes mirror what `packages/server/src/middleware/` puts on a request: `AuthContext` from `authentication.ts` and `AuditEvent` from `audit-log.ts`. The small, stable unions (`role`, `scope`, `authMethod`, severity, category) are typed as literals so a typo fails typecheck; the permission list is `string[]` because the server's `Permission` union lives across the package boundary and would drift.
+
+| Helper | Builds | Default |
+|--------|--------|---------|
+| `createMockUser(overrides?)` | `MockUser` | An active regular user |
+| `createMockAuthContext(overrides?)` | `MockAuthContext` | A session-authenticated `read` key |
+| `createMockAuditEvent(overrides?)` | `MockAuditEvent` | A successful `info` authentication event |
+| `createMockExecutionContext(options?)` | `MockExecutionContext` | All three, wired together |
+
+Overrides replace whole fields — arrays included, and `metadata` as a unit.
+
+`createMockExecutionContext` derives outward from its user: the auth context inherits the user's `role`/`roles`, and the audit event is attributed to the user's ID and role. Passing an explicit `auth` or `audit` replaces that part whole — nothing is re-derived into an object the test supplied.
+
+**Example:**
+```typescript
+const context = createMockExecutionContext({
+  user: { role: "admin", roles: ["admin"] },
+  audit: { action: "admin:purge_cache", category: "admin" },
+});
+
+const request = createMockHttpRequest({ method: "POST", context });
+expect(request.context.audit.performedBy).toBe(context.user.id);
+```
+
+---
+
 ### Exported Types
+
+#### `middleware-helpers.ts`
 
 | Type | Kind | Purpose |
 |------|------|---------|
@@ -1663,6 +1779,35 @@ afterEach(() => {
 | `MiddlewareTestOptions` | interface | Options accepted by `setupMiddlewareTest` |
 | `MiddlewareTestRunOverrides` | interface | Per-call replacements for `fixture.run()` |
 | `MiddlewareTestFixture` | interface | Fixture returned by `setupMiddlewareTest` |
+
+#### `mock-chain.ts`
+
+| Type | Kind | Purpose |
+|------|------|---------|
+| `MockHttpRequest` | interface | Mock request: headers, body, query, params, cookies, IP, context |
+| `MockHttpRequestOptions` | interface | Options accepted by `createMockHttpRequest` |
+| `MockHttpResponse` | interface | Mock response whose writes are vitest spies |
+| `MockResponseCall` | interface | One recorded write, from `response.calls` |
+| `MockMiddleware` | type | A middleware: `(request, response, next) => void \| Promise<void>` |
+| `NamedMockMiddleware` | interface | A chain entry with an explicit name |
+| `MockChainEntry` | type | Either a bare middleware or a named one |
+| `MockTerminalHandler` | type | Writes the response when the whole chain called `next()` |
+| `MockErrorHandler` | type | Receives an error passed to `next()` |
+| `NextFunction` | type | `(error?) => Promise<void>` |
+| `MiddlewareInvocation` | interface | One layer's record of its own run |
+| `MiddlewareChainResult` | interface | What `runMiddlewareChain` reports |
+| `MiddlewareChainOptions` | interface | Options accepted by `runMiddlewareChain` |
+
+#### `execution-context.ts`
+
+| Type | Kind | Purpose |
+|------|------|---------|
+| `MockUser` / `MockUserOptions` | interface | The user a request acts for, and that builder's options |
+| `MockAuthContext` / `MockAuthContextOptions` | interface | Credentials a request presented, mirroring the server's `AuthContext` |
+| `MockAuditEvent` / `MockAuditEventOptions` | interface | Audit event a request produces, mirroring the server's `AuditEvent` |
+| `MockExecutionContext` / `MockExecutionContextOptions` | interface | All three, built together |
+| `MockUserRole`, `MockApiKeyScope`, `MockAuthMethod` | type | Closed unions mirroring the server's auth literals |
+| `MockAuditEventCategory`, `MockAuditEventSeverity` | type | Closed unions mirroring the server's audit literals |
 
 ---
 

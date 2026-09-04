@@ -12,3 +12,9 @@
 
 // Request builders and middleware chain runner
 export * from "./middleware-helpers";
+
+// Express-style request/response mocks, chain simulator and behavior assertions
+export * from "./mock-chain";
+
+// User, auth and audit execution context builders
+export * from "./execution-context";

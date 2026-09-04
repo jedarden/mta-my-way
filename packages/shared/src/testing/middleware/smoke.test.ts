@@ -4,25 +4,33 @@
  * This test validates that the middleware testing infrastructure is reachable
  * and working through its public entry point:
  * - The `@mta-my-way/shared/testing/middleware` barrel resolves and re-exports
- *   the helpers from `middleware-helpers.ts`
+ *   the helpers from every module in the directory
  * - The `executeMiddleware` chain runner composes middleware around a terminal
  *   handler in registration order
  * - The barrel's exports cooperate (request builder feeds the chain runner,
- *   assertion helpers inspect its response)
+ *   assertion helpers inspect its response), for both the real-`Request` style
+ *   and the mock `request`/`response` style
  *
- * Unit-level coverage lives in `middleware-helpers.test.ts`; this file only
- * proves the structure imports and runs.
+ * Unit-level coverage lives in `middleware-helpers.test.ts`,
+ * `mock-chain.test.ts` and `execution-context.test.ts`; this file only proves
+ * the structure imports and runs.
  */
 
 import {
   MIDDLEWARE_TEST_PRESETS,
   type MiddlewareLike,
+  assertChainOrder,
   assertHeader,
+  assertResponseJson,
   assertSecurityHeaders,
   cleanupMiddlewareTest,
   createMiddlewareRequest,
   createMiddlewareTestConfig,
+  createMockExecutionContext,
+  createMockHttpRequest,
+  createMockHttpResponse,
   executeMiddleware,
+  runMiddlewareChain,
   setupMiddlewareTest,
 } from "@mta-my-way/shared/testing/middleware";
 import { describe, expect, it } from "vitest";
@@ -37,6 +45,42 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
     expect(typeof createMiddlewareTestConfig).toBe("function");
     expect(MIDDLEWARE_TEST_PRESETS.default).toBeDefined();
     expect(MIDDLEWARE_TEST_PRESETS.securityHeaders).toBeDefined();
+  });
+
+  it("exposes the mock chain and execution context helpers through the barrel", () => {
+    expect(typeof createMockHttpRequest).toBe("function");
+    expect(typeof createMockHttpResponse).toBe("function");
+    expect(typeof runMiddlewareChain).toBe("function");
+    expect(typeof assertChainOrder).toBe("function");
+    expect(typeof assertResponseJson).toBe("function");
+    expect(typeof createMockExecutionContext).toBe("function");
+  });
+
+  it("runs the mock request, response and context builders through the chain", async () => {
+    const context = createMockExecutionContext();
+
+    const result = await runMiddlewareChain({
+      middleware: [
+        {
+          name: "readContext",
+          middleware: (request, response, next) => {
+            response.set("X-Acting-User", request.context?.user.id ?? "anonymous");
+            next();
+          },
+        },
+      ],
+      request: createMockHttpRequest({
+        url: "http://localhost:3001/api/favorites?limit=5",
+        params: { stationId: "725" },
+        context,
+      }),
+      handler: (_request, response) => response.status(200).json({ ok: true }),
+    });
+
+    assertChainOrder(result, ["readContext", "handler"]);
+    assertResponseJson(result.response, { ok: true });
+    expect(result.response.getHeader("x-acting-user")).toBe(context.user.id);
+    expect(createMockHttpResponse().statusCode).toBe(200);
   });
 
   it("pairs setup and teardown around a fixture", async () => {
