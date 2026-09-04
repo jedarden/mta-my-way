@@ -13,6 +13,21 @@
 
 import { useEffect, useState } from "react";
 
+/**
+ * Background Sync API types — not yet in TypeScript's DOM lib.
+ * Spec: https://w3c.github.io/ServiceWorker/#sync-manager-interface
+ */
+export interface SyncManager {
+  register(tag: string): Promise<void>;
+  getTags(): Promise<string[]>;
+}
+
+declare global {
+  interface ServiceWorkerRegistration {
+    readonly sync: SyncManager;
+  }
+}
+
 interface QueuedRequest {
   id: string;
   url: string;
@@ -33,7 +48,8 @@ const STORE_NAME = "queued-requests";
  */
 export class BackgroundSyncManager {
   db: IDBDatabase | null = null;
-  syncRegistration: SyncRegistration | null = null;
+  /** Set once a background sync tag has been registered successfully */
+  syncRegistration: SyncManager | null = null;
   isSupported: boolean;
 
   constructor() {
@@ -84,7 +100,8 @@ export class BackgroundSyncManager {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      this.syncRegistration = await registration.sync.register("mta-sync-tag");
+      await registration.sync.register("mta-sync-tag");
+      this.syncRegistration = registration.sync;
     } catch (error) {
       console.warn("Background Sync registration failed:", error);
     }

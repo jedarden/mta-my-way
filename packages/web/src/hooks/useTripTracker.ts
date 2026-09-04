@@ -149,6 +149,7 @@ export function useTripTracker(
         error: null,
         isExpired: false,
         updatedAt: Date.now(),
+        prediction: null,
       });
     } catch (err) {
       if (gen !== fetchGenRef.current) return;
@@ -193,6 +194,7 @@ export function useTripTracker(
         error: null,
         isExpired: false,
         updatedAt: null,
+        prediction: null,
       });
       return;
     }
@@ -216,6 +218,7 @@ export function useTripTracker(
       error: null,
       isExpired: false,
       updatedAt: null,
+      prediction: null,
     });
   }, []);
 

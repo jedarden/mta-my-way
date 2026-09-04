@@ -205,8 +205,8 @@ export function useAlerts(): AlertsResult {
       return true;
     });
 
-    // Debug logging in test environment
-    if (process.env.NODE_ENV === "test" && alertSeverityFilter !== "all") {
+    // Debug logging in test environment ("all" already returned above)
+    if (process.env.NODE_ENV === "test") {
       console.log("DEBUG useAlerts filteredBySeverity:", {
         alertSeverityFilter,
         stateAlertsCount: state.alerts.length,
