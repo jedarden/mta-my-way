@@ -245,7 +245,11 @@ export function startBriefingScheduler(): void {
           total_subscriptions: subscriptions.length,
         });
       }
-    })();
+    })().catch((err: unknown) => {
+      // Degraded mode (push DB unavailable) rejects on the subscription read —
+      // swallow it here so the tick cannot surface as an unhandled rejection.
+      logger.error("Briefing scheduler error", err instanceof Error ? err : undefined);
+    });
   }, CHECK_INTERVAL_MS);
 
   logger.info("Briefing scheduler started", {

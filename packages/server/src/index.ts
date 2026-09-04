@@ -30,7 +30,10 @@ import { startGtfsRefreshScheduler } from "./gtfs-refresh.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
 import { initObservability, logger, shutdownObservability } from "./observability/index.js";
 import { initPoller, startPoller } from "./poller.js";
+import { startBriefingScheduler } from "./push/briefing.js";
+import { startPushPipeline } from "./push/index.js";
 import { configurePushDatabase } from "./push/subscriptions.js";
+import { configureWebPush, isWebPushConfigured, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
 import { runStartupChecks } from "./startup-check.js";
@@ -152,13 +155,36 @@ async function main(): Promise<void> {
     // Configure trip tracking — will use the same database, initialized lazily
     initTripTracking(null, stations);
 
-    // Note: Database migrations and DB-dependent services initialization
-    // are now deferred. They will be triggered on first use of DB-dependent
-    // features. If the DB cannot be opened, those features will return 503
-    // while core functionality remains available.
+    // VAPID keys must be in place before the HTTP server reports ready: the
+    // browser needs the public key to subscribe and every send is gated on
+    // them. Env vars win in production; otherwise keys load from (or are
+    // generated into) DATA_DIR. loadOrGenerateVapidKeys already tolerates an
+    // unwritable directory by falling back to ephemeral keys, so a throw here
+    // is logged and startup continues with push disabled instead of blocking
+    // the server.
+    try {
+      const vapidKeys = await loadOrGenerateVapidKeys(DATA_DIR);
+      configureWebPush(vapidKeys);
+    } catch (err) {
+      logger.error("Push notifications unavailable — VAPID keys not configured", err as Error, {
+        hint: "Set VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY, or make the data directory writable",
+      });
+    }
+
+    // Safe to start before the database is ready: subscriptions are read
+    // lazily through withPushDatabase and sender.ts no-ops while web-push is
+    // unconfigured.
+    startPushPipeline();
+    startBriefingScheduler();
+
+    // Note: Database migrations and remaining DB-dependent services
+    // initialization are deferred — they are triggered on first use of
+    // DB-dependent features. If the DB cannot be opened, those features
+    // return 503 while core functionality remains available.
 
     logger.info("Stateful subsystems configured", {
       pushDb: "lazy-init",
+      pushNotifications: isWebPushConfigured() ? "configured" : "unavailable",
       tripTracking: "lazy-init",
       hint: "DB will be initialized on first use. Core endpoints remain available.",
     });
