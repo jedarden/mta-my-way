@@ -23,15 +23,16 @@ import {
   assertHeader,
   assertResponseJson,
   assertSecurityHeaders,
-  cleanupMiddlewareTest,
   createMiddlewareRequest,
   createMiddlewareTestConfig,
   createMockExecutionContext,
   createMockHttpRequest,
   createMockHttpResponse,
   executeMiddleware,
+  resetMiddlewareTestState,
   runMiddlewareChain,
   setupMiddlewareTest,
+  teardownMiddlewareTest,
 } from "@mta-my-way/shared/testing/middleware";
 import { describe, expect, it } from "vitest";
 
@@ -41,7 +42,8 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
     expect(typeof createMiddlewareRequest).toBe("function");
     expect(typeof assertHeader).toBe("function");
     expect(typeof setupMiddlewareTest).toBe("function");
-    expect(typeof cleanupMiddlewareTest).toBe("function");
+    expect(typeof teardownMiddlewareTest).toBe("function");
+    expect(typeof resetMiddlewareTestState).toBe("function");
     expect(typeof createMiddlewareTestConfig).toBe("function");
     expect(MIDDLEWARE_TEST_PRESETS.default).toBeDefined();
     expect(MIDDLEWARE_TEST_PRESETS.securityHeaders).toBeDefined();
@@ -91,7 +93,7 @@ describe("Middleware Testing Infrastructure Smoke Test", () => {
     expect(fixture.request.url).toBe("http://localhost:3001/api/arrivals/725");
     await expect(fixture.run()).resolves.toMatchObject({ status: 200 });
 
-    cleanupMiddlewareTest(fixture);
+    teardownMiddlewareTest(fixture);
     await expect(fixture.run()).rejects.toThrow(/torn down/);
   });
 

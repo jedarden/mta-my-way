@@ -16,7 +16,9 @@ import {
   createMiddlewareRequest,
   createMiddlewareTestConfig,
   executeMiddleware,
+  resetMiddlewareTestState,
   setupMiddlewareTest,
+  teardownMiddlewareTest,
 } from "./middleware-helpers";
 
 describe("createMiddlewareRequest", () => {
@@ -499,7 +501,120 @@ describe("setupMiddlewareTest / cleanupMiddlewareTest", () => {
 
   it("re-exports the pair from the middleware barrel", () => {
     expect(middlewareTesting.setupMiddlewareTest).toBe(setupMiddlewareTest);
+    expect(middlewareTesting.teardownMiddlewareTest).toBe(teardownMiddlewareTest);
     expect(middlewareTesting.cleanupMiddlewareTest).toBe(cleanupMiddlewareTest);
+  });
+});
+
+describe("teardownMiddlewareTest", () => {
+  it("tears a fixture down the same way the deprecated alias does", async () => {
+    const fixture = setupMiddlewareTest({ fakeTimers: true });
+
+    expect(vi.isFakeTimers()).toBe(true);
+
+    teardownMiddlewareTest(fixture);
+    teardownMiddlewareTest(fixture);
+
+    expect(vi.isFakeTimers()).toBe(false);
+    expect(vi.isMockFunction(console.log)).toBe(false);
+    await expect(fixture.run()).rejects.toThrow(/torn down/);
+  });
+
+  it("tolerates a missing fixture so afterEach needs no guard", () => {
+    expect(() => teardownMiddlewareTest(null)).not.toThrow();
+    expect(() => teardownMiddlewareTest(undefined)).not.toThrow();
+  });
+
+  it("is the same function the deprecated alias points at", () => {
+    expect(cleanupMiddlewareTest).toBe(teardownMiddlewareTest);
+  });
+});
+
+describe("resetMiddlewareTestState", () => {
+  afterEach(() => {
+    // The helper under test is itself the between-tests reset, so fall back to
+    // a manual one to keep this suite from leaking into the next.
+    if (vi.isFakeTimers()) {
+      vi.useRealTimers();
+    }
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("reports a clean reset when nothing was left running", () => {
+    const fixture = setupMiddlewareTest();
+
+    teardownMiddlewareTest(fixture);
+
+    expect(resetMiddlewareTestState()).toEqual({ restoredFakeTimers: false });
+    expect(vi.isFakeTimers()).toBe(false);
+    expect(vi.isMockFunction(console.log)).toBe(false);
+  });
+
+  it("restores fake timers a test body started directly", () => {
+    vi.useFakeTimers();
+
+    expect(resetMiddlewareTestState()).toEqual({ restoredFakeTimers: true });
+    expect(vi.isFakeTimers()).toBe(false);
+  });
+
+  it("catches fake timers teardown missed because setup did not install them", () => {
+    const fixture = setupMiddlewareTest();
+
+    teardownMiddlewareTest(fixture);
+
+    // Setup never started these, so teardown has nothing in its bookkeeping to
+    // revert — this is exactly the leak the reset exists to catch.
+    vi.useFakeTimers();
+
+    expect(vi.isFakeTimers()).toBe(true);
+    expect(resetMiddlewareTestState()).toEqual({ restoredFakeTimers: true });
+    expect(vi.isFakeTimers()).toBe(false);
+  });
+
+  it("restores spies and stubbed globals the test body added", () => {
+    const fixture = setupMiddlewareTest();
+    const spied = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const probe = vi.fn(() => "probe");
+    vi.stubGlobal("__mwResetProbe", probe);
+
+    expect(vi.isMockFunction(console.warn)).toBe(true);
+    expect(globalThis.__mwResetProbe).toBe(probe);
+
+    teardownMiddlewareTest(fixture);
+    resetMiddlewareTestState();
+
+    expect(vi.isMockFunction(console.warn)).toBe(false);
+    expect(globalThis.__mwResetProbe).toBeUndefined();
+  });
+
+  it("leaves a live fixture usable across the reset", async () => {
+    const fixture = setupMiddlewareTest();
+
+    expect(resetMiddlewareTestState()).toEqual({ restoredFakeTimers: false });
+
+    await expect(fixture.run()).resolves.toMatchObject({ status: 200 });
+
+    teardownMiddlewareTest(fixture);
+  });
+
+  it("is safe to call repeatedly", () => {
+    expect(resetMiddlewareTestState()).toEqual({ restoredFakeTimers: false });
+    expect(resetMiddlewareTestState()).toEqual({ restoredFakeTimers: false });
+  });
+
+  it("slots into afterEach between setup and teardown", () => {
+    const fixture = setupMiddlewareTest({ fakeTimers: true });
+
+    expect(resetMiddlewareTestState()).toEqual({ restoredFakeTimers: true });
+
+    // The fixture is still torn down by its own teardown afterwards
+    teardownMiddlewareTest(fixture);
+    expect(vi.isFakeTimers()).toBe(false);
+  });
+
+  it("re-exports from the middleware barrel", () => {
+    expect(middlewareTesting.resetMiddlewareTestState).toBe(resetMiddlewareTestState);
   });
 });
 

@@ -415,12 +415,14 @@ The only module in this directory that is a directory: all helpers live in `midd
 - Configs and presets are frozen; merging is a flat shallow replace
 - `createMiddlewareTestConfig` throws on a preset name the presets do not hold
 
-#### Test Setup / Teardown (2 functions)
+#### Test Setup / Teardown (3 functions + 1 deprecated alias)
 
 | Function | Purpose | Status |
 |----------|---------|--------|
 | `setupMiddlewareTest` | Build a request + chain fixture and install its mocks | ✅ Working |
-| `cleanupMiddlewareTest` | Reset what setup installed | ✅ Working |
+| `teardownMiddlewareTest` | Reset what setup installed | ✅ Working |
+| `resetMiddlewareTestState` | Reset leaked global state between tests, fixture-free | ✅ Working |
+| `cleanupMiddlewareTest` | Former name of `teardownMiddlewareTest` | ⚠️ Deprecated alias |
 
 **Fixture Methods:**
 - `createRequest(overrides?)` - Variant of the fixture's request, merged over its own options
@@ -431,6 +433,8 @@ The only module in this directory that is a directory: all helpers live in `midd
 - Also installs the root mocks (`mockEnvironment`, default `true`) and optionally vitest fake timers
 - Setup that throws mid-way tears itself down before rethrowing; teardown tolerates `null`/`undefined` and double calls
 - Running a torn-down fixture throws instead of executing
+- Teardown reverts only the timers its own fixture installed; `resetMiddlewareTestState` checks vitest's actual timer state and so also catches timers a test body started directly
+- `resetMiddlewareTestState` deliberately leaves fixtures alone, so a suite-level fixture survives a between-tests reset
 
 #### Exported Types (9)
 
@@ -664,7 +668,7 @@ C
 - createMockTripRecord
 - createTestFixture
 - createCsrfHeaders
-- cleanupMiddlewareTest (middleware-helpers)
+- cleanupMiddlewareTest (middleware-helpers, deprecated alias of teardownMiddlewareTest)
 
 E
 - executeMiddleware (middleware-helpers)
@@ -691,6 +695,12 @@ S
 - setupMiddlewareTest (middleware-helpers)
 - setupObservabilityMocks
 - setupTestEnvironment
+
+T
+- teardownMiddlewareTest (middleware-helpers)
+
+R
+- resetMiddlewareTestState (middleware-helpers)
 
 W
 - waitFor

@@ -1602,7 +1602,7 @@ assertSecurityHeaders(response, narrowed.securityHeaders);
 ### Test Setup / Teardown
 
 #### `setupMiddlewareTest(options?: MiddlewareTestOptions): MiddlewareTestFixture`
-Builds a middleware test fixture and installs its mocks. Pairs with `cleanupMiddlewareTest`: call this in `beforeEach` and the teardown in `afterEach`.
+Builds a middleware test fixture and installs its mocks. Pairs with `teardownMiddlewareTest`: call this in `beforeEach` and the teardown in `afterEach`.
 
 **Options:**
 - `request`: Request parts for the fixture's standard request (forwarded to `createMiddlewareRequest`)
@@ -1632,7 +1632,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanupMiddlewareTest(fixture);
+  teardownMiddlewareTest(fixture);
 });
 
 it("lets an authenticated request through", async () => {
@@ -1645,7 +1645,7 @@ it("lets an authenticated request through", async () => {
 
 ---
 
-#### `cleanupMiddlewareTest(fixture?: MiddlewareTestFixture | null): void`
+#### `teardownMiddlewareTest(fixture?: MiddlewareTestFixture | null): void`
 Resets the state `setupMiddlewareTest` created.
 
 **Parameters:**
@@ -1653,10 +1653,38 @@ Resets the state `setupMiddlewareTest` created.
 
 Restores real timers when setup installed them, then applies the same reset as the testing-root `cleanupTestEnvironment` — restoring every spy and unstubbing every global, including ones the test body added on top of the fixture. Running a torn-down fixture's `run()` throws instead of executing. Safe to call with `null`/`undefined` or twice, so an `afterEach` needs no guard around a `beforeEach` that failed partway.
 
+Timers a test body started on its own are only caught by `resetMiddlewareTestState`, which looks at vitest's actual state rather than at what this fixture remembers installing.
+
 **Example:**
 ```typescript
 afterEach(() => {
-  cleanupMiddlewareTest(fixture);
+  teardownMiddlewareTest(fixture);
+});
+```
+
+---
+
+#### `cleanupMiddlewareTest(fixture?: MiddlewareTestFixture | null): void`
+**Deprecated:** former name of `teardownMiddlewareTest`, kept as an alias so suites written against it keep working. New code should pair `setupMiddlewareTest` with `teardownMiddlewareTest`.
+
+---
+
+#### `resetMiddlewareTestState(): MiddlewareTestStateReset`
+Resets the global test state between tests, without needing a fixture.
+
+Restores real timers whenever vitest reports them active — covering timers a test body started directly, which `teardownMiddlewareTest` cannot see — then applies the same reset as the testing-root `cleanupTestEnvironment`: restoring every spy and unstubbing every global.
+
+Fixtures are deliberately left alone: a suite-level fixture stays usable across the reset, and tearing one down is `teardownMiddlewareTest`'s job. Safe to call repeatedly and from an `afterEach` that runs after a teardown already did part of this.
+
+**Returns:** `MiddlewareTestStateReset` — `{ restoredFakeTimers: boolean }`, where `true` means fake timers were active and were restored, i.e. the previous test left them running.
+
+**Example:**
+```typescript
+afterEach(() => {
+  const { restoredFakeTimers } = resetMiddlewareTestState();
+  if (restoredFakeTimers) {
+    console.warn("previous test leaked fake timers");
+  }
 });
 ```
 
@@ -1988,7 +2016,7 @@ import {
   createMiddlewareRequest,
   assertSecurityHeaders,
   setupMiddlewareTest,
-  cleanupMiddlewareTest,
+  teardownMiddlewareTest,
   type MiddlewareLike,
   type MiddlewareTestFixture
 } from "@mta-my-way/shared/testing/middleware";
@@ -2001,7 +2029,7 @@ describe("securityHeaders middleware", () => {
   });
 
   afterEach(() => {
-    cleanupMiddlewareTest(fixture);
+    teardownMiddlewareTest(fixture);
   });
 
   it("adds security headers to every response", async () => {

@@ -16,10 +16,11 @@
  * adjust one field of. They are plain option sets with no lifecycle of their
  * own, so a config can be defined at module scope and shared across suites.
  *
- * `setupMiddlewareTest`/`cleanupMiddlewareTest` are the middleware-scoped
+ * `setupMiddlewareTest`/`teardownMiddlewareTest` are the middleware-scoped
  * counterpart of `setupTestEnvironment`/`cleanupTestEnvironment`: the root pair
  * only installs global mocks, while this one also builds a request + middleware
- * chain fixture to go with them.
+ * chain fixture to go with them. `resetMiddlewareTestState` sits between the
+ * two: it clears the globals a test can leak without touching any fixture.
  */
 
 import { vi } from "vitest";
@@ -374,11 +375,11 @@ export interface MiddlewareTestOptions {
   middleware?: MiddlewareLike | MiddlewareLike[];
   /** Terminal handler the chain ends at (defaults to an empty `200` response) */
   handler?: TerminalHandler;
-  /** Install vitest fake timers, reverted by {@link cleanupMiddlewareTest} (defaults to `false`) */
+  /** Install vitest fake timers, reverted by {@link teardownMiddlewareTest} (defaults to `false`) */
   fakeTimers?: boolean;
   /**
    * Also install the testing-root `setupTestEnvironment` mocks (console noise,
-   * `performance`). Reverted by {@link cleanupMiddlewareTest}. Defaults to `true`.
+   * `performance`). Reverted by {@link teardownMiddlewareTest}. Defaults to `true`.
    */
   mockEnvironment?: boolean;
 }
@@ -393,7 +394,7 @@ export interface MiddlewareTestRunOverrides {
   handler?: TerminalHandler;
 }
 
-/** Fixture returned by {@link setupMiddlewareTest} and reset by {@link cleanupMiddlewareTest}. */
+/** Fixture returned by {@link setupMiddlewareTest} and reset by {@link teardownMiddlewareTest}. */
 export interface MiddlewareTestFixture {
   /** The standard request entering the chain */
   request: Request;
@@ -438,7 +439,7 @@ function toMiddlewareChain(middleware?: MiddlewareLike | MiddlewareLike[]): Midd
 /**
  * Build a middleware test fixture and install its mocks.
  *
- * Pairs with {@link cleanupMiddlewareTest}: call this in `beforeEach` and the
+ * Pairs with {@link teardownMiddlewareTest}: call this in `beforeEach` and the
  * teardown in `afterEach`. Beyond the request + chain fixture, setup installs
  * the testing-root `setupTestEnvironment` mocks unless `mockEnvironment` is
  * `false`, and optionally vitest fake timers.
@@ -458,7 +459,7 @@ function toMiddlewareChain(middleware?: MiddlewareLike | MiddlewareLike[]): Midd
  * });
  *
  * afterEach(() => {
- *   cleanupMiddlewareTest(fixture);
+ *   teardownMiddlewareTest(fixture);
  * });
  *
  * it("lets an authenticated request through", async () => {
@@ -505,7 +506,7 @@ export function setupMiddlewareTest(options: MiddlewareTestOptions = {}): Middle
       vi.useFakeTimers();
     }
   } catch (error) {
-    cleanupMiddlewareTest(fixture);
+    teardownMiddlewareTest(fixture);
     throw error;
   }
 
@@ -521,9 +522,13 @@ export function setupMiddlewareTest(options: MiddlewareTestOptions = {}): Middle
  * fixture. Safe to call with `null`/`undefined` or twice, so an `afterEach`
  * needs no guard around a `beforeEach` that failed partway.
  *
+ * Timers a test body started on its own are only caught by
+ * {@link resetMiddlewareTestState}, which looks at vitest's actual state
+ * rather than at what this fixture remembers installing.
+ *
  * @param fixture - Fixture returned by {@link setupMiddlewareTest}, if setup completed
  */
-export function cleanupMiddlewareTest(fixture?: MiddlewareTestFixture | null): void {
+export function teardownMiddlewareTest(fixture?: MiddlewareTestFixture | null): void {
   const state = fixture ? fixtureStates.get(fixture) : undefined;
 
   if (state) {
@@ -534,4 +539,55 @@ export function cleanupMiddlewareTest(fixture?: MiddlewareTestFixture | null): v
   }
 
   cleanupTestEnvironment();
+}
+
+/**
+ * Former name of {@link teardownMiddlewareTest}.
+ *
+ * Kept as an alias so suites written against it keep working; new code should
+ * pair `setupMiddlewareTest` with `teardownMiddlewareTest`.
+ *
+ * @deprecated Use {@link teardownMiddlewareTest}
+ */
+export const cleanupMiddlewareTest = teardownMiddlewareTest;
+
+/**
+ * What {@link resetMiddlewareTestState} found and reset. Each flag names a leak
+ * the previous test left behind, so a suite can assert its own hygiene or log
+ * which test is polluting the next one.
+ */
+export interface MiddlewareTestStateReset {
+  /**
+   * Whether fake timers were active and were restored to real ones. Teardown
+   * only reverts the timers its own fixture installed, so `true` here means a
+   * test body started fake timers directly and left them running.
+   */
+  restoredFakeTimers: boolean;
+}
+
+/**
+ * Reset the global test state between tests, without needing a fixture.
+ *
+ * Restores real timers whenever vitest reports them active — covering timers a
+ * test body started directly, which {@link teardownMiddlewareTest} cannot see —
+ * then applies the same reset as the testing-root `cleanupTestEnvironment`:
+ * restoring every spy and unstubbing every global.
+ *
+ * Fixtures are deliberately left alone: a suite-level fixture stays usable
+ * across the reset, and tearing one down is {@link teardownMiddlewareTest}'s
+ * job. Safe to call repeatedly and from an `afterEach` that runs after a
+ * teardown already did part of this.
+ *
+ * @returns What was leaking, so a suite can tell a clean reset from a rescue
+ */
+export function resetMiddlewareTestState(): MiddlewareTestStateReset {
+  const restoredFakeTimers = vi.isFakeTimers();
+
+  if (restoredFakeTimers) {
+    vi.useRealTimers();
+  }
+
+  cleanupTestEnvironment();
+
+  return { restoredFakeTimers };
 }
