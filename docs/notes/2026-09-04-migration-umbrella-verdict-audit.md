@@ -60,11 +60,13 @@ produced **two** Cross-Cutting umbrellas. The 2026-09-03 pass enumerated by
 `Phase N` title and so found 16; the two Cross-Cutting beads have no phase
 number in their titles and were missed.
 
-Verdict tally after this audit, over all 18:
+Verdict tally as written on 2026-09-03/04, over all 18:
 COMPLETE ×2 (Phase 7 pair), SUBSTANTIALLY COMPLETE ×12 (Phases 1, 2, 4, 5, 6
 pairs + Cross-Cutting pair), INCOMPLETE ×2 (Phase 3 pair), plus the two
 genesis roll-ups. The two genesis beads are unique, not a duplicate pair, so
 they correctly carry no `CROSS-REF`.
+**§7 later raised the Phase 3 pair to SUBSTANTIALLY COMPLETE** — its INCOMPLETE
+basis was remediated at HEAD after the verdict was written. Final tally is §9.
 
 ## 3. Verdicts written by this audit
 
@@ -175,3 +177,132 @@ and to whoever picks up the §5 startup-wiring regression. It is recorded here
 because a verdict-coverage audit that reported "all 18 umbrellas adjudicated"
 while production is down would be repeating the exact mistake the parent bead
 was filed to correct: treating a tidy roll-up as evidence.
+
+## 7. Phase 3 remediated after its verdict was written
+
+The §2 tally records Phase 3 as INCOMPLETE. That was correct on 2026-09-03 and
+is **no longer the state at HEAD** — a finding of this audit's re-check, not a
+correction of the original pass, which judged the code as it stood.
+
+`mtamyway-69cac937` (the push-boot-wiring bead the Phase 3 verdict filed) was
+fixed and closed on 2026-09-04 by commit `6e63d6a`, which restores
+`loadOrGenerateVapidKeys` + `configureWebPush`
+(`packages/server/src/index.ts:166`) and `startPushPipeline` +
+`startBriefingScheduler` (`index.ts:177`) inside the `!CORE_ONLY` gate.
+`isWebPushConfigured` (`packages/server/src/push/vapid.ts:139`) now returns
+true once keys load, so `sender.ts:29` no longer short-circuits every send.
+Verified in-repo 2026-09-04.
+
+Phase 3 therefore reads **SUBSTANTIALLY COMPLETE at HEAD**, not INCOMPLETE.
+Dated `STATUS UPDATE` notes recording this were appended to both variants
+(`mtamyway-0ff80be3`, `mtamyway-928fdc40`) and to both genesis roll-ups, so the
+stale INCOMPLETE cannot be quoted forward. Two things keep it from COMPLETE:
+
+1. **Station-based alert filtering is still dead code.**
+   `getAlertsForStation` (`packages/server/src/alerts-poller.ts:361`) has no
+   production caller — only its own test reaches it — and the alerts route
+   still declares no `stationId` query parameter. Unchanged from the original
+   verdict.
+2. **End-to-end push delivery is unverified in production.** apexalgo-iad is
+   still down (§6). That is a deployment gap owned by `mtamyway-15d23707`, not
+   a code gap.
+
+The §5 security-wiring regression was re-checked at the same time and **still
+holds**: `setSecurityDb`, `initApiKeyRegistryFromDb`, `loadRateLimitDataFromDb`,
+`initPasswordManagementFromDb`, `initNotificationsFromDb`,
+`startSessionCleanup` and `runMigrations` are all absent from
+`packages/server/src/index.ts` (each greps 0 occurrences). `6e63d6a` restored
+the push half of the lost startup wiring only.
+
+## 8. Completeness of the umbrella enumeration
+
+§2 claims the 18 are *every* migration-stamped umbrella. A title-shaped search
+is what lost the two Cross-Cutting beads in the first place, so this audit
+checked the claim against the dependency graph as well: it enumerated all 297
+migration-stamped beads, took every one that blocks ≥2 other beads, and
+removed the 18. **58 beads remain.** None of them is an umbrella, and this
+section records why rather than leaving the reader to trust the count.
+
+**The umbrella criterion.** An umbrella is a bead that stands in for a *whole
+plan.md section* — a `§4` phase or a cross-cutting section (`§9` deployment,
+`§11` testing, `§12` security, `§13` error states, `§14` data migration).
+Structurally these are exactly the genesis's direct children plus the duplicate
+variants the duplicated plan text produced. A bead that aggregates the
+sub-steps of *one feature inside one phase* is a container, not an umbrella:
+its acceptance criteria are a subset of its parent phase's, and the phase
+verdict already cites the code that satisfies it. Writing a second verdict
+there would duplicate the phase note, not add coverage.
+
+### 8.1 Section-shaped containers — 21 beads, no separate verdict needed
+
+These are the ones worth flagging, because their titles name plan-section
+topics and a future auditor could reasonably mistake them for umbrellas. Each
+is a workstream *inside* a section, and each is covered by the verdict named on
+the right. The split between §8.1 and §8.2 is a judgement call at the margin;
+both lists together are exact and disjoint, so nothing is unaccounted for.
+
+| Bead | Title | Covered by |
+|---|---|---|
+| `mtamyway-214ad39f` | Implement OWASP Top 10 protections | Cross-Cutting §3, criteria 3–5 |
+| `mtamyway-c209deb8` | Implement security hardening | Cross-Cutting §3, criteria 3–5 |
+| `mtamyway-4bb717c6` | Fix security misconfigurations | Cross-Cutting §3, criteria 3–5 |
+| `mtamyway-235ca081` | Security: rate limiting, CSP, Zod validation | Cross-Cutting §3, criteria 3–5 |
+| `mtamyway-df190423` | Improve authentication and authorization | Cross-Cutting §3, criterion 5 |
+| `mtamyway-d9380c71` | Strengthen authentication mechanisms | Cross-Cutting §3, criterion 5 |
+| `mtamyway-e8369fd4` | Review and improve password policies | Cross-Cutting §3, criterion 5 |
+| `mtamyway-36ea8a78` | Implement comprehensive testing suite | Cross-Cutting §3, criteria 1–2 |
+| `mtamyway-c73fa64a` | Add audit log integration tests for security events | Cross-Cutting §3, criterion 2 |
+| `mtamyway-fcf1574e` | Implement observability infrastructure | Cross-Cutting §3, criteria 7–8 |
+| `mtamyway-e1a2ff9b` | Observability: structured logging + rich health endpoint | Cross-Cutting §3, criteria 7–8 |
+| `mtamyway-d2ad6a85` | GitHub Actions: CI pipeline + container build | Genesis verdict, CI claim |
+| `mtamyway-91262ee6` | Accessibility: WCAG 2.1 AA compliance | Phase 4 + Phase 6 verdicts |
+| `mtamyway-d7495aa4` | Improve accessibility (WCAG compliance) | Phase 4 verdict |
+| `mtamyway-aee4ad90` | Optimize performance | Phase 4 verdict |
+| `mtamyway-21863985` | Performance: bundle budget, code splitting, Lighthouse 95+ | Phase 4 verdict |
+| `mtamyway-cad6bebb` | Implement offline support | Phase 4 verdict |
+| `mtamyway-41851c2c` | Offline mode: Service Worker caching | Phase 4 verdict |
+| `mtamyway-546f80ac` | Create offline UI indicators | Phase 4 verdict |
+| `mtamyway-8ee198d5` | Implement caching strategies for core assets | Phase 4 verdict |
+| `mtamyway-b21f98e9` | Add comprehensive error states | Phase 4 verdict |
+
+The Cross-Cutting references are to §3 of this document, which lists that
+bead's eight acceptance criteria with code citations.
+
+### 8.2 Feature containers — 37 beads, no separate verdict needed
+
+The rest of the ≥2-dependent set. Each aggregates the sub-steps of a single
+feature inside a single phase, which is what its parent phase's verdict already
+adjudicates. Listed for completeness so the enumeration is checkable rather
+than asserted:
+
+`mtamyway-3207d4c6`, `mtamyway-105d04a5`, `mtamyway-008befe7`,
+`mtamyway-ff55751e` (lint-log capture — agent infrastructure, not product
+scope); `mtamyway-2b854825`, `mtamyway-42d4369d`, `mtamyway-dfdbb16d`,
+`mtamyway-ec370589`, `mtamyway-23bd6b77`, `mtamyway-7651eab6`,
+`mtamyway-91804d2e`, `mtamyway-59957bfb` (Frontend/Backend workstreams of
+Phase 1 and Phase 3); `mtamyway-39c12c34`, `mtamyway-e94e4eda`
+(GTFS pipeline, Phase 1); `mtamyway-3b80818e`, `mtamyway-ff5afcc6`
+(container image + ArgoCD manifests); `mtamyway-ea702489`, `mtamyway-9f0a3b9f`
+(authorization and XSS — single-feature slices of the security workstream);
+`mtamyway-02d24f9b`, `mtamyway-c183c76d`,
+`mtamyway-e1795822`, `mtamyway-e9dc84d1`, `mtamyway-b1895321` (Phase 5);
+`mtamyway-9aebe2ac`, `mtamyway-d90a046b`, `mtamyway-bb3602a2`,
+`mtamyway-463c8990`, `mtamyway-f0b71c4d` (Phase 6); `mtamyway-4df8a18b`,
+`mtamyway-a846d26a` (Phase 7); `mtamyway-4a61f86d`, `mtamyway-fbf45906`
+(Phase 3); `mtamyway-6905d5dd`, `mtamyway-9ee980f4`, `mtamyway-efaca16b`
+(Phase 4); `mtamyway-2ec5dc00`, `mtamyway-69725725` (test-infrastructure
+fixes under Cross-Cutting).
+
+### 8.3 What was *not* migration-stamped and therefore easy to miss
+
+One genesis child is not in the 18 because it was never closed at all:
+`mtamyway-15d23707` (§6). Recording the dependency-graph enumeration here is
+what surfaces it — a title- or timestamp-shaped search alone would not.
+
+## 9. Verdict tally after this audit
+
+COMPLETE ×2 (Phase 7 pair), SUBSTANTIALLY COMPLETE ×14 (Phases 1, 2, 4, 5, 6
+pairs + Cross-Cutting pair + **Phase 3 pair, raised from INCOMPLETE by §7**),
+plus the two genesis roll-ups, which now carry the same Phase 3 correction.
+Every one of the 18 migration-stamped umbrellas carries a dated VERDICT note
+with code citations; no further stragglers exist (§8).
