@@ -1,10 +1,20 @@
 import type { FareCapStatus, FareTracking, RideLogEntry } from "@mta-my-way/shared";
-import { getMonthStartISO, getWeekStartISO } from "@mta-my-way/shared";
+import {
+  MTA_30DAY_UNLIMITED_PASS_PRICE,
+  MTA_BASE_FARE,
+  MTA_BASE_FARE_PREVIOUS,
+  OMNY_WEEKLY_CAP_RIDES,
+  getMonthStartISO,
+  getWeekStartISO,
+} from "@mta-my-way/shared";
 /**
  * fareStore — OMNY fare cap tracker
  *
  * Tracks rides toward OMNY's 12-ride weekly free cap. Auto-logged from
  * commute journal — no manual button.
+ *
+ * Fare amounts come from the MTA published fare configuration in
+ * @mta-my-way/shared — no fare literal is set here.
  *
  * Persisted key: "mta-fare"
  */
@@ -16,17 +26,17 @@ import { createSafeMigration, setMigrationFailed } from "./migration";
 const MAX_RIDE_LOG = 500;
 
 /** OMNY fare cap: after 12 rides in a weekly period, rides are free */
-const FARE_CAP_RIDES = 12;
+const FARE_CAP_RIDES = OMNY_WEEKLY_CAP_RIDES;
 
-/** Default fare tracking state (OMNY defaults as of 2024) */
+/** Default fare tracking state, from the MTA published fare configuration */
 const DEFAULT_TRACKING: FareTracking = {
   weeklyRides: 0,
   weekStartDate: "",
   monthlyRides: 0,
   monthStartDate: "",
   rideLog: [],
-  currentFare: 2.9,
-  unlimitedPassPrice: 132,
+  currentFare: MTA_BASE_FARE,
+  unlimitedPassPrice: MTA_30DAY_UNLIMITED_PASS_PRICE,
 };
 
 /**
@@ -111,11 +121,29 @@ interface FareState {
 }
 
 /** Current schema version for this store */
-const STORE_VERSION = 1;
+const STORE_VERSION = 2;
+
+/**
+ * v1 -> v2: the MTA published base fare rose to $3.00 on 2026-01-04. A stored
+ * fare equal to the previous published default means the rider never customized
+ * it, so carry them to the new default. Any other value is a deliberate user
+ * override and is left alone.
+ */
+export function migrateFareStateV1ToV2(state: unknown): unknown {
+  const previous = state as { tracking?: FareTracking };
+  if (!previous.tracking || previous.tracking.currentFare !== MTA_BASE_FARE_PREVIOUS) {
+    return state;
+  }
+  return {
+    ...previous,
+    tracking: { ...previous.tracking, currentFare: MTA_BASE_FARE },
+  };
+}
 
 /** Migration functions keyed by target version */
 const migrations = new Map<number, (state: unknown) => unknown>([
   // Version 1: Initial schema - no migration needed
+  [2, migrateFareStateV1ToV2],
 ]);
 
 const persistConfig: PersistOptions<FareState> = {

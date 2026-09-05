@@ -5,7 +5,13 @@
  */
 
 import type { RideLogEntry } from "@mta-my-way/shared";
+import {
+  MTA_30DAY_UNLIMITED_PASS_PRICE,
+  MTA_BASE_FARE,
+  MTA_BASE_FARE_PREVIOUS,
+} from "@mta-my-way/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { migrateFareStateV1ToV2 } from "./fareStore";
 
 // Mock the migration module
 vi.mock("./migration", () => ({
@@ -43,8 +49,8 @@ describe("fareStore", () => {
       expect(state.tracking.weeklyRides).toBe(0);
       expect(state.tracking.monthlyRides).toBe(0);
       expect(state.tracking.rideLog).toEqual([]);
-      expect(state.tracking.currentFare).toBe(2.9);
-      expect(state.tracking.unlimitedPassPrice).toBe(132);
+      expect(state.tracking.currentFare).toBe(MTA_BASE_FARE);
+      expect(state.tracking.unlimitedPassPrice).toBe(MTA_30DAY_UNLIMITED_PASS_PRICE);
     });
 
     it("has empty ride log initially", async () => {
@@ -283,7 +289,7 @@ describe("fareStore", () => {
     it("calculates weekly spend correctly", async () => {
       const { useFareStore } = await import("./fareStore");
 
-      // Add 5 rides at $2.90 each
+      // Add 5 rides at the configured base fare
       for (let i = 0; i < 5; i++) {
         const entry: RideLogEntry = {
           date: new Date().toISOString(),
@@ -296,7 +302,7 @@ describe("fareStore", () => {
 
       const capStatus = useFareStore.getState().getCapStatus();
 
-      expect(capStatus.weeklySpend).toBe(5 * 2.9);
+      expect(capStatus.weeklySpend).toBe(5 * MTA_BASE_FARE);
     });
 
     it("caps weekly spend at 12 rides", async () => {
@@ -316,7 +322,7 @@ describe("fareStore", () => {
       const capStatus = useFareStore.getState().getCapStatus();
 
       // Spend should only count first 12 rides
-      expect(capStatus.weeklySpend).toBe(12 * 2.9);
+      expect(capStatus.weeklySpend).toBe(12 * MTA_BASE_FARE);
     });
 
     it("calculates break-even correctly", async () => {
@@ -324,8 +330,8 @@ describe("fareStore", () => {
 
       const capStatus = useFareStore.getState().getCapStatus();
 
-      // Break-even at $132 / $2.90 = ~46 rides
-      expect(capStatus.breakEvenSpend).toBeCloseTo(132, 0);
+      // Break-even at the published unlimited pass price
+      expect(capStatus.breakEvenSpend).toBeCloseTo(MTA_30DAY_UNLIMITED_PASS_PRICE, 0);
     });
 
     it("determines if unlimited would be cheaper", async () => {
@@ -416,6 +422,28 @@ describe("fareStore", () => {
       const capStatus = useFareStore.getState().getCapStatus();
 
       expect(capStatus.breakEvenSpend).toBeCloseTo(1000, 0);
+    });
+  });
+
+  describe("migrateFareStateV1ToV2", () => {
+    it("carries an un-customized fare to the newly published default", () => {
+      const migrated = migrateFareStateV1ToV2({
+        tracking: { currentFare: MTA_BASE_FARE_PREVIOUS, rideLog: [] },
+      }) as { tracking: { currentFare: number } };
+
+      expect(migrated.tracking.currentFare).toBe(MTA_BASE_FARE);
+    });
+
+    it("leaves a deliberate user override alone", () => {
+      const migrated = migrateFareStateV1ToV2({
+        tracking: { currentFare: 1.5, rideLog: [] },
+      }) as { tracking: { currentFare: number } };
+
+      expect(migrated.tracking.currentFare).toBe(1.5);
+    });
+
+    it("tolerates missing tracking state", () => {
+      expect(migrateFareStateV1ToV2({})).toEqual({});
     });
   });
 });

@@ -221,6 +221,15 @@ export {
 
 export type { LineMetadata } from "./constants/lines.js";
 
+// MTA published fares
+export {
+  MTA_BASE_FARE,
+  MTA_BASE_FARE_PREVIOUS,
+  MTA_30DAY_UNLIMITED_PASS_PRICE,
+  OMNY_WEEKLY_CAP_RIDES,
+  OMNY_WEEKLY_FARE_CAP,
+} from "./constants/fares.js";
+
 // =============================================================================
 // Utilities
 // =============================================================================

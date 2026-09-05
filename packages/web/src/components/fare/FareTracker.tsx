@@ -2,16 +2,22 @@
  * FareTracker - OMNY fare cap progress indicator.
  *
  * Shows:
- *   - Weekly progress toward 12-ride cap ("X/12 rides — Y more until free")
- *   - Monthly comparison vs $132 unlimited pass
+ *   - Weekly progress toward the cap ("X/12 rides — Y more until free")
+ *   - Monthly comparison vs the 30-day unlimited pass
  *   - Nudge at 10-11 rides to take one more round trip for free rides
  *
  * Auto-populated from commute journal trips — no manual logging.
+ *
+ * Every figure here is an estimate: rides are inferred from tracking, fares
+ * come from the MTA published fare configuration, and OMNY itself caps on
+ * dollars paid per 7-day period rather than on a ride count. The UI labels
+ * the card accordingly.
  */
+import { OMNY_WEEKLY_CAP_RIDES, OMNY_WEEKLY_FARE_CAP } from "@mta-my-way/shared";
 import { useFareStore } from "../../stores";
 
-/** OMNY fare cap: 12 rides per week = free */
-const FARE_CAP_RIDES = 12;
+/** OMNY fare cap: rides per weekly period before rides are free */
+const FARE_CAP_RIDES = OMNY_WEEKLY_CAP_RIDES;
 
 export function FareTracker() {
   const weeklyRides = useFareStore((s) => s.tracking.weeklyRides);
@@ -40,7 +46,10 @@ export function FareTracker() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-base text-text-primary dark:text-dark-text-primary">
-          OMNY Fare Cap
+          OMNY Fare Cap{" "}
+          <span className="text-11 font-medium align-middle text-text-secondary dark:text-dark-text-secondary border border-background dark:border-dark-background rounded px-1.5 py-0.5">
+            Estimate
+          </span>
         </h3>
         <span className="text-13 text-text-secondary dark:text-dark-text-secondary tabular-nums">
           ${currentFare.toFixed(2)}/ride
@@ -53,7 +62,7 @@ export function FareTracker() {
           <span className="text-13 font-medium text-text-primary dark:text-dark-text-primary">
             {capReached ? (
               <>
-                {capStatus.ridesThisWeek}/12 —{" "}
+                {capStatus.ridesThisWeek}/{FARE_CAP_RIDES} —{" "}
                 <span className="text-green-600 dark:text-green-400">Free rides!</span>
               </>
             ) : (
@@ -129,6 +138,13 @@ export function FareTracker() {
           </div>
         </div>
       )}
+
+      {/* Estimate disclosure: fares come from configuration, OMNY caps on dollars paid */}
+      <p className="mt-3 pt-3 border-t border-background dark:border-dark-background text-11 text-text-secondary dark:text-dark-text-secondary">
+        Estimate — based on the ${currentFare.toFixed(2)} fare and the published $
+        {OMNY_WEEKLY_FARE_CAP} 7-day cap. OMNY caps on dollars paid from your first tap, so actual
+        free rides may differ.
+      </p>
     </article>
   );
 }

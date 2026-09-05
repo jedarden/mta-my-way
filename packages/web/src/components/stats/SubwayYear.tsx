@@ -19,6 +19,7 @@
 
 import type { TripRecord } from "@mta-my-way/shared";
 import {
+  OMNY_WEEKLY_CAP_RIDES,
   calculateCO2SavingsKg,
   formatCarbonSavings,
   formatDuration,
@@ -494,7 +495,7 @@ export function SubwayYear({ timeWindow = "year", fromDate }: SubwayYearProps) {
             <div className="text-right">
               <p className="text-sm text-yellow-800 dark:text-yellow-300">Rides This Week</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {fareTracking.weeklyRides}/12
+                {fareTracking.weeklyRides}/{OMNY_WEEKLY_CAP_RIDES}
               </p>
             </div>
           </div>
