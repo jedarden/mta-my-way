@@ -8,13 +8,19 @@
  */
 
 import type {
+  ArrivalTime,
   Commute,
+  CommuteAnalysis,
+  DirectRoute,
   Favorite,
   FavoriteTapEvent,
   InterpolatedTrainPosition,
   LineDiagramData,
   LineHealthStatus,
+  RecommendationDetails,
   StationAlert,
+  TransferLeg,
+  TransferRoute,
 } from "@mta-my-way/shared";
 import { vi } from "vitest";
 import type { FeedHealthInfo } from "../lib/api";
@@ -115,6 +121,85 @@ export const makeFeedHealth = (overrides: Partial<FeedHealthInfo> = {}): FeedHea
   lastError: null,
   avgLatencyMs: 100,
   errorCount24h: 0,
+  ...overrides,
+});
+
+/** A single predicted train arrival at a station. */
+export const makeArrival = (overrides: Partial<ArrivalTime> = {}): ArrivalTime => ({
+  tripId: "trip-1",
+  line: "1",
+  direction: "N",
+  destination: "Van Cortlandt Park-242 St",
+  arrivalTime: Math.floor(Date.now() / 1000) + 300,
+  minutesAway: 5,
+  confidence: "high",
+  isAssigned: true,
+  isRerouted: false,
+  isExpress: false,
+  feedName: "gtfs",
+  feedAge: 10,
+  ...overrides,
+});
+
+/** A no-transfer route between a commute's endpoints. */
+export const makeDirectRoute = (overrides: Partial<DirectRoute> = {}): DirectRoute => ({
+  line: "1",
+  direction: "N",
+  nextArrivals: [makeArrival()],
+  estimatedTravelMinutes: 18,
+  estimatedArrivalAtDestination: Math.floor(Date.now() / 1000) + 1380,
+  isExpress: false,
+  ...overrides,
+});
+
+/** One leg of a transfer route. */
+export const makeTransferLeg = (overrides: Partial<TransferLeg> = {}): TransferLeg => ({
+  line: "1",
+  direction: "N",
+  boardAt: { stationId: "725", stationName: "Times Sq-42 St" },
+  alightAt: { stationId: "128", stationName: "72 St" },
+  nextArrival: makeArrival(),
+  estimatedTravelMinutes: 9,
+  isExpress: false,
+  ...overrides,
+});
+
+/** A route requiring one transfer. */
+export const makeTransferRoute = (overrides: Partial<TransferRoute> = {}): TransferRoute => ({
+  legs: [
+    makeTransferLeg(),
+    makeTransferLeg({ line: "2", alightAt: { stationId: "101", stationName: "South Ferry" } }),
+  ],
+  totalEstimatedMinutes: 22,
+  estimatedArrivalAtDestination: Math.floor(Date.now() / 1000) + 1260,
+  timeSavedVsDirect: 120,
+  transferStation: { stationId: "128", stationName: "72 St" },
+  ...overrides,
+});
+
+/** The TransferEngine's reasoning for its recommended route type. */
+export const makeRecommendationDetails = (
+  overrides: Partial<RecommendationDetails> = {}
+): RecommendationDetails => ({
+  type: "transfer",
+  reason: "Transfer saves 2 min vs direct",
+  confidence: "high",
+  risks: [],
+  timeSavedMinutes: 2,
+  isStale: false,
+  ...overrides,
+});
+
+/** A full commute analysis as returned by POST /api/commute/analyze. */
+export const makeCommuteAnalysis = (overrides: Partial<CommuteAnalysis> = {}): CommuteAnalysis => ({
+  commuteId: "commute-1",
+  origin: { stationId: "725", stationName: "Times Sq-42 St" },
+  destination: { stationId: "101", stationName: "South Ferry" },
+  directRoutes: [makeDirectRoute()],
+  transferRoutes: [makeTransferRoute()],
+  recommendation: "transfer",
+  recommendationDetails: makeRecommendationDetails(),
+  timestamp: Math.floor(Date.now() / 1000),
   ...overrides,
 });
 

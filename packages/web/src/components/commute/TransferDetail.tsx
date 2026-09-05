@@ -1,6 +1,9 @@
 /**
  * TransferDetail - Full commute analysis with RECOMMENDED, DIRECT, and ALSO POSSIBLE sections.
  *
+ * Leads with the engine's recommendationDetails (reason, confidence, risks,
+ * timeSavedMinutes, isStale) via RecommendationWhy.
+ *
  * Shows each route's leg-by-leg breakdown including:
  *   - Board/alight stations
  *   - Next arrival time (minutesAway)
@@ -17,20 +20,17 @@ import { formatMinutesAway, formatTime } from "@mta-my-way/shared";
 import { sanitizeUserInput } from "../../lib/outputEncoding";
 import { ConfidenceBar } from "../arrivals/ConfidenceBar";
 import { LineBullet } from "../arrivals/LineBullet";
+import { RecommendationWhy } from "./RecommendationWhy";
 
 interface TransferDetailProps {
   analysis: CommuteAnalysis;
 }
 
 export function TransferDetail({ analysis }: TransferDetailProps) {
-  const { directRoutes, transferRoutes, recommendation } = analysis;
+  const { directRoutes, transferRoutes, recommendation, recommendationDetails } = analysis;
 
   const bestDirect = directRoutes[0] ?? null;
   const bestTransfer = transferRoutes[0] ?? null;
-  const timeSavedMin =
-    bestTransfer && bestTransfer.timeSavedVsDirect > 0
-      ? Math.round(bestTransfer.timeSavedVsDirect / 60)
-      : 0;
 
   const hasNoRoutes = !bestDirect && !bestTransfer;
 
@@ -56,28 +56,8 @@ export function TransferDetail({ analysis }: TransferDetailProps) {
 
   return (
     <div className="space-y-4">
-      {/* Saves badge */}
-      {recommendation === "transfer" && timeSavedMin > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-green-600 dark:text-green-400 shrink-0"
-            aria-hidden="true"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <span className="text-13 font-semibold text-green-700 dark:text-green-400">
-            Transfer saves {timeSavedMin} min
-          </span>
-        </div>
-      )}
+      {/* Why this recommendation — reason, confidence, risks, time saved, staleness */}
+      <RecommendationWhy details={recommendationDetails} />
 
       {/* RECOMMENDED */}
       {recommendedRoute && (
