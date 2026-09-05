@@ -13,7 +13,7 @@
  */
 
 import { getLineColor, getLineTextColor } from "@mta-my-way/shared";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useGeolocation } from "../../hooks/useGeolocation";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useStationIndex } from "../../hooks/useStationIndex";
@@ -74,11 +74,21 @@ export default function OnboardingFlow() {
   } = usePushNotifications();
   const { stations, complexes, loading: stationsLoading } = useStationIndex();
 
-  // When we get coordinates, find nearby stations
-  const nearbyStations: NearbyStation[] =
-    coordinates && !stationsLoading
-      ? findNearbyStations(coordinates.lat, coordinates.lon, stations, complexes)
-      : [];
+  // When we get coordinates, find nearby stations.
+  //
+  // Memoized: findNearbyStations returns a fresh array, and the pre-select
+  // effect below both depends on this value and sets state from it. Computing
+  // it inline meant every render handed the effect a new identity, so it
+  // called setSelectedStations with a new array on every pass and re-rendered
+  // unbounded — an infinite loop for any user who reaches this step with at
+  // least one station nearby.
+  const nearbyStations = useMemo<NearbyStation[]>(
+    () =>
+      coordinates && !stationsLoading
+        ? findNearbyStations(coordinates.lat, coordinates.lon, stations, complexes)
+        : [],
+    [coordinates, stationsLoading, stations, complexes]
+  );
 
   // If user is not in NYC area, fall back to search
   const userInNYC = coordinates ? isInNYCArea(coordinates.lat, coordinates.lon) : true;
