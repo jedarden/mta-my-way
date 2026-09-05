@@ -33,8 +33,13 @@ function worstStatus(a: LineStatus, b: LineStatus): LineStatus {
   return rank[a] >= rank[b] ? a : b;
 }
 
-/** Aggregate all alerts into per-line health status */
-function computeLineHealth(alerts: StationAlert[]): {
+/**
+ * Aggregate all alerts into per-line health status.
+ *
+ * Exported so screens that already hold the alerts list (Alerts) can derive
+ * line status without a second /api/alerts fetch alongside useSystemHealth.
+ */
+export function computeLineHealth(alerts: StationAlert[]): {
   lines: LineHealthStatus[];
   healthPercentage: number;
 } {
