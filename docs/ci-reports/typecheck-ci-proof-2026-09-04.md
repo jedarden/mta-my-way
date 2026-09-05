@@ -250,3 +250,19 @@ deadline`. Both are test-step problems with a separate owner — classified in
 [`test-step-monitor-2026-09-04.md`](./test-step-monitor-2026-09-04.md), which
 remains the open CI work. Nothing in this addendum claims the pipeline is green
 end to end.
+
+### Postscript — the push of this report was measured too
+
+Publishing the addendum above (commit `baab390`) triggered the sensor as every
+push does, and the resulting runs were watched through the transition as well.
+`packages/` is empty in `git diff 9e40601..origin/main`, so the tree is
+typecheck-identical. On head `4492b5c` (`0.0.386`, the auto-bump on top of this
+report):
+
+| Run | Created (Z) | `resolve-version` | `lint` | `typecheck` | `test` |
+|---|---|---|---|---|---|
+| `mta-my-way-build-h697t` | 23:54:48 | Succeeded | **Succeeded** | **Succeeded** | entered, Running at 00:03Z |
+| `mta-my-way-build-zgj2l` | 23:55:12 | Succeeded | **Succeeded** | **Succeeded** | entered, Running at 00:03Z |
+
+Seven `mta-my-way-build` runs across four heads on the day now record the
+green group-[1] → `test` transition.
