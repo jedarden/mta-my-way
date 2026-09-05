@@ -12,9 +12,6 @@ export { DataState } from "./DataState";
 export { OfflineBanner } from "./OfflineBanner";
 export { NetworkStatusIndicator } from "./NetworkStatusIndicator";
 
-// Image components
-export { default as LazyImage } from "./LazyImage";
-
 // Empty state components
 export {
   EmptyFavorites,
