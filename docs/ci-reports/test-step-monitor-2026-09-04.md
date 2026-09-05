@@ -78,6 +78,59 @@ wiring uses.
 — the module lives at `packages/server/src/middleware/request-id.ts`. The import
 at that file's line 60 is simply wrong, independent of the wiring problem.
 
+### A′. Correction (2026-09-04, later) — the wiring is NOT what holds these suites red
+
+Bead `mtamyway-022beb5e` restored the dropped security startup wiring and fixed
+the import paths above, and **the 12 suites did not change**. Section A's causal
+claim is wrong, and the signature list above is misleading. What is actually
+true:
+
+- **None of the 12 suites import `src/index.ts`.** They all build their own
+  `Hono` apps or call the middleware directly, so no amount of entry-point
+  wiring can reach them. Verified two ways: grep for an `index.js` import
+  across all 12 (zero hits), and empirically — after the wiring landed, the 11
+  loadable suites had byte-identical failure sets to before.
+- **The suites are red because the test code targets middleware APIs that do
+  not exist.** Concrete examples: `contentType()` (the module exports
+  `validateContentType`/`requireJson`/`requireFormData`),
+  `authRateLimit({ tier: "strict" })` (the real signature is
+  `authRateLimit(tier, options)` — see `auth-rate-limit.test.ts`, which uses it
+  correctly and passes), `createMockSecurityMiddleware` (not exported),
+  and bare `userCredentials` / `guestCredentials` / `app` / `cleanupAllState`
+  references that were never declared.
+- **The "expected 200 to be 403" signatures are stale test expectations, not a
+  wiring symptom.** The tests were written for a middleware chain whose
+  status codes have since changed.
+- The counts moved 75 → 97 between this pass and the re-wiring only because
+  fixing the two import paths let `audit-log-comprehensive-security-coverage`
+  load at all: it went from "file fails at import, contributes 0 tests" to
+  "22 tests, all failing on the stale-API problem above." Nothing else moved.
+
+The wiring restoration was still correct and necessary — without it the
+`security_*` tables are never created (the lazy push schema only creates
+`push_subscriptions`), so API keys, password reset state, rate-limit bans and
+notification preferences do not survive a restart, and sessions are never
+reaped. That is a production defect independent of these suites. But turning
+section A green is a test-rewrite task across ~10 stale files, not a wiring
+task, and it is not covered by `mtamyway-022beb5e`.
+
+Landed 2026-09-04, re-verified independently:
+
+- `packages/server/src/index.test.ts` — 10/10 pass, including the 4 new
+  `security startup wiring` tests covering all seven calls, the
+  migrations-before-hydration ordering, degraded mode on a database open
+  failure, and the `!CORE_ONLY` skip.
+- `tsc --build --force` exits 0 across the tree.
+- `audit-log-comprehensive-security-coverage` now loads and contributes 22
+  tests to the run (previously it failed at import and contributed 0). All 22
+  fail on the stale-API problem above, first error being
+  `TypeError: contentType is not a function`.
+- `audit-log-middleware-security-events` still fails 12, but its three
+  `authRateLimit` calls now use the real positional `(tier, options)`
+  signature, so those tests exercise the middleware and fail on their
+  assertions instead of on the call shape.
+- Relative imports in both suites re-audited: 0 unresolved.
+
 ### B. Per-test 5s timeouts under CI CPU limits — 7 suites, 12 failing tests
 
 `Error: Test timed out in 5000ms` in: `integration/cache-coherency`,

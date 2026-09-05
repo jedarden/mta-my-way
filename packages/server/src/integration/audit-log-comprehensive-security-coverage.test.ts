@@ -55,10 +55,14 @@ import { jsonDepthProtection } from "../middleware/json-depth-protection.js";
 import { hppProtection } from "../middleware/parameter-pollution.js";
 import { pathTraversalPrevention } from "../middleware/path-traversal.js";
 import { rateLimiter } from "../middleware/rate-limiter.js";
+import { requestId } from "../middleware/request-id.js";
 import { responseSizeLimits } from "../middleware/response-size-limits.js";
+import { securityHeaders } from "../middleware/security-headers.js";
 import { ssrfProtection } from "../middleware/ssrf-protection.js";
-import { requestId } from "./request-id.js";
-import { securityHeaders } from "./security-headers.js";
+// Every middleware under test lives in ../middleware — none of them are local
+// to integration/. A "./" path here does not resolve, and because the failure
+// happens at import time it drops all of this file's tests from the run
+// instead of reporting them as failures.
 import { cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------

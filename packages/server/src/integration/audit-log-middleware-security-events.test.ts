@@ -1679,7 +1679,9 @@ describe("Audit logging for middleware security events", () => {
       const { authRateLimit } = await import("../middleware/auth-rate-limit.js");
 
       const app = new Hono();
-      app.use("/api/login", authRateLimit({ tier: "strict" }));
+      // authRateLimit takes the tier positionally: authRateLimit(tier, options).
+      // The object form ({ tier: "strict" }) is not a valid overload.
+      app.use("/api/login", authRateLimit("strict"));
       app.post("/api/login", (c) => c.json({ success: true }));
 
       const testIp = "10.0.0.140";
@@ -1714,7 +1716,7 @@ describe("Audit logging for middleware security events", () => {
       const { authRateLimit } = await import("../middleware/auth-rate-limit.js");
 
       const app = new Hono();
-      app.use("/api/auth", authRateLimit({ tier: "aggressive" }));
+      app.use("/api/auth", authRateLimit("aggressive"));
       app.post("/api/auth", (c) => c.json({ success: true }));
 
       const testIp = "10.0.0.141";
@@ -1747,7 +1749,7 @@ describe("Audit logging for middleware security events", () => {
       const { authRateLimit } = await import("../middleware/auth-rate-limit.js");
 
       const app = new Hono();
-      app.use("/api/reset", authRateLimit({ tier: "strict" }));
+      app.use("/api/reset", authRateLimit("strict"));
       app.post("/api/reset", (c) => c.json({ success: true }));
 
       const testIp = "10.0.0.142";

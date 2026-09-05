@@ -123,6 +123,7 @@ vi.mock("./push/subscriptions.js", () => ({
   initPushDatabase: vi.fn(),
   isPushDatabaseReady: vi.fn(() => false),
   getPushDatabaseInitError: vi.fn(() => null),
+  withPushDatabase: vi.fn(),
 }));
 
 vi.mock("./push/vapid.js", () => ({
@@ -138,6 +139,7 @@ vi.mock("./security-startup.js", () => ({
 vi.mock("./security/security-db.js", () => ({
   setSecurityDb: vi.fn(),
   isSecurityDbReady: vi.fn(() => false),
+  resetSecurityDbForTesting: vi.fn(),
   loadApiKeyRegistry: vi.fn(() => []),
   loadRateLimitBans: vi.fn(() => new Map()),
   loadTrustedIps: vi.fn(() => new Set()),
@@ -591,6 +593,194 @@ describe("Server Entry Point", () => {
       expect(vapid.configureWebPush).not.toHaveBeenCalled();
       expect(pipeline.startPushPipeline).not.toHaveBeenCalled();
       expect(briefing.startBriefingScheduler).not.toHaveBeenCalled();
+      expect(process.exitCode).toBeUndefined();
+    });
+  });
+
+  describe("security startup wiring", () => {
+    /**
+     * Reset the module registry, reconfigure the mocks index.ts consumes, and
+     * import the entry point so main() runs against them. Same shape as the
+     * push wiring helper above; returns the security-side mock modules so
+     * tests can assert on the wiring.
+     *
+     * CORE_ONLY is read by ./config.js at import time, so it is set here
+     * before index.js (and config.js) are imported.
+     */
+    async function importServer(options: { coreOnly?: boolean; dbError?: Error } = {}) {
+      vi.resetModules();
+      vi.clearAllMocks();
+      process.exitCode = undefined;
+
+      if (options.coreOnly) {
+        process.env.CORE_ONLY = "true";
+      } else {
+        delete process.env.CORE_ONLY;
+      }
+
+      mockReadFile.mockImplementation((path: unknown) => {
+        const pathStr = String(path);
+        if (pathStr.includes("stations.json")) {
+          return Promise.resolve(JSON.stringify(mockStations));
+        }
+        if (pathStr.includes("routes.json")) {
+          return Promise.resolve(JSON.stringify(mockRoutes));
+        }
+        if (pathStr.includes("complexes.json")) {
+          return Promise.resolve(JSON.stringify(mockComplexes));
+        }
+        if (pathStr.includes("transfers.json")) {
+          return Promise.resolve(JSON.stringify(mockTransfers));
+        }
+        if (pathStr.includes("travel-times.json")) {
+          return Promise.resolve(JSON.stringify(mockTravelTimes));
+        }
+        return Promise.resolve("{}");
+      });
+
+      const { serve } = await import("@hono/node-server");
+      vi.mocked(serve).mockImplementation((_fetch: unknown, _callback?: unknown) => {
+        const callback = _callback as ((info: { port: number }) => void) | undefined;
+        callback?.({ port: parseInt(process.env.PORT || "3001", 10) });
+        return { port: parseInt(process.env.PORT || "3001", 10), close: vi.fn() };
+      });
+
+      const subscriptions = await import("./push/subscriptions.js");
+      const vapid = await import("./push/vapid.js");
+      const migration = await import("./migration/index.js");
+      const securityDb = await import("./security/security-db.js");
+      const apiKey = await import("./middleware/api-key-management.js");
+      const authRateLimit = await import("./middleware/auth-rate-limit.js");
+      const passwordManagement = await import("./middleware/password-management.js");
+      const notifications = await import("./middleware/suspicious-activity-notifications.js");
+      const sessions = await import("./middleware/concurrent-session-management.js");
+      const { loadTravelTimes } = await import("./transfer/travel-times.js");
+
+      vi.mocked(loadTravelTimes).mockResolvedValue(mockTravelTimes);
+      vi.mocked(vapid.loadOrGenerateVapidKeys).mockResolvedValue({
+        publicKey: "test-public-key",
+        privateKey: "test-private-key",
+      });
+
+      if (options.dbError) {
+        vi.mocked(subscriptions.withPushDatabase).mockRejectedValue(options.dbError);
+      } else {
+        vi.mocked(subscriptions.withPushDatabase).mockImplementation(async (operation) =>
+          operation(mockDb)
+        );
+        vi.mocked(migration.runMigrations).mockResolvedValue([]);
+      }
+
+      await import("./index.js");
+
+      // main() runs detached — wait for it to reach the HTTP server.
+      await vi.waitFor(() => expect(serve as ReturnType<typeof vi.fn>).toHaveBeenCalled());
+
+      return {
+        serve,
+        subscriptions,
+        migration,
+        securityDb,
+        apiKey,
+        authRateLimit,
+        passwordManagement,
+        notifications,
+        sessions,
+      };
+    }
+
+    afterEach(() => {
+      delete process.env.CORE_ONLY;
+    });
+
+    it("wires security persistence and starts session cleanup before the server reports ready", async () => {
+      const {
+        serve,
+        migration,
+        securityDb,
+        apiKey,
+        authRateLimit,
+        passwordManagement,
+        notifications,
+        sessions,
+      } = await importServer();
+
+      expect(migration.runMigrations).toHaveBeenCalledWith(mockDb);
+      expect(securityDb.setSecurityDb).toHaveBeenCalledWith(mockDb);
+      expect(apiKey.initApiKeyRegistryFromDb).toHaveBeenCalledTimes(1);
+      expect(authRateLimit.loadRateLimitDataFromDb).toHaveBeenCalledTimes(1);
+      expect(passwordManagement.initPasswordManagementFromDb).toHaveBeenCalledTimes(1);
+      expect(notifications.initNotificationsFromDb).toHaveBeenCalledTimes(1);
+      expect(sessions.startSessionCleanup).toHaveBeenCalledTimes(1);
+
+      // The registry must be loaded before the HTTP server accepts requests —
+      // otherwise API keys answer 401 until something happens to touch the DB.
+      const registryOrder = vi.mocked(apiKey.initApiKeyRegistryFromDb).mock.invocationCallOrder[0];
+      const setSecurityDbOrder = vi.mocked(securityDb.setSecurityDb).mock.invocationCallOrder[0];
+      const serveOrder = vi.mocked(serve as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
+      expect(registryOrder).toBeDefined();
+      expect(registryOrder).toBeLessThan(serveOrder);
+      expect(setSecurityDbOrder).toBeLessThan(serveOrder);
+
+      // A wiring failure inside main() is swallowed by its catch handler, so
+      // assert startup actually ran to completion.
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it("runs migrations before hydrating the security stores", async () => {
+      const { migration, securityDb, apiKey } = await importServer();
+
+      const migrationsOrder = vi.mocked(migration.runMigrations).mock.invocationCallOrder[0];
+      const setSecurityDbOrder = vi.mocked(securityDb.setSecurityDb).mock.invocationCallOrder[0];
+      const hydrateOrder = vi.mocked(apiKey.initApiKeyRegistryFromDb).mock.invocationCallOrder[0];
+      expect(migrationsOrder).toBeLessThan(setSecurityDbOrder);
+      expect(setSecurityDbOrder).toBeLessThan(hydrateOrder);
+    });
+
+    it("degrades to unavailable security persistence when the database cannot be opened", async () => {
+      const {
+        migration,
+        securityDb,
+        apiKey,
+        authRateLimit,
+        passwordManagement,
+        notifications,
+        sessions,
+      } = await importServer({ dbError: new Error("EACCES: subscriptions.db unwritable") });
+
+      // Nothing was hydrated — the stores stay unwired rather than half-wired.
+      expect(migration.runMigrations).not.toHaveBeenCalled();
+      expect(securityDb.setSecurityDb).not.toHaveBeenCalled();
+      expect(apiKey.initApiKeyRegistryFromDb).not.toHaveBeenCalled();
+      expect(authRateLimit.loadRateLimitDataFromDb).not.toHaveBeenCalled();
+      expect(passwordManagement.initPasswordManagementFromDb).not.toHaveBeenCalled();
+      expect(notifications.initNotificationsFromDb).not.toHaveBeenCalled();
+
+      // Session expiry is in-memory, so it still starts.
+      expect(sessions.startSessionCleanup).toHaveBeenCalledTimes(1);
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it("skips security persistence entirely in CORE_ONLY mode", async () => {
+      const {
+        subscriptions,
+        migration,
+        securityDb,
+        apiKey,
+        authRateLimit,
+        passwordManagement,
+        notifications,
+        sessions,
+      } = await importServer({ coreOnly: true });
+
+      expect(subscriptions.withPushDatabase).not.toHaveBeenCalled();
+      expect(migration.runMigrations).not.toHaveBeenCalled();
+      expect(securityDb.setSecurityDb).not.toHaveBeenCalled();
+      expect(apiKey.initApiKeyRegistryFromDb).not.toHaveBeenCalled();
+      expect(authRateLimit.loadRateLimitDataFromDb).not.toHaveBeenCalled();
+      expect(passwordManagement.initPasswordManagementFromDb).not.toHaveBeenCalled();
+      expect(notifications.initNotificationsFromDb).not.toHaveBeenCalled();
+      expect(sessions.startSessionCleanup).not.toHaveBeenCalled();
       expect(process.exitCode).toBeUndefined();
     });
   });

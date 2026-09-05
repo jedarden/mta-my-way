@@ -27,14 +27,21 @@ import { initDelayDetector } from "./delay-detector.js";
 import { initDelayPredictor, initDelayPredictorForTesting } from "./delay-predictor.js";
 import { initEquipmentPoller, startEquipmentPoller } from "./equipment-poller.js";
 import { startGtfsRefreshScheduler } from "./gtfs-refresh.js";
+import { initApiKeyRegistryFromDb } from "./middleware/api-key-management.js";
+import { loadRateLimitDataFromDb } from "./middleware/auth-rate-limit.js";
+import { startSessionCleanup } from "./middleware/concurrent-session-management.js";
+import { initPasswordManagementFromDb } from "./middleware/password-management.js";
 import { setRateLimiterTestMode } from "./middleware/rate-limiter.js";
+import { initNotificationsFromDb } from "./middleware/suspicious-activity-notifications.js";
+import { runMigrations } from "./migration/index.js";
 import { initObservability, logger, shutdownObservability } from "./observability/index.js";
 import { initPoller, startPoller } from "./poller.js";
 import { startBriefingScheduler } from "./push/briefing.js";
 import { startPushPipeline } from "./push/index.js";
-import { configurePushDatabase } from "./push/subscriptions.js";
+import { configurePushDatabase, withPushDatabase } from "./push/subscriptions.js";
 import { configureWebPush, isWebPushConfigured, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
+import { setSecurityDb } from "./security/security-db.js";
 import { configureEmailProvider } from "./services/password-reset.service.js";
 import { runStartupChecks } from "./startup-check.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
@@ -177,16 +184,57 @@ async function main(): Promise<void> {
     startPushPipeline();
     startBriefingScheduler();
 
-    // Note: Database migrations and remaining DB-dependent services
-    // initialization are deferred — they are triggered on first use of
-    // DB-dependent features. If the DB cannot be opened, those features
-    // return 503 while core functionality remains available.
+    // Security persistence. API keys, password reset state, rate-limit bans,
+    // notification preferences and sessions only survive a restart if they are
+    // hydrated from SQLite before the server accepts traffic, so this runs
+    // eagerly rather than on first use — unlike the push reads above.
+    //
+    // Migrations run first: the lazy push schema creates only
+    // push_subscriptions, and every loader below reads a security_* table that
+    // does not exist until they are applied.
+    //
+    // A failure degrades the same way the push subsystem does — the security
+    // stores stay unwired (their writes no-op and their reads come back empty)
+    // and core endpoints stay available — rather than blocking startup.
+    let securityPersistence: "ready" | "degraded" = "degraded";
+    try {
+      await withPushDatabase(async (pushDb) => {
+        const results = await runMigrations(pushDb);
+        const applied = results.filter((r) => r.applied);
+        if (applied.length > 0) {
+          logger.info("Database migrations applied", {
+            count: applied.length,
+            versions: applied.map((r) => r.version),
+          });
+        }
+
+        // Must follow runMigrations so the tables these read exist.
+        setSecurityDb(pushDb);
+        await initApiKeyRegistryFromDb();
+        // The remaining three hydrators are synchronous (they return void, not
+        // a promise), so they are called un-awaited on purpose — only the API
+        // key registry has an async body to wait for.
+        loadRateLimitDataFromDb();
+        initPasswordManagementFromDb();
+        initNotificationsFromDb();
+      });
+      securityPersistence = "ready";
+    } catch (err) {
+      logger.error("Security persistence unavailable — running in degraded mode", err as Error, {
+        hint: "API keys, password resets, rate-limit bans and sessions will not survive a restart",
+      });
+    }
+
+    // Automatic expiry of idle and timed-out sessions. Purely in-memory, so it
+    // starts regardless of whether the database opened.
+    startSessionCleanup();
 
     logger.info("Stateful subsystems configured", {
       pushDb: "lazy-init",
       pushNotifications: isWebPushConfigured() ? "configured" : "unavailable",
+      securityPersistence,
       tripTracking: "lazy-init",
-      hint: "DB will be initialized on first use. Core endpoints remain available.",
+      hint: "Core endpoints remain available.",
     });
   } else {
     logger.info("CORE_ONLY mode: skipping all DB-dependent subsystems", {
