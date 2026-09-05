@@ -142,7 +142,7 @@ const settle = async () => {
   }
 };
 
-const transitMap = () => screen.getByRole("img", { name: /Interactive transit map/i });
+const transitMap = () => screen.getByRole("group", { name: /Interactive transit map/i });
 
 const positionCalls = () => vi.mocked(api.getPositions).mock.calls.length;
 
@@ -185,7 +185,9 @@ describe("MapScreen loading", () => {
     renderMapScreen();
     await settle();
 
-    expect(screen.queryByRole("img", { name: /Interactive transit map/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /Interactive transit map/i })
+    ).not.toBeInTheDocument();
     expect(document.querySelector(".animate-pulse")).not.toBeNull();
   });
 
@@ -195,7 +197,9 @@ describe("MapScreen loading", () => {
     renderMapScreen();
     await settle();
 
-    expect(screen.queryByRole("img", { name: /Interactive transit map/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /Interactive transit map/i })
+    ).not.toBeInTheDocument();
     // DataState maps the failure to its own user-facing copy, so the raw
     // rejection message never reaches the screen.
     expect(screen.getByRole("alert")).toHaveTextContent("Something went wrong");

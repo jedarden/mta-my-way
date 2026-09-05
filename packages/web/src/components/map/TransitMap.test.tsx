@@ -65,7 +65,7 @@ function renderMap({
 }
 
 /** The svg element the pan/zoom/keyboard handlers are bound to. */
-const mapSvg = () => screen.getByRole("img", { name: /Interactive transit map/i });
+const mapSvg = () => screen.getByRole("group", { name: /Interactive transit map/i });
 
 /** Read the viewport transform back out of the DOM rather than reaching into component state. */
 function viewportTransform(container: HTMLElement) {

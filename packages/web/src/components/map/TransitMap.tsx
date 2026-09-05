@@ -229,7 +229,10 @@ export const TransitMap = memo(function TransitMap({
         onPointerMove={handlePanMove}
         onPointerUp={handlePanEnd}
         onWheel={handleWheel}
-        role="img"
+        // role="group", not "img": img exposes the map as a single image and
+        // hides the focusable station/train markers nested inside it
+        // (axe nested-interactive, WCAG 2.1.1 / 4.1.2).
+        role="group"
         aria-label="Interactive transit map showing subway lines and stations"
       >
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
