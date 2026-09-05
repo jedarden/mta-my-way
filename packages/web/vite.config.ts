@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import type { Plugin, Rollup } from "rollup";
@@ -15,6 +16,29 @@ import { VitePWA } from "vite-plugin-pwa";
 const MAX_CHUNK_SIZE_KB = 50; // 50KB per chunk max
 const MAX_TOTAL_JS_KB = 180; // 180KB total JS max (includes lazy-loaded screens)
 const MAX_INITIAL_BUNDLE_KB = 200; // 200KB initial bundle max (acceptance criteria)
+
+/**
+ * Turns on the bundle report: `BUNDLE_ANALYZE=1 npm run build`.
+ */
+export const BUNDLE_ANALYZE_FLAG = "BUNDLE_ANALYZE";
+
+/**
+ * Where the bundle report is written when the flag above is set. Deliberately
+ * outside dist/ — everything in dist/ is served statically and swept into the
+ * workbox precache manifest, and a precached stats.html is reachable as the
+ * route /stats, which shadows the StatsScreen.
+ */
+export const BUNDLE_REPORT_FILENAME = "bundle-report.html";
+
+/**
+ * Document the service worker serves for a navigation it has no precache entry
+ * for. This is a client-routed SPA, so that must be the app shell: the router
+ * then renders the screen the URL asked for. It was the offline page for a
+ * while, which made every deep link but "/" read as "You're Offline" — even
+ * while online, and even though the origin server serves the shell for the same
+ * URL.
+ */
+export const SERVICE_WORKER_NAVIGATION_FALLBACK = "/index.html";
 
 // Per-chunk overrides for known large vendor dependencies
 const CHUNK_SIZE_OVERRIDES: Record<string, number> = {
@@ -94,6 +118,16 @@ function bundleSizeBudget(): Plugin {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      // The shared barrel re-exports the Node-only tracer, so the browser graph
+      // contains `node:async_hooks` even though the client never calls into it
+      // (the web app ships its own tracer in src/lib/tracing.ts). Vite's default
+      // browser-external stub exports nothing, which kills the build at link
+      // time — point the specifier at a functional no-op shim instead.
+      "node:async_hooks": fileURLToPath(new URL("./src/shims/async-hooks.ts", import.meta.url)),
+    },
+  },
   plugins: [
     tailwindcss(),
     react(),
@@ -325,7 +359,16 @@ export default defineConfig({
           },
         ],
         // Configure which requests to handle
-        navigateFallback: "/offline.html",
+        // The fallback is the app shell, not the offline page: this is a
+        // client-routed SPA, so a deep link (/stats, /commute, /station/…)
+        // must boot index.html and let the router pick the screen. Pointing it
+        // at offline.html made the service worker answer every deep link but
+        // "/" with "You're Offline" — even while online, and the origin server
+        // serves the shell for the same URL, so the app disagreed with itself
+        // depending on whether the worker was in control. index.html is
+        // precached along with every asset, so an offline deep link still
+        // boots and shows the screen with whatever the runtime caches hold.
+        navigateFallback: SERVICE_WORKER_NAVIGATION_FALLBACK,
         navigateFallbackDenylist: [/^\/api/, /^\/node_modules/],
         // Precache the manifest for offline PWA installation
         manifestTransforms: [
@@ -340,13 +383,21 @@ export default defineConfig({
         ],
       },
     }),
-    // Bundle analysis - generates stats.html in build output
-    visualizer({
-      filename: "dist/stats.html",
-      open: false,
-      gzipSize: true,
-      brotliSize: false,
-    }),
+    // Bundle analysis is opt-in: `BUNDLE_ANALYZE=1 npm run build`. The report
+    // is a build diagnostic, not app content — written outside dist/ so it is
+    // never served, and never reachable as a route. It used to land at
+    // dist/stats.html, which the service worker precached and then served for
+    // any visit to /stats, shadowing the StatsScreen.
+    ...(process.env["BUNDLE_ANALYZE"] === "1"
+      ? [
+          visualizer({
+            filename: "bundle-report.html",
+            open: false,
+            gzipSize: true,
+            brotliSize: false,
+          }),
+        ]
+      : []),
     // Bundle size budget enforcement
     bundleSizeBudget(),
   ],
@@ -421,6 +472,21 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
+  },
+  // Serves the production build. Same port and API proxy as `server` so that
+  // Lighthouse (which measures this server, not the dev one) sees the app the
+  // way it actually ships.
+  preview: {
+    port: 4173,
+    // Fail rather than silently drifting to 4174 — Lighthouse aims at this
+    // exact port, so an occupied port must be an error, not a redirect.
+    strictPort: true,
     proxy: {
       "/api": {
         target: "http://localhost:3001",
