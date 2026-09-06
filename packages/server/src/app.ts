@@ -3039,14 +3039,62 @@ ${
     return next();
   });
 
+  /**
+   * Parse an Accept-Encoding header into the encodings the client actually
+   * accepts. Tokens carry optional q-values (`br;q=0` means "not br"), so a
+   * bare substring match would serve a variant the client asked us to skip.
+   */
+  function acceptedEncodings(header: string | undefined): Set<string> {
+    const accepted = new Set<string>();
+    for (const entry of (header ?? "").split(",")) {
+      const [token, ...params] = entry.trim().split(";");
+      if (!token) continue;
+      const qParam = params.find((p) => p.trim().startsWith("q="));
+      if (qParam && Number.parseFloat(qParam.trim().slice(2)) <= 0) continue;
+      accepted.add(token.trim().toLowerCase());
+    }
+    return accepted;
+  }
+
+  /**
+   * Precompressed variants of the SPA shell, most-preferred first.
+   * vite-plugin-compression emits these alongside dist/index.html; without
+   * this the build's .br/.gz bytes are written and then discarded on every
+   * deep-link request.
+   */
+  const SPA_SHELL_VARIANTS = [
+    { encoding: "br", file: "index.html.br" },
+    { encoding: "gzip", file: "index.html.gz" },
+  ] as const;
+
   app.use(
     "/*",
     serveStatic({
       root: webDistPath,
+      // Serve the precompressed .br/.gz siblings the web build emits instead of
+      // recompressing (or, worse, ignoring) them; hono's node-server sets
+      // Content-Encoding and Vary: Accept-Encoding itself.
+      precompressed: true,
     })
   );
 
   app.get("*", async (c) => {
+    // SPA routes have no file on disk, so serveStatic falls through to here.
+    // The shell is served the same way it would be from disk: prefer a
+    // precompressed variant when the client accepts it.
+    const accepted = acceptedEncodings(c.req.header("Accept-Encoding"));
+    for (const variant of SPA_SHELL_VARIANTS) {
+      // Same explicit-token rule serveStatic applies to on-disk assets — an
+      // Accept-Encoding of `*` alone still gets the identity shell.
+      if (!accepted.has(variant.encoding)) continue;
+      const body = await readFile(join(webDistPath, variant.file)).catch(() => null);
+      if (!body) continue;
+      c.header("Content-Type", "text/html; charset=UTF-8");
+      c.header("Content-Encoding", variant.encoding);
+      c.header("Vary", "Accept-Encoding", { append: true });
+      return c.body(body);
+    }
+
     const html = await readFile(join(webDistPath, "index.html"), "utf8").catch(() => null);
     if (!html) return c.notFound();
     return c.html(html);
