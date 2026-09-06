@@ -1,0 +1,762 @@
+{
+  "generatedAt": "2026-09-05T13:03:15.111Z",
+  "axeVersion": "4.13.0",
+  "tags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"],
+  "browser": "Mobile Chrome (Pixel 5)",
+  "routes": [
+    {
+      "name": "Onboarding (first run)",
+      "path": "/",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 17,
+      "inapplicableCount": 46,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Onboarding (first run)",
+      "path": "/",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 17,
+      "inapplicableCount": 46,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Home",
+      "path": "/",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Home",
+      "path": "/",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Search",
+      "path": "/search",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/search",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 29,
+      "inapplicableCount": 34,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Search",
+      "path": "/search",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/search",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 29,
+      "inapplicableCount": 34,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Commute",
+      "path": "/commute",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/commute",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Commute",
+      "path": "/commute",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/commute",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Alerts",
+      "path": "/alerts",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/alerts",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Alerts",
+      "path": "/alerts",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/alerts",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Map",
+      "path": "/map",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/map",
+      "violations": [
+        {
+          "id": "nested-interactive",
+          "impact": "serious",
+          "help": "Interactive controls must not be nested",
+          "wcagTags": ["wcag2a", "wcag412"],
+          "nodes": [
+            {
+              "target": [".touch-none"],
+              "html": "<svg viewBox=\"0 0 800 600\" class=\"w-full h-full bg-background dark:bg-dark-background touch-none\" role=\"img\" aria-label=\"Interactive transit map showing subway lines and stations\">",
+              "failureSummary": "Fix any of the following:\n  Element has focusable descendants"
+            }
+          ]
+        }
+      ],
+      "violationCount": 1,
+      "nodeCount": 1,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Map",
+      "path": "/map",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/map",
+      "violations": [
+        {
+          "id": "nested-interactive",
+          "impact": "serious",
+          "help": "Interactive controls must not be nested",
+          "wcagTags": ["wcag2a", "wcag412"],
+          "nodes": [
+            {
+              "target": [".touch-none"],
+              "html": "<svg viewBox=\"0 0 800 600\" class=\"w-full h-full bg-background dark:bg-dark-background touch-none\" role=\"img\" aria-label=\"Interactive transit map showing subway lines and stations\">",
+              "failureSummary": "Fix any of the following:\n  Element has focusable descendants"
+            }
+          ]
+        }
+      ],
+      "violationCount": 1,
+      "nodeCount": 1,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Health (client-side nav — deep link serves the API health JSON)",
+      "path": "/health",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/health",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "wcagTags": ["wcag2aa", "wcag143"],
+          "nodes": [
+            {
+              "target": [".absolute"],
+              "html": "<span class=\"absolute inset-0 flex items-center justify-center text-sm font-bold text-red-600 dark:text-red-400\">0%</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.25 (foreground color: #e7000b, background color: #fb2c36, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(1) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(1) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(1) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(3) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(2) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(2) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(2) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(3) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(3) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(3) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(4) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(4) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(5) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(5) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(5) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(3) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(5) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(4) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(6) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(6) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(6) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(3) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(6) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(4) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(7) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2 > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(8) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(8) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(9) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2 > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(10) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(1) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(10) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(2) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(10) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(3) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(10) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2:nth-child(4) > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "section:nth-child(11) > .grid.grid-cols-4.gap-2 > .bg-yellow-50.dark\\:bg-yellow-950\\/30.ring-2 > .leading-tight.text-center.text-11 > .text-yellow-600.dark\\:text-yellow-400"
+              ],
+              "html": "<span class=\"text-yellow-600 dark:text-yellow-400\">Minor</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.93 (foreground color: #d08700, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(1) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(2) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(3) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(4) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(5) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(6) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(7) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                ".py-1\\.5.justify-between.text-13:nth-child(8) > .shrink-0.gap-2.items-center > .text-red-500.dark\\:text-red-400.font-medium"
+              ],
+              "html": "<span class=\"text-red-500 dark:text-red-400 font-medium\">Never polled</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.8 (foreground color: #fb2c36, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "violationCount": 1,
+      "nodeCount": 36,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Health (client-side nav — deep link serves the API health JSON)",
+      "path": "/health",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/health",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "wcagTags": ["wcag2aa", "wcag143"],
+          "nodes": [
+            {
+              "target": [".absolute"],
+              "html": "<span class=\"absolute inset-0 flex items-center justify-center text-sm font-bold text-red-600 dark:text-red-400\">0%</span>",
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.31 (foreground color: #ff6467, background color: #fb2c36, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "violationCount": 1,
+      "nodeCount": 1,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Station",
+      "path": "/station/101",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/station/101",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Station",
+      "path": "/station/101",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/station/101",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Line Diagram",
+      "path": "/line/1",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/line/1",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Line Diagram",
+      "path": "/line/1",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/line/1",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Trip",
+      "path": "/trip/audit-no-such-trip",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/trip/audit-no-such-trip",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Trip",
+      "path": "/trip/audit-no-such-trip",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/trip/audit-no-such-trip",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Journal",
+      "path": "/journal",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/journal",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Journal",
+      "path": "/journal",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/journal",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats (client-side nav — deep link serves the precached bundle visualizer)",
+      "path": "/stats",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats (client-side nav — deep link serves the precached bundle visualizer)",
+      "path": "/stats",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats as a service-worker-controlled visit really reaches it",
+      "path": "/stats",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats as a service-worker-controlled visit really reaches it",
+      "path": "/stats",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Settings",
+      "path": "/settings",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/settings",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 28,
+      "inapplicableCount": 35,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Settings",
+      "path": "/settings",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/settings",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 28,
+      "inapplicableCount": 35,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Request",
+      "path": "/reset-password",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/reset-password",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 27,
+      "inapplicableCount": 36,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Request",
+      "path": "/reset-password",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/reset-password",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 27,
+      "inapplicableCount": 36,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Confirm",
+      "path": "/reset-password/confirm",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/reset-password/confirm",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": ["color-contrast"],
+      "passCount": 23,
+      "inapplicableCount": 40,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Confirm",
+      "path": "/reset-password/confirm",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/reset-password/confirm",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 23,
+      "inapplicableCount": 40,
+      "axeVersion": "4.13.0"
+    }
+  ],
+  "totals": {
+    "violations": 4,
+    "nodes": 39,
+    "incomplete": 14
+  }
+}

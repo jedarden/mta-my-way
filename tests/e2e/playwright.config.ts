@@ -4,7 +4,21 @@
  * Tests run against a locally running server on http://localhost:3001
  */
 
+import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+
+/**
+ * Playwright's own browser download cannot launch on this NixOS host — the
+ * bundled headless shell is linked against `libglib-2.0.so.0`, which is not on
+ * its library path (`error while loading shared libraries`). The nix-store
+ * Chromium works. CHROME_PATH is the same escape hatch `lighthouserc.json`
+ * uses (see docs/notes/lighthouse-acceptance-baseline.md), so one variable
+ * unlocks both harnesses; unset, Playwright resolves its own build as usual.
+ */
+function resolveChromiumExecutable(): string | undefined {
+  const candidate = process.env["CHROME_PATH"];
+  return candidate && existsSync(candidate) ? candidate : undefined;
+}
 
 export default defineConfig({
   testDir: "./",
@@ -15,6 +29,9 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
   use: {
+    // launchOptions, not a flat key: flat executablePath is not a TestOption
+    // and is silently ignored.
+    launchOptions: { executablePath: resolveChromiumExecutable() },
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3001",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
@@ -75,10 +92,13 @@ export default defineConfig({
   // Playwright polls the `url` every ~500ms until it receives a 2xx response or
   // the `timeout` is reached.  If the server crashes during startup, Playwright
   // restarts the `command` and retries the health check — this is the built-in
-  // retry mechanism.  We use the lightweight /health endpoint (registered before
-  // all middleware in app.ts) so readiness checks respond in <1ms regardless of
-  // rate-limit or CSRF state.  It returns 200 once the HTTP server is listening
-  // and the database is reachable (SELECT 1), before feed pollers fire.
+  // retry mechanism.  We poll /health: registered before all middleware in
+  // app.ts, so readiness checks respond in <1ms regardless of rate-limit or
+  // CSRF state.  It returns 200 once the HTTP server is listening and the
+  // database is reachable (SELECT 1), before feed pollers fire.  (Moving the
+  // machine probe to /healthz and giving the SPA route the /health path is
+  // tracked in mtamyway-3117ec7a; this probe works under both orderings
+  // because either endpoint answers 200.)
   //
   // reuseExistingServer:
   //   - CI (process.env.CI=true): Always start a fresh server for clean state
