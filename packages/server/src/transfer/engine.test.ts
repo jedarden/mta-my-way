@@ -418,3 +418,242 @@ describe("TransferEngine.analyzeCommute", () => {
     }
   });
 });
+
+// ─── Multi-transfer routes (depth > 1) ─────────────────────────────────────
+
+// A three-line chain that cannot be ridden with fewer than two transfers:
+//   Line "1": 301 → 302
+//   Line "A": 302 → 303
+//   Line "L": 303 → 304
+//
+// 301 and 302 share a complex, and 302 and 303 share a complex, so the transfer
+// graph links 301↔302 and 302↔303. 304 shares a line with neither 301 nor 302,
+// so no direct or 1-transfer route exists — depth 2 is genuinely required.
+
+const CHAIN_STATIONS: StationIndex = {
+  "301": {
+    id: "301",
+    name: "Chain Origin",
+    lines: ["1"],
+    lat: 40.8,
+    lon: -74.1,
+    borough: "manhattan",
+    northStopId: "301N",
+    southStopId: "301S",
+    transfers: [],
+    ada: true,
+  },
+  "302": {
+    id: "302",
+    name: "First Hub",
+    lines: ["1", "A"],
+    lat: 40.81,
+    lon: -74.11,
+    borough: "manhattan",
+    northStopId: "302N",
+    southStopId: "302S",
+    transfers: [],
+    ada: true,
+  },
+  "303": {
+    id: "303",
+    name: "Second Hub",
+    lines: ["A", "L"],
+    lat: 40.82,
+    lon: -74.12,
+    borough: "manhattan",
+    northStopId: "303N",
+    southStopId: "303S",
+    transfers: [],
+    ada: true,
+  },
+  "304": {
+    id: "304",
+    name: "Chain Destination",
+    lines: ["L"],
+    lat: 40.83,
+    lon: -74.13,
+    borough: "manhattan",
+    northStopId: "304N",
+    southStopId: "304S",
+    transfers: [],
+    ada: true,
+  },
+};
+
+const CHAIN_ROUTES: RouteIndex = {
+  "1": { ...ROUTES["1"]!, stops: ["301", "302"] },
+  A: { ...ROUTES["A"]!, stops: ["302", "303"] },
+  L: {
+    id: "L",
+    shortName: "L",
+    longName: "L Train",
+    color: "A7A9AC",
+    textColor: "FFFFFF",
+    feedId: "gtfs-l",
+    division: "B",
+    stops: ["303", "304"],
+    isExpress: false,
+  },
+};
+
+const CHAIN_COMPLEXES: ComplexIndex = {
+  c301: {
+    complexId: "c301",
+    name: "Origin Complex",
+    stations: ["301", "302"],
+    allLines: ["1", "A"],
+    allStopIds: ["301N", "301S", "302N", "302S"],
+  },
+  c302: {
+    complexId: "c302",
+    name: "Midtown Complex",
+    stations: ["302", "303"],
+    allLines: ["1", "A", "L"],
+    allStopIds: ["302N", "302S", "303N", "303S"],
+  },
+};
+
+function makeChainEngine(
+  arrivalsMap: Record<string, ArrivalTime[]>,
+  maxTransfers?: number
+): TransferEngine {
+  return new TransferEngine({
+    stations: CHAIN_STATIONS,
+    routes: CHAIN_ROUTES,
+    transfers: {},
+    complexes: CHAIN_COMPLEXES,
+    maxTransfers,
+    getArrivals: (id) => {
+      const arrivals = arrivalsMap[id];
+      if (!arrivals) return null;
+      return {
+        stationId: id,
+        stationName: CHAIN_STATIONS[id]?.name ?? "Unknown",
+        updatedAt: Date.now(),
+        feedAge: 5,
+        northbound: arrivals,
+        southbound: [],
+      };
+    },
+  });
+}
+
+// Arrivals close enough together that the whole chain rides comfortably inside
+// the total travel time guard.
+const VIABLE_CHAIN_ARRIVALS = {
+  "301": [makeArrival("1", 60)],
+  "302": [makeArrival("A", 600)],
+  "303": [makeArrival("L", 1200)],
+};
+
+describe("TransferEngine multi-transfer depth", () => {
+  it("generates a real 2-transfer (3 leg) itinerary when no shallower route exists", () => {
+    const engine = makeChainEngine(VIABLE_CHAIN_ARRIVALS);
+    const analysis = engine.analyzeCommute("301", "304");
+
+    // 301 rides "1" only and 304 rides "L" only, so there is no direct route.
+    expect(analysis.directRoutes).toHaveLength(0);
+
+    const multiTransfer = analysis.transferRoutes.find((route) => route.legs.length === 3);
+    expect(multiTransfer).toBeDefined();
+
+    const lines = multiTransfer!.legs.map((leg) => leg.line);
+    expect(lines).toEqual(["1", "A", "L"]);
+
+    // The legs chain end to end: 301 → 302 → 303 → 304
+    expect(multiTransfer!.legs.map((leg) => leg.boardAt.stationId)).toEqual(["301", "302", "303"]);
+    expect(multiTransfer!.legs.map((leg) => leg.alightAt.stationId)).toEqual(["302", "303", "304"]);
+
+    // First transfer point, and every leg boards no earlier than it arrives
+    expect(multiTransfer!.transferStation.stationId).toBe("302");
+    for (let i = 1; i < multiTransfer!.legs.length; i++) {
+      const arriving = multiTransfer!.legs[i - 1]!;
+      const boarding = multiTransfer!.legs[i]!;
+      expect(boarding.nextArrival.arrivalTime).toBeGreaterThanOrEqual(
+        arriving.nextArrival.arrivalTime
+      );
+    }
+  });
+
+  it("recommends the 2-transfer route when it is the only option", () => {
+    const engine = makeChainEngine(VIABLE_CHAIN_ARRIVALS);
+    const analysis = engine.analyzeCommute("301", "304");
+
+    expect(analysis.transferRoutes.length).toBeGreaterThan(0);
+    expect(analysis.recommendation).toBe("transfer");
+    expect(analysis.recommendationDetails.type).toBe("transfer");
+    expect(analysis.recommendationDetails.reason).toBe("Transfer is the only available option");
+  });
+
+  it("respects the total travel time guard and stays within it", () => {
+    const engine = makeChainEngine(VIABLE_CHAIN_ARRIVALS);
+    const analysis = engine.analyzeCommute("301", "304");
+
+    for (const route of analysis.transferRoutes) {
+      expect(route.totalEstimatedMinutes).toBeLessThanOrEqual(90);
+    }
+  });
+
+  it("does not produce the 2-transfer route when depth is capped at 1", () => {
+    const engine = makeChainEngine(VIABLE_CHAIN_ARRIVALS, 1);
+    const analysis = engine.analyzeCommute("301", "304");
+
+    // Only a 2-transfer route can serve this pair, so a depth cap of 1 yields none
+    expect(analysis.transferRoutes).toHaveLength(0);
+  });
+
+  it("treats maxTransfers 0 as no transfer routes at all", () => {
+    const engine = makeChainEngine(
+      {
+        "301": [makeArrival("1", 60)],
+        "302": [makeArrival("A", 300)],
+      },
+      0
+    );
+    const analysis = engine.analyzeCommute("301", "303");
+
+    expect(analysis.transferRoutes).toHaveLength(0);
+  });
+
+  it("keeps working when maxTransfers is set absurdly high", () => {
+    const engine = makeChainEngine(VIABLE_CHAIN_ARRIVALS, 99);
+    const analysis = engine.analyzeCommute("301", "304");
+
+    // Clamped internally; the same 2-transfer itinerary is still found
+    expect(analysis.transferRoutes.some((route) => route.legs.length === 3)).toBe(true);
+  });
+
+  it("rejects a 2-transfer itinerary that breaches the total travel time guard", () => {
+    // Same chain, but the first train is 90 minutes out. Every connection stays
+    // viable and every wait stays short, so only the total-travel-time guard
+    // can reject it.
+    const engine = makeChainEngine({
+      "301": [makeArrival("1", 5400)],
+      "302": [makeArrival("A", 6000)],
+      "303": [makeArrival("L", 6600)],
+    });
+    const analysis = engine.analyzeCommute("301", "304");
+
+    expect(analysis.transferRoutes).toHaveLength(0);
+  });
+
+  it("reports a wait risk for each transfer point on a multi-leg route", () => {
+    const engine = makeChainEngine({
+      "301": [makeArrival("1", 60)],
+      "302": [makeArrival("A", 1500)],
+      "303": [makeArrival("L", 3000)],
+    });
+    const analysis = engine.analyzeCommute("301", "304");
+
+    const multiTransfer = analysis.transferRoutes.find((route) => route.legs.length === 3);
+    if (!multiTransfer) return;
+
+    const waitRisks = analysis.recommendationDetails.risks.filter((risk) =>
+      risk.startsWith("Wait ")
+    );
+    expect(waitRisks.length).toBe(2);
+    expect(waitRisks.some((risk) => risk.includes("First Hub"))).toBe(true);
+    expect(waitRisks.some((risk) => risk.includes("Second Hub"))).toBe(true);
+  });
+});

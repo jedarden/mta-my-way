@@ -7,7 +7,9 @@
  *
  * Key features:
  * - Direct route scoring: line + next arrival + travel time
- * - Transfer route scoring: first leg + walking + wait + second leg
+ * - Transfer route scoring: per-leg travel + walking + wait at every transfer
+ * - Configurable transfer depth (EngineConfig.maxTransfers, default 2)
+ * - Total-travel-time guard: depth can never produce an absurd itinerary
  * - B Division buffer: +2 min for B Division arrival estimates
  * - Express/local detection via stop pattern comparison
  * - "Transfer saves X min" computation
@@ -42,14 +44,43 @@ import { calculateRouteTravelTime, determineDirection, getTravelTimes } from "./
 /** Buffer to add to B Division arrival estimates (in seconds) */
 const B_DIVISION_BUFFER_SECONDS = 120; // 2 minutes
 
+/** Default maximum number of transfers in a generated route */
+const DEFAULT_MAX_TRANSFERS = 2;
+
+/** Hard ceiling on the configurable transfer depth */
+const MAX_TRANSFERS_CEILING = 4;
+
 /** Maximum number of transfer routes to return */
 const MAX_TRANSFER_ROUTES = 5;
 
 /** Maximum walking time for a viable transfer (in seconds) */
 const MAX_WALKING_TIME_SECONDS = 600; // 10 minutes
 
-/** Maximum arrival wait time to consider (in seconds) */
+/** Maximum wait time to allow at any single transfer point (in seconds) */
 const MAX_WAIT_TIME_SECONDS = 1800; // 30 minutes
+
+/**
+ * Total-travel-time guard (in minutes). An itinerary longer than this is
+ * rejected regardless of how it was assembled, so raising the transfer depth
+ * cannot produce absurd multi-hour itineraries.
+ */
+const MAX_TOTAL_TRAVEL_MINUTES = 90;
+
+/** A transfer route must arrive no more than this long after the best direct (in seconds) */
+const MAX_SLACK_VS_DIRECT_SECONDS = 600; // 10 minutes
+
+/** Slack allowed when matching a connecting leg onto the previous leg's arrival (in seconds) */
+const CONNECTION_SLACK_SECONDS = 30;
+
+/**
+ * Clamp a caller-supplied transfer depth to something the search can afford.
+ */
+function clampTransferDepth(maxTransfers: number | undefined): number {
+  if (maxTransfers === undefined || !Number.isFinite(maxTransfers)) {
+    return DEFAULT_MAX_TRANSFERS;
+  }
+  return Math.min(MAX_TRANSFERS_CEILING, Math.max(0, Math.floor(maxTransfers)));
+}
 
 /**
  * Engine configuration
@@ -63,6 +94,13 @@ export interface EngineConfig {
   >;
   complexes: ComplexIndex;
   getArrivals: (stationId: string) => StationArrivals | null;
+  /**
+   * Maximum number of transfers a generated route may use. Defaults to 2 and is
+   * clamped to [0, 4]; 0 disables transfer routes entirely. Every extra transfer
+   * widens the search, so the total travel time guard
+   * (MAX_TOTAL_TRAVEL_MINUTES) is what keeps depth useful.
+   */
+  maxTransfers?: number;
 }
 
 /**
@@ -74,12 +112,14 @@ export class TransferEngine {
   private graph: TransferGraph;
   private getArrivalsFn: (stationId: string) => StationArrivals | null;
   private travelTimes: TravelTimeIndex | null;
+  private maxTransfers: number;
   constructor(config: EngineConfig) {
     this.stations = config.stations;
     this.routes = config.routes;
     this.getArrivalsFn = config.getArrivals;
     this.graph = buildTransferGraph(config.stations, config.transfers, config.complexes);
     this.travelTimes = getTravelTimes();
+    this.maxTransfers = clampTransferDepth(config.maxTransfers);
   }
 
   /**
@@ -102,7 +142,7 @@ export class TransferEngine {
     // Find direct routes
     const directRoutes = this.findDirectRoutes(originId, destinationId, preferredLines);
 
-    // Find transfer routes (1 transfer max = 2 legs)
+    // Find transfer routes (up to maxTransfers, so 2 transfers = 3 legs)
     const transferRoutes = this.findTransferRoutes(
       originId,
       destinationId,
@@ -372,7 +412,13 @@ export class TransferEngine {
   }
 
   /**
-   * Find all transfer routes (1 transfer = 2 legs)
+   * Find all transfer routes up to `this.maxTransfers` transfers.
+   *
+   * A route is a chain through the transfer graph: origin → t1 → … → tn →
+   * destination. Every hop onto a new transfer station walks a graph edge (the
+   * transfer penalty) and rides a line serving both endpoints; the final hop
+   * only needs a line shared with the destination. Depth 1 therefore yields the
+   * classic 2-leg route and depth 2 yields 3-leg itineraries.
    */
   private findTransferRoutes(
     originId: string,
@@ -399,81 +445,104 @@ export class TransferEngine {
       ? getStationsWithBrokenElevators()
       : new Set<string>();
 
-    // Get all reachable transfer stations from origin
-    const reachableFromOrigin = getReachableStations(this.graph, originId);
+    const destinationStation = this.stations[destinationId];
+    if (!destinationStation) {
+      return routes;
+    }
 
-    // For each potential transfer point
-    for (const transferEdge of reachableFromOrigin) {
-      // Skip if walking time is too long
-      if (transferEdge.walkingSeconds > MAX_WALKING_TIME_SECONDS) continue;
+    /**
+     * Extend a partial chain.
+     *
+     * `stationIds` holds [origin, …transfer stations visited], `lines` holds one
+     * entry per committed leg (lines[i] rides stationIds[i] → stationIds[i+1]),
+     * and `walks` holds the walking seconds needed to reach each station as a
+     * transfer point (walks[0] is always 0).
+     */
+    const extend = (
+      stationIds: string[],
+      lines: string[],
+      walks: number[],
+      visited: Set<string>
+    ): void => {
+      const lastStationId = stationIds[stationIds.length - 1]!;
+      const transfersSoFar = stationIds.length - 1;
+      const lastStation = this.stations[lastStationId];
+      if (!lastStation) return;
 
-      // In accessible mode, skip transfer stations with broken elevators
-      if (accessibleMode && brokenElevatorStations.has(transferEdge.toStationId)) continue;
+      // Close the chain onto the destination once at least one transfer exists
+      if (transfersSoFar >= 1) {
+        const previousLine = lines[lines.length - 1]!;
+        const finalLines = lastStation.lines.filter(
+          (line) => destinationStation.lines.includes(line) && line !== previousLine
+        );
 
-      const transferStationId = transferEdge.toStationId;
-
-      // Get arrivals at transfer station
-      const transferStationArrivals = this.getArrivalsFn(transferStationId);
-      const transferArrivals = this.extractAllArrivals(transferStationArrivals);
-      if (transferArrivals.length === 0) continue;
-
-      // Find lines at transfer station that go to destination
-      const transferStation = this.stations[transferStationId];
-      const destinationStation = this.stations[destinationId];
-
-      if (!transferStation || !destinationStation) continue;
-
-      const linesToDestination = transferStation.lines.filter((line) =>
-        destinationStation.lines.includes(line)
-      );
-
-      // For each first leg line
-      const originStation = this.stations[originId];
-      if (!originStation) continue;
-
-      const firstLegLines = originStation.lines.filter((line) =>
-        transferStation.lines.includes(line)
-      );
-
-      for (const firstLegLine of firstLegLines) {
-        // Get first leg arrivals
-        const firstLegArrivals = originArrivals.filter((a) => a.line === firstLegLine);
-        if (firstLegArrivals.length === 0) continue;
-
-        for (const secondLegLine of linesToDestination) {
-          // Skip if same line (that's a direct route)
-          if (firstLegLine === secondLegLine) continue;
-
-          // Build transfer route
+        for (const finalLine of finalLines) {
           const transferRoute = this.buildTransferRoute(
-            originId,
-            transferStationId,
-            destinationId,
-            firstLegLine,
-            secondLegLine,
-            firstLegArrivals,
-            transferArrivals.filter((a) => a.line === secondLegLine),
-            transferEdge.walkingSeconds
+            [...stationIds, destinationId],
+            [...lines, finalLine],
+            [...walks, 0],
+            originArrivals
           );
 
+          // Only include if it's not much worse than direct
           if (
             transferRoute &&
-            transferRoute.estimatedArrivalAtDestination < bestDirectArrival + 600
+            transferRoute.estimatedArrivalAtDestination <
+              bestDirectArrival + MAX_SLACK_VS_DIRECT_SECONDS
           ) {
-            // Only include if it's not much worse than direct
             routes.push(transferRoute);
           }
         }
       }
-    }
+
+      if (transfersSoFar >= this.maxTransfers) return;
+
+      for (const transferEdge of getReachableStations(this.graph, lastStationId)) {
+        // Skip if walking time is too long
+        if (transferEdge.walkingSeconds > MAX_WALKING_TIME_SECONDS) continue;
+
+        // In accessible mode, skip transfer stations with broken elevators
+        if (accessibleMode && brokenElevatorStations.has(transferEdge.toStationId)) continue;
+
+        // Never revisit a station — a chain that loops is never the fastest way
+        if (visited.has(transferEdge.toStationId)) continue;
+
+        const nextStation = this.stations[transferEdge.toStationId];
+        if (!nextStation) continue;
+
+        // Arrivals must exist at the candidate transfer point or no leg can board there
+        const nextArrivals = this.extractAllArrivals(this.getArrivalsFn(transferEdge.toStationId));
+        if (nextArrivals.length === 0) continue;
+
+        const previousLine = lines[lines.length - 1];
+        const onwardLines = nextStation.lines.filter(
+          (line) => lastStation.lines.includes(line) && line !== previousLine
+        );
+
+        visited.add(transferEdge.toStationId);
+        for (const onwardLine of onwardLines) {
+          extend(
+            [...stationIds, transferEdge.toStationId],
+            [...lines, onwardLine],
+            [...walks, transferEdge.walkingSeconds],
+            visited
+          );
+        }
+        visited.delete(transferEdge.toStationId);
+      }
+    };
+
+    extend([originId], [], [0], new Set([originId]));
 
     // Sort by arrival time and remove duplicates
     routes.sort((a, b) => a.estimatedArrivalAtDestination - b.estimatedArrivalAtDestination);
 
-    // Dedupe by transfer station
+    // Dedupe by full path (lines plus the stations each leg connects)
     const seen = new Set<string>();
     return routes.filter((route) => {
-      const key = `${route.legs[0]?.line}-${route.transferStation.stationId}-${route.legs[1]?.line}`;
+      const key = route.legs
+        .map((leg) => `${leg.line}:${leg.boardAt.stationId}>${leg.alightAt.stationId}`)
+        .join("|");
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -481,105 +550,114 @@ export class TransferEngine {
   }
 
   /**
-   * Build a transfer route with two legs
+   * Build a transfer route from a station chain and one line per leg
+   *
+   * `stationIds` is [origin, …transfer stations, destination] and `lines` has
+   * one entry per leg. `walks` is parallel to `stationIds` and holds the walking
+   * seconds needed to reach each station as a transfer point (0 for the origin
+   * and for the destination).
+   *
+   * Returns null when the chain cannot be ridden: a leg has no arrivals, a
+   * connection misses its train, a wait is too long, or the total travel time
+   * breaches MAX_TOTAL_TRAVEL_MINUTES.
    */
   private buildTransferRoute(
-    originId: string,
-    transferStationId: string,
-    destinationId: string,
-    firstLegLine: string,
-    secondLegLine: string,
-    firstLegArrivals: ArrivalTime[],
-    secondLegArrivals: ArrivalTime[],
-    walkingSeconds: number
+    stationIds: string[],
+    lines: string[],
+    walks: number[],
+    originArrivals: ArrivalTime[]
   ): TransferRoute | null {
-    if (firstLegArrivals.length === 0 || secondLegArrivals.length === 0) {
-      return null;
+    const legs: TransferLeg[] = [];
+    let totalTravelSeconds = 0;
+    let totalWalkingSeconds = 0;
+    let totalWaitingSeconds = 0;
+    let lastLegTravelSeconds = 0;
+
+    // Arrival time at the next boarding point: the previous leg's arrival plus
+    // the walk to the platform we are changing to.
+    let arrivalAtNextBoarding = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      const boardStationId = stationIds[i]!;
+      const alightStationId = stationIds[i + 1]!;
+      const walkingSeconds = walks[i]!;
+
+      // Get arrivals for this leg's line at its boarding station
+      const pool =
+        i === 0 ? originArrivals : this.extractAllArrivals(this.getArrivalsFn(boardStationId));
+      const legArrivals = pool.filter((a) => a.line === line);
+      if (legArrivals.length === 0) {
+        return null;
+      }
+
+      const route = this.routes[line];
+      const travelSeconds = this.travelTimes
+        ? calculateRouteTravelTime(
+            this.travelTimes,
+            line,
+            route?.stops ?? [],
+            boardStationId,
+            alightStationId
+          )
+        : this.estimateTravelTime(boardStationId, alightStationId);
+
+      // Find the first arrival we can actually make (allow a little slack)
+      const earliestBoarding = arrivalAtNextBoarding + walkingSeconds;
+      const viableArrivals = legArrivals
+        .map((a) => this.applyBDivisionBuffer(a))
+        .filter((a) => a.arrivalTime >= earliestBoarding - CONNECTION_SLACK_SECONDS);
+
+      if (viableArrivals.length === 0) {
+        return null;
+      }
+
+      const chosenArrival = viableArrivals[0]!;
+      const waitSeconds = i === 0 ? 0 : Math.max(0, chosenArrival.arrivalTime - earliestBoarding);
+
+      // Skip if the wait at this transfer is too long
+      if (waitSeconds > MAX_WAIT_TIME_SECONDS) {
+        return null;
+      }
+
+      legs.push({
+        line,
+        direction: chosenArrival.direction,
+        boardAt: this.getStationRef(boardStationId)!,
+        alightAt: this.getStationRef(alightStationId)!,
+        nextArrival: chosenArrival,
+        estimatedTravelMinutes: Math.ceil(travelSeconds / 60),
+        isExpress: chosenArrival.isExpress,
+      });
+
+      arrivalAtNextBoarding = chosenArrival.arrivalTime + travelSeconds;
+      lastLegTravelSeconds = travelSeconds;
+      totalTravelSeconds += travelSeconds;
+      totalWalkingSeconds += walkingSeconds;
+      totalWaitingSeconds += waitSeconds;
     }
 
-    // Get travel times for each leg
-    const firstLegRoute = this.routes[firstLegLine];
-    const secondLegRoute = this.routes[secondLegLine];
-
-    const firstLegTravelSeconds = this.travelTimes
-      ? calculateRouteTravelTime(
-          this.travelTimes,
-          firstLegLine,
-          firstLegRoute?.stops ?? [],
-          originId,
-          transferStationId
-        )
-      : this.estimateTravelTime(originId, transferStationId);
-
-    const secondLegTravelSeconds = this.travelTimes
-      ? calculateRouteTravelTime(
-          this.travelTimes,
-          secondLegLine,
-          secondLegRoute?.stops ?? [],
-          transferStationId,
-          destinationId
-        )
-      : this.estimateTravelTime(transferStationId, destinationId);
-
-    // Apply B Division buffer to first leg arrival
-    const firstArrival = this.applyBDivisionBuffer(firstLegArrivals[0]!);
-    const firstLegArrivalAtTransfer = firstArrival.arrivalTime + firstLegTravelSeconds;
-
-    // Find the best second leg arrival (must arrive after we get there + walking time)
-    const arrivalAtTransferWithWalk = firstLegArrivalAtTransfer + walkingSeconds;
-    const viableSecondLegs = secondLegArrivals
-      .map((a) => this.applyBDivisionBuffer(a))
-      .filter((a) => a.arrivalTime >= arrivalAtTransferWithWalk - 30); // Allow 30s slack
-
-    if (viableSecondLegs.length === 0) {
-      return null;
-    }
-
-    const secondArrival = viableSecondLegs[0]!;
-    const waitAtTransfer = Math.max(0, secondArrival.arrivalTime - arrivalAtTransferWithWalk);
-
-    // Skip if wait is too long
-    if (waitAtTransfer > MAX_WAIT_TIME_SECONDS) {
-      return null;
-    }
-
-    const finalArrival = secondArrival.arrivalTime + secondLegTravelSeconds;
-
-    // Build legs
-    const firstLeg: TransferLeg = {
-      line: firstLegLine,
-      direction: firstArrival.direction,
-      boardAt: this.getStationRef(originId)!,
-      alightAt: this.getStationRef(transferStationId)!,
-      nextArrival: firstArrival,
-      estimatedTravelMinutes: Math.ceil(firstLegTravelSeconds / 60),
-      isExpress: firstArrival.isExpress,
-    };
-
-    const secondLeg: TransferLeg = {
-      line: secondLegLine,
-      direction: secondArrival.direction,
-      boardAt: this.getStationRef(transferStationId)!,
-      alightAt: this.getStationRef(destinationId)!,
-      nextArrival: secondArrival,
-      estimatedTravelMinutes: Math.ceil(secondLegTravelSeconds / 60),
-      isExpress: secondArrival.isExpress,
-    };
+    const firstLeg = legs[0]!;
+    const lastLeg = legs[legs.length - 1]!;
 
     const totalMinutes = Math.ceil(
-      (firstArrival.arrivalTime - Date.now() / 1000) / 60 +
-        firstLegTravelSeconds / 60 +
-        walkingSeconds / 60 +
-        waitAtTransfer / 60 +
-        secondLegTravelSeconds / 60
+      (firstLeg.nextArrival.arrivalTime - Date.now() / 1000) / 60 +
+        (totalTravelSeconds + totalWalkingSeconds + totalWaitingSeconds) / 60
     );
 
+    // Total-travel-time guard: extra depth must not buy an absurd itinerary
+    if (totalMinutes > MAX_TOTAL_TRAVEL_MINUTES) {
+      return null;
+    }
+
     return {
-      legs: [firstLeg, secondLeg],
+      legs,
       totalEstimatedMinutes: totalMinutes,
-      estimatedArrivalAtDestination: Math.floor(finalArrival),
+      estimatedArrivalAtDestination: Math.floor(
+        lastLeg.nextArrival.arrivalTime + lastLegTravelSeconds
+      ),
       timeSavedVsDirect: 0, // Will be computed later
-      transferStation: this.getStationRef(transferStationId)!,
+      transferStation: this.getStationRef(stationIds[1]!)!,
     };
   }
 
@@ -695,28 +773,29 @@ export class TransferEngine {
   ): RecommendationDetails {
     const timeSavedMinutes = Math.round(transferRoute.timeSavedVsDirect / 60);
     const risks: string[] = [];
-    const firstLeg = transferRoute.legs[0];
-    const secondLeg = transferRoute.legs[1];
+    const legs = transferRoute.legs;
 
-    // Analyze risks
-    if (firstLeg && secondLeg) {
+    // Analyze risks across every leg, not just the first two
+    if (legs.length >= 2) {
       // Check for B Division uncertainty
-      if (isBDivision(firstLeg.line) || isBDivision(secondLeg.line)) {
+      if (legs.some((leg) => isBDivision(leg.line))) {
         risks.push("B Division arrival times are estimates");
       }
 
-      // Check for long wait at transfer
-      const waitMinutes =
-        (secondLeg.nextArrival.arrivalTime - firstLeg.nextArrival.arrivalTime) / 60 -
-        firstLeg.estimatedTravelMinutes;
-      if (waitMinutes > 5) {
-        risks.push(
-          `Wait ${Math.round(waitMinutes)} min at ${transferRoute.transferStation.stationName}`
-        );
+      // Check for long waits at any transfer point
+      for (let i = 1; i < legs.length; i++) {
+        const arrivingLeg = legs[i - 1]!;
+        const boardingLeg = legs[i]!;
+        const waitMinutes =
+          (boardingLeg.nextArrival.arrivalTime - arrivingLeg.nextArrival.arrivalTime) / 60 -
+          arrivingLeg.estimatedTravelMinutes;
+        if (waitMinutes > 5) {
+          risks.push(`Wait ${Math.round(waitMinutes)} min at ${boardingLeg.boardAt.stationName}`);
+        }
       }
 
       // Check for low confidence arrivals
-      if (firstLeg.nextArrival.confidence === "low" || secondLeg.nextArrival.confidence === "low") {
+      if (legs.some((leg) => leg.nextArrival.confidence === "low")) {
         risks.push("Low confidence in arrival times");
       }
 
@@ -726,18 +805,9 @@ export class TransferEngine {
         risks.push("Transfer station is not ADA accessible");
       }
 
-      // Check if there are alerts on either line
-      const firstLegHasAlerts = firstLeg.nextArrival.isRerouted;
-      const secondLegHasAlerts = secondLeg.nextArrival.isRerouted;
-      if (firstLegHasAlerts || secondLegHasAlerts) {
+      // Check if there are alerts on any leg
+      if (legs.some((leg) => leg.nextArrival.isRerouted)) {
         risks.push("Service alerts affecting this route");
-      }
-
-      // Check if either leg is express service for better context
-      const firstLegIsExpress = this.isExpressRoute(firstLeg.line);
-      const secondLegIsExpress = this.isExpressRoute(secondLeg.line);
-      if (firstLegIsExpress || secondLegIsExpress) {
-        // Express service is tracked for informational purposes
       }
     }
 
