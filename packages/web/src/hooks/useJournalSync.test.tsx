@@ -8,6 +8,7 @@
 
 import type { Commute, TripRecord } from "@mta-my-way/shared";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFavoritesStore } from "../stores/favoritesStore";
 import { UNMATCHED_SERVER_COMMUTE_ID, useJournalStore } from "../stores/journalStore";
@@ -48,10 +49,12 @@ async function freshModules() {
   const sync = await import("./useJournalSync");
   const journalStore = await import("../stores/journalStore");
   const favoritesStore = await import("../stores/favoritesStore");
+  const authStore = await import("../stores/authStore");
   return {
     sync,
     useJournalStore: journalStore.useJournalStore,
     useFavoritesStore: favoritesStore.useFavoritesStore,
+    useAuthStore: authStore.useAuthStore,
   };
 }
 
@@ -274,6 +277,52 @@ describe("useJournalSync", () => {
       });
 
       expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/trips"))).toBe(false);
+    });
+
+    it("runs one sync pass when StrictMode double-mounts the hook", async () => {
+      const { sync, useJournalStore: store, useAuthStore: auth } = await freshModules();
+      store.getState().addTripRecord("work", makeTrip());
+      // Already signed in, so both StrictMode effect invocations reach `syncNow`
+      // in the same tick — the case the in-flight guard exists for.
+      auth.setState({ authenticated: true, loading: false });
+      const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/auth/session")) {
+          return Promise.resolve(jsonResponse({ authenticated: true, profile: { userId: "u1" } }));
+        }
+        if (url.includes("/api/trips")) {
+          if ((init?.method ?? "GET").toUpperCase() === "POST") {
+            return Promise.resolve(
+              jsonResponse({ success: true, trip: makeTrip({ id: "server-9" }) }, 201)
+            );
+          }
+          return Promise.resolve(jsonResponse({ trips: [], count: 0, limit: 100, offset: 0 }));
+        }
+        return Promise.resolve(jsonResponse({ token: "t" }));
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      vi.useFakeTimers();
+      try {
+        // main.tsx renders the shell inside <StrictMode>, which mounts every
+        // effect twice in development.
+        renderHook(() => sync.useJournalSync(), { wrapper: StrictMode });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        // Past the 750 ms debounced mirror pass, still exactly one upload.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(750);
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+
+      const uploads = fetchMock.mock.calls.filter(
+        ([url, init]) =>
+          String(url).includes("/api/trips") && String(init?.method).toUpperCase() === "POST"
+      );
+      expect(uploads).toHaveLength(1);
     });
   });
 });
