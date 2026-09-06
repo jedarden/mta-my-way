@@ -8,7 +8,7 @@
  * `classifyJournalFailure`.
  */
 
-import type { TripRecord } from "@mta-my-way/shared";
+import type { CommuteStats, TripRecord } from "@mta-my-way/shared";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -180,4 +180,48 @@ export async function updateServerTripNotes(tripId: string, notes: string): Prom
     method: "PATCH",
     body: JSON.stringify({ notes }),
   });
+}
+
+/** Read a single trip from the server journal. */
+export async function getServerTrip(tripId: string): Promise<TripRecord> {
+  return request<TripRecord>(`/api/trips/${encodeURIComponent(tripId)}`);
+}
+
+/**
+ * Read the aggregate stats for a commute. The server answers `null` when its
+ * trip database is closed, so callers have to treat an empty report as data.
+ */
+export async function getJournalStats(commuteId?: string): Promise<CommuteStats | null> {
+  const query = commuteId ? `?commuteId=${encodeURIComponent(commuteId)}` : "";
+  return request<CommuteStats | null>(`/api/journal/stats${query}`);
+}
+
+/** GET /api/journal/dates/:startDate/:endDate response envelope. */
+export interface JournalDateRangeResponse {
+  startDate: string;
+  endDate: string;
+  trips: TripRecord[];
+  count: number;
+}
+
+/** Read every trip logged between two ISO dates, inclusive. */
+export async function getJournalTripsForDates(
+  startDate: string,
+  endDate: string
+): Promise<JournalDateRangeResponse> {
+  return request<JournalDateRangeResponse>(
+    `/api/journal/dates/${encodeURIComponent(startDate)}/${encodeURIComponent(endDate)}`
+  );
+}
+
+/** GET /api/journal/summary response envelope. */
+export interface JournalSummaryResponse {
+  recentTrips: TripRecord[];
+  stats: CommuteStats | null;
+  totalTrips: number;
+}
+
+/** Read the recent-trips-plus-stats bundle a journal view opens with. */
+export async function getJournalSummary(): Promise<JournalSummaryResponse> {
+  return request<JournalSummaryResponse>("/api/journal/summary");
 }
