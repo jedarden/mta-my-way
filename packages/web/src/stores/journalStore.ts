@@ -48,6 +48,12 @@ interface JournalState {
   // Actions
   setCommuteStats: (commuteId: string, stats: CommuteStats) => void;
   addTripRecord: (commuteId: string, record: TripRecord) => void;
+  /**
+   * Merge records fetched from the server into a commute. Matching is by
+   * `tripIdentityKey`; on a match the server copy wins, otherwise server
+   * records are added alongside the local ones and nothing is dropped.
+   */
+  mergeServerRecords: (commuteId: string, incoming: TripRecord[]) => void;
   updateTripRecord: (commuteId: string, recordId: string, updates: Partial<TripRecord>) => void;
   removeTripRecord: (commuteId: string, recordId: string) => void;
   removeCommuteStats: (commuteId: string) => void;
@@ -73,6 +79,27 @@ interface JournalState {
 
 /** Maximum trip records per commute (FIFO cap, last 90 days) */
 const MAX_RECORDS_PER_COMMUTE = 500;
+
+/**
+ * Bucket for server trips that match no locally saved commute. Their records
+ * stay in the journal — and keep counting toward the aggregate screens —
+ * without inventing a commute the user never saved.
+ */
+export const UNMATCHED_SERVER_COMMUTE_ID = "__server-unmatched__";
+
+/**
+ * Stable identity for a trip. The server assigns its own id, so a record
+ * pushed from this device and the record pulled back for the same ride do not
+ * share an id; origin, destination, line, and departure time do.
+ */
+export function tripIdentityKey(record: TripRecord): string {
+  return [
+    record.origin.stationId,
+    record.destination.stationId,
+    record.line,
+    record.departureTime,
+  ].join("|");
+}
 
 /** Anomaly threshold multiplier (duration > mean + ANOMALY_THRESHOLD * stdDev) */
 const ANOMALY_THRESHOLD = 1.5;
@@ -254,6 +281,43 @@ function detectAnomalyImpl(
 /** Current schema version for this store */
 const STORE_VERSION = 3;
 
+/** Rebuild a commute's computed stats from a merged record list. */
+function buildCommute(
+  commuteId: string,
+  records: TripRecord[]
+): {
+  stats: CommuteStats;
+  dayStats: Record<number, DayOfWeekStats>;
+} {
+  const {
+    average,
+    median,
+    stdDev,
+    tripsThisWeek,
+    trend,
+    averageDelayMinutes,
+    maxDelayMinutes,
+    onTimePercentage,
+  } = computeStats(records);
+
+  return {
+    stats: {
+      commuteId,
+      averageDurationMinutes: average,
+      medianDurationMinutes: median,
+      stdDevMinutes: stdDev,
+      totalTrips: records.length,
+      tripsThisWeek,
+      trend,
+      averageDelayMinutes,
+      maxDelayMinutes,
+      onTimePercentage,
+      records,
+    },
+    dayStats: computeDayOfWeekStats(records),
+  };
+}
+
 /** Migration functions keyed by target version */
 const migrations = new Map<number, (state: unknown) => unknown>([
   // Version 1: Initial schema - no migration needed
@@ -407,6 +471,49 @@ export const useJournalStore = create<JournalState>()(
             onTimePercentage,
             records,
           };
+
+          return {
+            stats: { ...state.stats, [commuteId]: newStats },
+            dayOfWeekStats: { ...state.dayOfWeekStats, [commuteId]: dayStats },
+          };
+        });
+      },
+
+      mergeServerRecords: (commuteId, incoming) => {
+        if (incoming.length === 0) return;
+
+        set((state) => {
+          const existing = state.stats[commuteId];
+          const mergedByKey = new Map(
+            (existing?.records ?? []).map((record) => [tripIdentityKey(record), record])
+          );
+          // Server wins on a key match; local-only records are kept so a
+          // first sign-in can still upload them. The server always records a
+          // mirrored trip as "manual", so the locally observed source is kept.
+          for (const record of incoming) {
+            const local = mergedByKey.get(tripIdentityKey(record));
+            mergedByKey.set(
+              tripIdentityKey(record),
+              local ? { ...record, source: local.source } : record
+            );
+          }
+
+          const merged = [...mergedByKey.values()].sort(
+            (a, b) => a.departureTime - b.departureTime
+          );
+          if (merged.length > MAX_RECORDS_PER_COMMUTE) {
+            merged.splice(0, merged.length - MAX_RECORDS_PER_COMMUTE);
+          }
+
+          if (
+            existing &&
+            merged.length === existing.records.length &&
+            merged.every((record, index) => record === existing.records[index])
+          ) {
+            return state;
+          }
+
+          const { stats: newStats, dayStats } = buildCommute(commuteId, merged);
 
           return {
             stats: { ...state.stats, [commuteId]: newStats },

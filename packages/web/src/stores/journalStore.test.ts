@@ -198,6 +198,113 @@ describe("journalStore", () => {
     });
   });
 
+  describe("mergeServerRecords", () => {
+    it("adds server records that are not already in the journal", async () => {
+      const { useJournalStore } = await import("./journalStore");
+
+      useJournalStore
+        .getState()
+        .mergeServerRecords("work", [
+          makeTripRecord({ id: "server-1", date: "2026-09-01", actualDurationMinutes: 30 }),
+        ]);
+
+      expect(useJournalStore.getState().stats["work"]!.records).toHaveLength(1);
+    });
+
+    it("keeps local-only records so a first sign-in can still upload them", async () => {
+      const { useJournalStore } = await import("./journalStore");
+
+      useJournalStore.getState().addTripRecord(
+        "work",
+        makeTripRecord({
+          id: "local-1",
+          date: "2026-09-02",
+          actualDurationMinutes: 31,
+          departureTime: 1_700_000_000_000,
+        })
+      );
+      useJournalStore.getState().mergeServerRecords("work", [
+        makeTripRecord({
+          id: "server-1",
+          date: "2026-09-01",
+          actualDurationMinutes: 30,
+          departureTime: 1_699_900_000_000,
+        }),
+      ]);
+
+      const records = useJournalStore.getState().stats["work"]!.records;
+      expect(records.map((r) => r.id)).toEqual(["server-1", "local-1"]);
+    });
+
+    it("lets the server copy win on an identity match but keeps the observed source", async () => {
+      const { useJournalStore } = await import("./journalStore");
+
+      useJournalStore.getState().addTripRecord(
+        "work",
+        makeTripRecord({
+          id: "local-1",
+          date: "2026-09-02",
+          actualDurationMinutes: 31,
+          source: "tracked",
+          departureTime: 1_700_000_000_000,
+        })
+      );
+      useJournalStore.getState().mergeServerRecords("work", [
+        makeTripRecord({
+          id: "server-1",
+          date: "2026-09-02",
+          actualDurationMinutes: 33,
+          source: "manual",
+          departureTime: 1_700_000_000_000,
+        }),
+      ]);
+
+      const records = useJournalStore.getState().stats["work"]!.records;
+      expect(records).toHaveLength(1);
+      expect(records[0]!.id).toBe("server-1");
+      expect(records[0]!.actualDurationMinutes).toBe(33);
+      expect(records[0]!.source).toBe("tracked");
+    });
+
+    it("does not duplicate a pulled record on a second merge", async () => {
+      const { useJournalStore } = await import("./journalStore");
+
+      const serverRecord = makeTripRecord({
+        id: "server-1",
+        date: "2026-09-01",
+        actualDurationMinutes: 30,
+      });
+      useJournalStore.getState().mergeServerRecords("work", [serverRecord]);
+      useJournalStore.getState().mergeServerRecords("work", [serverRecord]);
+
+      expect(useJournalStore.getState().stats["work"]!.records).toHaveLength(1);
+    });
+
+    it("recomputes totalTrips after a merge", async () => {
+      const { useJournalStore } = await import("./journalStore");
+
+      useJournalStore.getState().mergeServerRecords("work", [
+        makeTripRecord({
+          id: "server-1",
+          date: "2026-09-01",
+          actualDurationMinutes: 30,
+          departureTime: 1_699_900_000_000,
+        }),
+        makeTripRecord({ id: "server-2", date: "2026-09-02", actualDurationMinutes: 32 }),
+      ]);
+
+      expect(useJournalStore.getState().stats["work"]!.totalTrips).toBe(2);
+    });
+
+    it("ignores an empty merge", async () => {
+      const { useJournalStore } = await import("./journalStore");
+
+      useJournalStore.getState().mergeServerRecords("work", []);
+
+      expect(useJournalStore.getState().stats["work"]).toBeUndefined();
+    });
+  });
+
   describe("updateTripRecord", () => {
     it("updates an existing trip record", async () => {
       const { useJournalStore } = await import("./journalStore");

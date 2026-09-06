@@ -8,6 +8,7 @@ import {
   SyncErrorToast,
   useRouteChangeAnnouncer,
 } from "./components/common";
+import { useJournalSync } from "./hooks/useJournalSync";
 import { usePreferencesSync } from "./hooks/usePreferencesSync";
 import { usePeriodicSync } from "./lib/periodicSync";
 
@@ -67,6 +68,7 @@ function AppRoutes() {
   // Keep IDB sync config current and register Periodic Background Sync
   usePeriodicSync();
   usePreferencesSync();
+  useJournalSync();
 
   return (
     <>
