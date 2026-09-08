@@ -376,6 +376,68 @@ describe("Authorization Middleware", () => {
 
       expect(res.status).toBe(200);
     });
+
+    it("should reject a malformed Origin header instead of throwing", async () => {
+      app.use("/api/test", requireSameOrigin());
+      app.post("/api/test", (c) => c.json({ success: true }));
+
+      const res = await app.request("http://localhost/api/test", {
+        method: "POST",
+        headers: {
+          Origin: "not-a-url",
+          Host: "localhost",
+        },
+      });
+
+      // Unparseable Origin must be denied (403), not leak a TypeError (500)
+      expect(res.status).toBe(403);
+    });
+
+    it("should reject an Origin header with no host", async () => {
+      app.use("/api/test", requireSameOrigin());
+      app.post("/api/test", (c) => c.json({ success: true }));
+
+      const res = await app.request("http://localhost/api/test", {
+        method: "POST",
+        headers: {
+          Origin: "http://",
+          Host: "localhost",
+        },
+      });
+
+      expect(res.status).toBe(403);
+    });
+
+    it("should reject a malformed Referer header instead of throwing", async () => {
+      app.use("/api/test", requireSameOrigin());
+      app.post("/api/test", (c) => c.json({ success: true }));
+
+      // Referer branch only fires when Origin is absent
+      const res = await app.request("http://localhost/api/test", {
+        method: "POST",
+        headers: {
+          Referer: "not-a-url",
+          Host: "localhost",
+        },
+      });
+
+      expect(res.status).toBe(403);
+    });
+
+    it("should allow a same-origin Referer-only request", async () => {
+      app.use("/api/test", requireSameOrigin());
+      app.post("/api/test", (c) => c.json({ success: true }));
+
+      const res = await app.request("http://localhost/api/test", {
+        method: "POST",
+        headers: {
+          Referer: "http://localhost/page?tab=1",
+          Host: "localhost",
+        },
+      });
+
+      expect(res.status).toBe(200);
+    });
   });
 
   describe("validateDataAccess", () => {

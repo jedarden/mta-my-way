@@ -260,6 +260,20 @@ export function enforceRateLimitTier(maxTier?: number): MiddlewareHandler {
 // ============================================================================
 
 /**
+ * Parse a request-supplied header as a URL and return its host, or null when
+ * the value is not a parseable URL. Origin/Referer are attacker-controllable,
+ * so an unparseable value must be rejected by the caller rather than allowed
+ * to throw out of the middleware.
+ */
+function parseHeaderHost(header: string): string | null {
+  try {
+    return new URL(header).host;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Verify same-origin for state-changing operations.
  * Prevents CSRF attacks by validating the Origin header for POST/DELETE/PATCH.
  */
@@ -296,7 +310,17 @@ export function requireSameOrigin(): MiddlewareHandler {
 
     // Validate Origin matches Host (if Origin is present)
     if (origin && host) {
-      const originHost = new URL(origin).host;
+      const originHost = parseHeaderHost(origin);
+      if (originHost === null) {
+        securityLogger.logSuspiciousActivity(
+          c,
+          "invalid_origin_url",
+          "Request Origin header is not a parseable URL"
+        );
+        throw new HTTPException(403, {
+          message: "Cross-origin requests not allowed for state-changing operations",
+        });
+      }
       if (originHost !== host) {
         securityLogger.logSuspiciousActivity(
           c,
@@ -311,7 +335,17 @@ export function requireSameOrigin(): MiddlewareHandler {
 
     // Validate Referer matches Host (if Referer is present and no Origin)
     if (referer && host && !origin) {
-      const refererHost = new URL(referer).host;
+      const refererHost = parseHeaderHost(referer);
+      if (refererHost === null) {
+        securityLogger.logSuspiciousActivity(
+          c,
+          "invalid_referer_url",
+          "Request Referer header is not a parseable URL"
+        );
+        throw new HTTPException(403, {
+          message: "Cross-origin requests not allowed for state-changing operations",
+        });
+      }
       if (refererHost !== host) {
         securityLogger.logSuspiciousActivity(
           c,
