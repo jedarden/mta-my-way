@@ -172,6 +172,44 @@ describe("SecurityEventLogger class", () => {
   });
 });
 
+describe("statusCode reporting", () => {
+  let logger: SecurityEventLogger;
+  let mockLogFn: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockLogFn = vi.fn();
+    logger = new SecurityEventLogger({ logFn: mockLogFn });
+  });
+
+  it("does not fabricate statusCode 200 for events logged before the response exists", () => {
+    const app = new Hono();
+    app.post("/test", (c) => {
+      // Logged before the handler returns, like json-depth-protection does:
+      // reading c.res here would fabricate Hono's default 200 Response.
+      logger.logInputValidationFailure(c, "body", "JSON parse error: not valid json");
+      return c.json({ error: "Invalid JSON" }, 400);
+    });
+
+    void app.request("/test", { method: "POST" });
+
+    expect(mockLogFn).toHaveBeenCalled();
+    const loggedEvent = mockLogFn.mock.calls[0]![0]!;
+    expect(loggedEvent.statusCode).toBeUndefined();
+  });
+
+  it("records the real status for events logged after the response is finalized", async () => {
+    const app = new Hono();
+    app.use("*", securityLogging({ logFn: mockLogFn }));
+    app.post("/test", (c) => c.json({ error: "Invalid JSON" }, 400));
+
+    await app.request("/test", { method: "POST" });
+
+    expect(mockLogFn).toHaveBeenCalled();
+    const statuses = mockLogFn.mock.calls.map((call) => call[0]!.statusCode);
+    expect(statuses).toContain(400);
+  });
+});
+
 describe("securityLogging middleware", () => {
   let mockLogFn: ReturnType<typeof vi.fn>;
 

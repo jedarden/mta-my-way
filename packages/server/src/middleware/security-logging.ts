@@ -229,7 +229,11 @@ export class SecurityEventLogger {
           : context.req.path;
       }
     }
-    if (context?.res) {
+    // Only record the status once a response has actually been finalized:
+    // reading `context.res` earlier fabricates Hono's default 200 Response,
+    // which made every event logged before the handler's response (middleware
+    // that logs and *then* returns a 4xx) misreport statusCode as 200.
+    if (context?.finalized) {
       event.statusCode = context.res.status;
     }
 
