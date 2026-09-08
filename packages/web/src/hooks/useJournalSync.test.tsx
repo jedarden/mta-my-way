@@ -214,6 +214,9 @@ describe("useJournalSync", () => {
 
     it("drops a permanently rejected record from the upload queue but keeps it locally", async () => {
       const { sync, useJournalStore: store } = await freshModules();
+      // The refusal is logged rather than thrown; capture it so the expected
+      // "server rejected a trip" warning does not read like a test failure.
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       store.getState().addTripRecord("work", makeTrip());
       const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ error: "Bad request" }, 400));
       vi.stubGlobal("fetch", fetchMock);
@@ -222,9 +225,20 @@ describe("useJournalSync", () => {
       // A second pass does not retry something the server refused outright.
       await sync.pushLocalTrips();
 
+      // Restore before asserting: nothing resets mocks between tests here, so
+      // a failed expectation must not leave the real console.warn silenced for
+      // the rest of the file.
+      const warnings = warnSpy.mock.calls;
+      warnSpy.mockRestore();
+
       expect(blocked).toBe(false);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(store.getState().stats["work"]!.records).toHaveLength(1);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.[0]).toBe("[journalSync] Server rejected a trip:");
+      const logged = warnings[0]?.[1] as { name?: string; status?: number };
+      expect(logged.name).toBe("JournalApiError");
+      expect(logged.status).toBe(400);
     });
   });
 
