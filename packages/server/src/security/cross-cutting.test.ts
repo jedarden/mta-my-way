@@ -396,6 +396,9 @@ describe("Cross-Cutting Security Tests", () => {
     });
 
     it("should set security headers on error responses", async () => {
+      // Hono's default error handler logs the thrown error; silence it so the
+      // expected error-path output doesn't trip stderr-scanning CI checks.
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       app.use("*", securityHeaders());
 
       app.get("/api/error", () => {
@@ -403,6 +406,7 @@ describe("Cross-Cutting Security Tests", () => {
       });
 
       const response = await app.request("/api/error");
+      consoleErrorSpy.mockRestore();
 
       // Security headers should still be present on errors
       expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
@@ -629,6 +633,9 @@ describe("Cross-Cutting Security Tests", () => {
     });
 
     it("should not expose sensitive data in error responses", async () => {
+      // Hono's default error handler logs the thrown error; silence it so the
+      // expected error-path output doesn't trip stderr-scanning CI checks.
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       app.get("/api/error", () => {
         const error: any = new Error("Test error");
         error.stack = "Secret stack trace";
@@ -638,6 +645,7 @@ describe("Cross-Cutting Security Tests", () => {
       // Hono's default error handler doesn't expose stack traces
       // In production, ensure error responses are sanitized
       const response = await app.request("/api/error");
+      consoleErrorSpy.mockRestore();
 
       expect([500, 503]).toContain(response.status);
 
@@ -1508,6 +1516,9 @@ describe("Cross-Cutting Security Tests", () => {
     });
 
     it("should include security headers on 500 Internal Server Error", async () => {
+      // Hono's default error handler logs the thrown error; silence it so the
+      // expected error-path output doesn't trip stderr-scanning CI checks.
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       app.use("*", securityHeaders());
 
       app.get("/api/error", () => {
@@ -1517,6 +1528,7 @@ describe("Cross-Cutting Security Tests", () => {
       const response = await app.request("/api/error", {
         headers: { "x-forwarded-proto": "https" },
       });
+      consoleErrorSpy.mockRestore();
 
       expect(response.status).toBe(500);
 
@@ -1526,6 +1538,9 @@ describe("Cross-Cutting Security Tests", () => {
     });
 
     it("should include security headers on unhandled exceptions", async () => {
+      // Hono's default error handler logs the thrown error; silence it so the
+      // expected error-path output doesn't trip stderr-scanning CI checks.
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       app.use("*", securityHeaders());
 
       app.get("/api/crash", () => {
@@ -1536,6 +1551,7 @@ describe("Cross-Cutting Security Tests", () => {
       const response = await app.request("/api/crash", {
         headers: { "x-forwarded-proto": "https" },
       });
+      consoleErrorSpy.mockRestore();
 
       expect(response.status).toBe(500);
 
