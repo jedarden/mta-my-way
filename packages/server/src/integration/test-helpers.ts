@@ -444,29 +444,34 @@ export async function resetAllModuleState(): Promise<void> {
  */
 export async function cleanupAllState(): Promise<void> {
   // Helper: call `fn` only if it exists on the imported module.
-  // Logs errors when the module exists but the reset function throws,
-  // while silently skipping truly absent modules.
+  // Logs errors when the reset function itself throws, while silently
+  // skipping modules that fail to import and exports that a test file's
+  // `vi.mock()` factory chose not to return (vitest's mock proxy throws on
+  // access to those, rather than reporting them as `undefined`).
   const tryReset = async (spec: string, ...fns: string[]): Promise<void> => {
-    let moduleFound = false;
+    let mod: Record<string, unknown>;
     try {
-      const mod = await import(spec);
-      moduleFound = true;
-      for (const fn of fns) {
-        if (typeof mod[fn] === "function") {
-          try {
-            await mod[fn]();
-          } catch (error) {
-            // Log the error but continue with other resets
-            console.error(`[cleanupAllState] Reset function '${fn}' in '${spec}' failed:`, error);
-          }
+      mod = await import(spec);
+    } catch {
+      // Module may be mocked or not reachable — skip silently.
+      return;
+    }
+    for (const fn of fns) {
+      let resetFn: unknown;
+      try {
+        resetFn = mod[fn];
+      } catch {
+        // Test file's vi.mock() factory omitted this export — nothing to reset.
+        continue;
+      }
+      if (typeof resetFn === "function") {
+        try {
+          await (resetFn as () => unknown)();
+        } catch (error) {
+          // Log the error but continue with other resets
+          console.error(`[cleanupAllState] Reset function '${fn}' in '${spec}' failed:`, error);
         }
       }
-    } catch (error) {
-      // Only log if the module was found - if not found, skip silently
-      if (moduleFound) {
-        console.error(`[cleanupAllState] Failed to process module '${spec}':`, error);
-      }
-      // Module may be mocked or not reachable — skip silently.
     }
   };
 
@@ -475,6 +480,9 @@ export async function cleanupAllState(): Promise<void> {
 
   // ---- alerts-poller.ts ---------------------------------------------------
   await tryReset("../alerts-poller.js", "resetAlertsCacheForTesting");
+
+  // ---- equipment-poller.ts ------------------------------------------------
+  await tryReset("../equipment-poller.js", "resetEquipmentStateForTesting");
 
   // ---- authentication.ts -------------------------------------------------
   await tryReset("../middleware/authentication.js", "resetAuthenticationState");

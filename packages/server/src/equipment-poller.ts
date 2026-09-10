@@ -419,6 +419,21 @@ export function getStationsWithBrokenElevators(): Set<string> {
 }
 
 /**
+ * Seed the outage index for testing purposes.
+ * Lets integration tests exercise accessible rerouting without polling the ENE feed.
+ */
+export function setEquipmentForTesting(equipment: Map<string, EquipmentStatus[]>): void {
+  equipmentByStation = equipment;
+}
+
+/**
+ * Reset all equipment poller state for testing purposes.
+ */
+export function resetEquipmentStateForTesting(): void {
+  equipmentByStation = new Map<string, EquipmentStatus[]>();
+}
+
+/**
  * Get equipment cache status for the health endpoint.
  */
 export function getEquipmentStatus(): {
