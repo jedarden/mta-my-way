@@ -295,8 +295,8 @@ describe("Authentication → Authorization Flow Integration Tests", () => {
 
     function instrumentMiddleware(
       name: string,
-      middleware: (c: Context, next: Next) => Promise<void>
-    ): (c: Context, next: Next) => Promise<void> {
+      middleware: (c: Context, next: Next) => Promise<Response | void>
+    ): (c: Context, next: Next) => Promise<Response | void> {
       return async (c: Context, next: Next) => {
         const startTime = Date.now();
         executionLog.push({
@@ -306,13 +306,18 @@ describe("Authentication → Authorization Flow Integration Tests", () => {
         });
 
         try {
-          await middleware(c, next);
+          const result = await middleware(c, next);
 
           executionLog.push({
             middlewareName: name,
             timestamp: Date.now(),
             phase: "after",
           });
+
+          // A middleware may short-circuit by returning a Response without
+          // calling next(); that Response has to reach Hono's compose or the
+          // context never finalizes ("Context is not finalized" → 500).
+          return result;
         } catch (error) {
           executionLog.push({
             middlewareName: name,
