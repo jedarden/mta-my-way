@@ -74,5 +74,12 @@ console.warn = (...args) => {
   if (typeof msg === "string" && msg.includes("Audit log cleared")) {
     return;
   }
+  // Structured security-event lines (security-logging middleware) are expected,
+  // deliberate byproducts of tests that exercise rejection paths — malformed
+  // JSON, blocked attacks, rate limits. The events themselves are asserted via
+  // injected logFn / console spies, so only the stdout noise is silenced here.
+  if (typeof msg === "string" && msg.includes('"message":"security_event"')) {
+    return;
+  }
   originalWarn.call(console, ...args);
 };
