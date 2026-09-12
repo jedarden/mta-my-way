@@ -363,8 +363,8 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: "101",
-        destination: "725",
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -375,7 +375,10 @@ describe("Commute Analysis Workflow Integration Tests", () => {
       const stats1 = calculateCommuteStats("cached-commute");
       const stats2 = calculateCommuteStats("cached-commute");
 
-      expect(stats1?.totalTrips).toBe(stats2?.totalTrips);
+      // The trip must actually insert — a failed insert would make this
+      // assertion vacuous (0 === 0) and log a NOT NULL constraint error.
+      expect(stats1?.totalTrips).toBe(1);
+      expect(stats2?.totalTrips).toBe(stats1?.totalTrips);
     });
   });
 
@@ -432,8 +435,8 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       recordTrip({
         date: "2026-05-04",
-        origin: "101",
-        destination: "725",
+        origin: { stationId: "101", stationName: "South Ferry" },
+        destination: { stationId: "725", stationName: "Times Sq-42 St" },
         line: "1",
         departureTime: Math.floor((now - 3600000) / 1000),
         arrivalTime: Math.floor(now / 1000),
@@ -446,6 +449,9 @@ describe("Commute Analysis Workflow Integration Tests", () => {
 
       expect(workCommute?.commuteId).toBe("work");
       expect(homeCommute?.commuteId).toBe("home");
+      // The trip must actually insert — a failed insert would make this
+      // assertion vacuous (0 === 0) and log a NOT NULL constraint error.
+      expect(workCommute?.totalTrips).toBe(1);
       // Both should have the same trip count since stats are shared
       expect(workCommute?.totalTrips).toBe(homeCommute?.totalTrips);
     });
