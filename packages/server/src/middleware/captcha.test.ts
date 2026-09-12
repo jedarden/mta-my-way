@@ -257,6 +257,11 @@ describe("CAPTCHA middleware", () => {
     it("handles network errors gracefully", async () => {
       vi.mocked(global.fetch).mockRejectedValueOnce(new Error("Network error"));
 
+      // The rejection reaches verifyCaptcha's catch, which logs the expected
+      // structured error line. Silence it so it does not leak into test
+      // output; the global afterEach restores the spy.
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
       const config = {
         provider: "turnstile" as const,
         siteKey: "test-site-key",
@@ -271,6 +276,9 @@ describe("CAPTCHA middleware", () => {
 
     it("handles timeout errors", async () => {
       vi.mocked(global.fetch).mockRejectedValueOnce(new DOMException("Aborted", "AbortError"));
+
+      // Same expected structured error line as the network-error test above.
+      vi.spyOn(console, "error").mockImplementation(() => {});
 
       const config = {
         provider: "turnstile" as const,
