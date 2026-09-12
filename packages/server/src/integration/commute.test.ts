@@ -415,6 +415,11 @@ describe("Commute Analysis Integration Tests", () => {
         throw new Error("Internal error");
       });
 
+      // The rejection reaches the analyze route's catch, which logs the
+      // expected structured error line. Silence it so it does not leak into
+      // test output; the global afterEach restores the spy.
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
       const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
