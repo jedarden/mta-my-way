@@ -1,18 +1,34 @@
 {
   "active_root": {
-    "path": "objects/c807e898b04d675af617a774919af81b68e4cd5484da6d0c0bfff7e07ad599a1.jsonl",
-    "sha256": "c807e898b04d675af617a774919af81b68e4cd5484da6d0c0bfff7e07ad599a1"
+<<<<<<< HEAD
+    "path": "objects/92de280ea6ccb561d781008bd9c58ad17992d55ceb1e9a4a6684bb3ccc9c1fee.jsonl",
+    "sha256": "92de280ea6ccb561d781008bd9c58ad17992d55ceb1e9a4a6684bb3ccc9c1fee"
   },
   "added_paths": [
-    "objects/c807e898b04d675af617a774919af81b68e4cd5484da6d0c0bfff7e07ad599a1.jsonl"
+    "objects/92de280ea6ccb561d781008bd9c58ad17992d55ceb1e9a4a6684bb3ccc9c1fee.jsonl"
   ],
   "attempt_outcome_count": 0,
-  "created_at": "2026-09-12T11:32:09.11507747Z",
+  "created_at": "2026-09-12T11:32:18.976720546Z",
   "deleted_paths": [
-    "objects/18e96aba0026b4eeae9c8128e504ce6a78a50001dfb7959bb9b52a7c7af55710.jsonl"
+    "objects/709125599b0155a6f59592078858468f726a0bb66215ffc6235bda47dcc3feb7.jsonl"
   ],
-  "event_count": 8957,
-  "generation_id": "gen-a641e153296ba6447e35fe66d087cb8e",
+  "event_count": 8958,
+  "generation_id": "gen-520195eb5ef9fe3bbef43796084895b6",
+=======
+    "path": "objects/fa27df9792f9eb4f0b8bbf6972c4c2f56552513e68534d6c42b18a42f4d19cc2.jsonl",
+    "sha256": "fa27df9792f9eb4f0b8bbf6972c4c2f56552513e68534d6c42b18a42f4d19cc2"
+  },
+  "added_paths": [
+    "objects/fa27df9792f9eb4f0b8bbf6972c4c2f56552513e68534d6c42b18a42f4d19cc2.jsonl"
+  ],
+  "attempt_outcome_count": 0,
+  "created_at": "2026-09-12T11:49:44.54401349Z",
+  "deleted_paths": [
+    "objects/4948a76d85d3a4e3f0f3a23567847eec4fc14bae828b8945be3d1c444d18fcb0.jsonl"
+  ],
+  "event_count": 8962,
+  "generation_id": "gen-9f156759df01d5aa020bb1e9e3e171b5",
+>>>>>>> c659e8ad (chore(beads): close pulse test finding mtamyway-906fc9c4 as already-fixed)
   "issue_count": 1074,
   "mode": "monolithic",
   "receipt_count": 4,
@@ -22,7 +38,13 @@
     "forensic.jsonl"
   ],
   "schema_version": 1,
-  "snapshot_sequence": 8957,
+<<<<<<< HEAD
+  "snapshot_sequence": 8958,
   "store_uuid": "e1043760-2742-e386-e251-4e529c75bad6",
-  "total_record_count": 10035
+  "total_record_count": 10036
+=======
+  "snapshot_sequence": 8962,
+  "store_uuid": "e1043760-2742-e386-e251-4e529c75bad6",
+  "total_record_count": 10040
+>>>>>>> c659e8ad (chore(beads): close pulse test finding mtamyway-906fc9c4 as already-fixed)
 }
