@@ -557,6 +557,11 @@ describe("Suspicious Activity Notifications", () => {
     it("should handle webhook timeout", async () => {
       global.fetch = vi.fn(() => Promise.reject(new Error("Request timeout")));
 
+      // The rejection reaches sendWebhookNotification's catch, which logs the
+      // expected structured error line. Silence it so it does not leak into
+      // test output; the global afterEach restores the spy.
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
       const preferences: NotificationPreferences = {
         keyId: "user-123",
         webhookUrl: "https://slow-server.com/webhook",
