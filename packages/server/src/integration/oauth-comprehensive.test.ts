@@ -367,6 +367,11 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
       // Mock network error
       vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
 
+      // The rejection reaches handleOAuthCallback's catch, which logs the
+      // expected structured error line. Silence it so it does not leak into
+      // test output; the global afterEach restores the spy.
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
       const createSession = vi.fn().mockResolvedValue({ sessionId: "test-session" });
       const result = await handleOAuthCallback(
         "google",
