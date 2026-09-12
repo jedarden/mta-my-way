@@ -136,6 +136,11 @@ describe("loadOrGenerateVapidKeys", () => {
     vi.mocked(readFile).mockResolvedValue("invalid json");
     vi.mocked(writeFile).mockResolvedValue(undefined);
 
+    // The parse failure reaches loadOrGenerateVapidKeys's catch, which logs
+    // the expected structured error line. Silence it so it does not leak into
+    // test output; the global afterEach restores the spy.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
     const keys = await loadOrGenerateVapidKeys("/data");
 
     // Should generate new keys when file is invalid
