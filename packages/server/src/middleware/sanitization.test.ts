@@ -36,7 +36,10 @@ vi.mock("../observability/logger.js", () => ({
 
 describe("Shared sanitization utilities", () => {
   beforeEach(() => {
-    // No setup needed
+    // Attack-payload fixtures intentionally trigger structured warnings. The
+    // server setup imports the real logger before this file's module mock can
+    // replace it, so keep those expected warnings out of the test-run output.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   describe("sanitizeString", () => {
