@@ -153,10 +153,11 @@ export async function callStatefulService<T = unknown>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
+  let response: Response;
   try {
     logger.debug("Calling stateful service", { url, method: options.method || "GET" });
 
-    const response = await fetch(url, {
+    response = await fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -164,18 +165,6 @@ export async function callStatefulService<T = unknown>(
         ...options.headers,
       },
     });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const error = `HTTP ${response.status}: ${response.statusText}`;
-      recordFailure(error);
-      throw new Error(error);
-    }
-
-    const data = await response.json();
-    recordSuccess();
-    return data as T;
   } catch (err) {
     clearTimeout(timeoutId);
     const error = err instanceof Error ? err.message : String(err);
@@ -186,6 +175,25 @@ export async function callStatefulService<T = unknown>(
       throw new Error(`Stateful subsystem timeout (${TIMEOUT_MS}ms)`);
     }
 
+    recordFailure(error);
+    throw err;
+  }
+  clearTimeout(timeoutId);
+
+  // HTTP status failures are recorded exactly once — throwing them inside the
+  // try above would re-enter the catch and double-count toward the breaker.
+  if (!response.ok) {
+    const error = `HTTP ${response.status}: ${response.statusText}`;
+    recordFailure(error);
+    throw new Error(error);
+  }
+
+  try {
+    const data = await response.json();
+    recordSuccess();
+    return data as T;
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
     recordFailure(error);
     throw err;
   }
