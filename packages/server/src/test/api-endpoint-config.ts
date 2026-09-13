@@ -80,7 +80,7 @@ export const BASE_URL = getBaseUrl();
  */
 export const API_ENDPOINTS = {
   // Health and Monitoring
-  health: "/health",
+  health: "/healthz",
   status: "/status",
 
   // API Health
@@ -155,7 +155,7 @@ export const ALL_ENDPOINTS = Object.values(API_ENDPOINTS).filter(
  * All endpoint patterns (including parameterized ones)
  */
 export const ENDPOINT_PATTERNS = [
-  "/health",
+  "/healthz",
   "/status",
   "/api/health",
   "/api/metrics",
@@ -236,7 +236,7 @@ export const TIMEOUTS = {
  */
 export function getTimeoutForEndpoint(endpoint: string): number {
   // Health endpoints
-  if (endpoint === "/health" || endpoint === "/status" || endpoint === "/api/health") {
+  if (endpoint === "/healthz" || endpoint === "/status" || endpoint === "/api/health") {
     return TIMEOUTS.health;
   }
 
@@ -497,7 +497,7 @@ export const ENDPOINT_CATEGORIES = {
   /**
    * Health and monitoring endpoints (fast, no auth)
    */
-  health: ["/health", "/status", "/api/health"],
+  health: ["/healthz", "/status", "/api/health"],
 
   /**
    * Static data endpoints (cacheable, no auth)

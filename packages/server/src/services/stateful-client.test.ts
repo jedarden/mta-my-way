@@ -455,13 +455,15 @@ describe("stateful-client", () => {
   });
 
   describe("checkStatefulHealth", () => {
-    it("returns true when the stateful /health answers ok", async () => {
+    it("returns true when the stateful /healthz answers ok", async () => {
       const client = await loadClient();
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async (_url: string | URL, _init?: RequestInit) => okResponse({ status: "ok" }))
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        okResponse({ status: "ok" })
       );
+      vi.stubGlobal("fetch", fetchMock);
+
       await expect(client.checkStatefulHealth()).resolves.toBe(true);
+      expect(fetchMock.mock.calls[0]?.[0]).toBe("http://mta-my-way-stateful:3001/healthz");
     });
 
     it("returns false when the stateful service cannot be reached", async () => {

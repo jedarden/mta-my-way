@@ -92,13 +92,11 @@ export default defineConfig({
   // Playwright polls the `url` every ~500ms until it receives a 2xx response or
   // the `timeout` is reached.  If the server crashes during startup, Playwright
   // restarts the `command` and retries the health check — this is the built-in
-  // retry mechanism.  We poll /health: registered before all middleware in
+  // retry mechanism.  We poll /healthz: registered before all middleware in
   // app.ts, so readiness checks respond in <1ms regardless of rate-limit or
   // CSRF state.  It returns 200 once the HTTP server is listening and the
-  // database is reachable (SELECT 1), before feed pollers fire.  (Moving the
-  // machine probe to /healthz and giving the SPA route the /health path is
-  // tracked in mtamyway-3117ec7a; this probe works under both orderings
-  // because either endpoint answers 200.)
+  // server is ready to accept requests, before feed pollers fire. The separate
+  // /health path belongs to the client-routed Health screen.
   //
   // reuseExistingServer:
   //   - CI (process.env.CI=true): Always start a fresh server for clean state
@@ -112,7 +110,7 @@ export default defineConfig({
     env: {
       TEST_MODE: "true",
     },
-    url: "http://localhost:3001/health",
+    url: "http://localhost:3001/healthz",
     reuseExistingServer: !process.env.CI,
     timeout: 60 * 1000,
   },

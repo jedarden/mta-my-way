@@ -201,7 +201,7 @@ packages/server/src/
 
 ```typescript
 // Line 416 - Health check (no authentication, no processing)
-app.get("/health", async (c) => {
+app.get("/healthz", async (c) => {
   return c.json({ status: "ok", uptime_seconds: ... });
 });
 ```

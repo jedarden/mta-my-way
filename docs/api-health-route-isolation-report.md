@@ -83,7 +83,7 @@ These endpoints work in both deployment modes and require no authentication:
 
 | Endpoint | Method | Purpose | Response Time |
 |----------|--------|---------|---------------|
-| `/health` | GET | Basic readiness check | < 100ms |
+| `/healthz` | GET | Basic readiness check | < 100ms |
 | `/api/health` | GET | Detailed system health with feed status | < 200ms |
 | `/api/metrics` | GET | Prometheus metrics export | < 100ms |
 | `/api/arrivals/:stationId` | GET | Real-time arrivals for a station | < 500ms |
@@ -138,7 +138,7 @@ These endpoints require authentication and are only mounted when `CORE_ONLY=fals
 **Test Suite:** `tests/e2e/public-api-health.e2e.ts`
 
 #### Core Endpoint Health
-✅ **GET /health** - Returns basic readiness status with uptime  
+✅ **GET /healthz** - Returns basic readiness status with uptime
 ✅ **GET /api/health** - Returns detailed system health with per-feed status  
 ✅ **GET /api/arrivals/:stationId** - Returns real-time arrivals  
 ✅ **GET /api/stations** - Returns complete station list (400+ stations)  

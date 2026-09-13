@@ -262,10 +262,10 @@ trackPerformance((metric) => {
 
 ## Health Endpoint
 
-The `/health` endpoint provides system status:
+The `/api/health` endpoint provides detailed system status:
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:3001/api/health
 ```
 
 Response:
@@ -310,7 +310,7 @@ docker logs -f mta-my-way
 Metrics are exposed in the health endpoint:
 
 ```bash
-curl http://localhost:3001/health | jq .metrics
+curl http://localhost:3001/api/health | jq .metrics
 ```
 
 ### Debug Mode

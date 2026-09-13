@@ -92,7 +92,7 @@ describe("API Endpoint Configuration", () => {
     });
 
     it("should include health endpoints", () => {
-      expect(API_ENDPOINTS.health).toBe("/health");
+      expect(API_ENDPOINTS.health).toBe("/healthz");
       expect(API_ENDPOINTS.status).toBe("/status");
       expect(API_ENDPOINTS.apiHealth).toBe("/api/health");
     });
@@ -148,7 +148,7 @@ describe("API Endpoint Configuration", () => {
     });
 
     it("should return correct timeout for health endpoints", () => {
-      expect(getTimeoutForEndpoint("/health")).toBe(TIMEOUTS.health);
+      expect(getTimeoutForEndpoint("/healthz")).toBe(TIMEOUTS.health);
       expect(getTimeoutForEndpoint("/status")).toBe(TIMEOUTS.health);
       expect(getTimeoutForEndpoint("/api/health")).toBe(TIMEOUTS.health);
     });
@@ -304,7 +304,7 @@ describe("API Endpoint Configuration", () => {
 
   describe("Endpoint Categories", () => {
     it("should categorize health endpoints", () => {
-      expect(getEndpointCategory("/health")).toBe("health");
+      expect(getEndpointCategory("/healthz")).toBe("health");
       expect(getEndpointCategory("/status")).toBe("health");
       expect(getEndpointCategory("/api/health")).toBe("health");
     });
@@ -372,7 +372,7 @@ describe("API Endpoint Configuration", () => {
     it("should validate known endpoints", () => {
       expect(isValidEndpoint("/api/stations")).toBe(true);
       expect(isValidEndpoint("/api/arrivals/123")).toBe(true);
-      expect(isValidEndpoint("/health")).toBe(true);
+      expect(isValidEndpoint("/healthz")).toBe(true);
     });
 
     it("should reject unknown endpoints", () => {

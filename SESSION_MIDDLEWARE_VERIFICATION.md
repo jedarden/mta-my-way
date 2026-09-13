@@ -113,7 +113,7 @@ Both middlewares are applied to `/api/*` routes only:
 
 - ✅ All API endpoints are protected
 - ✅ Static assets are not unnecessarily processed
-- ✅ Public routes (`/health`, `/status`) are not affected
+- ✅ Public routes (`/healthz`, `/health`, `/status`) are not affected
 - ✅ OAuth callback routes remain accessible
 
 ---

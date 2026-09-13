@@ -225,6 +225,7 @@ npm run typecheck               # tsc --build
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/healthz` | Lightweight readiness check (JSON) |
 | GET | `/status` | Health dashboard (HTML) |
 | GET | `/api/health` | Per-feed status and circuit-breaker state (JSON) |
 | GET | `/api/metrics` | Prometheus metrics |

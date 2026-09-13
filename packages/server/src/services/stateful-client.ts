@@ -235,7 +235,7 @@ async function performCall<T = unknown>(path: string, options: RequestInit): Pro
  */
 export async function checkStatefulHealth(): Promise<boolean> {
   try {
-    const response = await callStatefulService<{ status: string }>("/health", {
+    const response = await callStatefulService<{ status: string }>("/healthz", {
       method: "GET",
     });
     return response.status === "ok";

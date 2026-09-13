@@ -221,7 +221,8 @@ The `/api/*` pattern covers **all API endpoints**, including:
 - `/api/journal/*` - Commute journal endpoints
 
 **Excluded from `/api/*` scope:**
-- `/health` - Lightweight readiness check (before middleware)
+- `/healthz` - Lightweight readiness check (before middleware)
+- `/health` - React PWA health screen
 - `/status` - Public status dashboard (HTML page)
 - `/` - React PWA static assets
 

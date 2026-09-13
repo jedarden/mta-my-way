@@ -423,7 +423,7 @@ export class ApiTestSuite {
 export const API_ENDPOINTS = {
   // Health and status endpoints
   HEALTH: {
-    path: "/health",
+    path: "/healthz",
     method: HTTP_METHODS.GET,
     description: "Basic health check",
     expectedStatus: STATUS_CODES.OK,

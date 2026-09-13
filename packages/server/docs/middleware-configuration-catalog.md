@@ -221,7 +221,7 @@ The middleware is registered in **strict security order**:
 
 ```typescript
 // 1. BEFORE ALL MIDDLEWARE (lines 415-426)
-app.get("/health", ...)  // Lightweight readiness check
+app.get("/healthz", ...)  // Lightweight readiness check
 
 // 2. GLOBAL MIDDLEWARE (applies to all routes)
 app.use("*", requestId);                              // Line 430
@@ -258,7 +258,7 @@ app.use("/api/*", rateLimiter());                      // Line 597
 
 ### Execution Order Rationale
 
-1. **Early exit endpoint** (`/health`) - Registered before all middleware for fast readiness checks
+1. **Early exit endpoint** (`/healthz`) - Registered before all middleware for fast readiness checks
 2. **Request ID** - Must run first for correlation across all logs
 3. **Security headers** - Applied to all responses early
 4. **Security logging** - Records all requests for audit trail

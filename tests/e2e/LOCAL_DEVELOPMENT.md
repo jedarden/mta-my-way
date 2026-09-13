@@ -27,7 +27,7 @@ npx playwright test
 
 - **Port conflict detection**: Before starting, Playwright checks if port 3001 is available
 - **Server startup**: If port is free, Playwright starts the server automatically
-- **Health checks**: Playwright waits for the `/health` endpoint to respond before running tests
+- **Health checks**: Playwright waits for the `/healthz` endpoint to respond before running tests
 - **Automatic cleanup**: Server stops when tests complete
 
 ### Reusing an Existing Dev Server
@@ -122,7 +122,7 @@ While possible, changing the port requires updates to multiple config files:
 // playwright.config.ts
 baseURL: "http://localhost:3002",
 webServer: {
-  url: "http://localhost:3002/health",
+  url: "http://localhost:3002/healthz",
   // ...
 }
 ```
@@ -164,7 +164,7 @@ The health check might be failing:
 
 ```bash
 # Check if the server is actually running
-curl http://localhost:3001/health
+curl http://localhost:3001/healthz
 
 # Manually start the server to see errors
 cd ../.. && npx tsx packages/server/src/index.ts

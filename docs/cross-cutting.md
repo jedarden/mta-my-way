@@ -185,7 +185,7 @@ for (const pattern of MALICIOUS_INPUTS.sqlInjection) {
 | **Structured Logging** | JSON logs with context | `packages/server/src/observability/logger.ts` |
 | **Metrics** | Counters, gauges, histograms | `packages/server/src/observability/metrics.ts` |
 | **Distributed Tracing** | Request tracing | `packages/server/src/observability/tracing.ts` |
-| **Health Checks** | System status | `/health` endpoint |
+| **Health Checks** | Readiness status | `/healthz` endpoint |
 | **Metrics Export** | Prometheus scraping | `/metrics` endpoint |
 
 ### Logging
@@ -492,10 +492,10 @@ app.get("/metrics", metricsHandler);
 
 ### Health Endpoint
 
-The `/health` endpoint provides system status:
+The `/api/health` endpoint provides detailed system status:
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:3001/api/health
 ```
 
 Response:
