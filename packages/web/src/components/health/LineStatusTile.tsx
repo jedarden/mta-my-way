@@ -71,13 +71,13 @@ export function LineStatusTile({ line, onClick }: LineStatusTileProps) {
       {/* Status label */}
       <span className="text-11 font-medium text-text-secondary dark:text-dark-text-secondary leading-tight text-center">
         {line.status === "normal" ? (
-          <span className="text-green-600 dark:text-green-400">Normal</span>
+          <span className="text-green-700 dark:text-green-400">Normal</span>
         ) : line.status === "minor_delays" ? (
-          <span className="text-yellow-600 dark:text-yellow-400">Minor</span>
+          <span className="text-yellow-800 dark:text-yellow-400">Minor</span>
         ) : line.status === "significant_delays" ? (
-          <span className="text-orange-600 dark:text-orange-400">Delays</span>
+          <span className="text-orange-700 dark:text-orange-400">Delays</span>
         ) : (
-          <span className="text-red-600 dark:text-red-400">Down</span>
+          <span className="text-red-700 dark:text-red-400">Down</span>
         )}
       </span>
     </button>

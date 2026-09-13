@@ -317,7 +317,7 @@ function LocationStep({ permission, loading, error, onAllow, onDeny, onSkip }: L
         We'll find the 3 closest subway stations to get you started in under 60 seconds.
       </p>
 
-      {error && <p className="text-red-500 text-sm mb-4 max-w-xs">{error}</p>}
+      {error && <p className="text-red-700 text-sm mb-4 max-w-xs">{error}</p>}
 
       {isDenied ? (
         <>

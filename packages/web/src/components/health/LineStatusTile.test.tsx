@@ -86,7 +86,7 @@ describe("LineStatusTile", () => {
       render(<LineStatusTile line={mockLineStatuses.normal} />);
 
       const status = screen.getByText("Normal");
-      expect(status).toHaveClass("text-green-600", "dark:text-green-400");
+      expect(status).toHaveClass("text-green-700", "dark:text-green-400");
     });
 
     it("has surface background", () => {
@@ -115,7 +115,7 @@ describe("LineStatusTile", () => {
       render(<LineStatusTile line={mockLineStatuses.minor_delays} />);
 
       const status = screen.getByText("Minor");
-      expect(status).toHaveClass("text-yellow-600", "dark:text-yellow-400");
+      expect(status).toHaveClass("text-yellow-800", "dark:text-yellow-400");
     });
 
     it("has yellow background", () => {
@@ -144,7 +144,7 @@ describe("LineStatusTile", () => {
       render(<LineStatusTile line={mockLineStatuses.significant_delays} />);
 
       const status = screen.getByText("Delays");
-      expect(status).toHaveClass("text-orange-600", "dark:text-orange-400");
+      expect(status).toHaveClass("text-orange-700", "dark:text-orange-400");
     });
 
     it("has orange background", () => {
@@ -173,7 +173,7 @@ describe("LineStatusTile", () => {
       render(<LineStatusTile line={mockLineStatuses.suspended} />);
 
       const status = screen.getByText("Down");
-      expect(status).toHaveClass("text-red-600", "dark:text-red-400");
+      expect(status).toHaveClass("text-red-700", "dark:text-red-400");
     });
 
     it("has red background", () => {

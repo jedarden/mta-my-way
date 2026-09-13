@@ -27,17 +27,22 @@ export function getFreshnessLevel(feedAgeSeconds: number): FreshnessLevel {
 
 /**
  * Tailwind text color class for a freshness level.
+ *
+ * Light mode uses the -700 step of each scale: the -600 tokens measure
+ * 3.1-4.8:1 on white, below the 4.5:1 WCAG 1.4.3 floor (axe color-contrast);
+ * the -700 tokens clear it on white and on the tinted card surfaces. The
+ * -400 dark tokens already clear 6:1 on #121212.
  */
 export function getFreshnessTextColor(level: FreshnessLevel): string {
   switch (level) {
     case "fresh":
-      return "text-green-600 dark:text-green-400";
+      return "text-green-700 dark:text-green-400";
     case "neutral":
       return "text-text-tertiary dark:text-dark-text-tertiary";
     case "amber":
-      return "text-amber-600 dark:text-amber-400";
+      return "text-amber-700 dark:text-amber-400";
     case "red":
-      return "text-red-600 dark:text-red-400";
+      return "text-red-700 dark:text-red-400";
   }
 }
 

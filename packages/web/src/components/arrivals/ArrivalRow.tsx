@@ -123,7 +123,7 @@ export function ArrivalRow({
         </span>
         <ConfidenceBar confidence={confidence} lineId={line} className="ml-auto" />
         {freshness.isOutdated && (
-          <span className="text-10 text-red-500 dark:text-red-400 shrink-0" aria-live="polite">
+          <span className="text-10 text-red-700 dark:text-red-400 shrink-0" aria-live="polite">
             stale
           </span>
         )}
@@ -176,7 +176,7 @@ export function ArrivalRow({
               <p className="text-13 text-text-secondary dark:text-dark-text-secondary">Scheduled</p>
             )}
             {freshness.isOutdated && (
-              <p className="text-12 text-red-500 dark:text-red-400" role="note">
+              <p className="text-12 text-red-700 dark:text-red-400" role="note">
                 (data may be outdated)
               </p>
             )}
@@ -243,7 +243,7 @@ function ExpressBadge() {
 function EstimatedBadge() {
   return (
     <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-amber-500/10 text-amber-600 dark:text-amber-400"
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-amber-500/10 text-amber-700 dark:text-amber-400"
       aria-label="Estimated time based on cached data"
       title="Offline estimate — refresh when connected"
     >
@@ -257,7 +257,7 @@ function EstimatedBadge() {
 function CancelledBadge() {
   return (
     <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-red-500/10 text-red-600 dark:text-red-400"
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-10 font-bold uppercase tracking-wide bg-red-500/10 text-red-700 dark:text-red-400"
       aria-label="Trip cancelled"
       title="Trip cancelled — absent from live feed within replacement window"
     >

@@ -1,0 +1,497 @@
+{
+  "generatedAt": "2026-09-13T17:29:02.328Z",
+  "axeVersion": "4.13.0",
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa"
+  ],
+  "browser": "Mobile Chrome (Pixel 5)",
+  "routes": [
+    {
+      "name": "Onboarding (first run)",
+      "path": "/",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 17,
+      "inapplicableCount": 46,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Onboarding (first run)",
+      "path": "/",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 17,
+      "inapplicableCount": 46,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Home",
+      "path": "/",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Home",
+      "path": "/",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Search",
+      "path": "/search",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/search",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 29,
+      "inapplicableCount": 34,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Search",
+      "path": "/search",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/search",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 29,
+      "inapplicableCount": 34,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Commute",
+      "path": "/commute",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/commute",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Commute",
+      "path": "/commute",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/commute",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Alerts",
+      "path": "/alerts",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/alerts",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Alerts",
+      "path": "/alerts",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/alerts",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Map",
+      "path": "/map",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/map",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Map",
+      "path": "/map",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/map",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Health (client-side nav — deep link serves the API readiness probe)",
+      "path": "/health",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/health",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Health (client-side nav — deep link serves the API readiness probe)",
+      "path": "/health",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/health",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Station",
+      "path": "/station/101",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/station/101",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Station",
+      "path": "/station/101",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/station/101",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 26,
+      "inapplicableCount": 37,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Line Diagram",
+      "path": "/line/1",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/line/1",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Line Diagram",
+      "path": "/line/1",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/line/1",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 25,
+      "inapplicableCount": 38,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Trip",
+      "path": "/trip/audit-no-such-trip",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/trip/audit-no-such-trip",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Trip",
+      "path": "/trip/audit-no-such-trip",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/trip/audit-no-such-trip",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 18,
+      "inapplicableCount": 45,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Journal",
+      "path": "/journal",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/journal",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Journal",
+      "path": "/journal",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/journal",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 24,
+      "inapplicableCount": 39,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats (client-side nav — deep link serves the precached bundle visualizer)",
+      "path": "/stats",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 20,
+      "inapplicableCount": 43,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats (client-side nav — deep link serves the precached bundle visualizer)",
+      "path": "/stats",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 20,
+      "inapplicableCount": 43,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats as a service-worker-controlled visit really reaches it",
+      "path": "/stats",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 20,
+      "inapplicableCount": 43,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Stats as a service-worker-controlled visit really reaches it",
+      "path": "/stats",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/stats",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 20,
+      "inapplicableCount": 43,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Settings",
+      "path": "/settings",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/settings",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 28,
+      "inapplicableCount": 35,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Settings",
+      "path": "/settings",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/settings",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 28,
+      "inapplicableCount": 35,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Request",
+      "path": "/reset-password",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/reset-password",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 27,
+      "inapplicableCount": 36,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Request",
+      "path": "/reset-password",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/reset-password",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 27,
+      "inapplicableCount": 36,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Confirm",
+      "path": "/reset-password/confirm",
+      "colorScheme": "light",
+      "url": "http://localhost:3001/reset-password/confirm",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 1,
+      "incompleteRuleIds": [
+        "color-contrast"
+      ],
+      "passCount": 23,
+      "inapplicableCount": 40,
+      "axeVersion": "4.13.0"
+    },
+    {
+      "name": "Password Reset Confirm",
+      "path": "/reset-password/confirm",
+      "colorScheme": "dark",
+      "url": "http://localhost:3001/reset-password/confirm",
+      "violations": [],
+      "violationCount": 0,
+      "nodeCount": 0,
+      "incompleteCount": 0,
+      "incompleteRuleIds": [],
+      "passCount": 23,
+      "inapplicableCount": 40,
+      "axeVersion": "4.13.0"
+    }
+  ],
+  "totals": {
+    "violations": 0,
+    "nodes": 0,
+    "incomplete": 15
+  }
+}

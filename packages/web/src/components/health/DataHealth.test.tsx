@@ -40,10 +40,10 @@ vi.mock("@mta-my-way/shared", () => ({
   },
   getFreshnessTextColor: (level: string) => {
     const colors = {
-      green: "text-green-600 dark:text-green-400",
+      green: "text-green-700 dark:text-green-400",
       gray: "text-gray-600 dark:text-gray-400",
-      amber: "text-amber-600 dark:text-amber-400",
-      red: "text-red-600 dark:text-red-400",
+      amber: "text-amber-700 dark:text-amber-400",
+      red: "text-red-700 dark:text-red-400",
     };
     return colors[level as keyof typeof colors] || "text-gray-600";
   },
@@ -195,7 +195,7 @@ describe("DataHealth", () => {
       render(<DataHealth feeds={[mockFeeds[3]!]} />);
 
       const statusText = screen.getByText("Circuit open");
-      expect(statusText).toHaveClass("text-red-500");
+      expect(statusText).toHaveClass("text-red-700");
     });
   });
 

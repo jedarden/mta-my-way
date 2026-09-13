@@ -18,7 +18,7 @@ describe("HealthSummary", () => {
       render(<HealthSummary percentage={95} totalLines={20} />);
 
       const percentage = screen.getByText("95%");
-      expect(percentage).toHaveClass("text-green-600", "dark:text-green-400");
+      expect(percentage).toHaveClass("text-green-700", "dark:text-green-400");
     });
 
     it("shows Good Service label", () => {
@@ -30,7 +30,7 @@ describe("HealthSummary", () => {
     it("shows green circular progress", () => {
       const { container } = render(<HealthSummary percentage={95} totalLines={20} />);
 
-      const progressCircle = container.querySelector(".bg-green-500");
+      const progressCircle = container.querySelector(".stroke-green-500");
       expect(progressCircle).toBeInTheDocument();
     });
   });
@@ -40,7 +40,7 @@ describe("HealthSummary", () => {
       render(<HealthSummary percentage={80} totalLines={20} />);
 
       const percentage = screen.getByText("80%");
-      expect(percentage).toHaveClass("text-yellow-600", "dark:text-yellow-400");
+      expect(percentage).toHaveClass("text-yellow-800", "dark:text-yellow-400");
     });
 
     it("shows Minor Issues label", () => {
@@ -52,7 +52,7 @@ describe("HealthSummary", () => {
     it("shows yellow circular progress", () => {
       const { container } = render(<HealthSummary percentage={80} totalLines={20} />);
 
-      const progressCircle = container.querySelector(".bg-yellow-500");
+      const progressCircle = container.querySelector(".stroke-yellow-500");
       expect(progressCircle).toBeInTheDocument();
     });
   });
@@ -62,7 +62,7 @@ describe("HealthSummary", () => {
       render(<HealthSummary percentage={60} totalLines={20} />);
 
       const percentage = screen.getByText("60%");
-      expect(percentage).toHaveClass("text-orange-600", "dark:text-orange-400");
+      expect(percentage).toHaveClass("text-orange-700", "dark:text-orange-400");
     });
 
     it("shows Significant Disruptions label", () => {
@@ -74,7 +74,7 @@ describe("HealthSummary", () => {
     it("shows orange circular progress", () => {
       const { container } = render(<HealthSummary percentage={60} totalLines={20} />);
 
-      const progressCircle = container.querySelector(".bg-orange-500");
+      const progressCircle = container.querySelector(".stroke-orange-500");
       expect(progressCircle).toBeInTheDocument();
     });
   });
@@ -84,7 +84,7 @@ describe("HealthSummary", () => {
       render(<HealthSummary percentage={30} totalLines={20} />);
 
       const percentage = screen.getByText("30%");
-      expect(percentage).toHaveClass("text-red-600", "dark:text-red-400");
+      expect(percentage).toHaveClass("text-red-700", "dark:text-red-400");
     });
 
     it("shows Major Disruptions label", () => {
@@ -96,7 +96,7 @@ describe("HealthSummary", () => {
     it("shows red circular progress", () => {
       const { container } = render(<HealthSummary percentage={30} totalLines={20} />);
 
-      const progressCircle = container.querySelector(".bg-red-500");
+      const progressCircle = container.querySelector(".stroke-red-500");
       expect(progressCircle).toBeInTheDocument();
     });
   });
@@ -120,21 +120,21 @@ describe("HealthSummary", () => {
       render(<HealthSummary percentage={90} totalLines={20} />);
 
       const percentage = screen.getByText("90%");
-      expect(percentage).toHaveClass("text-green-600");
+      expect(percentage).toHaveClass("text-green-700");
     });
 
     it("handles boundary at 70%", () => {
       render(<HealthSummary percentage={70} totalLines={20} />);
 
       const percentage = screen.getByText("70%");
-      expect(percentage).toHaveClass("text-yellow-600");
+      expect(percentage).toHaveClass("text-yellow-800");
     });
 
     it("handles boundary at 50%", () => {
       render(<HealthSummary percentage={50} totalLines={20} />);
 
       const percentage = screen.getByText("50%");
-      expect(percentage).toHaveClass("text-orange-600");
+      expect(percentage).toHaveClass("text-orange-700");
     });
   });
 
@@ -177,7 +177,7 @@ describe("HealthSummary", () => {
     it("shows correct stroke dasharray for percentage", () => {
       const { container } = render(<HealthSummary percentage={60} totalLines={20} />);
 
-      const progressCircle = container.querySelector(".bg-orange-500");
+      const progressCircle = container.querySelector(".stroke-orange-500");
       expect(progressCircle).toHaveAttribute("stroke-dasharray", "60, 100");
     });
   });

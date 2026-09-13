@@ -106,7 +106,7 @@ Filed from this measurement:
 | Bead | Fix | Status |
 | --- | --- | --- |
 | `mtamyway-652eba9a` | Map: stop nesting interactive station buttons inside `role="img"` | closed — landed as `c8ad403` |
-| `mtamyway-1f9a93a3` | Health: raise status-text and percentage-overlay contrast to 4.5:1 | open — fix in the working tree, see [`wcag-contrast-fix-2026-09-05.md`](wcag-contrast-fix-2026-09-05.md) |
+| `mtamyway-1f9a93a3` | Health: raise status-text and percentage-overlay contrast to 4.5:1 | closed 2026-09-13 — fix landed, see [`wcag-contrast-fix-2026-09-05.md`](wcag-contrast-fix-2026-09-05.md) |
 | `mtamyway-73fe299f` | Map/Stats: use the `Screen` shell so the skip link and focus management apply | open — fix in the working tree |
 | `mtamyway-0a2dc600` | Build: keep the visualizer artifact out of `dist/` and the precache | closed — landed as `318ca7b` |
 | `mtamyway-3117ec7a` | Routing: separate the SPA `/health` route from the API readiness endpoint | open — `/healthz` probe in the working tree |
@@ -127,6 +127,19 @@ the Health `color-contrast` findings above are expected to reproduce (the map
 `nested-interactive` is already fixed at that commit by `c8ad403`); that
 expectation is derived from which fixes are present, not separately measured.
 Re-run the commands above against a clean checkout to confirm.
+
+**2026-09-13, fix re-applied and committed (this commit):** the 09-06 contrast
+fix was indeed lost with its uncommitted tree — a fresh pre-fix baseline on
+this day reproduced the Health findings exactly (36 light + 1 dark
+`color-contrast` nodes, same fg/bg pairs, plus 2 `green-600` "Normal" nodes
+the 09-05 data state had not exercised). The fix from
+[`wcag-contrast-fix-2026-09-05.md`](wcag-contrast-fix-2026-09-05.md) was
+re-applied (same token moves, `yellow-800` for "Minor", arc on `stroke-*`,
+track ring on real neutrals) and re-measured: **0 violations, 0 nodes, 32
+route/scheme runs, 15 incomplete, `/health` 26 passes per scheme —
+`WCAG_AUDIT_ENFORCE=1` exit 0.** Report kept:
+[`wcag-audit-2026-09-13.json`](wcag-audit-2026-09-13.json). This is the first
+re-verification taken against a tree whose fix is actually in git.
 
 ## Limits of this measurement
 

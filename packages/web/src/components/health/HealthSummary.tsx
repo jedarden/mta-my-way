@@ -9,23 +9,30 @@ interface HealthSummaryProps {
 }
 
 export function HealthSummary({ percentage, totalLines }: Omit<HealthSummaryProps, "updatedAt">) {
+  // Status text sits on the light surface / dark background, so the light-mode
+  // tokens are the -700/-800 step: the -600 greens/yellows/oranges measure
+  // 2.9-3.6:1 on white, below the 4.5:1 WCAG 1.4.3 floor (axe color-contrast).
+  // Yellow takes -800: -700's margin over tinted tile backgrounds is too thin.
   const color =
     percentage >= 90
-      ? "text-green-600 dark:text-green-400"
+      ? "text-green-700 dark:text-green-400"
       : percentage >= 70
-        ? "text-yellow-600 dark:text-yellow-400"
+        ? "text-yellow-800 dark:text-yellow-400"
         : percentage >= 50
-          ? "text-orange-600 dark:text-orange-400"
-          : "text-red-600 dark:text-red-400";
+          ? "text-orange-700 dark:text-orange-400"
+          : "text-red-700 dark:text-red-400";
 
-  const bgColor =
+  // The progress arc's color goes on `stroke` — `bg-*` on an SVG circle paints
+  // nothing (background-color does not render on SVG shapes), which is why the
+  // arc never appeared and axe read the dead background as the glyph's backdrop.
+  const strokeColor =
     percentage >= 90
-      ? "bg-green-500"
+      ? "stroke-green-500"
       : percentage >= 70
-        ? "bg-yellow-500"
+        ? "stroke-yellow-500"
         : percentage >= 50
-          ? "bg-orange-500"
-          : "bg-red-500";
+          ? "stroke-orange-500"
+          : "stroke-red-500";
 
   const label =
     percentage >= 90
@@ -48,7 +55,7 @@ export function HealthSummary({ percentage, totalLines }: Omit<HealthSummaryProp
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className="text-border dark:text-dark-border"
+            className="text-neutral-200 dark:text-neutral-800"
           />
           <circle
             cx="18"
@@ -58,7 +65,8 @@ export function HealthSummary({ percentage, totalLines }: Omit<HealthSummaryProp
             strokeWidth="2"
             strokeLinecap="round"
             strokeDasharray={`${percentage}, 100`}
-            className={bgColor}
+            stroke="currentColor"
+            className={strokeColor}
           />
         </svg>
         <span

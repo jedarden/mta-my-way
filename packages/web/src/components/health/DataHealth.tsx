@@ -57,7 +57,7 @@ export function DataHealth({ feeds }: DataHealthProps) {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {isDown ? (
-                  <span className="text-red-500 dark:text-red-400 font-medium">
+                  <span className="text-red-700 dark:text-red-400 font-medium">
                     {feed.status === "never_polled" ? "Never polled" : "Circuit open"}
                   </span>
                 ) : (
