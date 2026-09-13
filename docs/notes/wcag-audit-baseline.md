@@ -18,6 +18,7 @@ TEST_MODE=true npx tsx packages/server/src/index.ts &
 # 3. Measure (from tests/e2e/)
 cd tests/e2e
 CHROME_PATH=/nix/store/53p8msmqxpi829zdrw6qkvaamidxy9cj-chromium-151.0.7922.173/bin/chromium \
+  WCAG_AUDIT_ENFORCE=1 \
   npx playwright test wcag-audit.e2e.ts --project="Mobile Chrome"
 ```
 
@@ -27,9 +28,13 @@ Chromium download cannot launch here (`libglib-2.0.so.0` is not on its library
 path), the same constraint `npm run lighthouse` documents, and now handled by
 `tests/e2e/playwright.config.ts` via `use.launchOptions.executablePath`.
 
-Add `WCAG_AUDIT_ENFORCE=1` to fail the run on any violation. It is off by
-default while the recorded violations are unfixed; flipping it turns the audit
-into the gate.
+Set `WCAG_AUDIT_ENFORCE=1` to make any violation fail the run. CI sets it on
+every push: the `wcag-audit` step of the `mta-my-way-build` WorkflowTemplate
+(`declarative-config` →
+`k8s/iad-ci/argo-workflows/mta-my-way-workflowtemplate.yml`), which fails the
+pipeline before `docker-build`. The CI step sinkholes the feed hosts in the
+pod's `/etc/hosts` so it measures the same no-live-feeds state recorded here
+regardless of cluster egress.
 
 ## What is measured
 
@@ -43,8 +48,9 @@ is audited separately), server static GTFS data + real alerts, **no live train
 feeds** (the MTA feeds return 403 from this host), no saved commutes, no auth.
 That is the state a first-time visitor with a degraded feed sees.
 
-`/health` and `/stats` are audited via client-side navigation because a deep
-link to each is shadowed before the SPA can render (findings 2 and 3 below).
+`/health` and `/stats` are measured as plain deep links. Both shadows found by
+the original audit are fixed: readiness moved to `/healthz`, and the bundle
+visualizer no longer lands in the PWA's build or service-worker precache.
 
 ## Recorded result
 
@@ -107,9 +113,9 @@ Filed from this measurement:
 | --- | --- | --- |
 | `mtamyway-652eba9a` | Map: stop nesting interactive station buttons inside `role="img"` | closed — landed as `c8ad403` |
 | `mtamyway-1f9a93a3` | Health: raise status-text and percentage-overlay contrast to 4.5:1 | closed 2026-09-13 — fix landed, see [`wcag-contrast-fix-2026-09-05.md`](wcag-contrast-fix-2026-09-05.md) |
-| `mtamyway-73fe299f` | Map/Stats: use the `Screen` shell so the skip link and focus management apply | open — fix in the working tree |
+| `mtamyway-73fe299f` | Map/Stats: use the `Screen` shell so the skip link and focus management apply | closed — landed as `21ab9898` |
 | `mtamyway-0a2dc600` | Build: keep the visualizer artifact out of `dist/` and the precache | closed — landed as `318ca7b` |
-| `mtamyway-3117ec7a` | Routing: separate the SPA `/health` route from the API readiness endpoint | open — `/healthz` probe in the working tree |
+| `mtamyway-3117ec7a` | Routing: separate the SPA `/health` route from the API readiness endpoint | closed — landed as `3c80cc87` |
 | `mtamyway-f7b528cd` | Flip `WCAG_AUDIT_ENFORCE=1` once the violations are fixed; promote `axe-core` to a direct devDependency | open |
 
 ## Re-verification

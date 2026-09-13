@@ -29,30 +29,21 @@
  *   - Browser: Mobile Chrome (Pixel 5) only — the app is mobile-first and
  *     contrast/layout results differ per engine, so the measurement fixes one.
  *
- * One route cannot be measured by a plain deep link, and that shadow is a
- * finding in its own right (recorded in docs/notes/wcag-audit-baseline.md):
- *   - /stats is served as the rollup-plugin-visualizer's stats.html once the
- *     precaching service worker is in control, because the visualizer's build
- *     artifact lands in the workbox precache manifest.
- * It is audited via client-side navigation so the actual React screen is what
- * gets measured, and additionally as the artifact page a
- * service-worker-controlled visit really receives. (/health has the same
- * shadow — the server readiness probe owns the path, so a deep link returns
- * API JSON, not the SPA; moving the probe to /healthz is tracked separately in
- * mtamyway-3117ec7a. Client-side navigation measures the screen under both
- * orderings, so it is the form used here.)
+ * Every route is measured by a plain deep link. The two shadows recorded in
+ * docs/notes/wcag-audit-baseline.md are fixed: /healthz now owns the server
+ * readiness probe, and the bundle visualizer no longer lands in dist/ or the
+ * service worker precache, so /health and /stats both reach the React screens.
  *
- * axe-core is resolved from the installed tree rather than declared directly:
- * it arrives as a transitive dep of the root's direct devDependency
- * @lhci/cli -> lighthouse, so npm always installs it (pinned in
- * package-lock.json). Promote it to a direct devDependency of this workspace
- * if lighthouse ever drops it; resolution here fails loudly if it is absent.
+ * axe-core is a direct devDependency of this workspace (@mta-my-way/e2e,
+ * mtamyway-f7b528cd). It is still resolved from the installed tree and
+ * injected as a script tag, because it must run inside the page under audit;
+ * resolution here fails loudly if it is absent.
  *
  * Report: tests/e2e/test-results/wcag-audit.json by default (Playwright's own
- * output dir, already gitignored), override with WCAG_AUDIT_OUT. Enforcement
- * is opt-in via WCAG_AUDIT_ENFORCE=1 — by default the spec records violations
- * without failing, because the fixes are tracked as their own beads; flip it
- * once those land and the audit becomes the gate.
+ * output dir, already gitignored), override with WCAG_AUDIT_OUT. Set
+ * WCAG_AUDIT_ENFORCE=1 to fail on any violation. CI sets it on every push in
+ * mta-my-way-build's wcag-audit step (declarative-config
+ * k8s/iad-ci/argo-workflows/mta-my-way-workflowtemplate.yml).
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -70,7 +61,7 @@ function resolveAxeSource(): string {
   if (!existsSync(candidate)) {
     throw new Error(
       `axe-core is not installed (looked for ${candidate}). Run \`npm install\` at the repo root — ` +
-        `axe-core is installed transitively via @lhci/cli -> lighthouse.`
+        `it is a direct devDependency of @mta-my-way/e2e.`
     );
   }
   return candidate;
@@ -85,14 +76,12 @@ const REPORT_PATH =
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 /**
- * How each route is reached. `direct` is a plain deep link — what a fresh
- * visit serves. `client` boots the SPA at / first and then navigates, for the
- * routes a deep link cannot reach. `firstRun` leaves the onboarding flag
- * unset: HomeScreen renders the first-run OnboardingFlow *instead of* the
- * Screen shell (no <main>), so that state is audited once here and every other
- * route measures the steady-state app with onboarding already completed.
+ * `firstRun` leaves the onboarding flag unset: HomeScreen renders the
+ * first-run OnboardingFlow *instead of* the Screen shell (no <main>), so that
+ * state is audited once here and every other route measures the steady-state
+ * app with onboarding already completed.
  */
-type Navigation = "direct" | "client" | "firstRun";
+type Navigation = "direct" | "firstRun";
 
 const ROUTES: { name: string; path: string; nav?: Navigation }[] = [
   { name: "Onboarding (first run)", path: "/", nav: "firstRun" },
@@ -101,21 +90,12 @@ const ROUTES: { name: string; path: string; nav?: Navigation }[] = [
   { name: "Commute", path: "/commute" },
   { name: "Alerts", path: "/alerts" },
   { name: "Map", path: "/map" },
-  {
-    name: "Health (client-side nav — deep link serves the API readiness probe)",
-    path: "/health",
-    nav: "client",
-  },
+  { name: "Health", path: "/health" }, // deep link again: mtamyway-3117ec7a moved the probe
   { name: "Station", path: "/station/101" }, // Van Cortlandt Park-242 St (static data)
   { name: "Line Diagram", path: "/line/1" },
   { name: "Trip", path: "/trip/audit-no-such-trip" }, // not-found state
   { name: "Journal", path: "/journal" },
-  {
-    name: "Stats (client-side nav — deep link serves the precached bundle visualizer)",
-    path: "/stats",
-    nav: "client",
-  },
-  { name: "Stats as a service-worker-controlled visit really reaches it", path: "/stats" },
+  { name: "Stats", path: "/stats" }, // deep link again: mtamyway-0a2dc600 unshadowed it
   { name: "Settings", path: "/settings" },
   { name: "Password Reset Request", path: "/reset-password" },
   { name: "Password Reset Confirm", path: "/reset-password/confirm" },
@@ -168,7 +148,7 @@ interface AuditReport {
 test.describe.configure({ mode: "serial" });
 
 test("axe-core WCAG audit across all routed screens", async ({ page }, testInfo) => {
-  // 16 route states x 2 color schemes, each with a settle window — far past
+  // 15 route states x 2 color schemes, each with a settle window — far past
   // the default 30s test timeout.
   test.setTimeout(5 * 60_000);
   const axeVersion = await getAxeVersion();
@@ -288,23 +268,15 @@ function auditRoute(
     await resetPageState(page);
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
 
-    if (nav === "client") {
-      // Deep links to these paths are shadowed (see the ROUTES comment), so
-      // boot the shell first and navigate the way in-app controls would.
-      await page.goto("/", { waitUntil: "domcontentloaded" });
-      await page.locator("main#main-content").waitFor({ state: "attached", timeout: 20_000 });
-      await page.evaluate((to) => {
-        history.pushState({}, "", to);
-        window.dispatchEvent(new PopStateEvent("popstate"));
-      }, path);
-    } else {
-      await page.goto(path, { waitUntil: "domcontentloaded" });
-    }
+    await page.goto(path, { waitUntil: "domcontentloaded" });
 
-    // Wait for the app to mount (the Screen shell renders <main>, though two
-    // screens roll their own <main> without the shell's id), and for the
-    // first-run tour the body is all there is. Then let the lazy screen chunk
-    // and its data settle before measuring.
+    // Wait for the app to mount, and for the first-run tour the body is all
+    // there is. The wait is on <main>, not <main id="main-content">: MapScreen
+    // and StatsScreen now carry the Screen shell's id (21ab9898), while the
+    // Station, Line Diagram, and Trip screens still render custom main
+    // landmarks. The bare element is the invariant every steady-state route
+    // shares. Then let the lazy screen chunk and its data settle before
+    // measuring.
     const mountPoint = nav === "firstRun" ? page.locator("body") : page.locator("main");
     await mountPoint.waitFor({ state: "attached", timeout: 20_000 });
     // Screens that poll (map, arrivals) never reach networkidle, so settle is
