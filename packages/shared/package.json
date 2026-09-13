@@ -26,6 +26,10 @@
     "./testing/middleware": {
       "types": "./src/testing/middleware/index.ts",
       "import": "./src/testing/middleware/index.ts"
+    },
+    "./testing/jwt-helpers": {
+      "types": "./src/testing/jwt-helpers.ts",
+      "import": "./src/testing/jwt-helpers.ts"
     }
   },
   "scripts": {
