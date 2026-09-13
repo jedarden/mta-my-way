@@ -68,7 +68,26 @@ rather than relaxed to whatever the current build scores; the threshold stays
 honest, the gate stays usable, and the real work is filed as
 mtamyway-f2a65cf7. *(Superseded same day — see the next section.)*
 
-## Measured 2026-09-13 after FCP work (mtamyway-f2a65cf7, 3 runs)
+## Final FCP acceptance — 2026-09-13
+
+The FCP effort landed as five critical-path changes: a static app shell,
+deferred application boot, stylesheet inlining through `inlineCriticalCss`,
+removal of app-graph resource hints, and service-worker registration after the
+`load` event.
+
+| Measurement | FCP runs (ms) | Median | Assertion | Result |
+| --- | --- | --- | --- | --- |
+| Before FCP work (2026-09-13) | 1902 / 1897 / 1897 | **1897 ms** | ≤ 1500, warn | WARN |
+| After FCP work (mtamyway-f2a65cf7) | 756 / 758 / 758 | **758 ms** | ≤ 1500, warn | PASS |
+| Final gate verification (mtamyway-2d0930bc) | 755 / 754 / 753 | **754 ms** | ≤ 1500, error | PASS |
+
+For the final verification, `first-contentful-paint` was changed from `warn`
+to `error` while `maxNumericValue` remained exactly 1500. A full
+`npm run lighthouse` then exited 0 with an empty `assertion-results.json`.
+The three runs scored 99 Performance, 98 Accessibility, and 96 Best Practices.
+No Lighthouse budget was relaxed.
+
+The detailed post-optimization measurement was:
 
 | Metric                      | Median  | Runs (ms)              | Budget  | Result |
 | --------------------------- | ------- | ---------------------- | ------- | ------ |
@@ -78,10 +97,10 @@ mtamyway-f2a65cf7. *(Superseded same day — see the next section.)*
 | Total Blocking Time         | 0       | 0 / 0 / 0              | ≤ 300   | PASS   |
 | Cumulative Layout Shift     | 0       | 0 / 0 / 0              | ≤ 0.1   | PASS   |
 
-Performance category: **99** (was 97). `npm run lighthouse` exits 0 with
-**zero** assertion results — the FCP warn is gone, and the 1500 ms budget
-stays in `lighthouserc.json` at `warn` for exactly the reason it was kept:
-the threshold should stay stricter than the build, not relax to meet it.
+Performance category: **99** (was 97). `npm run lighthouse` exited 0 with
+**zero** assertion results. At the time of this measurement, the 1500 ms FCP
+budget remained at `warn` pending the final verification above; it is now
+enforced at `error`.
 
 ### What moved FCP from ~1897 ms to ~758 ms
 
@@ -111,10 +130,9 @@ bundle shrinkage; the trim-back to ≤ 180 KB remains mtamyway-9b7b2a4f.
 
 ## Budget deltas filed alongside
 
-- **FCP ≤ 1500 ms** — measured ~1897 ms; tracked in mtamyway-f2a65cf7.
-  Warn-level in `lighthouserc.json`, so it shows in every run without
-  breaking the 95+ gate. *(Now passing at ~758 ms — see the post-FCP-work
-  section above.)*
+- **FCP ≤ 1500 ms** — measured ~1897 ms before the work and tracked in
+  mtamyway-f2a65cf7. It now passes at ~754–758 ms and is enforced at error
+  level in `lighthouserc.json`; see the final FCP acceptance section above.
 - **Total JS ≤ 180 KB gzipped** — measured 183.75 KB after feature growth
   pushed the build over; `MAX_TOTAL_JS_KB` in `packages/web/vite.config.ts`
   raised to 190 with a dated comment so `vite build` (and therefore
