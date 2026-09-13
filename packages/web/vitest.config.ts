@@ -24,6 +24,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "virtual:pwa-register": "/src/test/mocks/pwa-register.ts",
+      // Mirrors the alias in vite.config.ts (mtamyway-9b7b2a4f): tests must
+      // exercise the router shim that ships, not the react-router-dom the
+      // specifier used to resolve to.
+      "react-router-dom": new URL("./src/shims/react-router-dom.tsx", import.meta.url).pathname,
     },
   },
 });

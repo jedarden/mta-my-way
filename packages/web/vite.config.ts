@@ -14,6 +14,10 @@ import { VitePWA } from "vite-plugin-pwa";
  * - Total JS exceeds MAX_TOTAL_JS_KB gzipped
  */
 const MAX_CHUNK_SIZE_KB = 50; // 50KB per chunk max
+// Briefly raised to 190 on 2026-09-13 when feature growth pushed the total to
+// 183.75KB; the same-day trim-back (mtamyway-9b7b2a4f: react-router-dom
+// replaced by the in-house shim, see resolve.alias below) brought it under
+// 180 again. If this number moves without a matching bead, that is a bug.
 const MAX_TOTAL_JS_KB = 180; // 180KB total JS max (includes lazy-loaded screens)
 const MAX_INITIAL_BUNDLE_KB = 200; // 200KB initial bundle max (acceptance criteria)
 
@@ -126,6 +130,18 @@ export default defineConfig({
       // browser-external stub exports nothing, which kills the build at link
       // time — point the specifier at a functional no-op shim instead.
       "node:async_hooks": fileURLToPath(new URL("./src/shims/async-hooks.ts", import.meta.url)),
+      // Bundle trim-back (mtamyway-9b7b2a4f): the app uses a flat route table
+      // and five hooks, and react-router-dom v7 shipped 12.7KB gzipped of data
+      // router to answer them. The specifier resolves to the in-house shim in
+      // src/shims/react-router-dom.tsx, which implements exactly the audited
+      // call-site surface; source files still import "react-router-dom" and
+      // still typecheck against the real package's .d.ts, so this is
+      // reversible by deleting this one alias. The same alias is mirrored in
+      // vitest.config.ts (here and at the root) so tests run the code that
+      // ships.
+      "react-router-dom": fileURLToPath(
+        new URL("./src/shims/react-router-dom.tsx", import.meta.url)
+      ),
     },
   },
   plugins: [

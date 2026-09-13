@@ -84,6 +84,13 @@ export default defineConfig({
                 __dirname,
                 "./packages/web/src/test/mocks/pwa-register.ts"
               ),
+              // Mirrors the alias in packages/web/vite.config.ts
+              // (mtamyway-9b7b2a4f): tests must exercise the router shim that
+              // ships, not the react-router-dom the specifier used to resolve to.
+              "react-router-dom": path.resolve(
+                __dirname,
+                "./packages/web/src/shims/react-router-dom.tsx"
+              ),
             },
           },
         },
