@@ -35,6 +35,9 @@ export type CommuteResult = CommuteState & {
   refresh: () => void;
 };
 
+/** Stable empty default so omitting preferredLines doesn't change identity each render. */
+const NO_PREFERRED_LINES: string[] = [];
+
 export interface UseCommuteOptions {
   /** Origin station ID */
   originId: string | null;
@@ -47,7 +50,12 @@ export interface UseCommuteOptions {
 }
 
 export function useCommute(options: UseCommuteOptions): CommuteResult {
-  const { originId, destinationId, preferredLines = [], commuteId = "default" } = options;
+  const {
+    originId,
+    destinationId,
+    preferredLines = NO_PREFERRED_LINES,
+    commuteId = "default",
+  } = options;
 
   const [state, setState] = useState<CommuteState>({
     status: originId && destinationId ? "loading" : "idle",
@@ -57,6 +65,7 @@ export function useCommute(options: UseCommuteOptions): CommuteResult {
   });
 
   const refreshInterval = useSettingsStore((s) => s.refreshInterval);
+  const accessibleMode = useSettingsStore((s) => s.accessibleMode);
 
   // Generation counter for avoiding stale responses
   const fetchGenRef = useRef(0);
@@ -83,6 +92,7 @@ export function useCommute(options: UseCommuteOptions): CommuteResult {
         destinationId,
         preferredLines,
         commuteId,
+        accessibleMode,
       });
 
       if (gen !== fetchGenRef.current) return; // superseded
@@ -108,7 +118,7 @@ export function useCommute(options: UseCommuteOptions): CommuteResult {
         updatedAt: null,
       });
     }
-  }, [originId, destinationId, preferredLines, commuteId]);
+  }, [originId, destinationId, preferredLines, commuteId, accessibleMode]);
 
   useEffect(() => {
     if (!originId || !destinationId) {
