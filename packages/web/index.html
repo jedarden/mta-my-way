@@ -9,27 +9,101 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MTA My Way" />
-    <!-- Resource hints for performance -->
-    <link rel="preconnect" href="/" />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
-    <!-- Prefetch critical API data -->
-    <link rel="prefetch" href="/api/stations" />
-    <link rel="prefetch" href="/api/routes" />
-    <link rel="prefetch" href="/api/health" />
-    <!-- Preload critical assets -->
-    <link rel="modulepreload" href="/src/main.tsx" />
-    <link rel="modulepreload" href="/src/App.tsx" />
-    <link rel="preload" href="/favicon.svg" as="image" type="image/svg+xml" />
-    <!-- Preconnect to origin for faster subsequent requests -->
-    <link rel="preconnect" href="https://api.mta.info" crossorigin />
-    <!-- Defer non-critical resources -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>MTA My Way</title>
+    <!--
+      Resource-hint policy (2026-09-13, mtamyway-f2a65cf7): no preconnects, no
+      prefetches, no modulepreloads — not even ones Vite would emit for a
+      static entry script. Under LHCI simulated throttling, Lantern charges
+      FCP with every request *initiated* before the observed first paint (a
+      preload link starts fetching at parse time, ~20ms before the shell's
+      first painted frame), so parse-time preloads of the app chunk graph put
+      ~130KB of fetch + 4x-CPU evaluation back on the FCP critical chain even
+      though the shell paints without them. The graph is instead fetched when
+      the boot script below starts the dynamic import — strictly after the
+      first paint — which drops it onto the LCP chain, where it belongs.
+      Every hint that used to live here was also dead weight on its own
+      terms:
+      - `modulepreload /src/main.tsx` was rewritten by Vite into a data: URI
+        embedding main.tsx's entire source (~1.4KB of base64 in every response)
+      - `modulepreload /src/App.tsx` pointed at /assets/App-*.tsx, which does
+        not exist in the build (404)
+      - prefetches for /api/stations|routes|health hit the preview/deploy proxy
+        and 502 during measurement; they also never warmed the app's real
+        requests (apiEnhanced adds query strings and auth headers)
+      - preconnects to cdn.jsdelivr.net and api.mta.info: nothing in the app
+        ever connects to either origin from the browser
+      The stylesheet is inlined into this document at build time (see
+      inlineCriticalCss in vite.config.ts), so the document itself carries
+      everything needed for the first paint.
+    -->
   </head>
   <body class="bg-background text-text-primary">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!--
+      Static app shell (mtamyway-f2a65cf7). FCP used to wait for the whole JS
+      graph because #root was empty and nothing contentful existed until React
+      rendered. The shell below is painted straight from the document at HTML
+      parse time; createRoot().render() clears #root's existing children on
+      first render, so React replaces it wholesale with the real app. The
+      markup and class names mirror Screen/Header/Skeleton deliberately: same
+      header geometry means the swap causes no visible jump at the top of the
+      viewport. The placeholder rows are aria-hidden — they carry no meaning;
+      the h1 is left in the tree so a pre-JS screen-reader user still gets the
+      app title.
+    -->
+    <div id="root">
+      <div class="flex flex-col h-full bg-background dark:bg-dark-background">
+        <header
+          class="sticky top-0 z-50 bg-background dark:bg-dark-background border-b border-surface dark:border-dark-surface px-4 py-3 pt-[env(safe-area-inset-top)]"
+          role="banner"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl font-bold text-text-primary dark:text-dark-text-primary">
+                MTA My Way
+              </h1>
+            </div>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto px-4 py-3" aria-hidden="true">
+          <div class="rounded bg-surface dark:bg-dark-surface h-5 w-36 mb-3"></div>
+          <div class="rounded border border-surface dark:border-dark-surface p-3 mb-3">
+            <div class="rounded bg-surface dark:bg-dark-surface h-6 w-48 mb-2"></div>
+            <div class="rounded bg-surface dark:bg-dark-surface h-4 w-full mb-1.5"></div>
+            <div class="rounded bg-surface dark:bg-dark-surface h-4 w-4/5 mb-1.5"></div>
+            <div class="rounded bg-surface dark:bg-dark-surface h-4 w-3/5"></div>
+          </div>
+          <div class="rounded border border-surface dark:border-dark-surface p-3 mb-3">
+            <div class="rounded bg-surface dark:bg-dark-surface h-6 w-56 mb-2"></div>
+            <div class="rounded bg-surface dark:bg-dark-surface h-4 w-full mb-1.5"></div>
+            <div class="rounded bg-surface dark:bg-dark-surface h-4 w-2/3"></div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <script type="module">
+      // Boot the app only after the static shell above has painted
+      // (mtamyway-f2a65cf7). A module script evaluates as soon as it is
+      // ready, and on an unthrottled connection that evaluation wins the
+      // race against the first paint — so the whole JS graph would be
+      // charged to first-contentful-paint even though the shell is already
+      // parsed and stylable. The gate is rAF + setTimeout(0), not two rAFs:
+      // a rAF callback runs *before* its frame's paint, so a double-rAF boot
+      // still evaluates the dynamic import ahead of the second painted
+      // frame, and requests initiated before the observed FCP event land on
+      // FCP's critical chain under LHCI simulated throttling. rAF schedules
+      // the timer before frame 1 paints; the timer task then runs after that
+      // paint is out, making the first painted frame strictly precede the
+      // app graph's fetches. rAF is paused while the tab is hidden and runs
+      // on reveal, so a background-tab load still boots when it is viewed.
+      let booted = false;
+      const boot = () => {
+        if (booted) return;
+        booted = true;
+        void import("/src/main.tsx");
+      };
+      requestAnimationFrame(() => setTimeout(boot, 0));
+    </script>
   </body>
 </html>

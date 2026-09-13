@@ -53,6 +53,49 @@ const CHUNK_SIZE_OVERRIDES: Record<string, number> = {
 // Chunks excluded from total JS budget (loaded on-demand, not part of initial bundle)
 const CHUNK_TOTAL_EXCLUSIONS = ["html2canvas"];
 
+/**
+ * Inlines the emitted stylesheet into index.html as a <style> element.
+ *
+ * FCP critical path (mtamyway-f2a65cf7): the stylesheet link costs a full
+ * round trip (150ms RTT under the LHCI simulated-throttling profile) and is
+ * render-blocking, so even the static app shell in index.html could not
+ * paint until the CSS arrived. The gzipped CSS is ~12KB and gzips together
+ * with the HTML it moves into, so the wire cost is roughly a wash while the
+ * document becomes self-contained: one request carries everything the first
+ * paint needs. The .css file is still emitted (unreferenced) so the service
+ * worker precache and any direct consumers keep working.
+ */
+function inlineCriticalCss(): Plugin {
+  return {
+    name: "inline-critical-css",
+    enforce: "post",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      for (const [fileName, output] of Object.entries(bundle)) {
+        if (!fileName.endsWith(".html") || output.type !== "asset") continue;
+        const html =
+          typeof output.source === "string"
+            ? output.source
+            : new TextDecoder().decode(output.source);
+        const linkMatch = html.match(/<link\s+rel="stylesheet"[^>]*href="([^"]+\.css)"[^>]*>/);
+        if (!linkMatch) continue;
+        const cssAsset = bundle[linkMatch[1].replace(/^\/+/, "")];
+        if (!cssAsset || cssAsset.type !== "asset") continue;
+        const css =
+          typeof cssAsset.source === "string"
+            ? cssAsset.source
+            : new TextDecoder().decode(cssAsset.source);
+        // Guard against a CSS string accidentally closing the element early
+        const safeCss = css.replace(/<\/style/gi, "<\\/style");
+        output.source = html.replace(linkMatch[0], `<style>${safeCss}</style>`);
+        console.log(
+          `\x1b[36m📦 Inlined ${linkMatch[1]} (${css.length} bytes) into ${fileName}\x1b[0m`
+        );
+      }
+    },
+  };
+}
+
 function bundleSizeBudget(): Plugin {
   return {
     name: "bundle-size-budget",
@@ -147,6 +190,9 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
+    // Runs before the compression plugins so the .gz/.br copies of the HTML
+    // are made from the post-inline markup (see inlineCriticalCss above).
+    inlineCriticalCss(),
     // Generate compressed versions of assets for faster loading
     viteCompression({
       algorithm: "gzip",
@@ -420,6 +466,15 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: true,
+    // The whole build is one Tailwind stylesheet, and the app entry is loaded
+    // through a deferred dynamic import (see index.html) — with code
+    // splitting on, that stylesheet would be fetched at boot time by
+    // Vite's __vitePreload helper instead of being referenced from the
+    // document, costing the paint a round trip and an unstyled shell. One
+    // file changes nothing here (there is nothing to split), and it keeps
+    // the stylesheet in index.html's head where inlineCriticalCss can
+    // inline it.
+    cssCodeSplit: false,
     // Use terser for smaller bundles
     minify: "terser",
     terserOptions: {
