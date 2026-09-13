@@ -26,6 +26,6 @@
     }
   },
   "files": {
-    "ignore": ["dist/", "coverage/", "*.tsbuildinfo", "node_modules/", ".beads/"]
+    "ignore": ["dist/", "coverage/", "*.tsbuildinfo", "node_modules/", ".beads/", ".lighthouseci/"]
   }
 }

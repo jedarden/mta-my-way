@@ -13,6 +13,9 @@
     "typecheck": "tsc --build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lighthouse": "npm run lighthouse:collect && npm run lighthouse:assert",
+    "lighthouse:collect": "lhci collect --config=lighthouserc.json",
+    "lighthouse:assert": "lhci assert --config=lighthouserc.json",
     "clean": "rm -rf packages/*/dist packages/*/.tsbuildinfo",
     "migrate": "npx tsx packages/server/src/migration/cli.ts",
     "migrate:up": "npx tsx packages/server/src/migration/cli.ts up",
@@ -27,6 +30,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@eslint/js": "^9.22.0",
+    "@lhci/cli": "^0.15.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "commander": "^15.0.0",
