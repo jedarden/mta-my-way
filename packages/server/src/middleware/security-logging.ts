@@ -76,8 +76,13 @@ function defaultLogFn(event: SecurityEvent): void {
   // Log to structured logger for immediate operational visibility
   structuredLogger.warn("security_event", event as unknown as Record<string, unknown>);
 
-  // Also log to audit log for compliance and long-term retention
+  // Also log to audit log for compliance and long-term retention.
+  // The audit action is the security event type: log() records the type as
+  // `event` and never populates `action`, so keying the entry (and the
+  // success derivation below) off `action` filed every event as
+  // "security_event" with success=true — even outright failures.
   try {
+    const action = event.event;
     addAuditEvent({
       category: "security",
       severity:
@@ -88,16 +93,17 @@ function defaultLogFn(event: SecurityEvent): void {
             : event.severity === "medium"
               ? "warning"
               : "info",
-      action: event.action || "security_event",
+      action,
       performedBy: event.userId,
       resourceId: event.resourceId,
       clientIp: event.ip,
       path: event.path,
       method: event.method,
       success:
-        !event.action?.includes("failure") &&
-        !event.action?.includes("blocked") &&
-        !event.action?.includes("exceeded"),
+        !action.includes("failure") &&
+        !action.includes("blocked") &&
+        !action.includes("exceeded") &&
+        !action.includes("failed"),
       metadata: {
         userAgent: event.userAgent,
         statusCode: event.statusCode,
