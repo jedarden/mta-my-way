@@ -6,6 +6,7 @@
 import type {
   ArrivalTime,
   CommuteAnalysis,
+  DelayPrediction,
   EquipmentStatus,
   LineDiagramData,
   LinePositions,
@@ -216,6 +217,35 @@ export interface TripData {
   totalStops: number;
 }
 
+/** One predicted leg of a trip, from the /api/trip/:tripId/predict endpoint */
+export interface TripSegmentPrediction {
+  fromStationId: string;
+  toStationId: string;
+  fromStationName: string;
+  toStationName: string;
+  scheduledSeconds: number;
+  prediction: DelayPrediction | null;
+}
+
+/** Delay prediction from the /api/trip/:tripId/predict endpoint */
+export interface TripPredictionResponse {
+  tripId: string;
+  routeId: string;
+  direction: "N" | "S" | null;
+  destination: string;
+  progressPercent: number;
+  remainingStops: number;
+  totalStops: number;
+  baseEta: string | null;
+  adjustedEta: string | null;
+  delayRisk: "low" | "medium" | "high" | null;
+  delayMinutesRange: string | null;
+  routeDelayProbability: number | null;
+  segments: TripSegmentPrediction[];
+  hasPredictions: boolean;
+  generatedAt: string;
+}
+
 /** Feed status from /api/health */
 export interface FeedHealthInfo {
   id: string;
@@ -348,6 +378,11 @@ export const api = {
   // Live trip tracking
   async getTrip(tripId: string): Promise<TripData> {
     return fetchJson<TripData>(`/api/trip/${encodeURIComponent(tripId)}`);
+  },
+
+  // Delay-adjusted ETA for a tracked trip
+  async getTripPrediction(tripId: string): Promise<TripPredictionResponse> {
+    return fetchJson<TripPredictionResponse>(`/api/trip/${encodeURIComponent(tripId)}/predict`);
   },
 
   // Train positions for line diagram

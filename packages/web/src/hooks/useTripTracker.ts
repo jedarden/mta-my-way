@@ -4,6 +4,8 @@
  * Polls /api/trip/:tripId every 30 seconds.
  * Handles trip expiration (404 = trip left the feed).
  * Provides stop-by-stop progress derived from the raw trip data.
+ * Enhances the scheduled ETA with the delay-adjusted prediction from
+ * /api/trip/:tripId/predict when the predictor has history for the trip.
  * Enhanced with user-friendly error messages.
  */
 
@@ -117,6 +119,44 @@ export function useTripTracker(
 
   const fetchGenRef = useRef(0);
 
+  /**
+   * Fetch the delay-adjusted prediction for the tracked trip.
+   *
+   * The prediction is supplementary: the endpoint 404s once the trip has
+   * left the feed and can fail or be rate-limited independently of the trip
+   * poll, so a failure just leaves the scheduled ETA in place with a null
+   * prediction. An empty prediction (no predictor history for the remaining
+   * legs) is treated the same way, so the prediction UI only shows when
+   * there is an actual delay estimate.
+   */
+  const fetchPrediction = useCallback(async (tripId: string, gen: number) => {
+    try {
+      const data = await api.getTripPrediction(tripId);
+
+      if (gen !== fetchGenRef.current) return;
+
+      // The guard reads through optional chaining because this updater runs
+      // inside React's reducer, where the try/catch above cannot reach it —
+      // a malformed payload must degrade to "no prediction", never throw.
+      setState((prev) => ({
+        ...prev,
+        prediction: data?.hasPredictions
+          ? {
+              baseEta: data.baseEta,
+              adjustedEta: data.adjustedEta,
+              remainingStops: data.remainingStops,
+              totalStops: data.totalStops,
+              delayRisk: data.delayRisk,
+              delayMinutesRange: data.delayMinutesRange,
+            }
+          : null,
+      }));
+    } catch {
+      if (gen !== fetchGenRef.current) return;
+      setState((prev) => ({ ...prev, prediction: null }));
+    }
+  }, []);
+
   const fetchTrip = useCallback(async () => {
     if (!tripId) return;
 
@@ -151,6 +191,10 @@ export function useTripTracker(
         updatedAt: Date.now(),
         prediction: null,
       });
+
+      // Prediction rides along on each trip poll; it is an independent
+      // request, so it resolves into state on its own (see fetchPrediction).
+      void fetchPrediction(tripId, gen);
     } catch (err) {
       if (gen !== fetchGenRef.current) return;
 
@@ -178,7 +222,7 @@ export function useTripTracker(
         isActive: !isExpired,
       }));
     }
-  }, [tripId]);
+  }, [tripId, fetchPrediction]);
 
   // Initial fetch + polling
   useEffect(() => {

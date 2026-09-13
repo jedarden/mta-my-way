@@ -20,6 +20,7 @@ import { useTripTracker } from "./useTripTracker";
 vi.mock("../lib/api", () => ({
   api: {
     getTrip: vi.fn(),
+    getTripPrediction: vi.fn(),
   },
 }));
 
@@ -40,6 +41,9 @@ vi.mock("../lib/errorMessages", () => ({
 describe("useTripTracker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default to the no-history response so the prediction side-request that
+    // rides along on every trip poll stays inert unless a test opts in.
+    vi.mocked(api.api.getTripPrediction).mockResolvedValue(mockNoPrediction);
   });
 
   const mockTripData: api.TripData = {
@@ -112,6 +116,98 @@ describe("useTripTracker", () => {
       },
     ],
   };
+
+  /** Prediction response with predictor history for the remaining legs. */
+  const mockPrediction: api.TripPredictionResponse = {
+    tripId: "test-trip-123",
+    routeId: "1",
+    direction: "N",
+    destination: "Van Cortlandt Park",
+    progressPercent: 45,
+    remainingStops: 2,
+    totalStops: 6,
+    baseEta: new Date(Date.now() + 600_000).toISOString(),
+    adjustedEta: new Date(Date.now() + 660_000).toISOString(),
+    delayRisk: "medium",
+    delayMinutesRange: "+1 min",
+    routeDelayProbability: 0.4,
+    segments: [],
+    hasPredictions: true,
+    generatedAt: new Date().toISOString(),
+  };
+
+  /** Prediction response when the predictor has no history for the trip. */
+  const mockNoPrediction: api.TripPredictionResponse = {
+    ...mockPrediction,
+    adjustedEta: null,
+    delayRisk: null,
+    delayMinutesRange: null,
+    routeDelayProbability: null,
+    segments: [
+      {
+        fromStationId: "104",
+        toStationId: "105",
+        fromStationName: "Franklin St",
+        toStationName: "Canal St",
+        scheduledSeconds: 120,
+        prediction: null,
+      },
+    ],
+    hasPredictions: false,
+  };
+
+  describe("delay prediction", () => {
+    it("should populate prediction when the predictor has history", async () => {
+      vi.mocked(api.api.getTrip).mockResolvedValue(mockTripData);
+      vi.mocked(api.api.getTripPrediction).mockResolvedValue(mockPrediction);
+
+      const { result } = renderHook(() => useTripTracker("test-trip-123"));
+
+      await waitFor(() => {
+        expect(result.current.prediction).toEqual({
+          baseEta: mockPrediction.baseEta,
+          adjustedEta: mockPrediction.adjustedEta,
+          remainingStops: 2,
+          totalStops: 6,
+          delayRisk: "medium",
+          delayMinutesRange: "+1 min",
+        });
+      });
+      // The prediction is supplementary — the trip itself is unaffected.
+      expect(result.current.trip).toEqual(mockTripData);
+      expect(result.current.error).toBe(null);
+    });
+
+    it("should keep prediction null when the predictor has no history", async () => {
+      vi.mocked(api.api.getTrip).mockResolvedValue(mockTripData);
+      vi.mocked(api.api.getTripPrediction).mockResolvedValue(mockNoPrediction);
+
+      const { result } = renderHook(() => useTripTracker("test-trip-123"));
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+      expect(result.current.prediction).toBe(null);
+      expect(result.current.error).toBe(null);
+    });
+
+    it("should keep prediction null when the prediction request fails", async () => {
+      vi.mocked(api.api.getTrip).mockResolvedValue(mockTripData);
+      vi.mocked(api.api.getTripPrediction).mockRejectedValue(
+        new EnhancedApiError({ type: ApiErrorType.SERVER, message: "Prediction failed" })
+      );
+
+      const { result } = renderHook(() => useTripTracker("test-trip-123"));
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+      // A prediction failure must not surface as a trip error.
+      expect(result.current.prediction).toBe(null);
+      expect(result.current.error).toBe(null);
+      expect(result.current.trip).toEqual(mockTripData);
+    });
+  });
 
   describe("initial state", () => {
     it("should initialize with loading state when tripId is provided", async () => {
