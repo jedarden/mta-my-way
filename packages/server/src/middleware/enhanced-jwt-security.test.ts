@@ -313,8 +313,8 @@ describe("Enhanced JWT Security", () => {
 
       const result = flagSuspectedCompromise(testTokenId);
 
-      // Set.add returns the Set itself, but we can check if the token was added
-      expect(result.has(testTokenId)).toBe(true);
+      // Returns true when the token was newly flagged
+      expect(result).toBe(true);
     });
 
     it("should detect flagged compromise", () => {

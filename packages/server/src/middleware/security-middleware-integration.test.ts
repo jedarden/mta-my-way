@@ -20,7 +20,7 @@ import {
   rateLimiter,
   resetRateLimiter,
 } from "../test/rate-limiter-harness.js";
-import { hashApiKey, optionalAuth, registerApiKey } from "./authentication.js";
+import { getAuthContext, hashApiKey, optionalAuth, registerApiKey } from "./authentication.js";
 import type { ApiKey } from "./authentication.js";
 import { requireAdmin } from "./authorization.js";
 import { clearCsrfTokenStore, csrfProtection } from "./csrf-protection.js";
@@ -219,7 +219,7 @@ describe("Security Middleware Integration Tests", () => {
         createdAt: Date.now(),
         expiresAt: 0,
       };
-      registerApiKey(testApiKey);
+      await registerApiKey(testApiKey);
 
       // Apply host-header protection, then auth
       app.use(
@@ -233,8 +233,12 @@ describe("Security Middleware Integration Tests", () => {
 
       // Define routes AFTER middleware
       app.get("/api/protected", (c) => {
-        const userId = c.get("userId");
-        return c.json({ userId, authenticated: !!userId });
+        const auth = getAuthContext(c);
+        return c.json({
+          keyId: auth?.keyId ?? null,
+          scope: auth?.scope ?? null,
+          authenticated: auth !== undefined,
+        });
       });
 
       return app;
@@ -252,10 +256,12 @@ describe("Security Middleware Integration Tests", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.authenticated).toBe(true);
-      expect(body.userId).toBe("test_user");
+      expect(body.keyId).toBe("test_key_123");
+      expect(body.scope).toBe("read");
     });
 
     it("should reject authenticated request with invalid host", async () => {
+      const app = await setupAuthApp();
       const res = await app.request("/api/protected", {
         headers: {
           Host: "evil.com",
@@ -461,7 +467,7 @@ describe("Security Middleware Integration Tests", () => {
         createdAt: Date.now(),
         expiresAt: 0,
       };
-      registerApiKey(testApiKey);
+      await registerApiKey(testApiKey);
 
       // Apply full security middleware chain in production order
       // 1. Host-header protection (first line of defense)
@@ -487,8 +493,8 @@ describe("Security Middleware Integration Tests", () => {
 
       // Define routes AFTER all middleware
       app.get("/api/health", (c) => {
-        const userId = c.get("userId");
-        return c.json({ status: "ok", userId });
+        const auth = getAuthContext(c);
+        return c.json({ status: "ok", keyId: auth?.keyId ?? null });
       });
 
       app.get("/api/csrf-token", (c) => {
@@ -497,8 +503,8 @@ describe("Security Middleware Integration Tests", () => {
       });
 
       app.post("/api/action", (c) => {
-        const userId = c.get("userId");
-        return c.json({ action: "completed", userId });
+        const auth = getAuthContext(c);
+        return c.json({ action: "completed", keyId: auth?.keyId ?? null });
       });
 
       return app;
@@ -544,7 +550,7 @@ describe("Security Middleware Integration Tests", () => {
 
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.userId).toBe("integration_user");
+      expect(body.keyId).toBe("integration_key_456");
     });
 
     it("should allow POST with valid host, auth, and CSRF token", async () => {
@@ -575,7 +581,7 @@ describe("Security Middleware Integration Tests", () => {
       expect(postRes.status).toBe(200);
       const body = await postRes.json();
       expect(body.action).toBe("completed");
-      expect(body.userId).toBe("integration_user");
+      expect(body.keyId).toBe("integration_key_456");
     });
 
     it("should reject POST with invalid host even with valid auth and CSRF", async () => {
