@@ -12,6 +12,8 @@ import type { RouteIndex, StationIndex } from "@mta-my-way/shared";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
+import type { ParsedAlert } from "../alerts-parser.js";
+import { resetAlertsCacheForTesting, setAlertsForTesting } from "../alerts-poller.js";
 import { closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -85,6 +87,33 @@ const TEST_ROUTES: RouteIndex = {
 };
 
 // ---------------------------------------------------------------------------
+// Alert fixtures
+// ---------------------------------------------------------------------------
+
+/** Build a ParsedAlert with sensible defaults for route-level tests */
+function createTestAlert(overrides: Partial<ParsedAlert> & { id: string }): ParsedAlert {
+  const now = Math.floor(Date.now() / 1000); // Frozen by vi.useFakeTimers()
+  return {
+    rawHeadline: "Test alert",
+    rawDescription: "Test alert description",
+    simplifiedHeadline: "Test alert",
+    simplifiedDescription: "Test alert description",
+    patternMatched: true,
+    matchedPatternId: null,
+    affectedLines: [],
+    affectedStations: [],
+    activePeriod: { start: now - 3600, end: now + 3600 },
+    cause: "UNKNOWN_CAUSE",
+    effect: "UNKNOWN_EFFECT",
+    severity: "warning",
+    source: "official",
+    createdAt: now - 7200,
+    modifiedAt: now - 3600,
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -101,6 +130,7 @@ describe("Alerts and Equipment Integration Tests", () => {
   });
 
   afterEach(() => {
+    resetAlertsCacheForTesting();
     vi.useRealTimers();
     vi.restoreAllMocks();
     closeDatabase(db);
@@ -168,6 +198,100 @@ describe("Alerts and Equipment Integration Tests", () => {
       expect(body).toHaveProperty("alerts");
       expect(body).toHaveProperty("meta");
       // Query parameter version doesn't include lineId in response
+    });
+
+    describe("stationId filter", () => {
+      // Station 101 serves line 1 only; 726 serves A/C/E; 725 serves 1,2,3,7,N,Q,R,W,S
+      const stationScopedAlerts = [
+        createTestAlert({
+          id: "alert-line-1",
+          simplifiedHeadline: "Line 1 delay",
+          affectedLines: ["1"],
+          affectedStations: [],
+        }),
+        createTestAlert({
+          id: "alert-line-a",
+          simplifiedHeadline: "Line A delay",
+          affectedLines: ["A"],
+          affectedStations: [],
+        }),
+        createTestAlert({
+          id: "alert-at-725",
+          simplifiedHeadline: "Station 735 advisory",
+          affectedLines: ["N"],
+          affectedStations: ["725"],
+        }),
+      ];
+
+      it("returns only the requested station's alerts", async () => {
+        setAlertsForTesting(stationScopedAlerts);
+
+        // Station 101 is served by line 1, so the line-A alert must not appear
+        const res = await app.request("/api/alerts?stationId=101");
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        const ids = body.alerts.map((a: { id: string }) => a.id);
+        expect(ids).toContain("alert-line-1");
+        expect(ids).not.toContain("alert-line-a");
+        expect(ids).not.toContain("alert-at-725");
+      });
+
+      it("includes alerts naming the station directly, deduped with line matches", async () => {
+        setAlertsForTesting(stationScopedAlerts);
+
+        // Station 725 is named directly by alert-at-725 and served by line 1
+        const res = await app.request("/api/alerts?stationId=725");
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        const ids = body.alerts.map((a: { id: string }) => a.id).sort();
+        expect(ids).toEqual(["alert-at-725", "alert-line-1"]);
+        expect(body.meta.officialCount).toBe(2);
+      });
+
+      it("returns no alerts for a station with no matching alerts", async () => {
+        setAlertsForTesting([
+          createTestAlert({ id: "alert-line-a", affectedLines: ["A"], affectedStations: [] }),
+        ]);
+
+        const res = await app.request("/api/alerts?stationId=101");
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.alerts).toEqual([]);
+      });
+
+      it("combines stationId with activeOnly", async () => {
+        setAlertsForTesting([
+          createTestAlert({
+            id: "alert-expired",
+            affectedLines: ["1"],
+            activePeriod: {
+              start: Math.floor(Date.now() / 1000) - 7200,
+              end: Math.floor(Date.now() / 1000) - 3600,
+            },
+          }),
+          createTestAlert({ id: "alert-active", affectedLines: ["1"] }),
+        ]);
+
+        const res = await app.request("/api/alerts?stationId=101&activeOnly=true");
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        const ids = body.alerts.map((a: { id: string }) => a.id);
+        expect(ids).toEqual(["alert-active"]);
+      });
+
+      it("returns 404 for an unknown station", async () => {
+        setAlertsForTesting(stationScopedAlerts);
+
+        const res = await app.request("/api/alerts?stationId=nonexistent");
+
+        expect(res.status).toBe(404);
+        const body = await res.json();
+        expect(body.error).toContain("nonexistent");
+      });
     });
   });
 

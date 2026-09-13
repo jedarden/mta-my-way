@@ -58,9 +58,10 @@ export default function StationScreen() {
   // Equipment status (uses injected data from arrivals response)
   const { equipment } = useEquipment(stationId ?? null, arrivals?.equipment);
 
-  // Fetch alerts for this station's lines
+  // Fetch alerts scoped to this station (the server resolves the station's
+  // lines and unions station-named and line-scoped alerts)
   const stationLines = station?.lines ?? [];
-  const { alerts: stationAlerts } = useAlertsForStation(stationId ?? null, stationLines);
+  const { alerts: stationAlerts } = useAlertsForStation(stationId ?? null);
 
   // "Updated X ago" display
   const [timeAgoText, setTimeAgoText] = useState("just now");

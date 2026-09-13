@@ -207,12 +207,9 @@ function CommuteDetailView({ commuteId }: { commuteId: string }) {
     commuteId,
   });
 
-  // Get alerts for the commute's preferred lines
-  const commuteLines = commute?.preferredLines ?? [];
-  const { alerts: commuteAlerts } = useAlertsForStation(
-    commute?.origin.stationId ?? null,
-    commuteLines
-  );
+  // Get alerts affecting the commute's origin station (the server scopes the
+  // response to that station and the lines serving it)
+  const { alerts: commuteAlerts } = useAlertsForStation(commute?.origin.stationId ?? null);
 
   // Walking comparison for short trips
   const walkComparison = useWalkComparison({

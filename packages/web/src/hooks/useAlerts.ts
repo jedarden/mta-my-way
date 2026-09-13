@@ -261,15 +261,12 @@ export function useAlerts(): AlertsResult {
 }
 
 /** Hook to get alerts for a specific station (for AlertBanner) */
-export function useAlertsForStation(
-  stationId: string | null,
-  stationLines: string[]
-): {
+export function useAlertsForStation(stationId: string | null): {
   alerts: StationAlert[];
   status: AlertDataStatus;
   refresh: () => void;
 } {
-  const [allAlerts, setAllAlerts] = useState<StationAlert[]>([]);
+  const [alerts, setAlerts] = useState<StationAlert[]>([]);
   const [status, setStatus] = useState<AlertDataStatus>("idle");
   const fetchGenRef = useRef(0);
 
@@ -280,11 +277,12 @@ export function useAlertsForStation(
     setStatus((prev) => (prev === "idle" ? "loading" : "stale"));
 
     try {
-      // Use apiEnhanced with automatic retry and timeout
-      const response = await apiEnhanced.getAlerts();
+      // The server scopes the response to alerts affecting this station
+      // (alerts naming it directly plus alerts on the lines serving it)
+      const response = await apiEnhanced.getAlertsForStation(stationId);
       if (gen !== fetchGenRef.current) return;
 
-      setAllAlerts(sortAlerts(response.alerts ?? []));
+      setAlerts(sortAlerts(response.alerts ?? []));
       setStatus("success");
     } catch {
       if (gen !== fetchGenRef.current) return;
@@ -297,12 +295,6 @@ export function useAlertsForStation(
     const interval = setInterval(() => void fetchAlerts(), 60_000);
     return () => clearInterval(interval);
   }, [fetchAlerts]);
-
-  // Filter to alerts affecting this station's lines
-  const alerts = useMemo(() => {
-    if (stationLines.length === 0) return [];
-    return filterAlertsByLines(allAlerts, stationLines);
-  }, [allAlerts, stationLines]);
 
   return {
     alerts,

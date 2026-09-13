@@ -18,6 +18,7 @@ import { useAlerts, useAlertsForStation } from "./useAlerts";
 
 // Mock apiEnhanced
 const mockGetAlerts = vi.fn();
+const mockGetAlertsForStation = vi.fn();
 vi.mock("../lib/apiEnhanced", () => ({
   EnhancedApiError: class extends Error {
     constructor(message: string) {
@@ -27,6 +28,7 @@ vi.mock("../lib/apiEnhanced", () => ({
   },
   apiEnhanced: {
     getAlerts: (...args: unknown[]) => mockGetAlerts(...args),
+    getAlertsForStation: (...args: unknown[]) => mockGetAlertsForStation(...args),
   },
 }));
 
@@ -489,30 +491,31 @@ describe("useAlertsForStation", () => {
     },
   ];
 
-  it("fetches all alerts and filters to station lines", async () => {
-    mockGetAlerts.mockResolvedValueOnce({
+  it("fetches the station's alerts from the station-scoped endpoint", async () => {
+    mockGetAlertsForStation.mockResolvedValueOnce({
       alerts: mockAlerts,
       meta: { count: 2, lastUpdatedAt: null, matchRate: 1 },
     });
 
-    const { result } = renderHook(() => useAlertsForStation("101", ["1", "2"]));
+    const { result } = renderHook(() => useAlertsForStation("101"));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    // Should only include alerts affecting lines 1 or 2
-    expect(result.current.alerts).toHaveLength(1);
-    expect(result.current.alerts[0]?.affectedLines).toContain("1");
+    // The server scopes to the requested station; the hook consumes it as-is
+    expect(mockGetAlertsForStation).toHaveBeenCalledWith("101");
+    expect(result.current.status).toBe("success");
+    expect(result.current.alerts).toHaveLength(2);
   });
 
-  it("returns empty array when station has no lines", async () => {
-    mockGetAlerts.mockResolvedValueOnce({
-      alerts: mockAlerts,
-      meta: { count: 2, lastUpdatedAt: null, matchRate: 1 },
+  it("returns empty array when the station has no alerts", async () => {
+    mockGetAlertsForStation.mockResolvedValueOnce({
+      alerts: [],
+      meta: { count: 0, lastUpdatedAt: null, matchRate: 1 },
     });
 
-    const { result } = renderHook(() => useAlertsForStation("101", []));
+    const { result } = renderHook(() => useAlertsForStation("101"));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -522,25 +525,26 @@ describe("useAlertsForStation", () => {
   });
 
   it("returns idle status when stationId is null", () => {
-    const { result } = renderHook(() => useAlertsForStation(null, ["1"]));
+    const { result } = renderHook(() => useAlertsForStation(null));
 
     expect(result.current.status).toBe("idle");
     expect(result.current.alerts).toHaveLength(0);
+    expect(mockGetAlertsForStation).not.toHaveBeenCalled();
   });
 
   it("refreshes alerts manually", async () => {
-    mockGetAlerts.mockResolvedValue({
+    mockGetAlertsForStation.mockResolvedValue({
       alerts: mockAlerts,
       meta: { count: 2, lastUpdatedAt: null, matchRate: 1 },
     });
 
-    const { result } = renderHook(() => useAlertsForStation("101", ["1"]));
+    const { result } = renderHook(() => useAlertsForStation("101"));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(mockGetAlerts).toHaveBeenCalledTimes(1);
+    expect(mockGetAlertsForStation).toHaveBeenCalledTimes(1);
 
     act(() => {
       result.current.refresh();
@@ -550,28 +554,28 @@ describe("useAlertsForStation", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(mockGetAlerts).toHaveBeenCalledTimes(2);
+    expect(mockGetAlertsForStation).toHaveBeenCalledTimes(2);
   });
 
   it("auto-refreshes every 60 seconds", async () => {
-    mockGetAlerts.mockResolvedValue({
+    mockGetAlertsForStation.mockResolvedValue({
       alerts: mockAlerts,
       meta: { count: 2, lastUpdatedAt: null, matchRate: 1 },
     });
 
-    renderHook(() => useAlertsForStation("101", ["1"]));
+    renderHook(() => useAlertsForStation("101"));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(mockGetAlerts).toHaveBeenCalledTimes(1);
+    expect(mockGetAlertsForStation).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       vi.advanceTimersByTime(60000);
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(mockGetAlerts).toHaveBeenCalledTimes(2);
+    expect(mockGetAlertsForStation).toHaveBeenCalledTimes(2);
   });
 });

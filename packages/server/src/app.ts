@@ -13,7 +13,7 @@
  *   GET /api/routes                — full route index
  *   GET /api/static/complexes      — station complexes index
  *   POST /api/commute/analyze      — analyze routes between origin and destination
- *   GET /api/alerts                — all current alerts with status
+ *   GET /api/alerts                — all current alerts, filterable by lineId, stationId, activeOnly
  *   GET /api/alerts/:lineId        — alerts filtered by line
  *   GET /api/push/vapid-public-key — VAPID public key for push subscription
  *   POST /api/push/subscribe       — register a push subscription
@@ -59,7 +59,13 @@ import {
 } from "@mta-my-way/shared";
 import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
-import { getAlertsForLine, getAlertsStatus, getAllAlerts } from "./alerts-poller.js";
+import {
+  getAlertsForLine,
+  getAlertsForLines,
+  getAlertsForStation,
+  getAlertsStatus,
+  getAllAlerts,
+} from "./alerts-poller.js";
 import { avgLatency, errorCount24h, getArrivals, getFeedStates, getPositions } from "./cache.js";
 import { CORE_ONLY } from "./config.js";
 import { getDelayDetectorStatus, getPredictedAlerts } from "./delay-detector.js";
@@ -1584,10 +1590,25 @@ ${
     const query = validateQuery(c, alertsQuerySchema);
     if (query instanceof Response) return query;
 
+    // Resolve station scope: a station-scoped request returns the alerts
+    // naming that station plus the alerts on the lines serving it.
+    const station = query.stationId ? stations[query.stationId] : null;
+    if (query.stationId && !station) {
+      return c.json({ error: `Station not found: ${query.stationId}` }, 404);
+    }
+
     // Apply filtering if query parameters are provided
     let officialAlerts = getAllAlerts();
     if (query.lineId) {
       officialAlerts = getAlertsForLine(query.lineId);
+    }
+    if (station) {
+      // The alerts feed is mostly line-scoped, so union the alerts that name
+      // the station directly with the alerts for each of the station's lines.
+      const byStation = getAlertsForStation(station.id);
+      const byLine = getAlertsForLines(station.lines);
+      const byStationIds = new Set(byStation.map((a) => a.id));
+      officialAlerts = [...byStation, ...byLine.filter((a) => !byStationIds.has(a.id))];
     }
     if (query.activeOnly) {
       const now = Date.now() / 1000; // Convert to seconds for comparison
@@ -1599,7 +1620,11 @@ ${
       });
     }
 
-    const predictedAlerts = getPredictedAlerts();
+    // Predicted alerts are line-scoped; a station-scoped request keeps only
+    // those on the station's lines
+    const predictedAlerts = station
+      ? getPredictedAlerts().filter((a) => a.affectedLines.some((l) => station.lines.includes(l)))
+      : getPredictedAlerts();
     const status = getAlertsStatus();
     const delayDetector = getDelayDetectorStatus();
 

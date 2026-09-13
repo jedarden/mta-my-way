@@ -326,6 +326,11 @@ export const apiEnhanced = {
     );
   },
 
+  async getAlertsForStation(stationId: string, options?: FetchOptions): Promise<AlertsResponse> {
+    const params = new URLSearchParams({ stationId });
+    return enhancedFetch<AlertsResponse>(`/api/alerts?${params}`, options);
+  },
+
   // Health
   async getHealth(options?: FetchOptions): Promise<HealthResponse> {
     return enhancedFetch<HealthResponse>("/api/health", options);

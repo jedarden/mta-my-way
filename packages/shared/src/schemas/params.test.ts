@@ -406,6 +406,28 @@ describe("query parameter schemas", () => {
       const result = alertsQuerySchema.safeParse({ lineId: "invalid" });
       expect(result.success).toBe(false);
     });
+
+    it("accepts valid stationId filter", () => {
+      const result = alertsQuerySchema.safeParse({ stationId: "725" });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.stationId).toBe("725");
+      }
+    });
+
+    it("accepts stationId combined with lineId and activeOnly", () => {
+      const result = alertsQuerySchema.safeParse({
+        stationId: "725",
+        lineId: "1",
+        activeOnly: "true",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects invalid stationId", () => {
+      const result = alertsQuerySchema.safeParse({ stationId: "has space" });
+      expect(result.success).toBe(false);
+    });
   });
 
   describe("equipmentQuerySchema", () => {

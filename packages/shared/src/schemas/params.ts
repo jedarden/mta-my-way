@@ -185,6 +185,7 @@ export const paginationQuerySchema = z.object({
  */
 export const alertsQuerySchema = z.object({
   lineId: lineIdParamSchema.optional(),
+  stationId: stationIdParamSchema.optional(),
   activeOnly: z.coerce.boolean().optional(),
 });
 
