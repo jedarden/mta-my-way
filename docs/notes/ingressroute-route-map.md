@@ -1259,3 +1259,66 @@ correction. The two refinements it should carry forward are the **four-site**
 rule 2's prefix is gate-blocked on core as well as dead-backend-blocked.
 Everything else — the rules table, the isolation verdict, the drift set and the
 blocker list — is unchanged from §14's 2026-09-03 pass.
+
+## 16. Ingress now routes stateful paths directly — §2/§15.2/§15.4 superseded (2026-09-13, mtamyway-0cd48bf7)
+
+**The router config changed under this document on 2026-09-12.** declarative-config
+commit `d23c4a87` ("fix(mta-my-way): route stateful-only paths to the stateful
+subsystem") rewrote the IngressRoute rules, and the live object read 2026-09-13
+(~12:xx UTC, read-only `kubectl --server=http://traefik-apexalgo-iad:8001`)
+matches it. Every earlier verdict that "`mta-my-way-stateful` appears in no
+rule" (§2, §15.2) and that "the designed path for stateful work remains
+core → `STATEFUL_SERVICE_URL` … never through the ingress" (§15.4 gate note) is
+**historical, not current**. The stateful subsystem is now a first-class
+ingress target and the core-side proxy path is gone from the request flow.
+
+### 16.1 Live rules (2026-09-13)
+
+Shared by all rules: host `mtamyway.com`, entryPoints `websecure`, TLS
+`certResolver: letsencrypt`, same three external-dns annotations. The legacy
+`mta-my-way:3000` rules (§2 rules 1–3) are gone from the router entirely.
+
+| # | Path match | Middlewares | Target service | Port |
+|---|---|---|---|---|
+| 1 | `PathPrefix(/api/push/)` | none | `mta-my-way-stateful` | 3001 |
+| 2 | `PathPrefix(/api/auth/)` | none | `mta-my-way-stateful` | 3001 |
+| 3 | `PathPrefix(/api/preferences)` | none | `mta-my-way-stateful` | 3001 |
+| 4 | `PathPrefix(/api/trips)` | none | `mta-my-way-stateful` | 3001 |
+| 5 | `PathPrefix(/api/journal/)` | none | `mta-my-way-stateful` | 3001 |
+| 6 | `PathPrefix(/auth/)` | none | `mta-my-way-stateful` | 3001 |
+| 7 | catch-all `Host(`mtamyway.com`)` | `mta-my-way-sse` | `mta-my-way-core` | 3000 |
+
+Manifest and live object are in agreement (declarative-config
+`k8s/apexalgo-iad/mta-my-way/ingressroute.yaml` at `d23c4a87`). Path-prefix
+matching is by rule specificity, so rules 1–6 win over the catch-all for their
+prefixes.
+
+### 16.2 Consequences
+
+- **No product gap.** `/api/auth/*` (password reset, sessions, OAuth aliases),
+  `/api/preferences`, `/api/trips`, `/api/journal/` and `/api/push/` are served
+  by the stateful deployment itself, which runs `CORE_ONLY=false` and therefore
+  mounts every one of those handlers (`app.ts` `!CORE_ONLY` gates). ADR-001's
+  *goal* — core availability independent of the stateful subsystem — is met at
+  the router layer instead of the app layer: the core never terminates those
+  requests, so it needs no proxy and no circuit breaker in their path.
+- **App-layer proxy branches became dead code.** The five
+  `process.env["CORE_ONLY"] === "true"` proxy branches in
+  `password-reset.routes.ts` (4) and `preferences.routes.ts` (1) were
+  unreachable in both deployments — these route builders are only constructed
+  under `!CORE_ONLY`, and in that mode `CORE_ONLY` is false. They were removed
+  under mtamyway-0cd48bf7 (2026-09-13) together with their docstrings; the
+  handlers are now mode-agnostic by construction, pinned by a
+  deployment-mode-independence unit test. The inline env parsing also
+  diverged from the shared `parseBooleanEnv` (which accepts `1` and
+  case-insensitive `TRUE`); removal eliminates the divergence — no src file
+  parses `CORE_ONLY` outside `config.ts` any more.
+- **The stateful client survives for health reporting only.** After the branch
+  removal, `callStatefulService` has no route callers; the client remains live
+  solely for `getStatefulStatus` in `/api/health` (app.ts) and its own
+  readiness probe (`stateful-client.ts:238`).
+- **Backend health is a separate matter.** At read time the stateful pod was
+  `ErrImagePull` (image `0.0.289`, 3d10h) and core pods were mixed
+  `CrashLoopBackOff`/`ImagePullBackOff` across three ReplicaSets — the router
+  verdicts above are config-level and unaffected by pod readiness, but the
+  endpoints are not actually answerable until that rollout recovers.

@@ -3,8 +3,11 @@
  *
  * Provides REST API endpoints for password reset functionality.
  *
- * Per ADR-001 (2026-07-20), in CORE_ONLY mode these endpoints proxy to the
- * stateful subsystem instead of accessing in-memory storage directly.
+ * These handlers exist only in the full (stateful) deployment: app.ts mounts
+ * them behind `!CORE_ONLY`, and the public ingress routes `/api/auth/*`
+ * straight to `mta-my-way-stateful` rather than through a core-side proxy.
+ * They never execute in the CORE_ONLY core, so no deployment-mode branching
+ * happens here.
  *
  * Endpoints:
  * - GET  /api/auth/password/policy      - Get password policy requirements
@@ -48,7 +51,6 @@ import {
   sendPasswordResetEmail,
   sendPasswordResetNotificationEmail,
 } from "../services/password-reset.service.js";
-import { callStatefulService } from "../services/stateful-client.js";
 
 // ============================================================================
 // In-Memory User Storage (Replace with database in production)
@@ -127,31 +129,8 @@ export function clearAllUsers(): void {
  *
  * Returns the current password policy including length requirements,
  * complexity requirements, and other security settings.
- *
- * In CORE_ONLY mode, proxies to stateful subsystem.
  */
 export const getPasswordPolicyHandler: MiddlewareHandler = async (c) => {
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-  // In CORE_ONLY mode, proxy to stateful subsystem
-  if (CORE_ONLY) {
-    try {
-      const result = await callStatefulService("/api/auth/password/policy", {
-        method: "GET",
-      });
-      return c.json(result);
-    } catch (err) {
-      logger.error("Stateful subsystem proxy failed", err as Error);
-      return c.json(
-        {
-          error: "Password management temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-  }
-
   const policy = getPasswordPolicyDescription();
 
   return c.json({
@@ -189,33 +168,8 @@ export const getPasswordPolicyHandler: MiddlewareHandler = async (c) => {
  * 5. Generating a secure reset token with device fingerprinting
  * 6. Sending email with reset link
  * 7. Invalidating any existing reset tokens
- *
- * In CORE_ONLY mode, proxies to stateful subsystem.
  */
 export const requestPasswordResetHandler: MiddlewareHandler = async (c) => {
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-  // In CORE_ONLY mode, proxy to stateful subsystem
-  if (CORE_ONLY) {
-    try {
-      const body = await c.req.json();
-      const result = await callStatefulService("/api/auth/password/reset", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      return c.json(result);
-    } catch (err) {
-      logger.error("Stateful subsystem proxy failed", err as Error);
-      return c.json(
-        {
-          error: "Password management temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-  }
-
   try {
     const body = await c.req.json().catch(() => ({}));
     const validationResult = passwordResetRequestSchema.safeParse(body);
@@ -329,33 +283,8 @@ export const requestPasswordResetHandler: MiddlewareHandler = async (c) => {
  * 7. Invalidating all existing sessions (force re-login)
  * 8. Clearing failed attempts on success
  * 9. Sending security notification email
- *
- * In CORE_ONLY mode, proxies to stateful subsystem.
  */
 export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-  // In CORE_ONLY mode, proxy to stateful subsystem
-  if (CORE_ONLY) {
-    try {
-      const body = await c.req.json();
-      const result = await callStatefulService("/api/auth/password/reset/confirm", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      return c.json(result);
-    } catch (err) {
-      logger.error("Stateful subsystem proxy failed", err as Error);
-      return c.json(
-        {
-          error: "Password management temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-  }
-
   try {
     const body = await c.req.json().catch(() => ({}));
     const validationResult = passwordResetConfirmSchema.safeParse(body);
@@ -534,33 +463,8 @@ export const confirmPasswordResetHandler: MiddlewareHandler = async (c) => {
  * 2. Validating the new password against policy
  * 3. Updating the password
  * 4. Logging the change for audit
- *
- * In CORE_ONLY mode, proxies to stateful subsystem.
  */
 export const changePasswordHandler: MiddlewareHandler = async (c) => {
-  const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-  // In CORE_ONLY mode, proxy to stateful subsystem
-  if (CORE_ONLY) {
-    try {
-      const body = await c.req.json();
-      const result = await callStatefulService("/api/auth/password/change", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      return c.json(result);
-    } catch (err) {
-      logger.error("Stateful subsystem proxy failed", err as Error);
-      return c.json(
-        {
-          error: "Password management temporarily unavailable",
-          degraded: true,
-        },
-        503
-      );
-    }
-  }
-
   try {
     const auth = getRbacAuthContext(c);
 

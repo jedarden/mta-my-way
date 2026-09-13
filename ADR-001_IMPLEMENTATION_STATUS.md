@@ -4,6 +4,19 @@
 **Bead:** mtamyway-f62f25d4
 **Status:** ✅ CODE IMPLEMENTATION COMPLETE
 
+> **Update 2026-09-13 (mtamyway-0cd48bf7):** the app-layer core→stateful
+> proxying described below was **superseded by ingress-level routing**.
+> declarative-config `d23c4a87` (2026-09-12) routes the stateful prefixes
+> (`/api/push/`, `/api/auth/`, `/api/preferences`, `/api/trips`,
+> `/api/journal/`, `/auth/`) directly to `mta-my-way-stateful`, which runs
+> `CORE_ONLY=false` and mounts those handlers itself; the core never
+> terminates them. The five dead `CORE_ONLY` proxy branches in
+> `password-reset.routes.ts`/`preferences.routes.ts` were removed — no route
+> proxies through the core any more. `stateful-client.ts` remains live solely
+> for `/api/health` subsystem status (`getStatefulStatus`) and its own
+> readiness probe, so the circuit breaker survives in that reduced role. See
+> `docs/notes/ingressroute-route-map.md` §16 for the live rule table.
+
 ## What Was Already Implemented
 
 The ADR-001 decision to decouple the stateless core from PVC-backed stateful subsystem has been **fully implemented in the codebase** as of commit `4d6ad4d` (2026-08-03).

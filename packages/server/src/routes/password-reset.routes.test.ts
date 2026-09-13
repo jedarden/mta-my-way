@@ -9,7 +9,7 @@
  */
 
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as authentication from "../middleware/authentication.js";
 import * as middleware from "../middleware/index.js";
 import * as passwordManagement from "../middleware/password-management.js";
@@ -178,6 +178,43 @@ describe("Password Reset Routes", () => {
         historyCount: 12,
       });
       expect(Array.isArray(body.tips)).toBe(true);
+    });
+  });
+
+  // These handlers are mounted only in the full (stateful) deployment — app.ts
+  // gates them behind `!CORE_ONLY` — and the public ingress routes
+  // `/api/auth/*` directly to mta-my-way-stateful. Deployment-mode selection
+  // therefore happens at mount time, never inside the handlers: even if
+  // CORE_ONLY is set, a handler that runs serves its local response rather
+  // than proxying to the stateful subsystem.
+  describe("deployment-mode independence", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("serves the local policy even when CORE_ONLY is set", async () => {
+      vi.stubEnv("CORE_ONLY", "true");
+      app.get("/api/auth/password/policy", getPasswordPolicyHandler);
+
+      const res = await app.request("/api/auth/password/policy");
+
+      // A core-side proxy branch would return 503 when the stateful
+      // subsystem is unreachable; the local handler must answer directly.
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.requirements.minLength).toBe(12);
+    });
+
+    it("stays mode-agnostic however CORE_ONLY is spelled", async () => {
+      // The shared parser (parseBooleanEnv) accepts "1" and case-insensitive
+      // variants; whichever spelling a deployment uses, the handlers
+      // themselves never branch on it.
+      vi.stubEnv("CORE_ONLY", "TRUE");
+      app.get("/api/auth/password/policy", getPasswordPolicyHandler);
+
+      const res = await app.request("/api/auth/password/policy");
+
+      expect(res.status).toBe(200);
     });
   });
 

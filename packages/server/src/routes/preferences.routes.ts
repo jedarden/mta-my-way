@@ -5,8 +5,11 @@
  * user. Replacement semantics ensure that a deleted favorite or commute is
  * not unexpectedly restored by a server-side merge.
  *
- * Per ADR-001 (2026-07-20), in CORE_ONLY mode these endpoints proxy to the
- * stateful subsystem instead of accessing the database directly.
+ * These handlers exist only in the full (stateful) deployment: app.ts mounts
+ * them behind `!CORE_ONLY`, and the public ingress routes `/api/preferences`
+ * and `/api/auth/*` straight to `mta-my-way-stateful` rather than through a
+ * core-side proxy. They never execute in the CORE_ONLY core, so no
+ * deployment-mode branching happens here.
  */
 
 import type { UserPreferences } from "@mta-my-way/shared";
@@ -19,7 +22,6 @@ import {
   normalizeUserPreferences,
   replaceUserPreferences,
 } from "../preferences.js";
-import { callStatefulService } from "../services/stateful-client.js";
 
 type UserPreferencesPayload = Pick<UserPreferences, "favorites" | "commutes"> &
   Partial<Omit<UserPreferences, "favorites" | "commutes">>;
@@ -55,27 +57,6 @@ function unauthenticated(c: Context) {
 export function buildPreferencesRoutes() {
   /** GET /api/preferences — get the current user's preference snapshot. */
   async function getPreferences(c: Context) {
-    const CORE_ONLY = process.env["CORE_ONLY"] === "true";
-
-    // In CORE_ONLY mode, proxy to stateful subsystem
-    if (CORE_ONLY) {
-      try {
-        const result = await callStatefulService("/api/preferences", {
-          method: "GET",
-        });
-        return c.json(result);
-      } catch (err) {
-        logger.error("Stateful subsystem proxy failed", err as Error);
-        return c.json(
-          {
-            error: "Preferences sync temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
-      }
-    }
-
     const userId = getSessionUserId(c);
     if (!userId) {
       return unauthenticated(c);
