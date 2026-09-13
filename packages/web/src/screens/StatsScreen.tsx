@@ -14,8 +14,8 @@ import {
   getEnvironmentalEquivalents,
   haversineDistance,
 } from "@mta-my-way/shared";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { DataState } from "../components/common/DataState";
 import { useStationIndex } from "../hooks/useStationIndex";
 import { sanitizeUserInput } from "../lib/outputEncoding";
@@ -478,6 +478,26 @@ export default function StatsScreen() {
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // StatsScreen keeps its own header instead of Screen's, so it renders the
+  // shell's skip link and main landmark directly (see the /stats finding in
+  // docs/notes/wcag-audit-baseline.md). Move focus to the main content area on
+  // route changes so keyboard and screen-reader users land at the top of the
+  // new screen. Use a ref to track previous location to avoid focus on
+  // initial mount.
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const previousLocationRef = useRef<string>(location.pathname);
+
+  useEffect(() => {
+    if (previousLocationRef.current !== location.pathname) {
+      previousLocationRef.current = location.pathname;
+      const timeoutId = setTimeout(() => {
+        mainRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.pathname]);
+
   // Build station coordinate lookup
   const stationCoords = useMemo(() => {
     const map = new Map<string, { lat: number; lon: number }>();
@@ -559,6 +579,13 @@ export default function StatsScreen() {
 
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
+      {/* Skip link for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-mta-primary focus:text-white focus:rounded-lg focus:font-medium focus:outline-none"
+      >
+        Skip to main content
+      </a>
       {/* Header */}
       <header className="px-4 pt-4 pb-2">
         <div className="flex items-center gap-3 mb-3">
@@ -592,7 +619,13 @@ export default function StatsScreen() {
         </p>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-14">
+      <main
+        ref={mainRef}
+        id="main-content"
+        className="flex-1 overflow-y-auto px-4 pb-14"
+        tabIndex={-1}
+        aria-label="Main content"
+      >
         <DataState
           status={stationsLoading ? "loading" : "success"}
           data={hasData ? allRecords : null}

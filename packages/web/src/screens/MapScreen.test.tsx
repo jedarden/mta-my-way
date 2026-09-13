@@ -280,3 +280,23 @@ describe("MapScreen station details", () => {
     expect(screen.getByRole("dialog", { name: "Rector St" })).toBeInTheDocument();
   });
 });
+
+describe("MapScreen accessibility shell", () => {
+  it("renders the Screen shell's skip link and main landmark", async () => {
+    renderMapScreen();
+    await settle();
+
+    // The skip link only works if the id it points at is actually in the document.
+    expect(screen.getByRole("link", { name: /skip to main content/i })).toHaveAttribute(
+      "href",
+      "#main-content"
+    );
+
+    const main = screen.getByRole("main");
+    expect(main).toHaveAttribute("id", "main-content");
+    expect(main).toHaveAttribute("tabIndex", "-1");
+    expect(main).toHaveAttribute("aria-label", "Main content");
+    expect(document.getElementById("main-content")).toBe(main);
+    expect(main).toHaveClass("overflow-hidden");
+  });
+});

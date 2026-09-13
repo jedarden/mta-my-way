@@ -11,7 +11,7 @@
 
 import type { InterpolatedTrainPosition, LineDiagramData, Station } from "@mta-my-way/shared";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ComponentErrorBoundary, DataState } from "../components/common";
 import EmptyState from "../components/common/EmptyState";
 import OfflineBanner from "../components/common/OfflineBanner";
@@ -56,6 +56,26 @@ export default function MapScreen() {
 
   // Auto-refresh state
   const fetchGenRef = useRef(0);
+
+  // MapScreen keeps its own header instead of Screen's, so it renders the
+  // shell's skip link and main landmark directly (see the /map finding in
+  // docs/notes/wcag-audit-baseline.md). Move focus to the main content area on
+  // route changes so keyboard and screen-reader users land at the top of the
+  // new screen. Use a ref to track previous location to avoid focus on
+  // initial mount.
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const previousLocationRef = useRef<string>(location.pathname);
+
+  useEffect(() => {
+    if (previousLocationRef.current !== location.pathname) {
+      previousLocationRef.current = location.pathname;
+      const timeoutId = setTimeout(() => {
+        mainRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.pathname]);
 
   // Load stations and routes
   useEffect(() => {
@@ -181,6 +201,13 @@ export default function MapScreen() {
 
   return (
     <div className="flex flex-col h-full bg-background dark:bg-dark-background">
+      {/* Skip link for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-mta-primary focus:text-white focus:rounded-lg focus:font-medium focus:outline-none"
+      >
+        Skip to main content
+      </a>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background dark:bg-dark-background border-b border-surface dark:border-dark-surface px-4 py-3 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between">
@@ -307,7 +334,13 @@ export default function MapScreen() {
 
       <OfflineBanner />
 
-      <main className="flex-1 overflow-hidden">
+      <main
+        ref={mainRef}
+        id="main-content"
+        className="flex-1 overflow-hidden"
+        tabIndex={-1}
+        aria-label="Main content"
+      >
         <DataState
           status={status}
           data={stations}
