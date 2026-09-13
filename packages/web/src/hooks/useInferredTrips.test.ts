@@ -75,6 +75,7 @@ const createMockJournalState = (overrides: Partial<JournalState> = {}): JournalS
   updateTripRecord: vi.fn(),
   removeTripRecord: vi.fn(),
   removeCommuteStats: vi.fn(),
+  mergeServerRecords: vi.fn(),
   clearJournal: vi.fn(),
   detectAnomaly: vi.fn(),
   getDayOfWeekStats: vi.fn(),

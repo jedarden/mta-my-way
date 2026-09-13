@@ -26,6 +26,8 @@ function makeStations(): Station[] {
       northStopId: "725N",
       southStopId: "725S",
       transfers: [],
+      ada: true,
+      borough: "manhattan",
     },
     {
       id: "101",
@@ -36,6 +38,8 @@ function makeStations(): Station[] {
       northStopId: "101N",
       southStopId: "101S",
       transfers: [],
+      ada: true,
+      borough: "manhattan",
     },
   ];
 }
@@ -367,7 +371,7 @@ describe("CommuteEditor", () => {
     const { unmount } = render(<CommuteEditor onSave={vi.fn()} onClose={vi.fn()} />);
 
     const dialog = screen.getByRole("dialog", { name: "New commute" });
-    expect(dialog).toContainElement(document.activeElement);
+    expect(dialog).toContainElement(document.activeElement as HTMLElement | null);
 
     unmount();
 
@@ -387,15 +391,18 @@ describe("CommuteEditor", () => {
       )
     );
     expect(focusable.length).toBeGreaterThan(1);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) throw new Error("Expected at least two focusable elements");
 
     // Tabbing forward from the last focusable wraps to the first.
-    focusable[focusable.length - 1].focus();
+    last.focus();
     await user.tab();
-    expect(document.activeElement).toBe(focusable[0]);
+    expect(document.activeElement).toBe(first);
 
     // Shift+Tab from the first wraps back to the last.
-    focusable[0].focus();
+    first.focus();
     await user.tab({ shift: true });
-    expect(document.activeElement).toBe(focusable[focusable.length - 1]);
+    expect(document.activeElement).toBe(last);
   });
 });
