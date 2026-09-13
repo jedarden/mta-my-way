@@ -9,7 +9,10 @@
  * - Opens after 3 consecutive failures
  * - Resets after 60 seconds
  * - Returns 503 immediately when circuit is open
- * - Half-open state: single test request on reset attempt
+ * - Half-open state: exactly one probe in flight per reset window — concurrent
+ *   and sequential callers fail fast until it settles, and a failed probe
+ *   re-arms the full open window so the next probe waits another
+ *   CIRCUIT_RESET_MS instead of hammering the dead service
  *
  * Environment variables:
  * - STATEFUL_SERVICE_URL: Base URL of stateful subsystem (default: http://mta-my-way-stateful:3001)
@@ -53,25 +56,18 @@ let circuitState: CircuitState = {
   lastSuccessAt: null,
 };
 
+/** Whether the single half-open probe is currently in flight */
+let halfOpenProbeInFlight = false;
+
 /**
  * Check if circuit breaker is currently open
+ *
+ * True across the whole open window, including once CIRCUIT_RESET_MS has
+ * elapsed — the circuit is reported as open until a probe succeeds, but
+ * callStatefulService will admit a single probe in that half-open state.
  */
 export function isCircuitOpen(): boolean {
-  if (circuitState.circuitOpenAt === null) {
-    return false;
-  }
-
-  // Check if circuit should reset
-  const now = Date.now();
-  if (now - circuitState.circuitOpenAt >= CIRCUIT_RESET_MS) {
-    logger.info("Stateful circuit breaker reset - attempting recovery", {
-      openDuration: now - circuitState.circuitOpenAt,
-    });
-    // Don't reset yet - wait for next request to attempt (half-open state)
-    return true; // Still open until first success
-  }
-
-  return true;
+  return circuitState.circuitOpenAt !== null;
 }
 
 /**
@@ -99,11 +95,21 @@ function recordFailure(error: string): void {
   circuitState.consecutiveFailures++;
   circuitState.lastError = error;
 
+  if (circuitState.circuitOpenAt !== null) {
+    // The circuit was already open, so this failure is a half-open probe (or
+    // a call admitted just before the circuit opened). Re-arm the open window
+    // so the breaker fails fast for another CIRCUIT_RESET_MS instead of
+    // treating every subsequent call as a fresh probe.
+    circuitState.circuitOpenAt = Date.now();
+    logger.warn("Stateful circuit breaker re-armed - half-open probe failed", {
+      consecutiveFailures: circuitState.consecutiveFailures,
+      lastError: error,
+    });
+    return;
+  }
+
   // Open circuit if threshold reached
-  if (
-    circuitState.consecutiveFailures >= CIRCUIT_OPEN_AFTER &&
-    circuitState.circuitOpenAt === null
-  ) {
+  if (circuitState.consecutiveFailures >= CIRCUIT_OPEN_AFTER) {
     const now = Date.now();
     circuitState.circuitOpenAt = now;
     logger.warn("Stateful circuit breaker opened - service unavailable", {
@@ -134,21 +140,44 @@ export async function callStatefulService<T = unknown>(
 ): Promise<T> {
   // Check circuit state first
   if (isCircuitOpen()) {
-    // In half-open state (after reset timeout), allow one test request
+    // In half-open state (after reset timeout), allow exactly one test request
     const now = Date.now();
-    const isHalfOpen =
-      circuitState.circuitOpenAt !== null && now - circuitState.circuitOpenAt >= CIRCUIT_RESET_MS;
+    const openAt = circuitState.circuitOpenAt;
+    const isHalfOpen = openAt !== null && now - openAt >= CIRCUIT_RESET_MS;
 
     if (!isHalfOpen) {
       logger.debug("Stateful circuit breaker open - request rejected", { path });
       throw new Error("Stateful subsystem unavailable - circuit breaker open");
     }
 
+    if (halfOpenProbeInFlight) {
+      logger.debug("Stateful circuit breaker half-open - probe in flight, request rejected", {
+        path,
+      });
+      throw new Error("Stateful subsystem unavailable - circuit breaker open");
+    }
+
+    logger.info("Stateful circuit breaker reset - attempting recovery", {
+      openDuration: now - openAt,
+      path,
+    });
     logger.debug("Stateful circuit breaker half-open - attempting test request", {
       path,
     });
+    halfOpenProbeInFlight = true;
   }
 
+  try {
+    return await performCall<T>(path, options);
+  } finally {
+    // The probe has settled — recordSuccess/recordFailure runs on every path
+    // through performCall — so release the single half-open slot.
+    halfOpenProbeInFlight = false;
+  }
+}
+
+/** Issue the request itself; all outcomes funnel through recordSuccess/recordFailure. */
+async function performCall<T = unknown>(path: string, options: RequestInit): Promise<T> {
   const url = `${STATEFUL_SERVICE_URL}${path}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);

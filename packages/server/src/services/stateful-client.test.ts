@@ -4,7 +4,9 @@
  * Covers the circuit breaker contract documented on the module:
  * - opens after CIRCUIT_OPEN_AFTER = 3 consecutive failures
  * - stays open until CIRCUIT_RESET_MS = 60s has elapsed
- * - half-open: a single probe decides recovery (success closes, failure keeps open)
+ * - half-open: exactly one probe in flight decides recovery — concurrent and
+ *   sequential callers fail fast until it settles, and a failed probe re-arms
+ *   the full open window before the next probe
  * - default 2000ms request timeout (STATEFUL_TIMEOUT_MS override)
  * - STATEFUL_SERVICE_URL discovery (default http://mta-my-way-stateful:3001)
  *
@@ -73,6 +75,32 @@ async function loadClient(env: Record<string, string> = {}) {
   return import("./stateful-client.js");
 }
 
+/** One manually-resolvable in-flight request captured by deferredFetch. */
+interface DeferredResponse {
+  promise: Promise<Response>;
+  resolve: (response: Response) => void;
+  reject: (error: Error) => void;
+}
+
+/**
+ * A fetch whose response is supplied manually per call, so a test can hold the
+ * half-open probe in flight while asserting on concurrent callers.
+ */
+function deferredFetch(): { fetchMock: ReturnType<typeof vi.fn>; calls: DeferredResponse[] } {
+  const calls: DeferredResponse[] = [];
+  const fetchMock = vi.fn((_url: string | URL, _init?: RequestInit): Promise<Response> => {
+    let resolve!: (response: Response) => void;
+    let reject!: (error: Error) => void;
+    const promise = new Promise<Response>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    calls.push({ promise, resolve, reject });
+    return promise;
+  });
+  return { fetchMock, calls };
+}
+
 describe("stateful-client", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -89,8 +117,8 @@ describe("stateful-client", () => {
   describe("STATEFUL_SERVICE_URL discovery", () => {
     it("defaults to the in-cluster stateful Service URL", async () => {
       const client = await loadClient();
-      const fetchMock = vi.fn(
-        async (_url: string | URL, _init?: RequestInit) => okResponse({ status: "ok" })
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        okResponse({ status: "ok" })
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -103,8 +131,8 @@ describe("stateful-client", () => {
 
     it("uses STATEFUL_SERVICE_URL when set", async () => {
       const client = await loadClient({ STATEFUL_SERVICE_URL: "http://stateful.test:9999" });
-      const fetchMock = vi.fn(
-        async (_url: string | URL, _init?: RequestInit) => okResponse({ status: "ok" })
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        okResponse({ status: "ok" })
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -116,8 +144,8 @@ describe("stateful-client", () => {
 
     it("sends JSON content type and forwards the method and body", async () => {
       const client = await loadClient();
-      const fetchMock = vi.fn(
-        async (_url: string | URL, _init?: RequestInit) => okResponse({ subscribed: true })
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        okResponse({ subscribed: true })
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -190,8 +218,8 @@ describe("stateful-client", () => {
   describe("circuit breaker", () => {
     it("opens after 3 consecutive failures and fails fast without calling the service", async () => {
       const client = await loadClient();
-      const fetchMock = vi.fn(
-        async (_url: string | URL, _init?: RequestInit) => errorResponse(503, "Service Unavailable")
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        errorResponse(503, "Service Unavailable")
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -238,8 +266,8 @@ describe("stateful-client", () => {
 
     it("stays open until CIRCUIT_RESET_MS (60s) has elapsed", async () => {
       const client = await loadClient();
-      const fetchMock = vi.fn(
-        async (_url: string | URL, _init?: RequestInit) => errorResponse(503, "Service Unavailable")
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        errorResponse(503, "Service Unavailable")
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -249,8 +277,8 @@ describe("stateful-client", () => {
       expect(client.isCircuitOpen()).toBe(true);
 
       // Service comes back, but the circuit must not trust it yet.
-      fetchMock.mockImplementation(
-        async (_url: string | URL, _init?: RequestInit) => okResponse({ status: "ok" })
+      fetchMock.mockImplementation(async (_url: string | URL, _init?: RequestInit) =>
+        okResponse({ status: "ok" })
       );
 
       // 59,999ms in, the circuit still rejects without contacting the service.
@@ -266,8 +294,8 @@ describe("stateful-client", () => {
 
     it("half-open: a single successful probe closes the circuit", async () => {
       const client = await loadClient();
-      const fetchMock = vi.fn(
-        async (_url: string | URL, _init?: RequestInit) => errorResponse(503, "Service Unavailable")
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        errorResponse(503, "Service Unavailable")
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -276,8 +304,8 @@ describe("stateful-client", () => {
       }
       expect(client.isCircuitOpen()).toBe(true);
 
-      fetchMock.mockImplementation(
-        async (_url: string | URL, _init?: RequestInit) => okResponse({ status: "ok" })
+      fetchMock.mockImplementation(async (_url: string | URL, _init?: RequestInit) =>
+        okResponse({ status: "ok" })
       );
       await vi.advanceTimersByTimeAsync(60_000);
 
@@ -293,8 +321,8 @@ describe("stateful-client", () => {
 
     it("half-open: a failed probe keeps the circuit open", async () => {
       const client = await loadClient();
-      const fetchMock = vi.fn(
-        async (_url: string | URL, _init?: RequestInit) => errorResponse(503, "Service Unavailable")
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        errorResponse(503, "Service Unavailable")
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -308,6 +336,121 @@ describe("stateful-client", () => {
       expect(client.isCircuitOpen()).toBe(true);
       expect(client.getCircuitState().consecutiveFailures).toBe(4);
       expect(client.getCircuitState().lastError).toContain("HTTP 503");
+    });
+
+    it("half-open: only one probe is in flight — concurrent callers fail fast", async () => {
+      const client = await loadClient();
+      const failing = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        errorResponse(503, "Service Unavailable")
+      );
+      vi.stubGlobal("fetch", failing);
+
+      for (let i = 0; i < 3; i++) {
+        await expect(client.callStatefulService("/api/x")).rejects.toThrow("HTTP 503");
+      }
+      expect(client.isCircuitOpen()).toBe(true);
+
+      const { fetchMock, calls } = deferredFetch();
+      vi.stubGlobal("fetch", fetchMock);
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      // The first call past the window becomes the in-flight probe.
+      const probe = client.callStatefulService<{ status: string }>("/api/probe");
+      expect(calls.length).toBe(1);
+
+      // A caller racing the probe is rejected locally — the service is not
+      // contacted a second time while the probe is outstanding.
+      await expect(client.callStatefulService("/api/other")).rejects.toThrow(
+        "circuit breaker open"
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(calls.length).toBe(1);
+
+      // The probe settles successfully and closes the circuit.
+      calls[0]?.resolve(okResponse({ status: "ok" }));
+      await expect(probe).resolves.toEqual({ status: "ok" });
+      expect(client.isCircuitOpen()).toBe(false);
+    });
+
+    it("half-open: a failed probe re-arms the open window — no new probe until another full reset", async () => {
+      const client = await loadClient();
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        errorResponse(503, "Service Unavailable")
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      for (let i = 0; i < 3; i++) {
+        await expect(client.callStatefulService("/api/x")).rejects.toThrow("HTTP 503");
+      }
+      const firstOpenAt = client.getCircuitState().circuitOpenAt ?? 0;
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      // The probe goes through and fails...
+      await expect(client.callStatefulService("/api/probe")).rejects.toThrow("HTTP 503");
+      expect(client.isCircuitOpen()).toBe(true);
+      expect(client.getCircuitState().consecutiveFailures).toBe(4);
+      // ...and the open window is re-armed from now, not left at the original stamp.
+      expect(client.getCircuitState().circuitOpenAt ?? 0).toBeGreaterThan(firstOpenAt);
+
+      // So the next caller fails fast instead of being admitted as a fresh probe.
+      const callsAfterProbe = fetchMock.mock.calls.length;
+      await expect(client.callStatefulService("/api/x")).rejects.toThrow("circuit breaker open");
+      expect(fetchMock.mock.calls.length).toBe(callsAfterProbe);
+
+      // Still failing fast 59,999ms into the re-armed window...
+      await vi.advanceTimersByTimeAsync(59_999);
+      await expect(client.callStatefulService("/api/x")).rejects.toThrow("circuit breaker open");
+      expect(fetchMock.mock.calls.length).toBe(callsAfterProbe);
+
+      // ...and one tick later a fresh probe is admitted and recovers the service.
+      fetchMock.mockImplementation(async (_url: string | URL, _init?: RequestInit) =>
+        okResponse({ status: "ok" })
+      );
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(client.callStatefulService("/api/probe")).resolves.toEqual({ status: "ok" });
+      expect(client.isCircuitOpen()).toBe(false);
+    });
+
+    it("logs the recovery attempt once per window, not on every call or status poll", async () => {
+      const client = await loadClient();
+      // Import through the fresh module registry so this is the same mocked
+      // logger instance the freshly-loaded client bound.
+      const { logger } = await import("../observability/index.js");
+      const infoMock = vi.mocked(logger.info);
+      const recoveryCalls = () =>
+        infoMock.mock.calls.filter((args) =>
+          String(args[0]).includes("reset - attempting recovery")
+        );
+
+      const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+        errorResponse(503, "Service Unavailable")
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      for (let i = 0; i < 3; i++) {
+        await expect(client.callStatefulService("/api/x")).rejects.toThrow("HTTP 503");
+      }
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      // Polling the circuit state must not log the recovery attempt...
+      client.isCircuitOpen();
+      client.getStatefulStatus();
+      expect(recoveryCalls().length).toBe(0);
+
+      // ...the admitted probe logs it exactly once...
+      const { fetchMock: deferredMock, calls } = deferredFetch();
+      vi.stubGlobal("fetch", deferredMock);
+      const probe = client.callStatefulService<{ status: string }>("/api/probe");
+      expect(recoveryCalls().length).toBe(1);
+
+      // ...and callers rejected while the probe is in flight do not log it again.
+      await expect(client.callStatefulService("/api/other")).rejects.toThrow(
+        "circuit breaker open"
+      );
+      expect(recoveryCalls().length).toBe(1);
+
+      calls[0]?.resolve(okResponse({ status: "ok" }));
+      await expect(probe).resolves.toEqual({ status: "ok" });
     });
   });
 
@@ -325,11 +468,9 @@ describe("stateful-client", () => {
       const client = await loadClient();
       vi.stubGlobal(
         "fetch",
-        vi.fn(
-          async (_url: string | URL, _init?: RequestInit): Promise<Response> => {
-            throw new Error("connect ECONNREFUSED 10.0.0.1:3001");
-          }
-        )
+        vi.fn(async (_url: string | URL, _init?: RequestInit): Promise<Response> => {
+          throw new Error("connect ECONNREFUSED 10.0.0.1:3001");
+        })
       );
       await expect(client.checkStatefulHealth()).resolves.toBe(false);
     });
