@@ -164,12 +164,18 @@ describe("shutdownObservability", () => {
   });
 
   it("does not throw even when OTel flush fails", async () => {
-    vi.spyOn(logger, "error");
+    // Swallow the deliberate error-path output so it doesn't leak into test
+    // logs (pulse flags error-level lines), while still asserting it fired.
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
     // Re-importing won't help; directly mock the module-level function
     const flushSpy = vi
       .spyOn(await import("../observability/opentelemetry.js"), "flushOpenTelemetry")
       .mockRejectedValue(new Error("flush failed"));
     await expect(shutdownObservability()).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Error flushing OpenTelemetry during shutdown",
+      expect.any(Error)
+    );
     flushSpy.mockRestore();
   });
 });
