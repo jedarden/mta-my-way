@@ -41,7 +41,7 @@ export function parseBooleanEnv(value: string | undefined, defaultValue = false)
  * CORE_ONLY mode: When set to true, the server runs in stateless mode.
  *
  * In CORE_ONLY mode:
- * - No database initialization (push subscriptions, trip tracking, context service)
+ * - No database initialization (push subscriptions, trip tracking, security persistence)
  * - No push notification pipeline
  * - No session cleanup
  * - DB-dependent endpoints return 503 Service Unavailable

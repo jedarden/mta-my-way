@@ -238,13 +238,7 @@ async function main(): Promise<void> {
     });
   } else {
     logger.info("CORE_ONLY mode: skipping all DB-dependent subsystems", {
-      disabled: [
-        "push subscriptions",
-        "trip tracking",
-        "context service",
-        "session cleanup",
-        "password reset",
-      ],
+      disabled: ["push subscriptions", "trip tracking", "session cleanup", "password reset"],
       hint: "Set CORE_ONLY=false to enable stateful features",
     });
   }
