@@ -23,3 +23,8 @@ export {
 } from "./travel-times.js";
 export { TransferEngine, createTransferEngine } from "./engine.js";
 export type { EngineConfig } from "./engine.js";
+export {
+  createPositionAdjustedReader,
+  MAX_DELAY_ADJUSTMENT_SECONDS,
+} from "./position-arrivals.js";
+export type { ArrivalReader, PositionAdjustedConfig } from "./position-arrivals.js";

@@ -147,6 +147,7 @@ import { buildPreferencesRoutes } from "./routes/preferences.routes.js";
 import { buildTripPredictionRoutes } from "./routes/trip-prediction.routes.js";
 import { getStatefulStatus } from "./services/stateful-client.js";
 import { createTransferEngine } from "./transfer/index.js";
+import { createPositionAdjustedReader } from "./transfer/position-arrivals.js";
 import { lookupTrip } from "./trip-lookup.js";
 import {
   calculateCommuteStats,
@@ -641,9 +642,14 @@ export function createApp(
     routes,
     transfers,
     complexes,
-    getArrivals: (stationId: string) => {
-      return getArrivals(stationId);
-    },
+    // The engine reads position-adjusted arrivals: the cache is schedule-
+    // derived, so a train the vehicle-position stream has already observed
+    // running late (or early) is corrected before commute analysis sees it.
+    // Lines with no usable position observations pass through untouched.
+    getArrivals: createPositionAdjustedReader({
+      getArrivals: (stationId: string) => getArrivals(stationId),
+      getPositions: (routeId: string) => getPositions(routeId),
+    }),
   });
 
   // -------------------------------------------------------------------------
