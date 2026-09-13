@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { initDelayDetector, processVehicleUpdates, resetDelayDetector } from "./delay-detector.js";
+import { getDelayRecordCount, initDelayPredictor, resetDelayPredictor } from "./delay-predictor.js";
 
 const TEST_STATIONS = {
   "100": {
@@ -111,10 +112,12 @@ describe("Delay Detector Debug", () => {
       thresholdMultiplier: 2.0,
       minTrainsForLineAlert: 2,
     });
+    initDelayPredictor(TEST_TRAVEL_TIMES, TEST_STATIONS);
   });
 
   afterEach(() => {
     resetDelayDetector();
+    resetDelayPredictor();
   });
 
   it("should detect delay", () => {
@@ -161,5 +164,6 @@ describe("Delay Detector Debug", () => {
     console.log("Result 2:", result2);
 
     expect(result2).toHaveLength(1);
+    expect(getDelayRecordCount()).toBe(1);
   });
 });
