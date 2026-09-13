@@ -9,6 +9,9 @@ This directory provides comprehensive testing utilities for MTA My Way, a TypeSc
 - [Security Helpers (`security-helpers.ts`)](#security-helpers-security-helpersts)
 - [Observability Helpers (`observability-helpers.ts`)](#observability-helpers-observability-helpersts)
 - [Middleware Helpers (`testing/middleware/`)](#middleware-helpers-testingmiddleware)
+- [User Fixtures (`user-fixtures.ts`)](#user-fixtures-user-fixturests)
+- [Seed Helpers (`seed-helpers.ts`)](#seed-helpers-seed-helpersts)
+- [Audit Assertions (`audit-assertions.ts`)](#audit-assertions-audit-assertionsts)
 - [Smoke Tests (`smoke.test.ts`)](#smoke-tests-smoketestts)
 - [Usage Examples](#usage-examples)
 - [Known Issues and Missing Helpers](#known-issues-and-missing-helpers)
@@ -1984,6 +1987,48 @@ expect(request.context.audit.performedBy).toBe(context.user.id);
 
 ---
 
+### Base Middleware Test Suite (`base-suite.ts`)
+
+One object that wires every helper a middleware test needs — role fixtures, seeded data, the request fixture and an audit recorder — and hands them to each test through a single context. The suite registers no hooks itself: the test file keeps its own `describe` and wires `setup`/`teardown` into `beforeEach`/`afterEach`, so it stays runner-agnostic and a test can add its own hook bodies alongside.
+
+A fresh context is built per test — new fixtures, new seeds, an empty audit recorder — so tests cannot leak state through the suite. Reading `suite.current` before `setup()` or after `teardown()` throws.
+
+| Member | What it holds |
+|--------|---------------|
+| `suite.name` | The label given at creation |
+| `suite.setup()` | Builds the fresh context; call from `beforeEach` |
+| `suite.current` | The running test's context (throws when not set up) |
+| `suite.teardown()` | Tears the current context down; safe to call twice |
+| `ctx.users` | `UserFixtureSet` — admin, regular, guest |
+| `ctx.user` | The role-selected primary fixture (`userRole` option, default `"user"`) |
+| `ctx.data` | Seeded bundle from `seedTestData()` |
+| `ctx.fixture` | `MiddlewareTestFixture` from `setupMiddlewareTest` — `run()`, `createRequest()` |
+| `ctx.audit` | An empty `AuditLogRecorder` the middleware records into |
+| `ctx.expectAuditTrail()` | Trail assertion over what `ctx.audit` recorded |
+
+**Example** — the full walkthrough lives in `base-suite.test.ts`, which is the reference for writing a suite:
+
+```typescript
+const suite = createMiddlewareSuite("favorites-auditor", {
+  request: { url: "http://localhost:3001/api/favorites" },
+  userRole: "admin",
+});
+
+beforeEach(() => suite.setup());
+afterEach(() => suite.teardown());
+
+it("admits the primary role and records the event", async () => {
+  const { fixture, user, audit } = suite.current;
+  const response = await fixture.run({
+    request: fixture.createRequest({ headers: { authorization: `Bearer ${user.id}` } }),
+  });
+  expect(response.status).toBe(200);
+  audit.expect().attributedTo(user.id).allSucceeded();
+});
+```
+
+---
+
 ### Exported Types
 
 #### `middleware-helpers.ts`
@@ -2040,6 +2085,117 @@ expect(request.context.audit.performedBy).toBe(context.user.id);
 | `JsonResponseOptions` | interface | Options accepted by `createJsonResponse` — `status`, `headers` |
 | `ErrorResponseExpectation` | interface | Partial expectation for `assertErrorResponse` — `status`, `error`, `body`, `headers` |
 | `RateLimitExpectation` | interface | Fields to require of a 429 — `retryAfter`, `headers`, `error` |
+
+#### `base-suite.ts`
+
+| Type | Kind | Purpose |
+|------|------|---------|
+| `MiddlewareSuiteContext` | interface | Everything one test gets: `users`, `user`, `data`, `fixture`, `audit` |
+| `MiddlewareSuiteOptions` | interface | Options for `createMiddlewareSuite` — fixture options plus `userRole` |
+| `MiddlewareSuite` | interface | The `setup()`/`current`/`teardown()` object wired into lifecycle hooks |
+
+---
+
+## User Fixtures (`user-fixtures.ts`)
+
+Named fixtures for the three roles the server's RBAC recognizes: admin, regular user and guest. Where `createMockUser` builds one user whose shape mirrors the server, these are the role-specific presets on top of it — one call yields a complete user whose permission list mirrors the server's own role ladder (`packages/server/src/middleware/roles.ts`), so an RBAC test asserts against real permission strings.
+
+| Helper | Builds |
+|--------|--------|
+| `adminUser(overrides?)` | An admin holding `ADMIN_USER_PERMISSIONS` |
+| `regularUser(overrides?)` | A standard rider holding `REGULAR_USER_PERMISSIONS` |
+| `guestUser(overrides?)` | An unauthenticated visitor holding `GUEST_PERMISSIONS` |
+| `createUserFixtures(overrides?)` | All three at once, as a `UserFixtureSet` |
+| `userFixtureFor(role, overrides?)` | The fixture for a role, for tests that parameterize over roles |
+
+Like the builders they wrap, fixtures are deterministic (fixed IDs, the shared fixed epoch), every field can be overridden whole, and a fresh object is returned per call so tests never share mutable state.
+
+**Example** — a role matrix test:
+
+```typescript
+import { createUserFixtures, userFixtureFor } from "@mta-my-way/shared/testing/user-fixtures";
+
+const { admin, regular, guest } = createUserFixtures();
+for (const user of [admin, regular, guest]) {
+  expect(user.permissions).toContain("alerts:read"); // every role reads public data
+}
+expect(guest.permissions).not.toContain("trips:create"); // but only users create trips
+
+// Parameterized over roles:
+for (const role of ["admin", "user", "guest"] as const) {
+  expect(userFixtureFor(role).role).toBe(role);
+}
+```
+
+---
+
+## Seed Helpers (`seed-helpers.ts`)
+
+Parametrized, deterministic bundles of domain data. The one-object mock generators in `test-helpers.ts` default their timestamps to `Date.now()`, which is right for a single hand-shaped fixture and wrong for seeding a batch. The seeds fix a base epoch (`SEED_EPOCH`), derive every timestamp and ID from it, and generate coherent *volumes* — an N-station network with arrivals that actually reference those stations.
+
+Determinism contract: the same options always produce deep-equal data. IDs are sequential from a fixed base, timestamps are offsets from `SEED_EPOCH`, and names cycle a fixed pool of real stations.
+
+| Helper | Seeds | Default |
+|--------|-------|---------|
+| `seedStations(options?)` | Stations with sequential GTFS-style IDs | 5 stations from `101` |
+| `seedRoutes(options?)` | Routes over a shared stop list | 3 routes |
+| `seedArrivals(options?)` | An evenly spaced departure board, soonest first | 3 arrivals, 5 min apart |
+| `seedAlerts(options?)` | Service-change alerts with a window active relative to `SEED_EPOCH` | 2 warnings |
+| `seedTrips(options?)` | A ride history with growing durations | 3 trips |
+| `seedTestData(options?)` | All of the above, wired together | a small consistent world |
+
+`seedTestData` is internally consistent by construction: routes stop at the seeded stations, arrivals ride the first route's line, alerts affect that line, and trips run across the network.
+
+**Example** — size a world, then query it:
+
+```typescript
+import { seedArrivals, seedTestData } from "@mta-my-way/shared/testing/seed-helpers";
+
+const world = seedTestData({ stationCount: 5, arrivalCount: 6 });
+expect(world.routes[0].stops).toEqual(world.stations.map((s) => s.id));
+expect(world.arrivals.every((a) => a.line === world.routes[0].shortName)).toBe(true);
+
+// A board with known spacing — assert on the numbers directly:
+expect(seedArrivals({ count: 3, firstMinutesAway: 2 }).map((a) => a.minutesAway))
+  .toEqual([2, 7, 12]);
+```
+
+---
+
+## Audit Assertions (`audit-assertions.ts`)
+
+Assertion utilities for audit trails: verify what a middleware recorded, field by field, without depending on a test runner's matcher API. Assertions throw plain `Error`s naming both the expected and actual value — the same convention `test-patterns.ts` uses — so they work under vitest, inside `expect(...).not.toThrow(...)` guards, and from any other runner.
+
+| Export | Purpose |
+|--------|---------|
+| `createAuditLogRecorder(seed?)` | An in-memory sink a middleware under test records into |
+| `expectAuditEvent(event)` | Chainable per-event assertions: action, category, severity (exact or at-least), attribution, resource, success/failure, IP, metadata |
+| `expectAuditTrail(events \| recorder)` | Chainable trail assertions: counts, per-action counts, attribution, ordering, success, narrowing, first-event drill-in |
+| `AUDIT_SEVERITY_ORDER` | The `info < warning < error < critical` ranking `withSeverityAtLeast` uses |
+
+Production audit middlewares write into an injected sink; a test hands the middleware under test `recorder.record` as that sink, then asserts on `recorder.expect()`. The recorder is inert — it never validates what it is given — so a middleware that records nothing simply produces an empty trail, which `hasCount`/`containsAction` turn into a failure.
+
+**Example** — wire a middleware to a recorder, then verify the trail:
+
+```typescript
+import { createAuditLogRecorder } from "@mta-my-way/shared/testing/audit-assertions";
+
+const recorder = createAuditLogRecorder();
+const middleware = auditMiddleware(recorder.record); // production middleware, injected sink
+
+const response = await executeMiddleware([middleware], request, handler);
+
+recorder
+  .expect()
+  .hasCount(1)
+  .attributedTo(user.id)
+  .allSucceeded()
+  .event("favorites:listed")
+  .withSeverity("info")
+  .forResource("favorite", "fav-9");
+```
+
+The event shape these assertions read is the flat `AuditEvent` the server's `audit-log.ts` emits (mirrored by `MockAuditEvent`); the structured events from `structured-audit-log.ts` can be projected onto it by picking the fields a test cares about.
 
 ---
 

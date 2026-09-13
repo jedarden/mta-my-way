@@ -24,3 +24,12 @@ export * from "./response-validation";
 
 // Middleware testing utilities
 export * from "./middleware";
+
+// Named role fixtures: admin, regular user and guest
+export * from "./user-fixtures";
+
+// Deterministic test data seeds: stations, routes, arrivals, alerts, trips
+export * from "./seed-helpers";
+
+// Audit trail assertions: recorder sink plus event and trail assertions
+export * from "./audit-assertions";

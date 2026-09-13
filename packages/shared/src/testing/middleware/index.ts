@@ -21,3 +21,6 @@ export * from "./execution-context";
 
 // Common middleware test patterns: error scenarios, response generators and outcome assertions
 export * from "./test-patterns";
+
+// Base middleware test suite: fixtures, seeds and audit capture wired per test
+export * from "./base-suite";

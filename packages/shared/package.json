@@ -30,6 +30,18 @@
     "./testing/jwt-helpers": {
       "types": "./src/testing/jwt-helpers.ts",
       "import": "./src/testing/jwt-helpers.ts"
+    },
+    "./testing/user-fixtures": {
+      "types": "./src/testing/user-fixtures.ts",
+      "import": "./src/testing/user-fixtures.ts"
+    },
+    "./testing/seed-helpers": {
+      "types": "./src/testing/seed-helpers.ts",
+      "import": "./src/testing/seed-helpers.ts"
+    },
+    "./testing/audit-assertions": {
+      "types": "./src/testing/audit-assertions.ts",
+      "import": "./src/testing/audit-assertions.ts"
     }
   },
   "scripts": {
