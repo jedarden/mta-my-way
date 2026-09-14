@@ -10,7 +10,10 @@
  * The "interfering middleware" block proves the pre-middleware registration
  * with a host policy that genuinely blocks other paths in production: the
  * middleware chain would reject the probe's request, but /healthz (and the
- * /health alias) still answer because no middleware runs for them.
+ * /health alias) still answer because no middleware runs for them. One test
+ * pins the whole readiness contract on a single such response, and the final
+ * block keeps /healthz's bare readiness answer distinct from /api/health's
+ * feed status.
  */
 
 import type { Hono } from "hono";
@@ -125,5 +128,60 @@ describe("readiness availability under interfering middleware", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("application/json");
+  });
+
+  it("answers the full readiness contract on a single response ahead of the middleware chain", async () => {
+    // Every readiness contract property pinned on ONE response: the probe is
+    // available even though the production host policy rejects every
+    // middleware-covered path (proved above), so the answer demonstrably
+    // never travelled through the normal middleware chain — and it still
+    // carries the full payload contract.
+    const response = await createProductionApp().request("/healthz");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("application/json");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    // Middleware-applied headers are absent from the same response.
+    expect(response.headers.get("X-Request-ID")).toBeNull();
+    expect(response.headers.get("X-Content-Type-Options")).toBeNull();
+
+    const body = await response.json();
+    expect(body).toEqual({
+      status: "ok",
+      uptime_seconds: expect.any(Number),
+    });
+    expect(Number.isFinite(body.uptime_seconds)).toBe(true);
+    expect(body.uptime_seconds).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("readiness stays distinct from /api/health feed status", () => {
+  it("/healthz answers bare readiness while /api/health reports feed health for the same app state", async () => {
+    const readiness = await app.request("/healthz");
+    expect(readiness.status).toBe(200);
+    const readinessBody = await readiness.json();
+    // The readiness answer is exactly the two-key readiness payload — no
+    // feed, deployment, or subsystem field may leak into it.
+    expect(readinessBody).toEqual({
+      status: "ok",
+      uptime_seconds: expect.any(Number),
+    });
+
+    const apiHealth = await app.request("/api/health");
+    expect(apiHealth.status).toBe(200);
+    const apiBody = await apiHealth.json();
+    // /api/health reports the feed axis: per-feed states plus deployment mode.
+    expect(Array.isArray(apiBody.feeds)).toBe(true);
+    expect(apiBody.feeds.length).toBeGreaterThan(0);
+    expect(
+      apiBody.feeds.every((feed: { status: unknown }) => typeof feed.status === "string")
+    ).toBe(true);
+    expect(["core-only", "full"]).toContain(apiBody.deploymentMode);
+
+    // Its top-level status is derived from that feed/alert axis. In a bare
+    // app (nothing has been polled) the two answers visibly diverge: the
+    // process is ready while the feeds are not — readiness is not feed status.
+    expect(apiBody.status).toBe("degraded");
+    expect(readinessBody.status).toBe("ok");
   });
 });
