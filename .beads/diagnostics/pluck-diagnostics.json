@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-09-14T03:08:15.730985414Z",
-  "total_open_beads": 46,
+  "timestamp": "2026-09-14T06:08:27.706924025Z",
+  "total_open_beads": 42,
   "exclusion_criteria": {
     "has_assignee": 0,
     "manually_blocked": 7,
-    "has_dependencies": 36,
+    "has_dependencies": 33,
     "resource_conflicts": 0
   },
-  "final_candidate_count": 4,
+  "final_candidate_count": 3,
   "excluded_beads": [
     {
       "bead_id": "mtamyway-ec9e6de3",
@@ -395,17 +395,6 @@
       "conflict_count": 0
     },
     {
-      "bead_id": "mtamyway-9b8a0f1a",
-      "title": "Add a dedicated /healthz readiness endpoint",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
       "bead_id": "mtamyway-3604df7b",
       "title": "Migrate readiness consumers to /healthz",
       "priority": 2,
@@ -419,28 +408,6 @@
     {
       "bead_id": "mtamyway-f011e31f",
       "title": "Release /health to the SPA fallback",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
-      "bead_id": "mtamyway-b5d8449b",
-      "title": "Add the core /healthz readiness response",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
-      "bead_id": "mtamyway-95f0826f",
-      "title": "Verify readiness route compatibility and focused coverage",
       "priority": 2,
       "assignee": null,
       "manual_blocked": false,
