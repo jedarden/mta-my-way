@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-09-10T11:02:46.563812104Z",
-  "total_open_beads": 59,
+  "timestamp": "2026-09-14T03:08:15.730985414Z",
+  "total_open_beads": 46,
   "exclusion_criteria": {
     "has_assignee": 0,
     "manually_blocked": 7,
-    "has_dependencies": 35,
+    "has_dependencies": 36,
     "resource_conflicts": 0
   },
-  "final_candidate_count": 17,
+  "final_candidate_count": 4,
   "excluded_beads": [
     {
       "bead_id": "mtamyway-ec9e6de3",
@@ -384,72 +384,6 @@
       "conflict_count": 0
     },
     {
-      "bead_id": "mtamyway-8fd8f402",
-      "title": "Write cross-cutting integration tests for middleware chain",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
-      "bead_id": "mtamyway-168e8dcf",
-      "title": "Set up integration test infrastructure for middleware testing",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
-      "bead_id": "mtamyway-a40f9151",
-      "title": "Write authentication and authorization middleware integration tests",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
-      "bead_id": "mtamyway-19f5e2b7",
-      "title": "Write rate limiting and security headers middleware integration tests",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
-      "bead_id": "mtamyway-dc6c8443",
-      "title": "Write audit logging middleware integration tests",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
-      "bead_id": "mtamyway-06ba9304",
-      "title": "Add user fixtures, audit log assertions, and base test suite",
-      "priority": 2,
-      "assignee": null,
-      "manual_blocked": false,
-      "has_blockers": true,
-      "blocker_count": 1,
-      "has_resource_conflicts": false,
-      "conflict_count": 0
-    },
-    {
       "bead_id": "mtamyway-e4b179ef",
       "title": "VERSION is 0.0.349 with no release and no tag ever cut",
       "priority": 2,
@@ -461,8 +395,74 @@
       "conflict_count": 0
     },
     {
+      "bead_id": "mtamyway-9b8a0f1a",
+      "title": "Add a dedicated /healthz readiness endpoint",
+      "priority": 2,
+      "assignee": null,
+      "manual_blocked": false,
+      "has_blockers": true,
+      "blocker_count": 1,
+      "has_resource_conflicts": false,
+      "conflict_count": 0
+    },
+    {
+      "bead_id": "mtamyway-3604df7b",
+      "title": "Migrate readiness consumers to /healthz",
+      "priority": 2,
+      "assignee": null,
+      "manual_blocked": false,
+      "has_blockers": true,
+      "blocker_count": 1,
+      "has_resource_conflicts": false,
+      "conflict_count": 0
+    },
+    {
+      "bead_id": "mtamyway-f011e31f",
+      "title": "Release /health to the SPA fallback",
+      "priority": 2,
+      "assignee": null,
+      "manual_blocked": false,
+      "has_blockers": true,
+      "blocker_count": 1,
+      "has_resource_conflicts": false,
+      "conflict_count": 0
+    },
+    {
+      "bead_id": "mtamyway-b5d8449b",
+      "title": "Add the core /healthz readiness response",
+      "priority": 2,
+      "assignee": null,
+      "manual_blocked": false,
+      "has_blockers": true,
+      "blocker_count": 1,
+      "has_resource_conflicts": false,
+      "conflict_count": 0
+    },
+    {
+      "bead_id": "mtamyway-95f0826f",
+      "title": "Verify readiness route compatibility and focused coverage",
+      "priority": 2,
+      "assignee": null,
+      "manual_blocked": false,
+      "has_blockers": true,
+      "blocker_count": 1,
+      "has_resource_conflicts": false,
+      "conflict_count": 0
+    },
+    {
       "bead_id": "mtamyway-00c48bc3",
       "title": "Fix README Preview claim: docs/ contains no screenshots",
+      "priority": 3,
+      "assignee": null,
+      "manual_blocked": false,
+      "has_blockers": true,
+      "blocker_count": 1,
+      "has_resource_conflicts": false,
+      "conflict_count": 0
+    },
+    {
+      "bead_id": "mtamyway-3117ec7a",
+      "title": "SPA /health route unreachable by deep link — the server readiness endpoint owns the path",
       "priority": 3,
       "assignee": null,
       "manual_blocked": false,
