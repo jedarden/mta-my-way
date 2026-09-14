@@ -2,6 +2,7 @@
  * Hono application: API routes + static asset serving.
  *
  * Routes:
+ *   GET /health                    — legacy lightweight readiness check (JSON)
  *   GET /healthz                   — lightweight readiness check (JSON)
  *   GET /status                   — public health dashboard (HTML)
  *   GET /api/health                — per-feed status, circuit-breaker state (JSON)
@@ -411,7 +412,7 @@ export function createApp(
   // -------------------------------------------------------------------------
   // Lightweight readiness endpoint (before middleware for fast response)
   // -------------------------------------------------------------------------
-  // GET /healthz — returns 200 with { status: "ok" } when the server is ready
+  // GET /health and /healthz — return 200 with { status: "ok" } when the server is ready
   // to handle requests.  Used by orchestrators (Playwright, Kubernetes, etc.)
   // to detect when the HTTP server is listening.
   //
@@ -421,7 +422,7 @@ export function createApp(
   //
   // Registered BEFORE all middleware so it responds within ~1ms regardless of
   // rate-limit state, CSRF tokens, etc.
-  app.get("/healthz", () => {
+  const readinessResponse = () => {
     return new Response(
       JSON.stringify({
         status: "ok",
@@ -432,7 +433,11 @@ export function createApp(
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       }
     );
-  });
+  };
+
+  // Keep /health available until readiness consumers have migrated to /healthz.
+  app.get("/health", readinessResponse);
+  app.get("/healthz", readinessResponse);
 
   // Request ID for correlation across logs and audit events.
   // Must run before security logging and audit middleware.
