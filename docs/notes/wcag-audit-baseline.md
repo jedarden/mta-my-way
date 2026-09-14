@@ -116,7 +116,7 @@ Filed from this measurement:
 | `mtamyway-73fe299f` | Map/Stats: use the `Screen` shell so the skip link and focus management apply | closed — landed as `21ab9898` |
 | `mtamyway-0a2dc600` | Build: keep the visualizer artifact out of `dist/` and the precache | closed — landed as `318ca7b` |
 | `mtamyway-3117ec7a` | Routing: separate the SPA `/health` route from the API readiness endpoint | closed — landed as `3c80cc87` |
-| `mtamyway-f7b528cd` | Flip `WCAG_AUDIT_ENFORCE=1` once the violations are fixed; promote `axe-core` to a direct devDependency | open |
+| `mtamyway-f7b528cd` | Flip `WCAG_AUDIT_ENFORCE=1` once the violations are fixed; promote `axe-core` to a direct devDependency | closed — enforced in app commit `ed50de6e` and GitOps commit `1cf70eb5` |
 
 ## Re-verification
 
