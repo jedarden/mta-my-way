@@ -85,3 +85,64 @@ needs no code: a substantial commit plus a successful `git push` before
 - After the `.gitignore` change: `git check-ignore` covers the objects dir;
   `git status` no longer lists it.
 - Range scan of the repair commit with the pin before push: clean.
+
+## Postscript — resolution evidence (2026-09-14, re-dispatch of mtamyway-52c41f78)
+
+The structural fix above landed on origin/main as `5e067a1c` (the timed-out
+attempt's commit rebased), after which sync commits push cleanly again. This
+postscript records what the telemetry and the bead store show about the whole
+incident, gathered 2026-09-14 ~05:00–05:54 UTC on re-dispatch.
+
+### The degradation has cleared
+
+`~/.needle/state/gate-health/96c977accde8.json` (this workspace's id): `degraded: false`,
+`degraded_fingerprint: null`. The `workspace.gate_degraded` event fired
+23:27:00Z; a successful verification (mtamyway-9b8a0f1a, 00:20:49Z) ran the
+restore path while the workspace was still degraded, and the next failure
+(01:33:22Z) recreated the state file as a fresh skeleton — proving
+`clear_state` had run. The window now holds only post-restore entries
+(e49391a3427e ×2, ebcf96b08892 ×2, last 02:37:54Z), all older than the 2h
+sliding window as of 04:38Z.
+
+### No work was lost — the flagged commits were orphaned, then superseded
+
+`git branch -r --contains` finds **none** of the six commits the failures
+named on any remote branch, yet every one's work is on origin/main:
+
+| orphaned (named by the gate) | work landed as |
+|---|---|
+| `9a11b80` fix: unshadow SPA health route (18:53:46−0400) | `3c80cc87` (18:55:33−0400) — **`git patch-id --stable` identical** (`c01ff5fa…`) |
+| `a4b2612` chore: ignore archived bead scan false positives | its `.gitleaksignore` content landed inside `29df4f98` |
+| `37aef85` test(server): pin healthz readiness ordering (22:30:57−0400) | same 68-line test change landed inside `07068999` (same author timestamp) |
+| `a6df987`, `a2967a7`, `0dc530d` — "Merge remote-tracking branch 'origin/main'" | pure reconciliation churn; nothing unique to land |
+
+Mechanism: in this shared checkout, a concurrent worker's
+`git pull --rebase --autostash` (or a superseding attempt) rewrites local
+history between the agent's commit and the close-time verification, so the
+SHA the gate tests is no longer an ancestor of `origin/main` even though the
+identical patch is. Each verdict was *true at the instant it fired* — the
+gate's logic is sound; its evidence goes stale in a shared checkout.
+
+### New defect found: restoration cannot close the Gate broken bead
+
+`restore_degraded_workspace` (`NEEDLE/src/outcome/mod.rs` ~2697) filters
+candidates on `b.workspace == workspace_path`, but `Bead.workspace`
+deserializes from the record's `source_repo` (`NEEDLE/src/types/mod.rs`
+~1128), and bead-rs leaves `source_repo` **NULL** (verified against
+`.beads/beads.db` for this very bead). The filter therefore matches nothing
+in every bead-rs workspace: the state file is cleared (degradation lifts —
+dispatch resumes) but the "Gate broken" bead is never closed, and the
+`workspace.gate_restored` emit, sitting inside the per-bead loop, never
+fires. That is exactly why this bead stayed open and was re-dispatched.
+Filed as `needle-108f2c9d` in the NEEDLE queue; the stale-verdict/patch-
+equivalence gap is filed as `needle-9798bd7e`.
+
+### Gate passes a clean run now
+
+Mechanical reproduction of the gate's own probes at 05:54Z: upstream probe
+resolves (`git rev-parse --abbrev-ref --symbolic-full-name @{u}` →
+`origin/main`), HEAD is an ancestor of `origin/main` after push, the
+`.beads/`-only sync commits are trivial paths (no verdict, by design), and a
+substantial commit + push + close passes by construction. Push health since
+`5e067a1c`: every `chore(beads): sync` commit has landed (b4f13858, f97b8f10,
+427ff85a, …).
