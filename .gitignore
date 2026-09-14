@@ -55,3 +55,10 @@ test-results/
 
 # NEEDLE execution traces are local diagnostics.
 **/.beads/traces/
+
+# Checkpoint object chunks are regenerable from the live store (SQLite is
+# authoritative; current.json/previous.json point at them but the repo has
+# never intentionally tracked them). Their archived bead-note prose trips the
+# Forgejo pre-receive secret scanner, so any commit that sweeps them in is
+# unpushable — see docs/notes/2026-09-13-shipped-work-gate-repair.md.
+**/.beads/checkpoint/objects/
