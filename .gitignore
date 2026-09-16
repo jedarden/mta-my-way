@@ -62,3 +62,21 @@ test-results/
 # Forgejo pre-receive secret scanner, so any commit that sweeps them in is
 # unpushable — see docs/notes/2026-09-13-shipped-work-gate-repair.md.
 **/.beads/checkpoint/objects/
+
+# Local NEEDLE and bead runtime state
+.needle-predispatch-sha
+.beads/events.jsonl
+.beads/heartbeats.jsonl
+.beads/diagnostics/
+.beads/logs/
+.beads/traces/
+.beads/receipts/
+.beads/*.db
+.beads/*.db-shm
+.beads/*.db-wal
+.beads/*.db.backup.*
+.beads/*.lock
+.beads/*.tmp
+.beads/*.temp
+.beads/*.journal
+.br_recovery/
