@@ -8,15 +8,23 @@
  * - DB-dependent endpoints return 503 with clear degradation message
  *
  * Per ADR-001 (2026-07-20): "Decouple the Core Read Path from Persistent-Volume-Backed State"
+ *
+ * NOTE: never import ../index.js here — not even a dynamic `await import()`
+ * inside a test. The entry point runs `void main()` at module scope, which
+ * boots the real feed/alerts/equipment pollers against the live MTA endpoints;
+ * from this network those fetches return HTTP 403 and the poller's error-level
+ * "Feed fetch failed" log line lands in the test output (captured by the pulse
+ * scanner 2026-09-12 and again 2026-09-16). Worse, main() keeps running in the
+ * fork while later test files reset shared state around it, so its
+ * security-persistence block hits a database handle that was closed under it
+ * and logs "Security persistence unavailable" (captured 2026-09-16). index.ts
+ * exports nothing, so such an import also binds nothing — these tests exercise
+ * the push-database module state directly instead.
  */
 
-import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { build } from "vite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { server } from "../index.js";
-import { generateApiKey } from "../middleware/authentication.js";
 import {
   closePushDatabase,
   configurePushDatabase,
@@ -83,24 +91,24 @@ describe("Database Failure Scenarios", () => {
   });
 
   describe("health endpoint reports degraded status", () => {
-    it("should report push DB as degraded when unavailable", async () => {
-      // Create a test server with invalid DB path
+    it("should report push DB as degraded when unavailable", () => {
+      // The health endpoint derives pushDb's degraded status from the push
+      // module's readiness signal alone, so assert that signal directly.
+      // Booting the entry point to "create a test server" is not an option —
+      // see the NOTE at the top of this file: importing ../index.js runs the
+      // real main() in the background, whose startup error logs land in the
+      // test output and get captured by the pulse scanner.
       const tempDir = join(tmpdir(), `mta-test-${Date.now()}`);
       const invalidDbPath = join(tempDir, "nonexistent", "subscriptions.db");
 
-      process.env.PUSH_DB_PATH = invalidDbPath;
-      process.env.PORT = "3999"; // Use different port to avoid conflicts
+      configurePushDatabase(invalidDbPath);
 
-      // Import server - should not throw
-      await expect(async () => {
-        await import("../index.js");
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }).not.toThrow();
-
-      // Note: In a real test, we would make an HTTP request to /api/health
-      // and verify the response contains pushDb: { ready: false }
-      // For now, we verify the module state
+      // Lazy-init contract: configuring an unwritable path degrades the
+      // subsystem without recording an error until something actually
+      // touches the database. Degraded — not crashed — is the state the
+      // health endpoint must report.
       expect(isPushDatabaseReady()).toBe(false);
+      expect(getPushDatabaseInitError()).toBeNull();
     });
   });
 
