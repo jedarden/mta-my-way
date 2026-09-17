@@ -194,7 +194,11 @@ describe("useTripTracker", () => {
     it("should keep prediction null when the prediction request fails", async () => {
       vi.mocked(api.api.getTrip).mockResolvedValue(mockTripData);
       vi.mocked(api.api.getTripPrediction).mockRejectedValue(
-        new EnhancedApiError({ type: ApiErrorType.SERVER, message: "Prediction failed" })
+        new EnhancedApiError({
+          type: ApiErrorType.SERVER,
+          message: "Prediction failed",
+          retryable: true,
+        })
       );
 
       const { result } = renderHook(() => useTripTracker("test-trip-123"));
