@@ -98,3 +98,36 @@ before lint, on every run. Only the per-node phases are evidence.
 (`mtamyway-a6230028`, deliberately not force-exercised) are downstream and
 still red on their own merits. This bead's done-when — typecheck exit 0, a
 build run past the lint gate — is met at `31e0812b`.
+
+## Ninth dispatch re-verification — 2026-09-17, ~23:45Z
+
+The harness re-plucked the bead (claim epoch 10) ~2h after the eighth
+closure with the same stale 486-error premise. Re-verified without a single
+source change — every fix cited above is already in main:
+
+- `npm run typecheck -- --force`: **exit 0** on the live tree, uncommitted
+  shared-checkout WIP included.
+- `npm run lint`: biome flags only gitignored
+  `packages/server/data/vapid-keys.json` (local-only; the CI lint node is
+  the authoritative signal and is green).
+- CI, all runs on `main`: `mta-my-way-build-6vczv`, `-kg7xd`, `-fvn47` —
+  lint **Succeeded**, typecheck **Succeeded**, test Failed (pod deadline —
+  the known test-step shape, not a gate failure); `-vcnh2` — both gates
+  Succeeded, test still in flight at close time. All four reached the step
+  after lint.
+- `npm test`: 7100 passed / 104 failed / 19 skipped, exit 1 — same standing
+  baseline as this morning (7092/112), deltas from WIP and load fringe.
+  Failure attribution: known-red auth/security suites (csrf-×2,
+  audit-log-comprehensive-security-coverage, auth-authorization-flow,
+  auth-authorization.integration, cross-cutting, password-management,
+  password-reset.service, middleware-chain-e2e, middleware-fixtures-demo);
+  load-fringe 5s timeouts (journal-sync-roundtrip, concurrency,
+  cache-coherency, push-startup, data-flow); and two suites carrying
+  another worker's uncommitted edits (audit-log-middleware-security-events,
+  audit-log-security-middleware-coverage). **No TypeScript and no lint
+  errors among the 104.**
+
+The prior dispatch left the bead open only because clean-extraction
+`npm test` did not pass — a bar the done-when never set. The red suites are
+owned by the test-step beads; holding this umbrella open over them just
+buys another pluck. Closed on attribution.
