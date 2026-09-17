@@ -503,6 +503,7 @@ export function setupMiddlewareTest(options: MiddlewareTestOptions = {}): Middle
       setupTestEnvironment();
     }
     if (options.fakeTimers) {
+      // biome-ignore lint/correctness/useHookAtTopLevel: vitest fake-timer API, not a React hook
       vi.useFakeTimers();
     }
   } catch (error) {
@@ -535,6 +536,7 @@ export function teardownMiddlewareTest(fixture?: MiddlewareTestFixture | null): 
     state.tornDown = true;
   }
   if (state?.fakeTimers) {
+    // biome-ignore lint/correctness/useHookAtTopLevel: vitest fake-timer API, not a React hook
     vi.useRealTimers();
   }
 
@@ -584,6 +586,7 @@ export function resetMiddlewareTestState(): MiddlewareTestStateReset {
   const restoredFakeTimers = vi.isFakeTimers();
 
   if (restoredFakeTimers) {
+    // biome-ignore lint/correctness/useHookAtTopLevel: vitest fake-timer API, not a React hook
     vi.useRealTimers();
   }
 

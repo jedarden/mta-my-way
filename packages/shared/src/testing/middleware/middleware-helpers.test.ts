@@ -535,6 +535,7 @@ describe("resetMiddlewareTestState", () => {
     // The helper under test is itself the between-tests reset, so fall back to
     // a manual one to keep this suite from leaking into the next.
     if (vi.isFakeTimers()) {
+      // biome-ignore lint/correctness/useHookAtTopLevel: vitest fake-timer API, not a React hook
       vi.useRealTimers();
     }
     vi.restoreAllMocks();

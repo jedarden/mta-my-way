@@ -77,7 +77,6 @@ export function StationSearch({
         placeholder="Search stations, lines, neighborhoods..."
         className="w-full pl-9 pr-10 py-3 bg-surface dark:bg-dark-surface rounded-lg text-text-primary dark:text-dark-text-primary placeholder:text-text-secondary dark:placeholder:text-dark-text-secondary min-h-touch focus:outline-none focus:ring-2 focus:ring-mta-primary"
         aria-label="Search stations"
-        // biome-ignore lint/a11y/noAutofocus: intentional — SearchScreen is the user's primary action
         autoFocus={autoFocus}
         autoComplete="off"
         autoCorrect="off"

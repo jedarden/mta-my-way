@@ -11,9 +11,9 @@
 import type { RouteIndex, StationIndex } from "@mta-my-way/shared";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp } from "../app.js";
 import type { ParsedAlert } from "../alerts-parser.js";
 import { resetAlertsCacheForTesting, setAlertsForTesting } from "../alerts-poller.js";
+import { createApp } from "../app.js";
 import { closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------

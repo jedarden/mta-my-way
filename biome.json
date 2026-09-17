@@ -6,6 +6,7 @@
   "linter": {
     "enabled": true,
     "rules": {
+      "recommended": false,
       "correctness": {
         "useHookAtTopLevel": "error"
       }
@@ -26,6 +27,15 @@
     }
   },
   "files": {
-    "ignore": ["dist/", "coverage/", "*.tsbuildinfo", "node_modules/", ".beads/", ".lighthouseci/"]
+    "ignore": [
+      "dist/",
+      "coverage/",
+      "*.tsbuildinfo",
+      "node_modules/",
+      ".beads/",
+      ".lighthouseci/",
+      "packages/server/src/proto/compiled.js",
+      "packages/server/src/proto/compiled.d.ts"
+    ]
   }
 }
