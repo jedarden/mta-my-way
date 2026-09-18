@@ -253,3 +253,36 @@ with fresh evidence, zero source changes:
 Same verdict, twelfth time repeated: every fix is in main, the done-when
 is met, remaining redness belongs to the test-step beads. Closed on
 attribution.
+
+## Fourteenth dispatch (claim epoch 15, 2026-09-18 ~02:30Z)
+
+Same stale premise re-plucked ~40min after the thirteenth closure,
+zero source changes. Fresh evidence:
+
+- `npm run typecheck -- --force`: **exit 0** (zero errors) on the live
+  tree at HEAD `3184dc3f`, then fast-forwarded to `f7bb157a` (=
+  `origin/main`, the 0.0.519 auto-bump, VERSION-only change — no code
+  delta). The premise's 486 and the named
+  HomeScreen/serviceWorkerRegistration/fareStore failures do not exist.
+- `npm run lint`: 4 biome errors, all in files **absent from CI** — the
+  gitignored `packages/server/data/vapid-keys.json`, the ignored
+  `tests/e2e/test-results/.last-run.json`, and untracked another-worker
+  WIP `app.core-only-route-mounts.test.ts` + `debug-chain-tmp.mts`.
+  Nothing tracked fails.
+- CI on `main`, 8 runs sampled across 00:23Z–01:55Z (`-n79f7`, `-q27hs`,
+  `-5mfcz`, `-bh27c`, `-2js2k`, `-zhhwn`, `-t746m`, `-msx6k`): lint
+  **Succeeded** + typecheck **Succeeded** in **all 8**; test Failed in
+  all 8 with the known pod-deadline / exit-128 shapes owned by the
+  test-step beads. Done-when met for the fourteenth time; no new run
+  submitted (the 8 existing runs on `main` satisfy it).
+- `npm test`: **7099 passed / 105 failed / 19 skipped of 7223**, 18 test
+  files failed — within the documented baseline band (103 and 104 in the
+  two prior quiet measurements; ±2 is run-to-run variance). The visible
+  tail is the `middleware-fixtures-demo` band
+  (`assertSecurityTableRowCount` row-count mismatches), consistent with
+  the composition fully documented in the thirteenth addendum above.
+  **Zero TypeScript or lint errors among the failures.**
+
+Same verdict, fourteenth time repeated: every fix is in main, the
+done-when is met, remaining redness belongs to the test-step beads.
+Closed on attribution.
