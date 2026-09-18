@@ -361,3 +361,40 @@ closure, zero source changes. Fresh evidence:
 Same verdict, seventeenth time repeated: every fix is in main, the
 done-when is met on a live run, remaining redness belongs to the
 test-step beads. Closed on attribution.
+
+## Eighteenth dispatch (claim epoch 19, 2026-09-18 ~04:35Z)
+
+Same stale 486-error premise, twelfth re-dispatch; zero source changes.
+Re-verified at origin/main `35fa050b` (0.0.522 auto-bump; local
+fast-forwarded with autostash, all other-worker WIP left in place):
+
+- `npm run typecheck -- --force` (`tsc --build --force`) **exit 0** over
+  the live tree, untracked WIP included — stricter than CI, which will
+  never see those files.
+- `npm run lint` exit 1 on exactly **4 errors, all on files absent from
+  CI**, re-confirmed mechanically: `packages/server/data/vapid-keys.json`
+  (gitignored, `.gitignore:38`), untracked another-worker WIP
+  `app.core-only-route-mounts.test.ts` (format) and `debug-chain-tmp.mts`
+  (organizeImports), and `tests/e2e/test-results/.last-run.json`
+  (gitignored, `.gitignore:48`). Nothing tracked fails.
+- CI, observed live on this dispatch: manual submission
+  `mta-my-way-build-manual-crdvs` (template `mta-my-way-build` verified
+  applied; no prior runs survived TTL, so a fresh one was required).
+  Gate pods again queued on the `argo-workflows-budget` quota
+  (~14 min, resolve-version Succeeded 04:35:30Z), then **lint
+  Succeeded 04:50:20Z**, **typecheck Succeeded 04:50:04Z**, and the DAG
+  advanced to the step after lint — the test node started 04:51:30Z.
+  Both gates green in-cluster on `main`.
+- `npm test` (box quiet): **7093 passed / 111 failed / 19 skipped of
+  7223**, 19 test files failed — the standing baseline, one failure
+  better than the seventeenth round (7092/112/19). Tail sample maps
+  onto the documented bands (password-reset SES provider,
+  middleware-fixtures-demo row counts, rate-limit full flow). With
+  `tsc --build --force` exit 0 over every test file and no source
+  changes on this dispatch, **no TypeScript or lint error can be among
+  the 111.**
+
+Same verdict, eighteenth time repeated: every fix is in main, the
+done-when is met on a live run (typecheck exit 0 + a build run past the
+lint gate), remaining redness belongs to the test-step beads. Closed on
+attribution.
