@@ -131,3 +131,35 @@ The prior dispatch left the bead open only because clean-extraction
 `npm test` did not pass — a bar the done-when never set. The red suites are
 owned by the test-step beads; holding this umbrella open over them just
 buys another pluck. Closed on attribution.
+
+## Tenth dispatch re-verification — 2026-09-18, ~00:05Z
+
+The harness re-plucked the bead again (claim epoch 11) ~2h after the ninth
+closure, byte-identical stale premise and a byte-identical WIP snapshot.
+Re-verified without a single source change:
+
+- `npm run typecheck -- --force`: **exit 0** on the live tree, uncommitted
+  shared-checkout WIP included.
+- `npm run lint`: 4 biome errors + 1 biome INTERNAL note, every one in a file
+  that does not exist in CI's checkout — gitignored
+  `packages/server/data/vapid-keys.json`, untracked WIP
+  `app.core-only-route-mounts.test.ts` and `debug-chain-tmp.mts`, and the
+  Playwright artifact `tests/e2e/test-results/.last-run.json`. Tracked
+  source is clean, which CI confirms.
+- CI, all ten `mta-my-way-build` runs created 22:15Z–23:44Z on `main`
+  (`-4xd7p`, `-6vczv`, `-7pwlf`, `-c7jbx`, `-fvn47`, `-h2gz8`, `-kg7xd`,
+  `-m5qj2`, `-vcnh2`, `-vmsv4`): lint **Succeeded** and typecheck
+  **Succeeded in every run**. The only red node is `test` — pod deadline ×7,
+  fast exit 1 ×3, the known test-step shapes owned by the test-step beads.
+  The done-when ("a build run reaches the step after lint") is met tenfold.
+- `npm test`: 7095 passed / 109 failed / 19 skipped of **7223** — the same
+  total set the ninth dispatch measured (7100/104/19); the ±5 pass/fail
+  churn is the documented load-fringe band on this box. The captured
+  failures are the standing known-red suites (`middleware-fixtures-demo`,
+  password-timing); and since `tsc --build --force` covers every test file
+  (exit 0) and biome is clean over tracked source, no TypeScript or lint
+  error can be among the 109.
+
+Same verdict, ninth time repeated: every fix cited above is in main, the
+done-when is met, the redness that remains belongs to other beads. Closed
+on attribution.
