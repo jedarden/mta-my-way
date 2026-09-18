@@ -215,3 +215,41 @@ with fresh evidence, zero source changes:
 Same verdict, eleventh time repeated: every fix is in main, the done-when
 is met, remaining redness belongs to the test-step beads. Closed on
 attribution.
+
+## Thirteenth dispatch (claim epoch 14, 2026-09-18 ~01:55Z)
+
+Same stale premise re-plucked ~35min after the twelfth closure. Re-verified
+with fresh evidence, zero source changes:
+
+- `npm run typecheck`: **exit 0** plain at HEAD `bdc1f481`, and
+  `tsc --build --force` full rebuild **exit 0** (zero errors); re-confirmed
+  plain **exit 0** after fast-forward to `121a7f2c` (= `origin/main`, the
+  0.0.518 auto-bump). The premise's 486 and the named
+  HomeScreen/serviceWorkerRegistration/fareStore failures do not exist.
+- `npm run lint`: 4 biome errors, all in files **absent from CI** — the
+  gitignored `packages/server/data/vapid-keys.json`, the ignored
+  `tests/e2e/test-results/.last-run.json`, and untracked another-worker WIP
+  `app.core-only-route-mounts.test.ts`. Nothing tracked fails.
+- CI on `main`: `-5mfcz` (00:44Z), `-bh27c` (00:54Z), `-2js2k` (01:25Z) all
+  lint **Succeeded** + typecheck **Succeeded**; test Failed with the known
+  shapes (`-bh27c` exit 128, `-5mfcz`/`-2js2k` pod deadline) owned by the
+  test-step beads. `-zhhwn` (01:25Z) in flight with both gates already
+  **Succeeded** (test Pending on quota). Done-when met for the thirteenth
+  time; no new run submitted (existing runs on `main` satisfy it).
+- `npm test`, two measurements: run 1 taken while a parallel forced tsc
+  build was loading the box → 7096/108/19 of 7223; run 2 quiet →
+  **7101 passed / 103 failed / 19 skipped** (104 FAIL entries counting the
+  `validation.test.ts` file-level suite error) — the standing baseline.
+  The run-1 delta (+4) is load-fringe flake, not a new defect. Run-2
+  composition maps onto the known bands: audit-log coverage family (22+13+7),
+  csrf x2 (31), auth flows (7), password mgmt/reset (3), cross-cutting (3),
+  middleware-chain-e2e + middleware-fixtures-demo (4), load-fringe 5s
+  timeouts (cache-coherency 4, journal-sync-roundtrip 3, concurrency 3,
+  data-flow 1), `validation.test.ts` file-level `afterEach is not defined`,
+  and FareTracker x2 (DOM assertion mismatches). Both FareTracker and
+  validation.test.ts are clean at HEAD (not WIP) — runtime defects owned by
+  the test-step beads. **Zero TypeScript or lint errors among the failures.**
+
+Same verdict, twelfth time repeated: every fix is in main, the done-when
+is met, remaining redness belongs to the test-step beads. Closed on
+attribution.
