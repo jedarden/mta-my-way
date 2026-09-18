@@ -163,3 +163,21 @@ Re-verified without a single source change:
 Same verdict, ninth time repeated: every fix cited above is in main, the
 done-when is met, the redness that remains belongs to other beads. Closed
 on attribution.
+
+## Eleventh dispatch (claim epoch 12, 2026-09-18 ~00:45Z)
+
+Same stale premise re-plucked ~2h after the tenth closure. Re-verified with
+fresh evidence, zero source changes:
+
+- `npm run typecheck -- --force`: **exit 0** on the live tree at HEAD
+  `54f9dcd3` (= `origin/main`), uncommitted shared-checkout WIP included.
+- CI on `main`: `-c7jbx` and `-7pwlf` (23:44Z) both lint **Succeeded** +
+  typecheck **Succeeded**, test Failed (pod deadline / fast exit 1 — the two
+  known test-step shapes owned by the test-step beads). `-n79f7` and
+  `-q27hs` (00:23Z/00:31Z) still in flight with lint **Succeeded** already.
+  Done-when met, eleventh time repeated.
+- No new run was submitted: existing runs on `main` already satisfy the
+  done-when, and duplicate submissions only add quota pressure.
+
+Same verdict, tenth time repeated: every fix is in main, the done-when is
+met, remaining redness belongs to the test-step beads. Closed on attribution.
