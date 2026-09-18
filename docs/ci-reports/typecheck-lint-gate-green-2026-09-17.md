@@ -316,3 +316,48 @@ addendum here — its evidence lives in the commit message.) Fresh evidence:
 Same verdict, sixteenth time repeated: every fix is in main, the
 done-when is met, remaining redness belongs to the test-step beads.
 Closed on attribution.
+
+## Seventeenth dispatch (claim epoch 18, 2026-09-18 ~04:20Z)
+
+Same stale 486-error premise re-plucked ~40min after the sixteenth
+closure, zero source changes. Fresh evidence:
+
+- `npm run typecheck`: **exit 0** plain at HEAD `957b69a8`, and
+  `tsc --build --force` full rebuild **exit 0** (zero errors, uncommitted
+  shared-checkout WIP included — so the committed tree CI sees is a
+  subset). The premise's 486 errors and the named
+  HomeScreen/serviceWorkerRegistration/fareStore failures do not exist.
+- `npm run lint`: 4 biome errors, all in files **absent from CI** —
+  gitignored `packages/server/data/vapid-keys.json`, untracked
+  another-worker WIP `app.core-only-route-mounts.test.ts` +
+  `debug-chain-tmp.mts`, ignored
+  `tests/e2e/test-results/.last-run.json`. Nothing tracked fails.
+- CI, observed live end-to-end on this dispatch: `mta-my-way-build-jn2q5`
+  (created 03:46Z on `main`). resolve-version auto-bumped VERSION to
+  0.0.521 (`957b69a8`, VERSION-only delta) before the gate pods cloned.
+  Both gate pods then sat **Pending ~14 min on the
+  `argo-workflows-budget` quota** (namespace crowded with post-push
+  validate and analysis runs) — a scheduling delay, not a gate failure.
+  Once quota freed: lint **Succeeded** 04:09:24Z, typecheck
+  **Succeeded** 04:12:51Z, and the DAG advanced to the step after lint —
+  the test node started 04:14:32Z (still in flight at close time). The
+  quota-wait is a new shape for this pipeline's *scheduling* phase and is
+  recorded here because the node message ("exceeded quota") reads like a
+  failure in `kubectl get workflow` output while the run is actually
+  healthy and waiting.
+- `npm test` (box otherwise quiet): **7092 passed / 112 failed / 19
+  skipped of 7223**, 19 test files failed — the standing baseline.
+  Composition maps onto the documented bands: audit-log coverage family
+  (22+13+7), csrf x2 (13+18), auth flows (6+4), password mgmt/reset
+  (3+1), cross-cutting (3), middleware-chain-e2e +
+  middleware-fixtures-demo (2+2), rate-limit integration (1),
+  load-fringe 5s timeouts (cache-coherency 6, concurrency 4,
+  data-flow 2, journal-sync-roundtrip 3), FareTracker x2 (DOM assertion
+  mismatches, clean at HEAD), and the `validation.test.ts` file-level
+  suite error. With `tsc --build --force` exit 0 over every test file
+  and biome clean over tracked source, **no TypeScript or lint error can
+  be among the 112.**
+
+Same verdict, seventeenth time repeated: every fix is in main, the
+done-when is met on a live run, remaining redness belongs to the
+test-step beads. Closed on attribution.
