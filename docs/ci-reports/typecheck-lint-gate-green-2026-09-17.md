@@ -286,3 +286,33 @@ zero source changes. Fresh evidence:
 Same verdict, fourteenth time repeated: every fix is in main, the
 done-when is met, remaining redness belongs to the test-step beads.
 Closed on attribution.
+
+## Sixteenth dispatch (claim epoch 17, 2026-09-18 ~03:45Z)
+
+Same stale 486-error premise re-plucked, zero source changes needed. (The
+fifteenth closure, `9a11c037`, re-verified at `93bfb3e0` without adding an
+addendum here — its evidence lives in the commit message.) Fresh evidence:
+
+- `npm run typecheck -- --force`: **exit 0** (zero errors) on the live
+  tree at HEAD `9a11c037` (= `origin/main` at dispatch time). The
+  premise's 486 errors and the named
+  HomeScreen/serviceWorkerRegistration/fareStore failures do not exist.
+- `npm run lint`: 4 biome errors, all in files **absent from the repo** —
+  gitignored `packages/server/data/vapid-keys.json`, ignored
+  `tests/e2e/test-results/.last-run.json`, untracked another-worker WIP
+  `app.core-only-route-mounts.test.ts` + `debug-chain-tmp.mts`. Nothing
+  tracked fails. (Note: the live template now runs lint and typecheck as
+  **separate parallel DAG nodes** — the bead's "same step" wording is
+  from an older template revision; the conclusion is unchanged.)
+- **Fresh CI run submitted**: `mta-my-way-build-manual-65sk5` (previous
+  dispatches cited runs that have since been TTL-reaped, and nothing was
+  in flight). resolve-version auto-bumped VERSION to 0.0.520
+  (`17709185`, VERSION-only delta on `9a11c037`) before the gate pods
+  cloned, so both gates ran on code identical to HEAD. Results:
+  lint **Succeeded** (03:35:35Z), typecheck **Succeeded** (03:36:41Z),
+  and the workflow reached the step after lint — the test node started
+  03:37:30Z. Done-when met directly on this run.
+
+Same verdict, sixteenth time repeated: every fix is in main, the
+done-when is met, remaining redness belongs to the test-step beads.
+Closed on attribution.
