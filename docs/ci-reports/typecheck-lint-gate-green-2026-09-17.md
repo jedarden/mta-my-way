@@ -181,3 +181,37 @@ fresh evidence, zero source changes:
 
 Same verdict, tenth time repeated: every fix is in main, the done-when is
 met, remaining redness belongs to the test-step beads. Closed on attribution.
+
+## Twelfth dispatch (claim epoch 13, 2026-09-18 ~01:15Z)
+
+Same stale premise re-plucked ~30min after the eleventh closure. Re-verified
+with fresh evidence, zero source changes:
+
+- `npm run typecheck -- --force`: **exit 0** on the live tree at HEAD
+  `d12e3254` (= `origin/main`, the 0.0.517 auto-bump), uncommitted
+  shared-checkout WIP included. Zero errors — the premise's 486 (and the
+  named HomeScreen/serviceWorkerRegistration/fareStore failures) do not
+  exist at HEAD.
+- `npm run lint`: 4 biome errors, all in files **absent from CI** — the
+  gitignored `packages/server/data/vapid-keys.json`, two untracked
+  another-worker WIP files (`app.core-only-route-mounts.test.ts`,
+  `debug-chain-tmp.mts`), and the ignored
+  `tests/e2e/test-results/.last-run.json`. Nothing tracked fails.
+- CI on `main`: `-c7jbx`/`-7pwlf` (23:44Z) and `-q27hs` (00:31Z) all
+  lint **Succeeded** + typecheck **Succeeded**; test Failed with the two
+  known shapes (`-7pwlf` fast exit 1; `-c7jbx`/`-q27hs` pod deadline) owned
+  by the test-step beads. `-n79f7` (00:23Z) in flight with both gates
+  already **Succeeded**. Done-when met for the twelfth time; no new run
+  submitted (existing runs on `main` satisfy it).
+- `npm test`: **7100 passed / 104 failed / 19 skipped of 7223** —
+  byte-identical to the ninth dispatch's measurement, the standing
+  known-red baseline (csrf x2, audit-log coverage, auth flows, password
+  mgmt/reset, cross-cutting, middleware-chain-e2e,
+  middleware-fixtures-demo) plus the load-fringe 5s-timeout band
+  (journal-sync-roundtrip, concurrency, cache-coherency, data-flow). With
+  typecheck exit 0 over every test file and biome clean over tracked
+  source, no TypeScript or lint error can be among the 104.
+
+Same verdict, eleventh time repeated: every fix is in main, the done-when
+is met, remaining redness belongs to the test-step beads. Closed on
+attribution.
