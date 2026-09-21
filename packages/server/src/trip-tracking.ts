@@ -219,6 +219,14 @@ export function recordTrip(
     return recordTripAsync(trip, ownerId);
   }
 
+  // Reachable only when initTripTracking received a real database (legacy and
+  // test callers) that was later closed — production passes null and takes the
+  // shared path above, which re-resolves the lazy push database on every use.
+  // This branch exists so a closed test fixture degrades to a logged null
+  // instead of better-sqlite3's "The database connection is not open" TypeError
+  // escaping from prepare() (observed 2026-07-04, bead mtamyway-73dbf5ad;
+  // root cause in bead mtamyway-66dafa45: test afterEach/db.close() lifecycle,
+  // never a production close — nothing in production calls closePushDatabase).
   if (!db?.open) {
     logger.error("Cannot record trip: database connection is not open");
     return null;
