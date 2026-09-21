@@ -101,6 +101,37 @@ Trigger census label lists corroborate: Pending 0 / Running 13 / Succeeded 0 /
 Failed 0, and phase-None members are invisible to all of them (xdfmv counted
 nowhere).
 
+## Post-fix live state (2026-09-21 ~17:20Z, epoch-3 witness)
+
+- **Witness run for the `13341c59` push** (16:25:28Z):
+  `mta-my-way-build-trjlb`, created **16:25:54Z (Δ26 s)** — exactly one run
+  for the push. Admitted `None` → `Pending`, message
+  `Waiting for argo-workflows/Mutex/mta-my-way-build lock. Lock status: 0/1`
+  with **0 nodes**: mutex enforcement and zero-pod waiting witnessed directly.
+  (The mutex rides the `workflowTemplateRef`; the workflow object's own
+  `spec.synchronization` stays null — normal for templateRef runs.)
+- **Zombie cleanup witnessed**: the 13 Running zombies above were
+  backstop-killed in a controller live window (12 → Failed; only `cjdlz`,
+  11 h, survived at last check); `xdfmv` and the older Failed runs aged out
+  via workflow GC. Active mta-my-way footprint after cleanup: one hollow
+  zombie + one zero-pod mutex waiter.
+- **Quota**: `argo-workflows-budget` at ~17:05Z — used 1400m/3500m CPU,
+  1792Mi/5Gi, 5/66 pods. One serialized run (≤1000m/2Gi worst pair) cannot
+  self-starve.
+- **Workflow controller crash loop** (infra, mtamyway-976cd42f class, *not*
+  caused by the mutex): pod `76bc584cdf-zx9rm`, 11 restarts since ~13:39Z,
+  lives ~60 s, dies with `Failed to init managers` — its startup LIST of
+  `phase=Running` workflows times out at 60 s (same API-server slowness class
+  as read-only EOF storms from codinghome). This is what keeps `trjlb` from
+  proceeding to its DAG; it is not mta-my-way self-starvation.
+- **Bump-commit filter**: live Sensor verified carrying all four dependency
+  filters ~17:25Z, including
+  `head_commit.message notMatches ^ci: (auto-bump version|initialize VERSION)`.
+  The behavioral half (a bump push producing *no* second run) had not yet been
+  observable at this writing — no bump has been pushed since the filter landed
+  (`trjlb` mutex-blocked before `resolve-version`); the next natural bump is
+  the test.
+
 ## Relation to other beads
 
 - **mtamyway-976cd42f** — owns the substantive test failures (known-red
