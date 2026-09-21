@@ -20,6 +20,7 @@ import {
   configureEmailProvider,
   getEmailProviderConfig,
   getResetBaseUrl,
+  reportEmailProviderReadiness,
   sendPasswordResetEmail,
   sendPasswordResetNotificationEmail,
   setResetBaseUrl,
@@ -98,6 +99,120 @@ describe("Password Reset Email Service", () => {
       expect(config.provider).toBe("smtp");
       expect(config.fromEmail).toBe("noreply@mtamyway.com");
       expect(config.fromName).toBe("MTA My Way");
+    });
+  });
+
+  describe("provider readiness reporting", () => {
+    it("should report console provider as ready with a development warning", () => {
+      configureEmailProvider({ provider: "console" });
+
+      reportEmailProviderReadiness();
+
+      expect(vi.mocked(logger.logger).warn).toHaveBeenCalledWith(
+        "Email provider ready",
+        expect.objectContaining({ provider: "console" })
+      );
+    });
+
+    it("should report sendgrid as ready when the API key is set", () => {
+      configureEmailProvider({ provider: "sendgrid", apiKey: "test-key" });
+
+      reportEmailProviderReadiness();
+
+      expect(vi.mocked(logger.logger).info).toHaveBeenCalledWith(
+        "Email provider ready",
+        expect.objectContaining({ provider: "sendgrid" })
+      );
+      expect(vi.mocked(logger.logger).error).not.toHaveBeenCalled();
+    });
+
+    it("should report sendgrid as not ready when the API key is missing", () => {
+      configureEmailProvider({ provider: "sendgrid", apiKey: undefined });
+
+      reportEmailProviderReadiness();
+
+      expect(vi.mocked(logger.logger).error).toHaveBeenCalledWith(
+        "Email provider not ready",
+        undefined,
+        expect.objectContaining({ provider: "sendgrid" })
+      );
+    });
+
+    it("should report ses as not ready when AWS credentials are absent", () => {
+      configureEmailProvider({ provider: "ses" });
+      vi.stubEnv("AWS_ACCESS_KEY_ID", "");
+      vi.stubEnv("AWS_SECRET_ACCESS_KEY", "");
+
+      reportEmailProviderReadiness();
+
+      expect(vi.mocked(logger.logger).error).toHaveBeenCalledWith(
+        "Email provider not ready",
+        undefined,
+        expect.objectContaining({ provider: "ses" })
+      );
+    });
+
+    it("should report ses as ready when AWS credentials are present", () => {
+      configureEmailProvider({ provider: "ses" });
+      vi.stubEnv("AWS_ACCESS_KEY_ID", "test-access-key");
+      vi.stubEnv("AWS_SECRET_ACCESS_KEY", "test-secret-key");
+
+      reportEmailProviderReadiness();
+      vi.unstubAllEnvs();
+
+      expect(vi.mocked(logger.logger).info).toHaveBeenCalledWith(
+        "Email provider ready",
+        expect.objectContaining({ provider: "ses" })
+      );
+    });
+
+    it("should report smtp as not ready when the host is missing", () => {
+      configureEmailProvider({ provider: "smtp" });
+
+      reportEmailProviderReadiness();
+
+      expect(vi.mocked(logger.logger).error).toHaveBeenCalledWith(
+        "Email provider not ready",
+        undefined,
+        expect.objectContaining({ provider: "smtp" })
+      );
+    });
+
+    it("should report smtp as ready with host and credentials", () => {
+      configureEmailProvider({
+        provider: "smtp",
+        smtpHost: "smtp.example.com",
+        smtpUser: "user",
+        smtpPassword: "pass",
+      });
+
+      reportEmailProviderReadiness();
+
+      expect(vi.mocked(logger.logger).info).toHaveBeenCalledWith(
+        "Email provider ready",
+        expect.objectContaining({ provider: "smtp" })
+      );
+      expect(vi.mocked(logger.logger).warn).not.toHaveBeenCalled();
+    });
+
+    it("should warn when smtp is configured without authentication", () => {
+      configureEmailProvider({
+        provider: "smtp",
+        smtpHost: "smtp.example.com",
+        smtpUser: undefined,
+        smtpPassword: undefined,
+      });
+
+      reportEmailProviderReadiness();
+
+      expect(vi.mocked(logger.logger).warn).toHaveBeenCalledWith(
+        "Email provider configured without SMTP authentication",
+        expect.objectContaining({ provider: "smtp" })
+      );
+      expect(vi.mocked(logger.logger).info).toHaveBeenCalledWith(
+        "Email provider ready",
+        expect.objectContaining({ provider: "smtp" })
+      );
     });
   });
 

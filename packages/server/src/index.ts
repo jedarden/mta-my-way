@@ -42,7 +42,10 @@ import { configurePushDatabase, withPushDatabase } from "./push/subscriptions.js
 import { configureWebPush, isWebPushConfigured, loadOrGenerateVapidKeys } from "./push/vapid.js";
 import { validateSecurityOrThrow } from "./security-startup.js";
 import { setSecurityDb } from "./security/security-db.js";
-import { configureEmailProvider } from "./services/password-reset.service.js";
+import {
+  configureEmailProvider,
+  reportEmailProviderReadiness,
+} from "./services/password-reset.service.js";
 import { runStartupChecks } from "./startup-check.js";
 import { loadTravelTimes } from "./transfer/travel-times.js";
 import { initTripTracking } from "./trip-tracking.js";
@@ -93,6 +96,7 @@ async function main(): Promise<void> {
     smtpUser: process.env["SMTP_USER"],
     smtpPassword: process.env["SMTP_PASSWORD"],
   });
+  reportEmailProviderReadiness();
 
   // Enable test mode if environment variable is set (for E2E tests)
   const testMode =

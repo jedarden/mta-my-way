@@ -130,6 +130,67 @@ export function setResetBaseUrl(url: string): void {
   logger.info("Reset base URL configured", { url });
 }
 
+/**
+ * Report whether the configured provider has everything it needs to deliver.
+ *
+ * Called once at startup so a misconfigured production provider is visible in
+ * logs immediately instead of only as a per-request send failure. Logs
+ * presence, never values.
+ */
+export function reportEmailProviderReadiness(): void {
+  const config = getEmailProviderConfig();
+
+  switch (config.provider) {
+    case "sendgrid":
+      if (!config.apiKey) {
+        logger.error("Email provider not ready", undefined, {
+          provider: "sendgrid",
+          reason: "SENDGRID_API_KEY is not set",
+        });
+      } else {
+        logger.info("Email provider ready", { provider: "sendgrid" });
+      }
+      break;
+
+    case "ses":
+      // The SDK's default provider chain can also resolve instance/role
+      // credentials; in this deployment environment variables are the only
+      // supported source.
+      if (!process.env["AWS_ACCESS_KEY_ID"] || !process.env["AWS_SECRET_ACCESS_KEY"]) {
+        logger.error("Email provider not ready", undefined, {
+          provider: "ses",
+          reason: "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are not set",
+        });
+      } else {
+        logger.info("Email provider ready", { provider: "ses" });
+      }
+      break;
+
+    case "smtp":
+      if (!config.smtpHost) {
+        logger.error("Email provider not ready", undefined, {
+          provider: "smtp",
+          reason: "SMTP_HOST is not set",
+        });
+      } else {
+        if (!config.smtpUser || !config.smtpPassword) {
+          logger.warn("Email provider configured without SMTP authentication", {
+            provider: "smtp",
+          });
+        }
+        logger.info("Email provider ready", { provider: "smtp" });
+      }
+      break;
+
+    case "console":
+      logger.warn("Email provider ready", {
+        provider: "console",
+        reason: "development only - reset emails are logged, not delivered",
+      });
+      break;
+  }
+}
+
 // ============================================================================
 // Email Templates
 // ============================================================================
