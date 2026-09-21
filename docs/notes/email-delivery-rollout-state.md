@@ -38,6 +38,18 @@ Zero paths matching `mail|smtp|sendgrid|ses|postmark|mailgun|resend` beyond
 
 ### 2. No verified sending identity
 
+**Updated 2026-09-21 (epoch 11): mtamyway.com was never registered.** Verisign
+RDAP returns 404 from the .com registry (control: `ardenone.com` → 200); the
+name is NXDOMAIN at 8.8.8.8/9.9.9.9/1.1.1.1 and the Cloudflare nameservers
+REFUSE it (no zone is served there). The digs below predate that finding and
+only show no *mail* records. Cluster-side DNS plumbing is now complete:
+declarative-config commit `4e0c4334` (sibling bead `mtamyway-9ad0760f`)
+pre-wired `mtamyway.com` into the external-dns domain filter, and the
+IngressRoute/cloudflared ingress already name the hostname with the correct
+tunnel target. So the DNS prerequisite is purely operator-side, in order:
+**register the domain → add the zone to the Cloudflare account → bounce the
+external-dns Deployment** (zone discovery runs at startup).
+
 Both candidate domains are Cloudflare-hosted with no mail records at all:
 
 ```
@@ -104,7 +116,10 @@ sending identity for `noreply@mtamyway.com`.
 
 ## Activation sequence (once credentials exist)
 
-1. Operator creates the SendGrid account, authenticates the `mtamyway.com` domain
+1. Operator **registers the `mtamyway.com` domain** (it has never been
+   registered — see §2), adds the zone to the Cloudflare account, and bounces the
+   external-dns Deployment in apexalgo-iad so the hostname's CNAME publishes.
+   Then creates the SendGrid account, authenticates the `mtamyway.com` domain
    (DNS records via Cloudflare), and verifies `noreply@mtamyway.com` is a valid
    sender. Controlled test inbox: any mailbox the operator can read.
 2. Store the key in OpenBao under the owning path
