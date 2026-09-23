@@ -1,6 +1,13 @@
 agent:
   default: glm
   timeout: 600
+
+gates:
+  - type: command
+    run_in: clean
+    commands:
+      - scripts/definition-of-done.sh --fast
+
 strands:
   pluck:
     enabled: true
@@ -45,19 +52,9 @@ prompt:
     Backend is Hono on Node.js; frontend is React + Vite.
 
     Follow existing code patterns. Run `npm test` and `npm run lint` before closing
-    a bead.
+    a bead. The dispatch gate uses `scripts/definition-of-done.sh --fast` to verify
+    committed state.
 
     '
-  templates:
-    pluck: "## Workflow\n\nYou are a coding agent. Complete the task below, then close\
-      \ the bead.\n\nSteps:\n1. Read the task description and context below\n2. Implement\
-      \ the required changes in {workspace_path}\n3. Inspect `git status --short`, stage\
-      \ only files you changed with `git add <path>...`, then commit with `git commit\
-      \ -m \"brief description of what was done\"`\n4. Push: `git push origin main`\n5. Close\
-      \ the bead: `bead close {bead_id} --reason \"brief summary of what was implemented\"\
-      `\n\nIf you cannot complete the task \u2014 do NOT close the bead. It will be\
-      \ retried automatically.\n\n---\n\n## Task: {bead_title}\n\n{bead_body}\n\n\
-      ## Rules\n\n{workspace_instructions}\n\n## Context\n\n{context_file_contents}\n\
-      \nBead ID: {bead_id}\n"
 bead_cli:
   backend: bead-rs
