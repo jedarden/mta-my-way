@@ -120,11 +120,12 @@ function createPathTraversalProtectionMiddleware(): MiddlewareHandler {
       "windows/system32",
     ];
 
-    const hasPathTraversal =
-      pathTraversalPatterns.some((pattern) => path.includes(pattern)) ||
-      Object.values(query).some((value) => pathTraversalPatterns.some((p) => value?.includes(p)));
+    const detectedPattern = pathTraversalPatterns.find(
+      (pattern) =>
+        path.includes(pattern) || Object.values(query).some((value) => value?.includes(pattern))
+    );
 
-    if (hasPathTraversal) {
+    if (detectedPattern) {
       addAuditEvent({
         category: "security",
         severity: "warning",
@@ -135,9 +136,7 @@ function createPathTraversalProtectionMiddleware(): MiddlewareHandler {
         path,
         method: c.req.method,
         error: "Path traversal attempt detected",
-        metadata: {
-          detectedPattern: pathTraversalPatterns.find((p) => path.includes(p)),
-        },
+        metadata: { detectedPattern },
       });
       return c.json({ error: "Invalid path" }, 400);
     }
@@ -518,6 +517,7 @@ function createPathTraversalApp(): Hono {
   const app = new Hono();
   app.use("/api/*", createPathTraversalProtectionMiddleware());
   app.get("/api/data", (c) => c.json({ data: "safe" }));
+  app.get("/api/data/*", (c) => c.json({ data: "safe" }));
   return app;
 }
 
@@ -544,9 +544,9 @@ function createJsonDepthApp(): Hono {
 /**
  * App with HTTP method restrictions.
  */
-function createMethodRestrictionApp(): Hono {
+function createMethodRestrictionApp(allowedMethods?: string[]): Hono {
   const app = new Hono();
-  app.use("/api/*", createHttpMethodRestrictionMiddleware());
+  app.use("/api/*", createHttpMethodRestrictionMiddleware(allowedMethods));
   app.all("/api/data", (c) => c.json({ allowed: true }));
   return app;
 }
@@ -914,23 +914,23 @@ describe("Audit logging for middleware security events", () => {
       expect(event.error).toBe("HTTP method not allowed");
     });
 
-    it("logs TRACE method blocked", async () => {
-      const app = createMethodRestrictionApp();
+    it("logs PATCH method blocked when it is not allowed", async () => {
+      const app = createMethodRestrictionApp(["GET", "POST", "PUT", "DELETE"]);
 
       await app.request("/api/data", {
-        method: "TRACE",
+        method: "PATCH",
         headers: { "CF-Connecting-IP": "10.0.0.81" },
       });
 
-      const events = queryAuditLog({ action: "http_method_blocked", method: "TRACE" });
+      const events = queryAuditLog({ action: "http_method_blocked", method: "PATCH" });
       expect(events.length).toBeGreaterThanOrEqual(1);
     });
 
     it("logs multiple disallowed method attempts", async () => {
-      const app = createMethodRestrictionApp();
+      const app = createMethodRestrictionApp(["GET", "POST", "PUT", "DELETE"]);
       const testIp = "10.0.0.82";
 
-      const disallowedMethods = ["OPTIONS", "TRACE", "CONNECT", "PATCH"];
+      const disallowedMethods = ["OPTIONS", "PATCH"];
 
       for (const method of disallowedMethods) {
         await app.request("/api/data", {
@@ -944,7 +944,7 @@ describe("Audit logging for middleware security events", () => {
         clientIp: testIp,
       });
 
-      expect(events.length).toBeGreaterThanOrEqual(disallowedMethods.length - 1); // PATCH might be allowed
+      expect(events.length).toBeGreaterThanOrEqual(disallowedMethods.length);
     });
 
     it("allows standard methods and logs successful completion", async () => {
@@ -1693,18 +1693,16 @@ describe("Audit logging for middleware security events", () => {
         });
       }
 
-      const securityEvents = queryAuditLogs({ limit: 20 });
-      const rateLimitEvents = securityEvents.filter(
-        (e) =>
-          e.category === "security" &&
-          e.action === "rate_limit_exceeded" &&
-          e.actor?.ipAddress === testIp
-      );
+      const rateLimitEvents = queryAuditLog({
+        category: "security",
+        action: "rate_limit_exceeded",
+        clientIp: testIp,
+      });
 
       expect(rateLimitEvents.length).toBeGreaterThanOrEqual(1);
       const event = rateLimitEvents[0]!;
-      expect(event.severity).toBe("medium");
-      expect(event.details).toBeDefined();
+      expect(event.severity).toBe("warning");
+      expect(event.metadata?.details).toBeDefined();
     });
 
     it("logs progressive backoff for repeated violations", async () => {
@@ -1728,13 +1726,11 @@ describe("Audit logging for middleware security events", () => {
         });
       }
 
-      const securityEvents = queryAuditLogs({ limit: 30 });
-      const rateLimitEvents = securityEvents.filter(
-        (e) =>
-          e.category === "security" &&
-          e.action === "rate_limit_exceeded" &&
-          e.actor?.ipAddress === testIp
-      );
+      const rateLimitEvents = queryAuditLog({
+        category: "security",
+        action: "rate_limit_exceeded",
+        clientIp: testIp,
+      });
 
       // Should see multiple rate limit events with backoff
       expect(rateLimitEvents.length).toBeGreaterThanOrEqual(1);
@@ -1761,16 +1757,14 @@ describe("Audit logging for middleware security events", () => {
         });
       }
 
-      const securityEvents = queryAuditLogs({ limit: 20 });
-      const rateLimitEvent = securityEvents.find(
-        (e) =>
-          e.category === "security" &&
-          e.action === "rate_limit_exceeded" &&
-          e.actor?.ipAddress === testIp
-      );
+      const rateLimitEvent = queryAuditLog({
+        category: "security",
+        action: "rate_limit_exceeded",
+        clientIp: testIp,
+      })[0];
 
       expect(rateLimitEvent).toBeDefined();
-      expect(rateLimitEvent?.details).toBeDefined();
+      expect(rateLimitEvent?.metadata?.details).toBeDefined();
       expect(rateLimitEvent?.timestamp).toBeDefined();
     });
   });

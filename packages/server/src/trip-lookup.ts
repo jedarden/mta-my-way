@@ -238,3 +238,9 @@ export function lookupTrip(tripId: string, stations: StationIndex): TripData | n
 
   return null;
 }
+
+/** Clear first-seen timestamps between tests. */
+export function resetTripLookupForTesting(): void {
+  tripFirstSeen.clear();
+  lastPrune = Date.now();
+}

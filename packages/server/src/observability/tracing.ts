@@ -247,6 +247,12 @@ class Tracer {
     this.completedSpans = [];
   }
 
+  /** Clear in-memory tracer state between tests. */
+  resetForTesting(): void {
+    this.globalStack = [];
+    this.completedSpans = [];
+  }
+
   /**
    * Run a function within a span.
    * Each call runs in an isolated AsyncLocalStorage context so concurrent
@@ -306,6 +312,11 @@ class Tracer {
  * Global tracer instance.
  */
 export const tracer = new Tracer();
+
+/** Clear in-memory tracer state between tests. */
+export function resetTracingForTesting(): void {
+  tracer.resetForTesting();
+}
 
 // ============================================================================
 // Hono Middleware

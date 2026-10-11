@@ -253,6 +253,14 @@ class MetricsRegistry {
     this.metricMeta.clear();
   }
 
+  /** Clear metric samples while keeping registered metric handles usable. */
+  resetForTesting(): void {
+    for (const series of this.metrics.values()) {
+      series.clear();
+    }
+    this.defaultLabels = {};
+  }
+
   /**
    * Sanitize metric name for Prometheus format.
    */
@@ -328,6 +336,11 @@ class MetricsRegistry {
  * Global metrics registry.
  */
 export const metrics = new MetricsRegistry();
+
+/** Clear metric values and labels between tests. */
+export function resetMetricsForTesting(): void {
+  metrics.resetForTesting();
+}
 
 // ============================================================================
 // HTTP Metrics

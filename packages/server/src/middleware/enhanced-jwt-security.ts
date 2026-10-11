@@ -782,3 +782,10 @@ export function getTokenTrackingStats(): {
     suspectedCompromises: suspectedCompromises.size,
   };
 }
+
+/** Clear all module-level token tracking state between tests. */
+export function resetEnhancedJwtSecurityForTesting(): void {
+  tokenUsageRecords.clear();
+  tokenRevocations.clear();
+  suspectedCompromises.clear();
+}

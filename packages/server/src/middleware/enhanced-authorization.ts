@@ -211,6 +211,12 @@ function initializeDefaultResourceTypes(): void {
 // Initialize default resource types on module load
 initializeDefaultResourceTypes();
 
+/** Restore the built-in resource registry between tests. */
+export function resetResourceTypesForTesting(): void {
+  RESOURCE_TYPES.clear();
+  initializeDefaultResourceTypes();
+}
+
 // ============================================================================
 // Unified Authorization Checking
 // ============================================================================

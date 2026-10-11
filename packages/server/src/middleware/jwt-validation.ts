@@ -187,6 +187,11 @@ export function cleanupReplayStore(): number {
   return cleaned;
 }
 
+/** Clear replay-prevention state between tests. */
+export function resetJwtReplayStoreForTesting(): void {
+  replayStore.clear();
+}
+
 // ============================================================================
 // JWT Decoding
 // ============================================================================

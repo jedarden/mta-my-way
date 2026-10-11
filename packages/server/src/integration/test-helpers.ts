@@ -443,12 +443,14 @@ export async function resetAllModuleState(): Promise<void> {
  * cleanup to blow up — the missing reset function is simply skipped.
  */
 export async function cleanupAllState(): Promise<void> {
+  type ResetCall = string | [string, ...unknown[]];
+
   // Helper: call `fn` only if it exists on the imported module.
   // Logs errors when the reset function itself throws, while silently
   // skipping modules that fail to import and exports that a test file's
   // `vi.mock()` factory chose not to return (vitest's mock proxy throws on
   // access to those, rather than reporting them as `undefined`).
-  const tryReset = async (spec: string, ...fns: string[]): Promise<void> => {
+  const tryReset = async (spec: string, ...resetCalls: ResetCall[]): Promise<void> => {
     let mod: Record<string, unknown>;
     try {
       mod = await import(spec);
@@ -456,7 +458,9 @@ export async function cleanupAllState(): Promise<void> {
       // Module may be mocked or not reachable — skip silently.
       return;
     }
-    for (const fn of fns) {
+    for (const resetCall of resetCalls) {
+      const fn = typeof resetCall === "string" ? resetCall : resetCall[0];
+      const args = typeof resetCall === "string" ? [] : resetCall.slice(1);
       let resetFn: unknown;
       try {
         resetFn = mod[fn];
@@ -466,7 +470,7 @@ export async function cleanupAllState(): Promise<void> {
       }
       if (typeof resetFn === "function") {
         try {
-          await (resetFn as () => unknown)();
+          await (resetFn as (...args: unknown[]) => unknown)(...args);
         } catch (error) {
           // Log the error but continue with other resets
           console.error(`[cleanupAllState] Reset function '${fn}' in '${spec}' failed:`, error);
@@ -499,8 +503,23 @@ export async function cleanupAllState(): Promise<void> {
   // ---- authorization-security.ts ------------------------------------------
   await tryReset("../middleware/authorization-security.js", "clearAccessPatterns");
 
+  // ---- enhanced-authorization.ts ------------------------------------------
+  await tryReset("../middleware/enhanced-authorization.js", "resetResourceTypesForTesting");
+
+  // ---- enhanced-jwt-security.ts -------------------------------------------
+  await tryReset("../middleware/enhanced-jwt-security.js", "resetEnhancedJwtSecurityForTesting");
+
+  // ---- session-security.ts -------------------------------------------------
+  await tryReset("../middleware/session-security.js", "resetSessionSecurityForTesting");
+
+  // ---- concurrent-session-management.ts -----------------------------------
+  await tryReset("../middleware/concurrent-session-management.js", "clearAllSessions");
+
   // ---- audit-log.ts -------------------------------------------------------
   await tryReset("../middleware/audit-log.js", "resetAuditLog");
+
+  // ---- structured-audit-log.ts --------------------------------------------
+  await tryReset("../middleware/structured-audit-log.js", "resetStructuredAuditLogForTesting");
 
   // ---- token-encryption.ts ------------------------------------------------
   await tryReset("../middleware/token-encryption.js", "resetEncryptionState");
@@ -516,6 +535,12 @@ export async function cleanupAllState(): Promise<void> {
 
   // ---- transformer.ts ------------------------------------------------------
   await tryReset("../transformer.js", "resetTransformerState");
+
+  // ---- trip-lookup.ts -------------------------------------------------------
+  await tryReset("../trip-lookup.js", "resetTripLookupForTesting");
+
+  // ---- jwt-validation.ts ----------------------------------------------------
+  await tryReset("../middleware/jwt-validation.js", "resetJwtReplayStoreForTesting");
 
   // ---- delay-predictor.ts -------------------------------------------------
   await tryReset("../delay-predictor.js", "resetDelayPredictor");
@@ -549,6 +574,10 @@ export async function cleanupAllState(): Promise<void> {
 
   // ---- security/security-db.ts -------------------------------------------
   await tryReset("../security/security-db.js", "resetSecurityDbForTesting");
+
+  // ---- observability singletons -------------------------------------------
+  await tryReset("../observability/metrics.js", "resetMetricsForTesting");
+  await tryReset("../observability/tracing.js", "resetTracingForTesting");
 
   // ---- context-service.ts -------------------------------------------------
   // REMOVED: context-service was deleted in 2026-08 as part of client-side-only context design

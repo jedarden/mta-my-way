@@ -933,3 +933,9 @@ export function sessionSecurity(options: SessionSecurityMiddlewareOptions = {}) 
     return next();
   };
 }
+
+/** Clear session security events and device trust state between tests. */
+export function resetSessionSecurityForTesting(): void {
+  sessionSecurityEvents.clear();
+  deviceTrustStorage.clear();
+}

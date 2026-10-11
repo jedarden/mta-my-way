@@ -776,7 +776,20 @@ export function clearAuditLogs(confirmation?: string): boolean {
   const count = auditLogStorage.length;
   auditLogStorage.length = 0;
 
-  // Reset statistics
+  resetAuditLogStatistics();
+
+  logger.warn("Audit logs cleared", { count });
+
+  return true;
+}
+
+/** Reset in-memory audit state without the production confirmation or log. */
+export function resetStructuredAuditLogForTesting(): void {
+  auditLogStorage.length = 0;
+  resetAuditLogStatistics();
+}
+
+function resetAuditLogStatistics(): void {
   stats.totalEvents = 0;
   for (const category of Object.keys(stats.eventsByCategory)) {
     stats.eventsByCategory[category as AuditCategory] = 0;
@@ -789,10 +802,6 @@ export function clearAuditLogs(confirmation?: string): boolean {
   }
   stats.eventsLast24h = 0;
   stats.failedEvents = 0;
-
-  logger.warn("Audit logs cleared", { count });
-
-  return true;
 }
 
 // ============================================================================

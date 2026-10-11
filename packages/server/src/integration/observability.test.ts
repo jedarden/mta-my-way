@@ -12,6 +12,7 @@
 import type { ComplexIndex, RouteIndex, TransferConnection } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
+import { httpRequestDuration } from "../observability/metrics.js";
 import { TEST_STATIONS, cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -244,12 +245,14 @@ describe("Observability Integration Tests", () => {
     });
 
     it("includes histogram bucket lines in output", async () => {
+      httpRequestDuration.observe(0.01, { method: "GET", route: "/api/health" });
       const res = await app.request("/api/metrics");
       const text = await res.text();
       expect(text).toContain("_bucket{");
     });
 
     it("includes _count and _sum for histograms", async () => {
+      httpRequestDuration.observe(0.01, { method: "GET", route: "/api/health" });
       const res = await app.request("/api/metrics");
       const text = await res.text();
       expect(text).toContain("_count");
