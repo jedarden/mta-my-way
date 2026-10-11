@@ -19,20 +19,19 @@
  *   429 + Retry-After + X-RateLimit-* shape, and middleware upstream of the
  *   limiter still stamped the rejection.
  *
- * Domain data comes from the shared seed helpers and response assertions
- * from the shared middleware helpers (`@mta-my-way/shared/testing/*`).
- * `config-helpers` from the same tree is not importable here yet: it has no
- * package.json export and is untracked WIP in another worker's tree, so a
- * committed import would fail a clean-checkout run.
+ * Shared config helpers freeze Date for exact bucket assertions, seed helpers
+ * supply domain data, and middleware helpers assert the response contract.
  *
  * Time is frozen for the whole suite so the 1 token/second refill can never
  * shift a counter between requests; the boundary test is exact as a result.
  */
 
+import { freezeDate } from "@mta-my-way/shared/testing/config-helpers/frozen-date";
 import {
   SECURITY_HEADER_NAMES,
   assertHeader,
   assertNoHeader,
+  assertRateLimited,
   assertSecurityHeaders,
 } from "@mta-my-way/shared/testing/middleware";
 import { seedRoutes, seedStations } from "@mta-my-way/shared/testing/seed-helpers";
@@ -40,6 +39,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { initDelayPredictor } from "../delay-predictor.js";
 import { resetRateLimiter, setRateLimiterTestMode } from "../middleware/rate-limiter.js";
+import { logger } from "../observability/logger.js";
 import {
   cleanupAllState,
   createTestReadCredentials,
@@ -118,16 +118,18 @@ function remainingOf(response: Response): number {
 // ---------------------------------------------------------------------------
 
 describe("rate limiter cross-middleware counting through the real chain", () => {
+  let restoreDate: (() => void) | undefined;
+
   beforeEach(async () => {
     await cleanupAllState();
     setRateLimiterTestMode(false);
     resetRateLimiter();
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(FROZEN_NOW_MS);
+    restoreDate = freezeDate(FROZEN_NOW_MS);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    restoreDate?.();
+    restoreDate = undefined;
     // Leave the limiter bypassed so the buckets this suite burns cannot
     // leak into another suite sharing the module under a merged run.
     setRateLimiterTestMode(true);
@@ -153,21 +155,49 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
       }
     });
 
-    it("consumes one token for an authorized protected POST through auth, authorization and audit", async () => {
+    it("consumes one token per authorized protected POST through auth, authorization and audit", async () => {
       const app = createSeededApp();
       const credentials = await createTestUserCredentials();
-      const csrfToken = await getCsrfToken(app);
+      const infoSpy = vi.spyOn(logger, "info");
 
-      const res = await app.request("/api/commute/analyze", {
-        method: "POST",
-        headers: postHeaders(IP_PROTECTED, credentials.authorizationHeader, csrfToken),
-        body: ANALYZE_BODY,
-      });
+      try {
+        for (let i = 0; i < 2; i++) {
+          const csrfToken = await getCsrfToken(app);
+          const res = await app.request("/api/commute/analyze", {
+            method: "POST",
+            headers: postHeaders(IP_PROTECTED, credentials.authorizationHeader, csrfToken),
+            body: ANALYZE_BODY,
+          });
 
-      expect(res.status).toBe(200);
-      expect(remainingOf(res)).toBe(59);
-      assertSecurityHeaders(res, EXPECTED_SECURITY_HEADERS);
-      assertHeader(res, "x-request-id");
+          expect(res.status).toBe(200);
+          expect(remainingOf(res)).toBe(59 - i);
+          assertSecurityHeaders(res, EXPECTED_SECURITY_HEADERS);
+          assertHeader(res, "x-request-id");
+        }
+
+        const auditCalls = infoSpy.mock.calls.filter(
+          ([message, context]) =>
+            (message === "Privileged operation attempt" ||
+              message === "Privileged operation completed") &&
+            (context as Record<string, unknown> | undefined)?.path === "/api/commute/analyze"
+        );
+        expect(auditCalls).toHaveLength(4);
+        for (let i = 0; i < 2; i++) {
+          expect(auditCalls[i * 2]?.[0]).toBe("Privileged operation attempt");
+          expect(auditCalls[i * 2 + 1]).toEqual([
+            "Privileged operation completed",
+            expect.objectContaining({
+              resourceType: "commute",
+              action: "create",
+              status: 200,
+              success: true,
+              clientIp: IP_PROTECTED,
+            }),
+          ]);
+        }
+      } finally {
+        infoSpy.mockRestore();
+      }
     });
   });
 
@@ -285,7 +315,7 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
 
       const exhausted = await app.request("/api/stations", { headers: withIp(IP_BOUNDARY) });
 
-      expect(exhausted.status).toBe(429);
+      await assertRateLimited(exhausted, { retryAfter: 1, error: "Too many requests" });
       assertHeader(exhausted, "retry-after", "1");
       assertHeader(exhausted, "x-ratelimit-limit", "60");
       assertHeader(exhausted, "x-ratelimit-remaining", "0");
