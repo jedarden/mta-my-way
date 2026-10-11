@@ -20,6 +20,7 @@ import { createApp } from "../app.js";
 import { initTripTracking } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestAdminCredentials,
