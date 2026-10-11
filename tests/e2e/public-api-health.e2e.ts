@@ -110,7 +110,6 @@ test.describe("Public API Health Tests", () => {
   test.describe.configure({ timeout: TEST_CONFIG.timeouts.default });
 
   test.describe("Health Endpoint (/api/health)", () => {
-
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/health");
       expect(response.status()).toBe(200);
@@ -157,7 +156,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Stations Endpoint (/api/stations)", () => {
-
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/stations");
       expect(response.status()).toBe(200);
@@ -219,7 +217,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Station Detail Endpoint (/api/stations/:id)", () => {
-
     test("should return 200 for valid station ID", async ({ request }) => {
       // Test with a known station (Times Square - 725)
       const response = await request.get("/api/stations/725");
@@ -249,7 +246,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Routes Endpoint (/api/routes)", () => {
-
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/routes");
       expect(response.status()).toBe(200);
@@ -295,7 +291,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Alerts Endpoint (/api/alerts)", () => {
-
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/alerts");
       expect(response.status()).toBe(200);
