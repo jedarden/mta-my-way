@@ -14,7 +14,19 @@
 
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApp } from "../app.js";
+import { initDelayPredictor } from "../delay-predictor.js";
+import { queryAuditLog } from "../middleware/audit-log.js";
+import { logger } from "../observability/logger.js";
+import { metrics } from "../observability/metrics.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  createTestReadCredentials,
+  createTestUserCredentials,
+  getCsrfToken,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test instrumentation
@@ -49,8 +61,8 @@ function getExecutionLog(): ExecutionLogEntry[] {
  */
 function instrumentMiddleware(
   name: string,
-  middleware: (c: Context, next: Next) => Promise<void> | void
-): (c: Context, next: Next) => Promise<void> {
+  middleware: (c: Context, next: Next) => Promise<Response | void> | Response | void
+): (c: Context, next: Next) => Promise<Response | void> {
   return async (c: Context, next: Next) => {
     const startTime = Date.now();
     executionLog.push({
@@ -59,13 +71,15 @@ function instrumentMiddleware(
       phase: "before",
     });
 
-    await middleware(c, next);
+    const response = await middleware(c, next);
 
     executionLog.push({
       middlewareName: name,
       timestamp: Date.now(),
       phase: "after",
     });
+
+    return response;
   };
 }
 
@@ -107,7 +121,6 @@ function verifyExecutionOrder(expectedOrder: string[], actualLog: ExecutionLogEn
 // Test suites
 // ----------------------------------------------------------------------------
 
-import { cleanupAllState } from "./test-helpers.js";
 describe("Middleware Execution Order", () => {
   beforeEach(async () => {
     await cleanupAllState();
@@ -246,6 +259,7 @@ describe("Middleware Execution Order", () => {
 
       let authRan = false;
       let authzRan = false;
+      let routeRan = false;
 
       app.use(
         "/api/*",
@@ -269,18 +283,21 @@ describe("Middleware Execution Order", () => {
         })
       );
 
-      app.get("/api/test", (c) => c.json({ status: "ok" }));
+      app.get("/api/test", (c) => {
+        routeRan = true;
+        return c.json({ status: "ok" });
+      });
 
       // Test with invalid auth
       const response = await app.request("/api/test", {
         headers: { Authorization: "invalid" },
       });
 
-      // Should return 401 from authentication middleware
-      expect([401, 500]).toContain(response.status); // 500 if Hono throws on early return
+      // Authentication short-circuits the remaining chain.
+      expect(response.status).toBe(401);
       expect(authRan).toBe(true);
-      // Authorization may or may not run depending on Hono's error handling
-      // The key point is that the request is rejected
+      expect(authzRan).toBe(false);
+      expect(routeRan).toBe(false);
 
       // Verify authentication ran
       const log = getExecutionLog();
@@ -671,6 +688,7 @@ describe("Middleware Execution Order", () => {
 
       let middleware1Ran = false;
       let middleware2Ran = false;
+      let routeRan = false;
 
       app.use(
         "*",
@@ -694,15 +712,19 @@ describe("Middleware Execution Order", () => {
         })
       );
 
-      app.get("/test", (c) => c.json({ status: "ok" }));
+      app.get("/test", (c) => {
+        routeRan = true;
+        return c.json({ status: "ok" });
+      });
 
       // Request without API key
       const response = await app.request("/test");
 
-      // Should return 401 from middleware2 (or 500 if Hono throws on early return)
-      expect([401, 500]).toContain(response.status);
+      // Middleware2 short-circuits the route with its 401 response.
+      expect(response.status).toBe(401);
       expect(middleware1Ran).toBe(true);
       expect(middleware2Ran).toBe(true);
+      expect(routeRan).toBe(false);
 
       // Verify execution stopped at middleware2
       const log = getExecutionLog();
@@ -713,6 +735,180 @@ describe("Middleware Execution Order", () => {
       expect(log.some((e) => e.middlewareName === "middleware2" && e.phase === "before")).toBe(
         true
       );
+    });
+  });
+
+  describe("Server middleware ordering", () => {
+    const protectedPath = "/api/commute/analyze";
+    const requestBody = JSON.stringify({ originId: "101", destinationId: "725" });
+    const routes = {
+      "1": {
+        id: "1",
+        shortName: "1",
+        longName: "Broadway-7th Ave Local",
+        color: "#EE352E",
+        textColor: "#FFFFFF",
+        feedId: "gtfs",
+        division: "A",
+        stops: ["101", "725"],
+        isExpress: false,
+      },
+    };
+
+    function createMiddlewareTestApp() {
+      initDelayPredictor({}, TEST_STATIONS);
+      return createApp(TEST_STATIONS, routes, {}, {}, "/tmp/test-web");
+    }
+
+    function expectSecurityHeaders(response: Response): void {
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(response.headers.get("x-frame-options")).toBe("DENY");
+      expect(response.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+      expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
+    }
+
+    function requestHeaders(
+      ip: string,
+      authorization: string,
+      csrfToken: string
+    ): Record<string, string> {
+      return {
+        Authorization: authorization,
+        "CF-Connecting-IP": ip,
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      };
+    }
+
+    function commuteAnalysisCounterLines(): string {
+      return metrics
+        .exportPrometheus()
+        .split("\n")
+        .filter((line) => line.startsWith("commute_analysis_requests_total{"))
+        .join("\n");
+    }
+
+    it("short-circuits bad credentials and audits the protected-route denial", async () => {
+      const app = createMiddlewareTestApp();
+      const infoSpy = vi.spyOn(logger, "info");
+      const csrfToken = await getCsrfToken(app);
+      const counterBefore = commuteAnalysisCounterLines();
+
+      const unauthenticated = await app.request(protectedPath, {
+        method: "POST",
+        headers: requestHeaders("192.0.2.41", "Bearer test_key_missing:invalid-secret", csrfToken),
+        body: requestBody,
+      });
+
+      expect(unauthenticated.status).toBe(401);
+      expect(commuteAnalysisCounterLines()).toBe(counterBefore);
+      expectSecurityHeaders(unauthenticated);
+      // Failed authentication short-circuits authorization, rate limiting,
+      // route auditing, and the handler. The outer wrappers still complete.
+      expect(unauthenticated.headers.get("x-ratelimit-remaining")).toBeNull();
+      expect(
+        queryAuditLog({ action: "authz_failure" }).filter(
+          (event) => event.path === protectedPath && event.method === "POST"
+        )
+      ).toHaveLength(0);
+      expect(
+        infoSpy.mock.calls.some(
+          ([message, context]) =>
+            message === "Privileged operation attempt" &&
+            (context as Record<string, unknown> | undefined)?.path === protectedPath
+        )
+      ).toBe(false);
+
+      const authenticationOutcome = queryAuditLog({ action: "auth_failure" }).find(
+        (event) =>
+          event.path === protectedPath &&
+          event.method === "POST" &&
+          event.metadata?.statusCode === unauthenticated.status
+      );
+      expect(authenticationOutcome).toMatchObject({ success: false });
+
+      const readOnlyCredentials = await createTestReadCredentials();
+      const readOnlyCsrfToken = await getCsrfToken(app);
+      const unauthorized = await app.request(protectedPath, {
+        method: "POST",
+        headers: requestHeaders(
+          "192.0.2.42",
+          readOnlyCredentials.authorizationHeader,
+          readOnlyCsrfToken
+        ),
+        body: requestBody,
+      });
+
+      expect(unauthorized.status).toBe(403);
+      expect(commuteAnalysisCounterLines()).toBe(counterBefore);
+      expectSecurityHeaders(unauthorized);
+      // Authorization follows authentication and rejects before rate limiting
+      // or route-level auditing can run.
+      expect(unauthorized.headers.get("x-ratelimit-remaining")).toBeNull();
+      expect(
+        queryAuditLog({ action: "authz_failure" }).some(
+          (event) => event.path === protectedPath && event.method === "POST"
+        )
+      ).toBe(true);
+
+      const authorizationOutcome = queryAuditLog({ action: "auth_failure" }).find(
+        (event) =>
+          event.path === protectedPath &&
+          event.method === "POST" &&
+          event.metadata?.statusCode === unauthorized.status
+      );
+      expect(authorizationOutcome).toMatchObject({ success: false });
+      expect(
+        infoSpy.mock.calls.some(
+          ([message, context]) =>
+            message === "Privileged operation attempt" &&
+            (context as Record<string, unknown> | undefined)?.path === protectedPath
+        )
+      ).toBe(false);
+    });
+
+    it("runs an authorized protected request and audits its final response", async () => {
+      const app = createMiddlewareTestApp();
+      const credentials = await createTestUserCredentials();
+      const csrfToken = await getCsrfToken(app);
+      const infoSpy = vi.spyOn(logger, "info");
+      const counterBefore = commuteAnalysisCounterLines();
+
+      const response = await app.request(protectedPath, {
+        method: "POST",
+        headers: requestHeaders("192.0.2.43", credentials.authorizationHeader, csrfToken),
+        body: requestBody,
+      });
+
+      expect(response.status).toBe(200);
+      expect(commuteAnalysisCounterLines()).not.toBe(counterBefore);
+      expectSecurityHeaders(response);
+      expect(response.headers.get("x-ratelimit-remaining")).toBe("59");
+
+      const operationLogs = infoSpy.mock.calls
+        .map(([message, context], index) => ({
+          message,
+          context: context as Record<string, unknown> | undefined,
+          index,
+        }))
+        .filter(
+          (entry) =>
+            entry.context?.path === protectedPath &&
+            entry.context?.resourceType === "commute" &&
+            entry.context?.action === "create"
+        );
+      const attempt = operationLogs.find(
+        (entry) => entry.message === "Privileged operation attempt"
+      );
+      const completed = operationLogs.find(
+        (entry) => entry.message === "Privileged operation completed"
+      );
+
+      expect(attempt).toBeDefined();
+      expect(completed).toMatchObject({
+        context: expect.objectContaining({ status: response.status, success: true }),
+      });
+      expect(completed!.index).toBeGreaterThan(attempt!.index);
     });
   });
 });

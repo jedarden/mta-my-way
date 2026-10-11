@@ -75,6 +75,7 @@ import { getAllEquipment, getEquipmentForStation, getEquipmentStatus } from "./e
 import { getApiKeyById, registerApiKey } from "./middleware/authentication.js";
 import {
   OAUTH_ALLOWED_HOSTNAMES,
+  apiKeyAuth,
   auditLogAccess,
   cors,
   createSession,
@@ -623,6 +624,17 @@ export function createApp(
 
   // HTTP metrics collection for all API routes
   app.use("/api/*", httpMetrics());
+
+  // Commute analysis is a protected write operation. Run required
+  // authentication and its authorization guards before the shared API rate
+  // limiter so failed credentials and denied scopes stop before consuming a
+  // request token. Optional auth above still supplies context for public APIs.
+  app.use("/api/commute/analyze", apiKeyAuth());
+  app.use(
+    "/api/commute/analyze",
+    requireResourceAccess("commute", "create"),
+    requirePermission("commutes:create" as Permission)
+  );
 
   // Rate limiting on all API routes (60 req/min per IP, token bucket)
   app.use("/api/*", rateLimiter());
@@ -1567,8 +1579,7 @@ ${
   // -------------------------------------------------------------------------
   app.post(
     "/api/commute/analyze",
-    requireResourceAccess("commute", "create"),
-    requirePermission("commutes:create" as Permission),
+    // Keep route audit logging after the shared limiter so it records the final result.
     auditLogAccess("commute", "create"),
     async (c) => {
       const startTime = Date.now();
