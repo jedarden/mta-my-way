@@ -50,6 +50,8 @@ const TEST_ROUTES: RouteIndex = {
 const TEST_COMPLEXES: ComplexIndex = {};
 const TEST_TRANSFERS: Record<string, TransferConnection[]> = {};
 
+let closeActiveHarness: (() => void) | undefined;
+
 /** Matches the trip below, so the pulled-back record lands on this commute. */
 const WORK_COMMUTE: Commute = {
   id: "work",
@@ -153,12 +155,15 @@ async function freshHarness() {
   favorites.useFavoritesStore.setState({ commutes: [WORK_COMMUTE] });
   journal.useJournalStore.setState({ stats: {}, dayOfWeekStats: {}, lastStationVisit: null });
 
+  const close = () => {
+    helpers.closeDatabase(db);
+    subscriptions.closePushDatabase();
+  };
+  closeActiveHarness = close;
+
   return {
     db,
-    close: () => {
-      helpers.closeDatabase(db);
-      subscriptions.closePushDatabase();
-    },
+    close,
     sync,
     journal,
     api,
@@ -190,6 +195,8 @@ async function runRoundTrip() {
 }
 
 afterEach(() => {
+  closeActiveHarness?.();
+  closeActiveHarness = undefined;
   vi.unstubAllGlobals();
 });
 
