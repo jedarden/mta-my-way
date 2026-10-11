@@ -23,7 +23,6 @@ import {
   type AuditEventCategory,
   type AuditEventSeverity,
   addAuditEvent,
-  clearAuditLog,
   getClientIp,
   getUserAgent,
   logApiKeyCreated,
@@ -266,9 +265,11 @@ function verifyStructuredEventCompleteness(event: StructuredAuditEvent): void {
 // Test Suites
 // ---------------------------------------------------------------------------
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("Comprehensive Audit Logging Integration Tests", () => {
-  beforeEach(() => {
-    clearAuditLog();
+  beforeEach(async () => {
+    await cleanupAllState();
+    // cleanupAllState does not reset the structured-audit-log.ts store.
     clearAuditLogs("CONFIRM_CLEAR_AUDIT_LOGS");
   });
 

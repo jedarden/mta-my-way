@@ -29,10 +29,8 @@ import {
   type AuditEventCategory,
   type AuditEventSeverity,
   addAuditEvent,
-  clearAuditLog,
   getAuditLogStats,
   queryAuditLog,
-  resetAuditLog,
 } from "../middleware/audit-log.js";
 import {
   type AuthContext,
@@ -258,7 +256,6 @@ describe("audit log - comprehensive security middleware coverage", () => {
   beforeEach(async () => {
     // Reset all state for test isolation
     await cleanupAllState();
-    resetAuditLog();
 
     // Create test app
     app = createSecureApp();

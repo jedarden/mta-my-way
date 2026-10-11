@@ -34,7 +34,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   type AuditEvent,
   type AuditEventCategory,
-  clearAuditLog,
   logAuthorizationSuccess,
   queryAuditLog,
 } from "../middleware/audit-log.js";
@@ -184,7 +183,7 @@ function buildChainApp(options: ChainOptions = {}): Hono {
 describe("audit logging across the middleware chain", () => {
   beforeEach(async () => {
     await cleanupAllState();
-    clearAuditLog();
+    // cleanupAllState does not reset the structured-audit-log.ts store.
     clearAuditLogs("CONFIRM_CLEAR_AUDIT_LOGS");
   });
 

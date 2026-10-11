@@ -26,7 +26,6 @@ import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addAuditEvent,
-  clearAuditLog,
   getClientIp,
   getUserAgent,
   queryAuditLog,
@@ -608,14 +607,15 @@ function createFullSecurityAuditApp(): Hono {
 // Tests
 // ---------------------------------------------------------------------------
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("Audit logging for middleware security events", () => {
-  beforeEach(() => {
-    clearAuditLog();
+  beforeEach(async () => {
+    await cleanupAllState();
+    // cleanupAllState does not reset the structured-audit-log.ts store.
     clearAuditLogs("CONFIRM_CLEAR_AUDIT_LOGS");
   });
 
   afterEach(() => {
-    clearAuditLog();
     clearAuditLogs("CONFIRM_CLEAR_AUDIT_LOGS");
   });
 
@@ -1229,9 +1229,6 @@ describe("Audit logging for middleware security events", () => {
     it("logs external redirect URL attempt", async () => {
       const app = createOpenRedirectApp();
 
-      // Clear logs before test
-      clearAuditLog();
-
       const beforeMs = Date.now();
 
       const res = await app.request("/api/redirect?url=https://evil.com", {
@@ -1670,8 +1667,6 @@ describe("Audit logging for middleware security events", () => {
       // Clear rate limit state before each test
       const { _clearAllRateLimits } = await import("../middleware/auth-rate-limit.js");
       _clearAllRateLimits();
-      // Also clear the audit log
-      clearAuditLog();
       clearAuditLogs();
     });
 

@@ -24,7 +24,6 @@ import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   addAuditEvent,
-  clearAuditLog,
   getClientIp,
   getUserAgent,
   queryAuditLog,
@@ -309,9 +308,10 @@ function createFullChainAuditApp(): Hono<AuthVars> {
 // Tests
 // ---------------------------------------------------------------------------
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("Audit log captures security events from middleware", () => {
-  beforeEach(() => {
-    clearAuditLog();
+  beforeEach(async () => {
+    await cleanupAllState();
     disableRateLimiting();
   });
 
@@ -712,7 +712,7 @@ describe("Audit log captures security events from middleware", () => {
       const testIps = ["10.0.0.1", "172.16.0.1", "203.0.113.55"];
 
       for (const ip of testIps) {
-        clearAuditLog();
+        await cleanupAllState();
         await requestWithIp(app, "/api/protected", ip);
 
         const events = queryAuditLog({ category: "authentication", success: false });
@@ -727,7 +727,7 @@ describe("Audit log captures security events from middleware", () => {
       const paths = ["/api/protected", "/api/action"];
 
       for (const path of paths) {
-        clearAuditLog();
+        await cleanupAllState();
         await requestWithIp(app, path, IP_A);
 
         const events = queryAuditLog({ category: "authentication", success: false });
