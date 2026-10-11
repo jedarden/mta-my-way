@@ -22,7 +22,7 @@ import { rateLimiter } from "../middleware/rate-limiter.js";
 import { requestId } from "../middleware/request-id.js";
 import { securityLogging } from "../middleware/security-logging.js";
 import { ssrfProtection } from "../middleware/ssrf-protection.js";
-import { createTestApiKey } from "./test-helpers.js";
+import { cleanupAllState, createTestApiKey } from "./test-helpers.js";
 
 const VALID_HOST = "api.mtamyway.test";
 const TEST_IP = "192.0.2.1";
@@ -64,7 +64,8 @@ describe("audit logging - security middleware coverage", () => {
     });
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     app = new Hono();
     app.use("*", requestId);
     app.use("*", securityLogging());
