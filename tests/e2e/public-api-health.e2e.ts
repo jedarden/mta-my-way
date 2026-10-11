@@ -110,7 +110,6 @@ test.describe("Public API Health Tests", () => {
   test.describe.configure({ timeout: TEST_CONFIG.timeouts.default });
 
   test.describe("Health Endpoint (/api/health)", () => {
-    test.configure({ retry: TEST_CONFIG.retries.default });
 
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/health");
@@ -158,7 +157,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Stations Endpoint (/api/stations)", () => {
-    test.configure({ retry: TEST_CONFIG.retries.default });
 
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/stations");
@@ -221,7 +219,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Station Detail Endpoint (/api/stations/:id)", () => {
-    test.configure({ retry: TEST_CONFIG.retries.default });
 
     test("should return 200 for valid station ID", async ({ request }) => {
       // Test with a known station (Times Square - 725)
@@ -252,7 +249,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Routes Endpoint (/api/routes)", () => {
-    test.configure({ retry: TEST_CONFIG.retries.default });
 
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/routes");
@@ -299,7 +295,6 @@ test.describe("Public API Health Tests", () => {
   });
 
   test.describe("Alerts Endpoint (/api/alerts)", () => {
-    test.configure({ retry: TEST_CONFIG.retries.default });
 
     test("should return 200 OK status", async ({ request }) => {
       const response = await request.get("/api/alerts");
