@@ -5,6 +5,17 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Health endpoint", () => {
+  test("direct /health navigation and refresh render the Health screen", async ({ page }) => {
+    await page.goto("/health");
+
+    await expect(page.getByRole("heading", { name: "System Health" })).toBeVisible();
+
+    await page.reload();
+
+    await expect(page.getByRole("heading", { name: "System Health" })).toBeVisible();
+    await expect(page).toHaveURL(/\/health\/?$/);
+  });
+
   test("returns system health status", async ({ request }) => {
     const response = await request.get("/api/health");
     // Server returns 200 when healthy, 503 when 3+ feeds are failing for >5 min

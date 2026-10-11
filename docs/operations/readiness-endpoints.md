@@ -15,6 +15,6 @@ The routes have deliberately different consumers:
 | Browser Health screen and in-app links | `/health` | Intentional client-facing browser route. It is not a machine-readiness consumer. |
 | Detailed API health checks | `/api/health` | Per-feed and subsystem status; not interchangeable with `/healthz`. |
 
-The legacy `/health` JSON alias remains temporarily for backward compatibility
-while consumers migrate. New machine consumers must use `/healthz`; the alias
-and browser links are retained only for the migration and SPA route boundaries.
+The React Health screen owns `/health` through the SPA fallback, including
+direct requests and refreshes. Machine readiness uses `/healthz`; detailed feed
+and subsystem health remains available from `/api/health`.

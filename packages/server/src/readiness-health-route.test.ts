@@ -1,30 +1,43 @@
 /**
  * Lightweight readiness routes.
  *
- * /healthz is the new machine-readiness path. /health remains as a temporary
- * backward-compatible alias while readiness consumers migrate to /healthz.
- * Both routes are deliberately registered before the normal middleware chain,
- * and both answers are pinned as non-cacheable (no-store) — a readiness probe
- * must never be served from a cache.
+ * /healthz is the machine-readiness path and is registered before the normal
+ * middleware chain with an explicit non-cacheable (no-store) response. The
+ * React HealthScreen owns /health through the SPA fallback instead.
  *
  * The "interfering middleware" block proves the pre-middleware registration
  * with a host policy that genuinely blocks other paths in production: the
- * middleware chain would reject the probe's request, but /healthz (and the
- * /health alias) still answer because no middleware runs for them. One test
+ * middleware chain would reject the probe's request, but /healthz still
+ * answers because no middleware runs for it. One test
  * pins the whole readiness contract on a single such response, and the final
  * block keeps /healthz's bare readiness answer distinct from /api/health's
  * feed status.
  */
 
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Hono } from "hono";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 
 let app: Hono;
+let spaDistPath: string;
+
+beforeAll(() => {
+  spaDistPath = mkdtempSync(join(process.cwd(), `.tmp-health-spa-${process.pid}-`));
+  writeFileSync(
+    join(spaDistPath, "index.html"),
+    '<!doctype html><html><body><div id="root">MTA My Way SPA</div></body></html>'
+  );
+});
+
+afterAll(() => {
+  rmSync(spaDistPath, { recursive: true, force: true });
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
-  app = createApp({}, {}, {}, {}, "/nonexistent/dist");
+  app = createApp({}, {}, {}, {}, spaDistPath);
 });
 
 describe("GET /healthz", () => {
@@ -60,17 +73,15 @@ describe("GET /healthz", () => {
   });
 });
 
-describe("GET /health backward-compatible alias", () => {
-  it("preserves the existing readiness response", async () => {
-    const response = await app.request("/health");
+describe("GET /health SPA fallback", () => {
+  it.each(["/health", "/health/"])("serves the SPA shell at %s", async (path) => {
+    const response = await app.request(path);
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toContain("application/json");
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(await response.json()).toEqual({
-      status: "ok",
-      uptime_seconds: expect.any(Number),
-    });
+    expect(response.headers.get("Content-Type")).toContain("text/html");
+    const body = await response.text();
+    expect(body).toContain('<div id="root">MTA My Way SPA</div>');
+    expect(body).not.toContain("uptime_seconds");
   });
 });
 
@@ -155,7 +166,7 @@ describe("readiness availability under interfering middleware", () => {
   });
 });
 
-describe("readiness stays distinct from /api/health feed status", () => {
+describe("SPA, readiness, and feed health routes stay distinct", () => {
   it("/healthz answers bare readiness while /api/health reports feed health for the same app state", async () => {
     const readiness = await app.request("/healthz");
     expect(readiness.status).toBe(200);
