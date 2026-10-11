@@ -22,7 +22,12 @@ import {
   recordTrip,
   updateTripNotes,
 } from "../trip-tracking.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  closeDatabase,
+  createIntegrationTestDatabase,
+} from "./test-helpers.js";
 
 // Test owner IDs
 const TEST_OWNER_1 = "user-123";
@@ -32,7 +37,8 @@ const ADMIN_OWNER = "admin-user";
 describe("Trip Recording Integration Tests", () => {
   let db: Database.Database;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
   });

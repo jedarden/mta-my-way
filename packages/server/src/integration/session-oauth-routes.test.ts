@@ -9,10 +9,11 @@
  */
 
 import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { registerApiKey } from "../middleware/authentication.js";
 import { initializeDefaultProviders } from "../oauth/index.js";
+import { cleanupAllState } from "./test-helpers.js";
 
 // Minimal test fixtures
 const STATIONS: StationIndex = {
@@ -74,7 +75,8 @@ const TRANSFERS: Record<
 describe("Session Management and OAuth Routes", () => {
   let app: ReturnType<typeof createApp>;
 
-  beforeAll(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     // Create app instance
     app = createApp(STATIONS, ROUTES, COMPLEXES, TRANSFERS, "/tmp/dist");
 

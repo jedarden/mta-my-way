@@ -24,6 +24,7 @@ import { initPushDatabase } from "../push/subscriptions.js";
 import { initTripTracking } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
@@ -73,6 +74,7 @@ describe("Security Middleware Integration Tests", () => {
   let authHeaders: { Authorization: string };
 
   beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
     initPushDatabase(":memory:");

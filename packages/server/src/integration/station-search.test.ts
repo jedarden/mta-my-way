@@ -13,7 +13,7 @@ import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared"
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import { cleanupAllState, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -151,7 +151,8 @@ describe("Station Search Integration Tests", () => {
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     app = createApp(TEST_STATIONS, TEST_ROUTES, TEST_COMPLEXES, {}, "/nonexistent/dist");
   });

@@ -24,7 +24,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setArrivalsForTesting } from "../cache.js";
 import type { TransferEngine } from "../transfer/engine.js";
 import { createTransferEngine } from "../transfer/engine.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  closeDatabase,
+  createIntegrationTestDatabase,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -136,7 +141,8 @@ describe("Transfer Engine Integration Tests", () => {
   let db: Database.Database;
   let engine: TransferEngine;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     engine = createTransferEngine({
       stations: TEST_STATIONS,

@@ -17,7 +17,12 @@ import type {
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  closeDatabase,
+  createIntegrationTestDatabase,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -99,7 +104,8 @@ describe("Routes and Complexes API Integration Tests", () => {
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     app = createApp(
       TEST_STATIONS,

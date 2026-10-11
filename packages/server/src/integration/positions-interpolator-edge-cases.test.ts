@@ -14,6 +14,11 @@
 import type { LinePositions, RouteIndex, StationIndex, TrainPosition } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildLineDiagram, detectBunchedTrains } from "../positions-interpolator.js";
+import { cleanupAllState } from "./test-helpers.js";
+
+beforeEach(async () => {
+  await cleanupAllState();
+});
 
 // ---------------------------------------------------------------------------
 // Test fixtures

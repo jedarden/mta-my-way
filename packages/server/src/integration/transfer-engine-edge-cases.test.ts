@@ -15,6 +15,7 @@
 import type { ArrivalTime, ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TransferEngine, detectExpressService } from "../transfer/engine.js";
+import { cleanupAllState } from "./test-helpers.js";
 
 // Mock the equipment poller module
 vi.mock("../equipment-poller.js", () => ({
@@ -219,7 +220,8 @@ function createMockArrivals(
 describe("Transfer Engine Edge Cases", () => {
   let engine: TransferEngine;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));

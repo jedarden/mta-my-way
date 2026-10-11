@@ -5,7 +5,12 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { createSession } from "../middleware/authentication.js";
 import { closePushDatabase, getPushDatabase, initPushDatabase } from "../push/subscriptions.js";
-import { TEST_STATIONS, createTestUserCredentials, getCsrfToken } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  createTestUserCredentials,
+  getCsrfToken,
+} from "./test-helpers.js";
 
 const TEST_ROUTES: RouteIndex = {
   "1": {
@@ -30,6 +35,7 @@ describe("Preferences API integration", () => {
   let userId: string;
 
   beforeEach(async () => {
+    await cleanupAllState();
     initPushDatabase(":memory:");
 
     const credentials = await createTestUserCredentials();

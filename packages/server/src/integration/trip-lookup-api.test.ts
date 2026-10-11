@@ -29,7 +29,12 @@ vi.mock("../cache.js", async () => {
 
 import { createApp } from "../app.js";
 import { getAllParsedFeeds } from "../cache.js";
-import { TEST_STATIONS, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  closeDatabase,
+  createIntegrationTestDatabase,
+} from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -132,7 +137,8 @@ describe("Trip Lookup API Integration Tests", () => {
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
