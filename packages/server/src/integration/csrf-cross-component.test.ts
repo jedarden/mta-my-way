@@ -80,6 +80,13 @@ describe("CSRF and Cross-Component Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
   let authHeaders: { Authorization: string };
 
+  async function csrfHeader(): Promise<{ "X-CSRF-Token": string }> {
+    const response = await app.request("/api/csrf-token");
+    expect(response.status).toBe(200);
+    const { token } = await response.json();
+    return { "X-CSRF-Token": token };
+  }
+
   beforeEach(async () => {
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
@@ -204,10 +211,10 @@ describe("CSRF and Cross-Component Integration Tests", () => {
 
   describe("Concurrent access patterns", () => {
     it("handles concurrent trip creation", async () => {
-      const promises = Array.from({ length: 5 }, (_, i) =>
+      const promises = Array.from({ length: 5 }, async (_, i) =>
         app.request("/api/trips", {
           method: "POST",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
+          headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
           body: JSON.stringify({
             origin: "101",
             destination: "725",
@@ -220,23 +227,14 @@ describe("CSRF and Cross-Component Integration Tests", () => {
 
       const responses = await Promise.all(promises);
 
-      // Check if any succeeded - if auth/RBAC blocks, test passes anyway
-      const successCount = responses.filter((res) => res.status === 201).length;
-      const failCount = responses.filter((res) => res.status === 403 || res.status === 401).length;
-
-      // Either all succeed (auth works) or all fail auth (RBAC blocks)
-      if (failCount === responses.length) {
-        // All failed auth - test passes (RBAC is working)
-        return;
-      }
-      expect(successCount).toBe(responses.length);
+      expect(responses.map((res) => res.status)).toEqual(Array(5).fill(201));
     });
 
     it("handles concurrent read operations", async () => {
       // First create a trip
       const createRes = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -246,10 +244,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
         }),
       });
 
-      // If trip creation failed due to auth, skip the test
-      if (createRes.status === 403 || createRes.status === 401) {
-        return;
-      }
+      expect(createRes.status).toBe(201);
 
       // Concurrent reads
       const promises = Array.from({ length: 10 }, () =>
@@ -260,19 +255,23 @@ describe("CSRF and Cross-Component Integration Tests", () => {
 
       // All should succeed
       for (const res of responses) {
-        expect([200, 403]).toContain(res.status); // 200 for success, 403 if RBAC blocks
+        expect(res.status).toBe(200);
       }
     });
 
     it("handles concurrent mixed operations", async () => {
-      const operations = [];
+      const operations: Promise<Response>[] = [];
 
       // Create trips
       for (let i = 0; i < 3; i++) {
         operations.push(
           app.request("/api/trips", {
             method: "POST",
-            headers: { ...authHeaders, "Content-Type": "application/json" },
+            headers: {
+              ...authHeaders,
+              ...(await csrfHeader()),
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify({
               origin: "101",
               destination: "725",
@@ -296,10 +295,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
 
       const responses = await Promise.all(operations);
 
-      // All should succeed or be auth-blocked
-      for (const res of responses) {
-        expect([200, 201, 403]).toContain(res.status);
-      }
+      expect(responses.map((res) => res.status)).toEqual([201, 201, 201, 200, 200, 200, 200, 200]);
     });
   });
 
@@ -310,7 +306,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       // Create
       const createRes = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -336,7 +332,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       // Update
       const updateRes = await app.request(`/api/trips/${tripId}/notes`, {
         method: "PATCH",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Updated notes" }),
       });
 
@@ -352,7 +348,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       // Delete
       const deleteRes = await app.request(`/api/trips/${tripId}`, {
         method: "DELETE",
-        headers: authHeaders,
+        headers: { ...authHeaders, ...(await csrfHeader()) },
       });
 
       expect(deleteRes.status).toBe(200);
@@ -369,7 +365,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       const now = Date.now();
       const createRes = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -379,10 +375,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
         }),
       });
 
-      // Skip test if trip creation failed (due to auth/RBAC)
-      if (createRes.status !== 201 && createRes.status !== 200) {
-        return;
-      }
+      expect(createRes.status).toBe(201);
 
       // Get stats that should reflect the recorded trip
       const statsRes = await app.request("/api/journal/stats", {
@@ -420,7 +413,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       const now = Date.now();
       const createRes = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -445,7 +438,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       const now = Date.now();
       const createRes = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -454,11 +447,6 @@ describe("CSRF and Cross-Component Integration Tests", () => {
           arrivalTime: Math.floor(now / 1000),
         }),
       });
-
-      // Skip test if trip creation failed (due to auth/RBAC)
-      if (createRes.status !== 201 && createRes.status !== 200) {
-        return;
-      }
 
       expect(createRes.status).toBe(201);
     });
@@ -471,7 +459,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       // Create a trip
       const createRes = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -481,23 +469,19 @@ describe("CSRF and Cross-Component Integration Tests", () => {
         }),
       });
 
-      // Skip test if trip creation failed (due to auth/RBAC)
-      if (createRes.status !== 201 && createRes.status !== 200) {
-        return;
-      }
+      expect(createRes.status).toBe(201);
 
       const createBody = await createRes.json();
-      if (!createBody.trip) {
-        return;
-      }
+      expect(createBody.trip).toBeDefined();
       const tripId = createBody.trip.id;
 
       // Update notes
-      await app.request(`/api/trips/${tripId}/notes`, {
+      const updateRes = await app.request(`/api/trips/${tripId}/notes`, {
         method: "PATCH",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Test notes" }),
       });
+      expect(updateRes.status).toBe(200);
 
       // Verify via list endpoint
       const listRes = await app.request("/api/trips", {
@@ -515,7 +499,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
       // Create two trips
       const t1 = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -527,7 +511,7 @@ describe("CSRF and Cross-Component Integration Tests", () => {
 
       const t2 = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "725",
           destination: "726",
@@ -537,25 +521,23 @@ describe("CSRF and Cross-Component Integration Tests", () => {
         }),
       });
 
-      // Skip test if trip creation failed (due to auth/RBAC)
-      if (t1.status !== 201 || t2.status !== 201) {
-        return;
-      }
+      expect(t1.status).toBe(201);
+      expect(t2.status).toBe(201);
 
       const t1Body = await t1.json();
       const t2Body = await t2.json();
-      if (!t1Body.trip || !t2Body.trip) {
-        return;
-      }
+      expect(t1Body.trip).toBeDefined();
+      expect(t2Body.trip).toBeDefined();
 
       const trip1Id = t1Body.trip.id;
       const trip2Id = t2Body.trip.id;
 
       // Delete first trip
-      await app.request(`/api/trips/${trip1Id}`, {
+      const deleteRes = await app.request(`/api/trips/${trip1Id}`, {
         method: "DELETE",
-        headers: authHeaders,
+        headers: { ...authHeaders, ...(await csrfHeader()) },
       });
+      expect(deleteRes.status).toBe(200);
 
       // Verify list only has second trip
       const listRes = await app.request("/api/trips", {

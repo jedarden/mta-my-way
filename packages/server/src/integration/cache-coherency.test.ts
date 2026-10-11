@@ -160,7 +160,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const now = Date.now();
 
       // Create trip via API
-      const apiRes = await app.request("/api/trips", {
+      const apiRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -197,7 +197,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
 
       // Create multiple trips
       for (let i = 0; i < 5; i++) {
-        await app.request("/api/trips", {
+        await requestWithCsrf(app, "/api/trips", {
           method: "POST",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -229,7 +229,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const now = Date.now();
 
       // Create trip
-      const createRes = await app.request("/api/trips", {
+      const createRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -246,7 +246,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const tripId = createBody.trip.id;
 
       // Update notes
-      await app.request(`/api/trips/${tripId}/notes`, {
+      await requestWithCsrf(app, `/api/trips/${tripId}/notes`, {
         method: "PATCH",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Updated" }),
@@ -269,7 +269,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const now = Date.now();
 
       // Create trip
-      const createRes = await app.request("/api/trips", {
+      const createRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -291,7 +291,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       expect(beforeDelete.status).toBe(200);
 
       // Delete it
-      await app.request(`/api/trips/${tripId}`, {
+      await requestWithCsrf(app, `/api/trips/${tripId}`, {
         method: "DELETE",
         headers: authHeaders,
       });
@@ -319,7 +319,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       expect(beforeBody.totalTrips).toBe(0);
 
       // Create trip
-      await app.request("/api/trips", {
+      await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -346,7 +346,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const now = Date.now();
 
       // Create two trips
-      const firstRes = await app.request("/api/trips", {
+      const firstRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -359,7 +359,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
         }),
       });
 
-      const secondRes = await app.request("/api/trips", {
+      const secondRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -384,7 +384,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       expect(beforeDeleteBody.totalTrips).toBe(2);
 
       // Delete one trip
-      await app.request(`/api/trips/${tripId}`, {
+      await requestWithCsrf(app, `/api/trips/${tripId}`, {
         method: "DELETE",
         headers: authHeaders,
       });
@@ -528,7 +528,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const durations = [45, 50, 55, 60, 65];
 
       for (const duration of durations) {
-        await app.request("/api/trips", {
+        await requestWithCsrf(app, "/api/trips", {
           method: "POST",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -590,27 +590,14 @@ describe("Cache and Database Coherency Integration Tests", () => {
         }),
       });
 
-      // Skip test if trip creation failed (due to auth/RBAC)
-      if (t1.status !== 201 || t2.status !== 201) {
-        return;
-      }
+      expect(t1.status).toBe(201);
+      expect(t2.status).toBe(201);
 
       // Get stats with auth headers
       const statsRes = await app.request("/api/journal/stats", {
         headers: authHeaders,
       });
       const stats = await statsRes.json();
-
-      // Debug: log the stats
-      console.log("Stats response:", JSON.stringify(stats, null, 2));
-      console.log(
-        "Records with scheduledDuration:",
-        stats.records?.map((r: any) => ({
-          id: r.id,
-          actualDurationMinutes: r.actualDurationMinutes,
-          scheduledDurationMinutes: r.scheduledDurationMinutes,
-        }))
-      );
 
       // Verify trips were counted
       expect(stats.totalTrips).toBe(2);
@@ -625,7 +612,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const now = Date.now();
 
       // Create trip
-      const createRes = await app.request("/api/trips", {
+      const createRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -641,7 +628,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const tripId = createBody.trip.id;
 
       // Update notes
-      await app.request(`/api/trips/${tripId}/notes`, {
+      await requestWithCsrf(app, `/api/trips/${tripId}/notes`, {
         method: "PATCH",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Updated notes" }),
@@ -666,7 +653,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const now = Date.now();
 
       // Create trip
-      const createRes = await app.request("/api/trips", {
+      const createRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -684,7 +671,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       // Multiple updates
       const notes = ["First", "Second", "Third"];
       for (const note of notes) {
-        await app.request(`/api/trips/${tripId}/notes`, {
+        await requestWithCsrf(app, `/api/trips/${tripId}/notes`, {
           method: "PATCH",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({ notes: note }),
@@ -713,7 +700,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
 
       // Create trips
       for (let i = 0; i < 5; i++) {
-        await app.request("/api/trips", {
+        await requestWithCsrf(app, "/api/trips", {
           method: "POST",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -749,7 +736,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
 
       // Create trips
       for (let i = 0; i < 5; i++) {
-        await app.request("/api/trips", {
+        await requestWithCsrf(app, "/api/trips", {
           method: "POST",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -783,7 +770,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       // Create multiple trips
       const tripIds: string[] = [];
       for (let i = 0; i < 8; i++) {
-        const res = await app.request("/api/trips", {
+        const res = await requestWithCsrf(app, "/api/trips", {
           method: "POST",
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -795,18 +782,19 @@ describe("Cache and Database Coherency Integration Tests", () => {
           }),
         });
 
+        expect(res.status).toBe(201);
         const body = await res.json();
-        if (body.trip) {
-          tripIds.push(body.trip.id);
-        }
+        tripIds.push(body.trip.id);
       }
 
       // Delete all
+      expect(tripIds).toHaveLength(8);
       for (const id of tripIds) {
-        await app.request(`/api/trips/${id}`, {
+        const deleteRes = await requestWithCsrf(app, `/api/trips/${id}`, {
           method: "DELETE",
           headers: authHeaders,
         });
+        expect(deleteRes.status).toBe(200);
       }
 
       // Verify all gone with auth headers
@@ -821,7 +809,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const now = Date.now();
 
       // Create trip
-      const createRes = await app.request("/api/trips", {
+      const createRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -837,7 +825,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const tripId = createBody.trip.id;
 
       // Try to update non-existent trip (should fail gracefully)
-      const updateRes = await app.request("/api/trips/nonexistent/notes", {
+      const updateRes = await requestWithCsrf(app, "/api/trips/nonexistent/notes", {
         method: "PATCH",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Should not affect anything" }),

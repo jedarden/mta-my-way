@@ -26,6 +26,7 @@ import {
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
+  requestWithCsrf,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -133,7 +134,7 @@ describe("Error Propagation Integration Tests", () => {
 
   describe("API validation errors", () => {
     it("returns consistent error format for validation failures", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -151,7 +152,7 @@ describe("Error Propagation Integration Tests", () => {
     it("validates station IDs exist in station index", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,7 +176,7 @@ describe("Error Propagation Integration Tests", () => {
     it("validates timestamp consistency", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -195,7 +196,7 @@ describe("Error Propagation Integration Tests", () => {
     it("validates required string fields are not empty", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -213,7 +214,7 @@ describe("Error Propagation Integration Tests", () => {
     it("validates line against valid lines", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -247,7 +248,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("handles update to non-existent resource", async () => {
-      const res = await app.request("/api/trips/non-existent-id/notes", {
+      const res = await requestWithCsrf(app, "/api/trips/non-existent-id/notes", {
         method: "PATCH",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Test notes" }),
@@ -263,7 +264,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("handles deletion of non-existent resource", async () => {
-      const res = await app.request("/api/trips/non-existent-id", {
+      const res = await requestWithCsrf(app, "/api/trips/non-existent-id", {
         method: "DELETE",
         headers: authHeaders,
       });
@@ -294,7 +295,7 @@ describe("Error Propagation Integration Tests", () => {
 
   describe("Malformed request data", () => {
     it("handles invalid JSON gracefully", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: "{ invalid json }",
@@ -307,7 +308,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("handles empty request body", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: "",
@@ -319,7 +320,7 @@ describe("Error Propagation Integration Tests", () => {
     it("handles unexpected data types", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -338,7 +339,7 @@ describe("Error Propagation Integration Tests", () => {
     it("handles null values in required fields", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -356,7 +357,7 @@ describe("Error Propagation Integration Tests", () => {
     it("handles array instead of object for nested fields", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -434,7 +435,7 @@ describe("Error Propagation Integration Tests", () => {
 
   describe("HTTP method errors", () => {
     it("rejects unsupported HTTP methods", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "PUT",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -444,7 +445,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("rejects PATCH on endpoint that expects POST", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "PATCH",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "test" }),
@@ -496,7 +497,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("does not expose internal stack traces", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -513,7 +514,7 @@ describe("Error Propagation Integration Tests", () => {
       expect([401, 404]).toContain(notFoundRes.status);
 
       // 400 or 401 for bad request
-      const badRequestRes = await app.request("/api/trips", {
+      const badRequestRes = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: "invalid json",
@@ -547,7 +548,7 @@ describe("Error Propagation Integration Tests", () => {
     it("handles service layer failures gracefully", async () => {
       // This test verifies that if a service fails,
       // the API returns an appropriate error response
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -563,7 +564,7 @@ describe("Error Propagation Integration Tests", () => {
 
   describe("Cross-service error scenarios", () => {
     it("handles errors in commute analysis with invalid stations", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -581,7 +582,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("handles missing transfer data gracefully", async () => {
-      const res = await app.request("/api/commute/analyze", {
+      const res = await requestWithCsrf(app, "/api/commute/analyze", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -610,7 +611,7 @@ describe("Error Propagation Integration Tests", () => {
 
   describe("Authentication and authorization errors", () => {
     it("rejects requests without authentication", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -632,7 +633,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("rejects requests with invalid API key", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -651,7 +652,7 @@ describe("Error Propagation Integration Tests", () => {
     });
 
     it("handles malformed authorization header", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -675,7 +676,7 @@ describe("Error Propagation Integration Tests", () => {
       const now = Date.now();
       const longString = "a".repeat(10000);
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -695,7 +696,7 @@ describe("Error Propagation Integration Tests", () => {
     it("handles Unicode characters in strings", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -715,7 +716,7 @@ describe("Error Propagation Integration Tests", () => {
     it("handles null byte in strings", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -735,7 +736,7 @@ describe("Error Propagation Integration Tests", () => {
     it("handles extreme timestamp values", async () => {
       const extremeFuture = Date.now() + 1000 * 60 * 60 * 24 * 365 * 10; // 10 years in future
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithCsrf(app, "/api/trips", {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({

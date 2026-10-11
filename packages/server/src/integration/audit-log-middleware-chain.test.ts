@@ -39,7 +39,7 @@ import {
 } from "../middleware/audit-log.js";
 import { apiKeyAuth, optionalAuth } from "../middleware/authentication.js";
 import { requireResourceAccess } from "../middleware/authorization.js";
-import { csrfProtection } from "../middleware/csrf-protection.js";
+import { csrfProtection, generateCsrfToken } from "../middleware/csrf-protection.js";
 import { hostHeaderProtection } from "../middleware/host-header-protection.js";
 import { jsonDepthProtection } from "../middleware/json-depth-protection.js";
 import { hppProtection } from "../middleware/parameter-pollution.js";
@@ -144,10 +144,7 @@ interface ChainOptions {
   /** HPP strategy override — the default ("first") never rejects. */
   hppReject?: boolean;
   /**
-   * CSRF exclude paths, matching production's excludePaths shape (prefix
-   * match). app.ts excludes "/api/trip", which covers "/api/trips/..." —
-   * authorization tests reuse that exclusion so a DELETE reaches the
-   * authorization middleware the way it does in production.
+   * CSRF exclude paths, matching production's excludePaths shape.
    */
   csrfExcludePaths?: string[];
 }
@@ -268,10 +265,7 @@ describe("audit logging across the middleware chain", () => {
 
   describe("authorization events", () => {
     function buildAuthzApp(): Hono {
-      // Production's CSRF excludePaths lists "/api/trip", whose prefix match
-      // covers "/api/trips/..." — mirror that so the DELETE reaches
-      // requireResourceAccess instead of being rejected as a CSRF failure.
-      const app = buildChainApp({ csrfExcludePaths: ["/api/trip"] });
+      const app = buildChainApp();
       app.delete("/api/trips/:id", requireResourceAccess("trip", "delete"), (c) => {
         logAuthorizationSuccess(c, "trip", "delete");
         return c.json({ deleted: c.req.param("id") });
@@ -282,7 +276,10 @@ describe("audit logging across the middleware chain", () => {
     it("an unauthenticated delete is denied and logged as authz_failure", async () => {
       const app = buildAuthzApp();
 
-      const res = await chainRequest(app, "/api/trips/trip-1", { method: "DELETE" });
+      const res = await chainRequest(app, "/api/trips/trip-1", {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": generateCsrfToken() },
+      });
 
       expect(res.status).toBe(401);
 
@@ -305,7 +302,7 @@ describe("audit logging across the middleware chain", () => {
 
       const res = await chainRequest(app, "/api/trips/trip-1", {
         method: "DELETE",
-        headers: { Authorization: authorizationHeader },
+        headers: { Authorization: authorizationHeader, "X-CSRF-Token": generateCsrfToken() },
       });
 
       expect(res.status).toBe(403);
@@ -325,7 +322,7 @@ describe("audit logging across the middleware chain", () => {
 
       const res = await chainRequest(app, "/api/trips/trip-1", {
         method: "DELETE",
-        headers: { Authorization: authorizationHeader },
+        headers: { Authorization: authorizationHeader, "X-CSRF-Token": generateCsrfToken() },
       });
 
       expect(res.status).toBe(200);

@@ -28,7 +28,6 @@ import {
   createTestUserCredentials,
   getCsrfToken,
   requestWithAuthAndCsrf,
-  requestWithCsrf,
 } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -157,9 +156,9 @@ describe("API Integration Tests", () => {
     it("creates trip and persists to database", async () => {
       const now = Date.now();
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips", authHeaders, {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date: "2026-04-06",
           origin: "101",
@@ -184,9 +183,9 @@ describe("API Integration Tests", () => {
     });
 
     it("validates required fields", async () => {
-      const res = await app.request("/api/trips", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips", authHeaders, {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           // Missing required fields
         }),
@@ -201,9 +200,9 @@ describe("API Integration Tests", () => {
       const now = Math.floor(Date.now() / 1000);
       const departureTime = now - 5400; // 90 minutes ago (in seconds)
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips", authHeaders, {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -221,9 +220,9 @@ describe("API Integration Tests", () => {
       const now = Date.now();
       const expectedDate = new Date(now).toISOString().split("T")[0];
 
-      const res = await app.request("/api/trips", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips", authHeaders, {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -237,24 +236,22 @@ describe("API Integration Tests", () => {
       expect(body.trip.date).toBe(expectedDate);
     });
 
-    it("returns 500 on database error", () => {
+    it("returns 500 on database error", async () => {
+      const csrfToken = await getCsrfToken(app);
       closeDatabase(db);
 
-      return app
-        .request("/api/trips", {
-          method: "POST",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            origin: "101",
-            destination: "725",
-            line: "1",
-            departureTime: Date.now() - 3600000,
-            arrivalTime: Date.now(),
-          }),
-        })
-        .then((res) => {
-          expect(res.status).toBe(500);
-        });
+      const res = await app.request("/api/trips", {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+        body: JSON.stringify({
+          origin: "101",
+          destination: "725",
+          line: "1",
+          departureTime: Date.now() - 3600000,
+          arrivalTime: Date.now(),
+        }),
+      });
+      expect(res.status).toBe(500);
     });
   });
 
@@ -431,11 +428,16 @@ describe("API Integration Tests", () => {
         userKeyId
       );
 
-      const res = await app.request(`/api/trips/${created!.id}/notes`, {
-        method: "PATCH",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: "Updated notes" }),
-      });
+      const res = await requestWithAuthAndCsrf(
+        app,
+        `/api/trips/${created!.id}/notes`,
+        authHeaders,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes: "Updated notes" }),
+        }
+      );
 
       expect(res.status).toBe(200);
 
@@ -448,9 +450,9 @@ describe("API Integration Tests", () => {
     });
 
     it("returns 400 for missing notes field", async () => {
-      const res = await app.request("/api/trips/any-id/notes", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips/any-id/notes", authHeaders, {
         method: "PATCH",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
 
@@ -458,9 +460,9 @@ describe("API Integration Tests", () => {
     });
 
     it("returns 404 for non-existent trip", async () => {
-      const res = await app.request("/api/trips/non-existent/notes", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips/non-existent/notes", authHeaders, {
         method: "PATCH",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Test" }),
       });
 
@@ -485,9 +487,8 @@ describe("API Integration Tests", () => {
         userKeyId
       );
 
-      const res = await app.request(`/api/trips/${created!.id}`, {
+      const res = await requestWithAuthAndCsrf(app, `/api/trips/${created!.id}`, authHeaders, {
         method: "DELETE",
-        headers: authHeaders,
       });
 
       expect(res.status).toBe(200);
@@ -501,9 +502,8 @@ describe("API Integration Tests", () => {
     });
 
     it("returns 404 for non-existent trip", async () => {
-      const res = await app.request("/api/trips/non-existent", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips/non-existent", authHeaders, {
         method: "DELETE",
-        headers: authHeaders,
       });
 
       expect(res.status).toBe(404);
@@ -650,9 +650,9 @@ describe("API Integration Tests", () => {
       });
 
       it("validates request body", async () => {
-        const res = await app.request("/api/push/subscribe", {
+        const res = await requestWithAuthAndCsrf(app, "/api/push/subscribe", authHeaders, {
           method: "POST",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             // Invalid request
           }),
@@ -674,9 +674,9 @@ describe("API Integration Tests", () => {
       });
 
       it("validates endpoint in request body", async () => {
-        const res = await app.request("/api/push/unsubscribe", {
+        const res = await requestWithAuthAndCsrf(app, "/api/push/unsubscribe", authHeaders, {
           method: "DELETE",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             endpoint: "https://fcm.googleapis.com/fcm/send/test-endpoint",
           }),
@@ -693,9 +693,9 @@ describe("API Integration Tests", () => {
       const now = Date.now();
 
       // Create via API
-      const res = await app.request("/api/trips", {
+      const res = await requestWithAuthAndCsrf(app, "/api/trips", authHeaders, {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -706,6 +706,7 @@ describe("API Integration Tests", () => {
         }),
       });
 
+      expect(res.status).toBe(201);
       const apiResponse = await res.json();
       const tripId = apiResponse.trip.id;
 
@@ -736,11 +737,17 @@ describe("API Integration Tests", () => {
       expect(created).toBeDefined();
 
       // Update via API
-      await app.request(`/api/trips/${created!.id}/notes`, {
-        method: "PATCH",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: "Updated via API" }),
-      });
+      const updateRes = await requestWithAuthAndCsrf(
+        app,
+        `/api/trips/${created!.id}/notes`,
+        authHeaders,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes: "Updated via API" }),
+        }
+      );
+      expect(updateRes.status).toBe(200);
 
       // Retrieve via API (admin can bypass ownership check)
       const res = await app.request(`/api/trips/${created!.id}`, {
@@ -770,10 +777,15 @@ describe("API Integration Tests", () => {
       expect(created).toBeDefined();
 
       // Delete via API
-      await app.request(`/api/trips/${created!.id}`, {
-        method: "DELETE",
-        headers: authHeaders,
-      });
+      const deleteRes = await requestWithAuthAndCsrf(
+        app,
+        `/api/trips/${created!.id}`,
+        authHeaders,
+        {
+          method: "DELETE",
+        }
+      );
+      expect(deleteRes.status).toBe(200);
 
       // Verify via database function
       const retrieved = getTripById(created!.id);

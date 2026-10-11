@@ -73,6 +73,13 @@ describe("Security Middleware Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
   let authHeaders: { Authorization: string };
 
+  async function csrfHeader(): Promise<{ "X-CSRF-Token": string }> {
+    const response = await app.request("/api/csrf-token");
+    expect(response.status).toBe(200);
+    const { token } = await response.json();
+    return { "X-CSRF-Token": token };
+  }
+
   beforeEach(async () => {
     await cleanupAllState();
     db = createIntegrationTestDatabase();
@@ -184,7 +191,7 @@ describe("Security Middleware Integration Tests", () => {
     it("POST /api/trips without required origin returns 400", async () => {
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           line: "1",
           departureTime: Date.now() - 3600000,
@@ -192,13 +199,13 @@ describe("Security Middleware Integration Tests", () => {
         }),
       });
 
-      expect([400, 401]).toContain(res.status);
+      expect(res.status).toBe(400);
     });
 
     it("POST /api/trips without required destination returns 400", async () => {
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({
           origin: "101",
           line: "1",
@@ -207,7 +214,7 @@ describe("Security Middleware Integration Tests", () => {
         }),
       });
 
-      expect([400, 401]).toContain(res.status);
+      expect(res.status).toBe(400);
     });
 
     it("POST /api/commute/analyze without originId returns error", async () => {
@@ -245,7 +252,7 @@ describe("Security Middleware Integration Tests", () => {
       for (const payload of XSS_PAYLOADS) {
         const res = await app.request("/api/trips", {
           method: "POST",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
+          headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
           body: JSON.stringify({
             origin: "101",
             destination: "725",
@@ -417,7 +424,7 @@ describe("Security Middleware Integration Tests", () => {
       const now = Date.now();
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders },
+        headers: { ...authHeaders, ...(await csrfHeader()) },
         body: JSON.stringify({
           origin: "101",
           destination: "725",
@@ -435,7 +442,7 @@ describe("Security Middleware Integration Tests", () => {
       const now = Date.now();
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "text/plain" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "text/plain" },
         body: "some text",
       });
 
@@ -459,12 +466,11 @@ describe("Security Middleware Integration Tests", () => {
     it("API does not expose internal stack traces in error responses", async () => {
       const res = await app.request("/api/trips", {
         method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
 
-      // May return 400 (validation) or 401 (auth)
-      expect([400, 401]).toContain(res.status);
+      expect(res.status).toBe(400);
       const body = await res.text();
       expect(body).not.toMatch(/at .*\.ts:\d+/); // No TypeScript source paths
       expect(body).not.toContain("node_modules");
@@ -509,7 +515,7 @@ describe("Security Middleware Integration Tests", () => {
     it("wrong HTTP method on trip creation endpoint returns 405 or 404", async () => {
       const res = await app.request("/api/trips", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders, ...(await csrfHeader()), "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
 

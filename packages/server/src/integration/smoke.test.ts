@@ -308,18 +308,23 @@ describe("E2E Smoke Test", () => {
     });
 
     it("should handle missing required fields", async () => {
+      const credentials = await createTestApiKey("write", "user");
+      const csrfResponse = await app.request("/api/csrf-token");
+      expect(csrfResponse.status).toBe(200);
+      const { token } = await csrfResponse.json();
       const response = await app.request("/api/trips", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: credentials.authorizationHeader,
+          "X-CSRF-Token": token,
         },
         body: JSON.stringify({
           // Missing required fields like line, destination, etc.
         }),
       });
 
-      // Should return authentication error or validation error
-      expect([400, 401, 422]).toContain(response.status);
+      expect([400, 422]).toContain(response.status);
     });
   });
 
