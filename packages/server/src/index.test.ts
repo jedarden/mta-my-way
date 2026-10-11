@@ -167,6 +167,10 @@ vi.mock("./middleware/suspicious-activity-notifications.js", () => ({
 
 vi.mock("./services/password-reset.service.js", () => ({
   configureEmailProvider: vi.fn(),
+  // index.ts reports email readiness right after configuring the provider;
+  // without this stub main() throws before the HTTP server starts and every
+  // wiring test below times out waiting for serve() (007d7ec4).
+  reportEmailProviderReadiness: vi.fn(),
 }));
 
 vi.mock("./transfer/travel-times.js", () => ({
