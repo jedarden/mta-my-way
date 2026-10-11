@@ -12,7 +12,8 @@ import { expect, test } from "@playwright/test";
  * The favorites store persists to localStorage under "mta-favorites".
  */
 async function bypassOnboarding(page: import("@playwright/test").Page) {
-  await page.goto("/");
+  const initialResponse = await page.goto("/");
+  expect(initialResponse?.status(), "dashboard document should return HTTP 200").toBe(200);
   await page.evaluate(() => {
     const existing = JSON.parse(localStorage.getItem("mta-favorites") || "{}");
     const persisted = {
@@ -50,16 +51,24 @@ async function bypassOnboarding(page: import("@playwright/test").Page) {
     localStorage.setItem("mta-favorites", JSON.stringify(persisted));
   });
   // Reload to pick up the new state
-  await page.reload();
-  await page.waitForLoadState("domcontentloaded");
+  const dashboardResponse = await page.reload();
+  expect(dashboardResponse?.status(), "reloaded dashboard should return HTTP 200").toBe(200);
+  await expect(page.getByRole("heading", { name: "Your Stations" })).toBeVisible();
+  await expect(page.getByText("Times Sq-42 St").first()).toBeVisible();
+}
+
+async function navigateToPage(
+  page: import("@playwright/test").Page,
+  path: string
+): Promise<void> {
+  const response = await page.goto(path);
+  expect(response?.status(), `${path} should return HTTP 200`).toBe(200);
 }
 
 test.describe("README Screenshots", () => {
   test.setTimeout(60_000);
   test("capture home dashboard", async ({ page }) => {
     await bypassOnboarding(page);
-    // Wait for favorites to render
-    await page.waitForTimeout(2000);
 
     // Capture home screen with favorites
     await page.screenshot({
@@ -71,11 +80,9 @@ test.describe("README Screenshots", () => {
   test("capture station detail", async ({ page }) => {
     await bypassOnboarding(page);
     // Navigate to Times Square (station 725)
-    await page.goto("/station/725");
-    await page.waitForLoadState("domcontentloaded");
-
-    // Wait for station detail with arrivals to load
-    await page.waitForTimeout(3000);
+    await navigateToPage(page, "/station/725");
+    await expect(page.getByRole("heading", { name: "Times Sq-42 St" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Arrivals" })).toBeVisible();
 
     // Capture station detail with arrivals
     await page.screenshot({
@@ -87,11 +94,8 @@ test.describe("README Screenshots", () => {
   test("capture commute planner", async ({ page }) => {
     await bypassOnboarding(page);
     // Navigate to commute planner
-    await page.goto("/commute");
-    await page.waitForLoadState("domcontentloaded");
-
-    // Wait for commute planner UI
-    await page.waitForTimeout(2000);
+    await navigateToPage(page, "/commute");
+    await expect(page.getByRole("heading", { name: "Commute Presets" })).toBeVisible();
 
     // Capture commute planner screen
     await page.screenshot({
@@ -103,8 +107,7 @@ test.describe("README Screenshots", () => {
   test("capture interactive map", async ({ page }) => {
     await bypassOnboarding(page);
     // Navigate to map
-    await page.goto("/map");
-    await page.waitForLoadState("domcontentloaded");
+    await navigateToPage(page, "/map");
 
     // Wait for map to render
     await page.waitForSelector("svg", { timeout: 10000 });
