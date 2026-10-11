@@ -259,8 +259,6 @@ describe("Preferences API integration", () => {
     const rows = getPushDatabase()
       .prepare("SELECT user_id FROM user_preferences ORDER BY user_id")
       .all() as { user_id: string }[];
-    expect(rows.map((row) => row.user_id).sort()).toEqual(
-      [userId, secondCredentials.keyId].sort()
-    );
+    expect(rows.map((row) => row.user_id).sort()).toEqual([userId, secondCredentials.keyId].sort());
   });
 });
