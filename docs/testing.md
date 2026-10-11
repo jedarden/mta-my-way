@@ -191,11 +191,14 @@ coverage: {
 
 ## CI/CD
 
-GitHub Actions runs tests automatically on:
-- Push to `main` branch
-- Pull requests to `main` branch
+CI runs through Argo Workflows in the `iad-ci` cluster. Argo Events receives
+push events for `jedarden/mta-my-way` on `main` and the `mta-my-way-sensor`
+submits the `mta-my-way-build` WorkflowTemplate. The workflow runs lint,
+type checking, tests, Docker image build, and the deployment configuration
+update.
 
-See `.github/workflows/ci.yml` for the full CI configuration.
+This repository does not use GitHub Actions; it has no `.github/workflows/`
+directory. Check the Argo Workflows namespace for the status of each run.
 
 ## Tips
 
