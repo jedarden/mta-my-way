@@ -32,7 +32,8 @@ import {
 describe("Trip Tracking Integration Tests", () => {
   let db: Database.Database;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
   });
