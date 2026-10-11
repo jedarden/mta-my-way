@@ -105,6 +105,22 @@ const TEST_ROUTES: RouteIndex = {
 
 const TEST_COMPLEXES: ComplexIndex = {};
 const TEST_TRANSFERS: Record<string, TransferConnection[]> = {};
+const CONCURRENCY_HOOK_TIMEOUT_MS = 30000;
+
+function responseStatuses(responses: readonly Response[]): string {
+  return responses.map((response, index) => `#${index}=${response.status}`).join(", ");
+}
+
+function expectResponseStatuses(
+  responses: readonly Response[],
+  predicate: (status: number) => boolean,
+  description: string
+): void {
+  expect(
+    responses.every((response) => predicate(response.status)),
+    `${description}; statuses: ${responseStatuses(responses)}`
+  ).toBe(true);
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -112,9 +128,8 @@ const TEST_TRANSFERS: Record<string, TransferConnection[]> = {};
 
 describe("Concurrency and Race Conditions Integration Tests", () => {
   // Every test here drives multiple requests through the full middleware
-  // chain against SQLite, so each carries a raised 30s per-test budget
-  // (a few 20s from an earlier pass): the 5s default flakes under
-  // shared-box load even though the suite passes standalone.
+  // chain against SQLite. Keep state-reset hooks above the root defaults
+  // because shared-box CPU load can delay the setup boundary too.
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
   let authHeaders: { Authorization: string };
@@ -137,11 +152,11 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
-  });
+  }, CONCURRENCY_HOOK_TIMEOUT_MS);
 
   afterEach(() => {
     closeDatabase(db);
-  });
+  }, CONCURRENCY_HOOK_TIMEOUT_MS);
 
   describe("Concurrent trip creation", () => {
     it("handles multiple simultaneous trip creation requests", async () => {
@@ -167,12 +182,15 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const responses = await Promise.all(promises);
 
       // All should succeed
-      const successCount = responses.filter((r) => r.status === 201).length;
-      expect(successCount).toBe(tripCount);
+      expectResponseStatuses(
+        responses,
+        (status) => status === 201,
+        "POST /api/trips should create every concurrent trip"
+      );
 
       // Verify all trips were created in database
       const trips = getTrips({ limit: 1000 });
-      expect(trips.length).toBe(tripCount);
+      expect(trips.length, "trip state after concurrent POST /api/trips").toBe(tripCount);
     }, 30000);
 
     it("assigns unique IDs to all concurrent trips", async () => {
@@ -205,7 +223,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       }
 
       // All IDs should be unique
-      expect(tripIds.size).toBe(tripCount);
+      expect(tripIds.size, "unique IDs returned by concurrent POST /api/trips").toBe(tripCount);
     }, 30000);
 
     it("maintains data consistency under concurrent writes", async () => {
@@ -238,20 +256,25 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       // Verify database consistency
       const trips = getTrips({ limit: 1000 });
-      expect(trips.length).toBe(tripCount);
+      expect(trips.length, "trip state after sequential POST /api/trips").toBe(tripCount);
 
       // Each trip should have all required fields
       for (const trip of trips) {
-        expect(trip.id).toBeDefined();
-        expect(trip.origin).toBeDefined();
-        expect(trip.destination).toBeDefined();
-        expect(trip.line).toBeDefined();
-        expect(trip.departureTime).toBeDefined();
-        expect(trip.arrivalTime).toBeDefined();
+        expect(trip.id, "trip state should include id").toBeDefined();
+        expect(trip.origin, `trip ${trip.id} state should include origin`).toBeDefined();
+        expect(trip.destination, `trip ${trip.id} state should include destination`).toBeDefined();
+        expect(trip.line, `trip ${trip.id} state should include line`).toBeDefined();
+        expect(
+          trip.departureTime,
+          `trip ${trip.id} state should include departureTime`
+        ).toBeDefined();
+        expect(trip.arrivalTime, `trip ${trip.id} state should include arrivalTime`).toBeDefined();
       }
 
       // Verify all IDs are unique
-      expect(new Set(tripIds).size).toBe(tripCount);
+      expect(new Set(tripIds).size, "unique IDs persisted by sequential POST /api/trips").toBe(
+        tripCount
+      );
     }, 30000);
   });
 
@@ -290,13 +313,18 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       // At least one should succeed
       const successCount = responses.filter((r) => r.status === 200).length;
-      expect(successCount).toBeGreaterThanOrEqual(1);
+      expect(
+        successCount,
+        `PATCH /api/trips/${tripId}/notes successful responses`
+      ).toBeGreaterThanOrEqual(1);
 
       // Final state should be consistent
       const trip = getTripById(tripId);
-      expect(trip).toBeDefined();
-      expect(trip?.notes).toMatch(/Update \d+/);
-    }, 20000);
+      expect(trip, `trip state for ${tripId} after concurrent note updates`).toBeDefined();
+      expect(trip?.notes, `notes state for trip ${tripId} after concurrent PATCH requests`).toMatch(
+        /Update \d+/
+      );
+    }, 30000);
 
     it("handles concurrent read and write operations", async () => {
       const now = Date.now();
@@ -343,7 +371,12 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       // All reads should succeed (or return 404 if trip was deleted during test)
       const reads = results.filter((r) => r.type === "read");
-      expect(reads.every((r) => r.status === 200 || r.status === 404)).toBe(true);
+      expect(
+        reads.every((r) => r.status === 200 || r.status === 404),
+        `GET /api/trips/${tripId} statuses during concurrent reads/writes: ${reads
+          .map((read) => read.status)
+          .join(", ")}`
+      ).toBe(true);
     }, 30000);
   });
 
@@ -383,12 +416,16 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const responses = await Promise.all(deletePromises);
 
       // All should succeed
-      expect(responses.every((r) => r.status === 200)).toBe(true);
+      expectResponseStatuses(
+        responses,
+        (status) => status === 200,
+        "DELETE /api/trips/{id} should delete every distinct trip"
+      );
 
       // Verify all are deleted
       const trips = getTrips({ limit: 1000 });
-      expect(trips.length).toBe(0);
-    }, 20000);
+      expect(trips.length, "trip state after concurrent DELETE /api/trips/{id}").toBe(0);
+    }, 30000);
 
     it("prevents duplicate deletion of same resource", async () => {
       const now = Date.now();
@@ -423,11 +460,16 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const successCount = responses.filter((r) => r.status === 200).length;
       const notFoundCount = responses.filter((r) => r.status === 404).length;
 
-      expect(successCount + notFoundCount).toBe(3);
+      expect(
+        successCount + notFoundCount,
+        `DELETE /api/trips/${tripId} should return only 200 or 404; statuses: ${responseStatuses(
+          responses
+        )}`
+      ).toBe(3);
 
       // Trip should be deleted
       const trip = getTripById(tripId);
-      expect(trip).toBeNull();
+      expect(trip, `trip state for ${tripId} after duplicate DELETE requests`).toBeNull();
     }, 30000);
   });
 
@@ -459,8 +501,13 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const statsRes = await app.request("/api/journal/stats", { headers: authHeaders });
       const stats = await statsRes.json();
 
-      expect(stats.totalTrips).toBe(tripCount);
-      expect(stats.averageDurationMinutes).toBeCloseTo(55, 0);
+      expect(stats.totalTrips, "journal stats totalTrips after concurrent POST /api/trips").toBe(
+        tripCount
+      );
+      expect(
+        stats.averageDurationMinutes,
+        "journal stats averageDurationMinutes after concurrent POST /api/trips"
+      ).toBeCloseTo(55, 0);
     }, 30000);
 
     it("handles concurrent stats queries", async () => {
@@ -485,7 +532,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       // Read each response immediately to avoid "body already used" error
       const promises = Array.from({ length: 10 }, async () => {
         const res = await app.request("/api/journal/stats", { headers: authHeaders });
-        expect(res.status).toBe(200);
+        expect(res.status, "GET /api/journal/stats concurrent response").toBe(200);
         return res.json();
       });
       const statsBodies = await Promise.all(promises);
@@ -494,8 +541,13 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const firstStats = statsBodies[0];
 
       for (const stats of statsBodies) {
-        expect(stats.totalTrips).toBe(firstStats.totalTrips);
-        expect(stats.averageDurationMinutes).toBe(firstStats.averageDurationMinutes);
+        expect(stats.totalTrips, "concurrent journal stats totalTrips consistency").toBe(
+          firstStats.totalTrips
+        );
+        expect(
+          stats.averageDurationMinutes,
+          "concurrent journal stats averageDurationMinutes consistency"
+        ).toBe(firstStats.averageDurationMinutes);
       }
     }, 30000);
   });
@@ -533,15 +585,25 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const responses = await Promise.all(queries);
 
       // All should succeed
-      expect(responses.every((r) => r.status === 200)).toBe(true);
+      expectResponseStatuses(
+        responses,
+        (status) => status === 200,
+        "GET /api/trips concurrent filter queries"
+      );
 
       // Read all response bodies immediately to avoid "body already read" errors
       const [line1Trips, lineATrips] = await Promise.all([
         responses[0].json(),
         responses[1].json(),
       ]);
-      expect(line1Trips.trips.every((t: { line: string }) => t.line === "1")).toBe(true);
-      expect(lineATrips.trips.every((t: { line: string }) => t.line === "A")).toBe(true);
+      expect(
+        line1Trips.trips.every((t: { line: string }) => t.line === "1"),
+        "GET /api/trips?line=1 returned only line 1 trips"
+      ).toBe(true);
+      expect(
+        lineATrips.trips.every((t: { line: string }) => t.line === "A"),
+        "GET /api/trips?line=A returned only line A trips"
+      ).toBe(true);
     }, 30000);
   });
 
@@ -608,9 +670,9 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       // Database should be consistent
       const trips = getTrips({ limit: 1000 });
       for (const trip of trips) {
-        expect(trip.origin).toBeDefined();
-        expect(trip.destination).toBeDefined();
-        expect(trip.line).toBeDefined();
+        expect(trip.origin, `trip ${trip.id} state should include origin`).toBeDefined();
+        expect(trip.destination, `trip ${trip.id} state should include destination`).toBeDefined();
+        expect(trip.line, `trip ${trip.id} state should include line`).toBeDefined();
       }
     }, 20000);
   });
@@ -637,7 +699,11 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const responses = await Promise.all(promises);
 
       // All should succeed with proper auth
-      expect(responses.every((r) => r.status === 201)).toBe(true);
+      expectResponseStatuses(
+        responses,
+        (status) => status === 201,
+        "authorized POST /api/trips concurrent responses"
+      );
     }, 30000);
 
     it("rejects concurrent unauthorized requests", async () => {
@@ -661,7 +727,11 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       const responses = await Promise.all(promises);
 
       // All should be rejected (401 Unauthorized or 403 Forbidden)
-      expect(responses.every((r) => r.status === 401 || r.status === 403)).toBe(true);
+      expectResponseStatuses(
+        responses,
+        (status) => status === 401 || status === 403,
+        "unauthorized POST /api/trips concurrent responses"
+      );
     }, 30000);
   });
 });
