@@ -125,7 +125,7 @@ export async function initOpenTelemetry(): Promise<void> {
           ignoreIncomingRequestHook: (request) => {
             // Skip health check endpoints
             const url = typeof request === "string" ? request : String(request);
-            return url.includes("/health") || url.includes("/metrics");
+            return url.includes("/healthz") || url.includes("/api/health") || url.includes("/metrics");
           },
           ignoreOutgoingRequestHook: (request) => {
             // Skip internal requests
