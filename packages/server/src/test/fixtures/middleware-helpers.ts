@@ -381,7 +381,14 @@ export function getSecurityTableRows(
  * @param callback - Function to execute within the transaction
  */
 export function withTestTransaction<T>(db: Database.Database, callback: () => T): T {
-  return db.transaction(callback)();
+  const savepoint = "middleware_test_transaction";
+  db.exec(`SAVEPOINT ${savepoint}`);
+  try {
+    return callback();
+  } finally {
+    db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+    db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+  }
 }
 
 /**
