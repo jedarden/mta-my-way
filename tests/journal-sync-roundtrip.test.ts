@@ -7,6 +7,10 @@ import type {
 } from "@mta-my-way/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// This cross-package integration test creates SQLite databases and hashes an
+// API key; under the complete suite that setup can exceed Vitest's 5s default.
+vi.setConfig({ testTimeout: 30_000 });
+
 /**
  * Round-trip proof that the frontend consumes the server journal surface.
  *
@@ -127,6 +131,12 @@ async function freshHarness() {
   tracking.initTripTracking(db, helpers.TEST_STATIONS);
   subscriptions.initPushDatabase(":memory:");
 
+  const close = () => {
+    helpers.closeDatabase(db);
+    subscriptions.closePushDatabase();
+  };
+  closeActiveHarness = close;
+
   const credentials = await helpers.createTestUserCredentials();
   const app = createApp(
     helpers.TEST_STATIONS,
@@ -154,12 +164,6 @@ async function freshHarness() {
 
   favorites.useFavoritesStore.setState({ commutes: [WORK_COMMUTE] });
   journal.useJournalStore.setState({ stats: {}, dayOfWeekStats: {}, lastStationVisit: null });
-
-  const close = () => {
-    helpers.closeDatabase(db);
-    subscriptions.closePushDatabase();
-  };
-  closeActiveHarness = close;
 
   return {
     db,
