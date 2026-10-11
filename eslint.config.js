@@ -29,6 +29,13 @@ export default tseslint.config(
       "packages/shared/vitest.config.ts",
       "packages/web/public/**",
       "**/testing/**",
+      ".tmp/",
+      ".tmp-*/",
+      "**/.tmp-*/",
+      ".verify-*/",
+      ".needle-verify-*/",
+      "test-results/",
+      "**/test-results/**",
     ],
   },
   {
