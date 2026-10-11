@@ -26,6 +26,7 @@ import {
   recordTrip,
 } from "../trip-tracking.js";
 import {
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestAdminCredentials,
@@ -116,6 +117,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
   let adminAuthHeaders: { Authorization: string };
 
   beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
 

@@ -18,10 +18,12 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import { csrfProtection, generateCsrfToken } from "../middleware/csrf-protection.js";
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("CSRF protection on state-changing API operations", () => {
   let app: Hono;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     app = new Hono();
 
     // Apply CSRF protection middleware (matching production configuration)

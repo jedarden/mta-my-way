@@ -107,8 +107,10 @@ function verifyExecutionOrder(expectedOrder: string[], actualLog: ExecutionLogEn
 // Test suites
 // ----------------------------------------------------------------------------
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("Middleware Execution Order", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     clearExecutionLog();
   });
 

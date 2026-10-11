@@ -27,7 +27,7 @@ import {
   recordTrip,
   updateTripNotes,
 } from "../trip-tracking.js";
-import { closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
+import { cleanupAllState, closeDatabase, createIntegrationTestDatabase } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -120,7 +120,8 @@ describe("Database Operations Integration Tests", () => {
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
 

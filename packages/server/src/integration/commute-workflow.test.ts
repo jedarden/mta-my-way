@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { calculateCommuteStats, initTripTracking, recordTrip } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   clearAllTrips,
   clearCommuteStatsCache,
   closeDatabase,
@@ -23,7 +24,8 @@ import {
 describe("Commute Analysis Workflow Integration Tests", () => {
   let db: Database.Database;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
   });

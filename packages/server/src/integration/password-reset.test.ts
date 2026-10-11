@@ -42,6 +42,7 @@ import {
 } from "../routes/password-reset.routes.js";
 import { configureEmailProvider, setResetBaseUrl } from "../services/password-reset.service.js";
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("Password Reset Flow Integration", () => {
   let app: Hono;
   let testUserId: string;
@@ -50,6 +51,7 @@ describe("Password Reset Flow Integration", () => {
   let originalPasswordSalt: string;
 
   beforeEach(async () => {
+    await cleanupAllState();
     // Use fake timers for deterministic time
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));

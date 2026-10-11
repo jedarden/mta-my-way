@@ -35,6 +35,7 @@ import {
 // Store original process env
 const originalEnv = process.env;
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("Database Failure Scenarios", () => {
   const invalidDbPaths = [
     "/nonexistent/path/subscriptions.db", // Parent directory doesn't exist
@@ -43,6 +44,7 @@ describe("Database Failure Scenarios", () => {
   ];
 
   beforeEach(async () => {
+    await cleanupAllState();
     // Reset environment
     process.env = { ...originalEnv };
     delete process.env.CORE_ONLY;

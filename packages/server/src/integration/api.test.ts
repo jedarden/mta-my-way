@@ -21,6 +21,7 @@ import {
 import { getTripById, initTripTracking, recordTrip } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestAdminCredentials,
@@ -125,6 +126,7 @@ describe("API Integration Tests", () => {
   let adminKeyId: string;
 
   beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
     initPushDatabase(":memory:");

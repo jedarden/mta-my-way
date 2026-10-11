@@ -109,6 +109,7 @@ describe("Error Propagation Integration Tests", () => {
   let authHeaders: { Authorization: string };
 
   beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     initTripTracking(db, TEST_STATIONS);
 

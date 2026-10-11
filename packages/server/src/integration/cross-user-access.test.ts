@@ -27,7 +27,7 @@ import {
   updateTripNotes,
 } from "../trip-tracking.js";
 import { initTripTracking } from "../trip-tracking.js";
-import { TEST_STATIONS, createTripTrackingDatabase } from "./test-helpers.js";
+import { TEST_STATIONS, cleanupAllState, createTripTrackingDatabase } from "./test-helpers.js";
 
 describe("Cross-User Data Access Prevention", () => {
   // Test user IDs
@@ -41,6 +41,7 @@ describe("Cross-User Data Access Prevention", () => {
   let adminKey: string;
 
   beforeEach(async () => {
+    await cleanupAllState();
     // Create in-memory database for testing
     const db = createTripTrackingDatabase();
     initPushDatabase(":memory:");

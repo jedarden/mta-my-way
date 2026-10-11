@@ -24,6 +24,7 @@ import type { ApiKey } from "../middleware/authentication.js";
 import { securityLogger } from "../middleware/security-logging.js";
 import { sessionSecurity } from "../middleware/session-security.js";
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("IP Binding Enforcement Tests", () => {
   // Test IP addresses
   const ORIGINAL_IP = "192.168.1.100";
@@ -93,7 +94,8 @@ describe("IP Binding Enforcement Tests", () => {
     return { app, sessionId, testApiKey };
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cleanupAllState();
     // Tests are isolated - each creates fresh API keys and sessions
   });
 

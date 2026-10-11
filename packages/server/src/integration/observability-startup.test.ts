@@ -39,7 +39,7 @@ import {
   tracingMiddleware as tracingMiddlewareDirect,
   withChildSpan,
 } from "../observability/index.js";
-import { TEST_STATIONS } from "./test-helpers.js";
+import { TEST_STATIONS, cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -139,6 +139,7 @@ describe("initObservability", () => {
 
 describe("shutdownObservability", () => {
   beforeEach(async () => {
+    await cleanupAllState();
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
@@ -184,6 +185,7 @@ describe("App integration with observability", () => {
   let app: ReturnType<typeof createApp>;
 
   beforeEach(async () => {
+    await cleanupAllState();
     await initObservability();
     app = createApp(
       TEST_STATIONS,
