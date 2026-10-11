@@ -15,10 +15,10 @@
 
 import type { ComplexIndex, RouteIndex, StationIndex, TravelTimeIndex } from "@mta-my-way/shared";
 import type { Hono } from "hono";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createApp } from "./app.js";
-import { initDelayPredictor } from "./delay-predictor.js";
+import { initDelayPredictor, resetDelayPredictor } from "./delay-predictor.js";
 import {
   createTestAdminCredentials,
   createTestUserCredentials,
@@ -146,6 +146,14 @@ const TRAVEL_TIMES: TravelTimeIndex = {
 // Initialize delay predictor before tests
 beforeAll(() => {
   initDelayPredictor(TRAVEL_TIMES, STATIONS);
+});
+
+afterAll(() => {
+  resetDelayPredictor();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 // Mock the cache module to provide predictable test data

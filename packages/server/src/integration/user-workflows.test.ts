@@ -11,10 +11,10 @@
  */
 
 import type { Hono } from "hono";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createApp } from "../app.js";
-import { initDelayPredictor } from "../delay-predictor.js";
+import { initDelayPredictor, resetDelayPredictor } from "../delay-predictor.js";
 import { initTripTracking } from "../trip-tracking.js";
 import {
   TEST_STATIONS,
@@ -94,6 +94,14 @@ describe("End-to-End User Workflow Integration Tests", () => {
     // Create fresh credentials for each test for proper isolation
     authCredentials = await createTestApiKey("write", "user");
     app = createApp(STATIONS, ROUTES, COMPLEXES, TRANSFERS, "/nonexistent/dist");
+  });
+
+  afterAll(() => {
+    resetDelayPredictor();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("Complete journey workflow", () => {
