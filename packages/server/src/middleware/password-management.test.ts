@@ -252,6 +252,9 @@ describe("password-management", () => {
       expect(() => storePasswordInHistory(keyId, hash.hash, hash.salt)).not.toThrow();
     });
 
+    // 15 sequential argon2 hashes; argon2 is deliberately memory-hard, so
+    // under full-suite parallel load this exceeds vitest's 5s default
+    // per-test timeout (observed in the 2026-10-11 clean-room full run).
     it("should limit history size", async () => {
       // Add more than the default history count (12)
       for (let i = 0; i < 15; i++) {
@@ -262,7 +265,7 @@ describe("password-management", () => {
 
       // Should not throw
       expect(() => storePasswordInHistory(keyId, "hash", "salt")).not.toThrow();
-    });
+    }, 30000);
   });
 
   describe("generatePasswordResetToken", () => {
@@ -664,6 +667,8 @@ describe("password-management", () => {
       // Increased threshold to 300ms to reduce false failures in CI.
       // In production, the argon2 library ensures timing-safe comparison at the crypto level.
       expect(timeDiff).toBeLessThan(300);
+      // 20 sequential argon2 verifications — raised per-test timeout for the
+      // same load-contention reason as "should limit history size" above.
     }, 30000);
   });
 });
