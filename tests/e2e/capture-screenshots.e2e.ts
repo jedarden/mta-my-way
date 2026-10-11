@@ -57,10 +57,7 @@ async function bypassOnboarding(page: import("@playwright/test").Page) {
   await expect(page.getByText("Times Sq-42 St").first()).toBeVisible();
 }
 
-async function navigateToPage(
-  page: import("@playwright/test").Page,
-  path: string
-): Promise<void> {
+async function navigateToPage(page: import("@playwright/test").Page, path: string): Promise<void> {
   const response = await page.goto(path);
   expect(response?.status(), `${path} should return HTTP 200`).toBe(200);
 }
