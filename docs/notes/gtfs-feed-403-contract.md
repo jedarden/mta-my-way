@@ -3,17 +3,21 @@
 Captured 2026-09-17 for bead `mtamyway-16a9001f` (split child of pulse finding
 `mtamyway-ff2cff3c`: `"Feed fetch failed" … "HTTP 403 Forbidden"`, feed `gtfs`,
 poller.ts). This note documents the wire contract so the 403 can be reproduced
-and fixed without touching the live MTA service.
+and fixed without touching the live MTA service. Request path and configuration
+were checked against the source again for bead `mtamyway-d0fd5602`.
 
 ## Affected poller path
 
-`packages/server/src/poller.ts`:
+`packages/server/src/index.ts` starts this poller after the HTTP server begins
+listening. The request path is:
 
 ```
-startPoller() → runPoll()
+index.ts: initPoller(stations, routes) → startPoller() → runPoll()
   → Promise.allSettled(SUBWAY_FEEDS.map(fetchFeed))     // poller.ts:82
   → fetchFeed(config)
     → retry(() => tracedFetch(config.url, { headers, signal, method }))  // poller.ts:209
+    → tracedFetch adds trace context, then calls global fetch(url, options)
+      // observability/tracing.ts
     → !response.ok → throw Error("HTTP 403 Forbidden"), .status = 403     // poller.ts:218-225
   → catch → recordFeedFailure + recordFeedError("http_error")
           + logger.error("Feed fetch failed", …)         // poller.ts:283 — the pulse signature
@@ -27,16 +31,29 @@ same broken shape as SUBWAY_FEEDS, but only ever runs as a maintainer tool.
 
 ## Wire contract
 
-There are no credential values in this contract — the MTA has required no API
-key since 2025, so the request carries no auth material at all:
+There are no credential values in this contract. The MTA feed request carries
+no application authentication material:
 
 | Input | Value |
 |---|---|
-| URL | `https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F<feed>` (per `SUBWAY_FEEDS[i].url`) |
+| Expected URL | `https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F<feed>`; for example, the `gtfs` feed ends in `nyct%2Fgtfs` |
+| Currently configured URL | `SUBWAY_FEEDS[i].url` expands to `https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F/<feed>`; the extra literal slash is the known 403 defect below |
 | Method | `GET` |
-| Headers | exactly `{ Accept: "application/x-protobuf" }` — no Authorization / x-api-key / token / cookie |
+| Explicit poller header | `Accept: application/x-protobuf` |
+| Trace header | `tracedFetch` adds `traceparent` from its active span before calling global `fetch`; its value is generated per trace, not a credential |
+| Auth headers | The poller supplies no `Authorization`, `x-api-key`, or `Cookie` header |
 | Timeout | `AbortSignal.timeout(15_000)` |
 | Retry | shared `retry` with the poller's `isRetryable`: network + timeout errors, 429, 5xx only |
+
+The URL inputs are the hard-coded `MTA_FEED_BASE_URL` and eight `SUBWAY_FEEDS`
+entries in `packages/shared/src/constants/feeds.ts`, imported by `poller.ts`
+through `@mta-my-way/shared`. The poller does not read a feed URL or API key
+from environment variables, a config file, or a credential store. In
+particular, `MTA_API_KEY` does not affect this request. Trace context comes
+from `packages/server/src/observability/tracing.ts`; its `traceparent` header
+is added when a span is active. This poller runs inside child spans, so that
+header is expected on its outbound calls. Headers inserted by the underlying
+Node HTTP client are outside the explicit application contract.
 
 ## Root cause (live-verified 2026-09-17)
 
@@ -73,8 +90,10 @@ completes with `feeds_ok`/`feeds_failed` counts reflecting the split.
 `packages/server/src/gtfs-feed-403.test.ts` (server vitest project, fully
 offline — responses are mocked at the `tracedFetch` seam):
 
-1. **Request shape** — every configured feed is fetched exactly once with the
-   documented URL set, `GET`, and the exact `Accept`-only header object.
+1. **Request shape** — every configured feed reaches the mocked `tracedFetch`
+   exactly once with the configured URL set, `GET`, and the `Accept`-only
+   header object supplied by `poller.ts`. The mock does not exercise the later
+   `traceparent` injection or global `fetch` call.
 2. **Defect pin** — every `SUBWAY_FEEDS` URL contains `%2F/`; the alerts
    literal does not.
 3. **403 on one feed** — the pulse log signature (`"Feed fetch failed"`,

@@ -31,7 +31,7 @@ Version 0.0.1
 
 ## Transit Data
 
-All real-time data is from the [MTA GTFS-RT Protobuf API](https://api.mta.info/). An API key is optional but recommended to avoid rate limiting — register free at https://api.mta.info/
+All real-time data is from the [MTA GTFS-RT Protobuf API](https://api.mta.info/). The GTFS poller does not use an API key. Its request path, URL, and headers are documented in [the GTFS feed request contract](docs/notes/gtfs-feed-403-contract.md).
 
 | Feed | Lines |
 |------|-------|
@@ -62,7 +62,7 @@ npm run process-gtfs --workspace=packages/server
 npm run dev --workspace=packages/server
 ```
 
-App available at `http://localhost:3001`. Set `MTA_API_KEY` in your environment to avoid MTA rate limits during development.
+App available at `http://localhost:3001`.
 
 ## Docker
 
@@ -70,7 +70,6 @@ App available at `http://localhost:3001`. Set `MTA_API_KEY` in your environment 
 docker build -t mta-my-way .
 docker run \
   -e ALLOWED_HOSTS=your.domain.com \
-  -e MTA_API_KEY=your_key_here \
   -p 3000:3000 \
   mta-my-way
 ```
@@ -84,7 +83,6 @@ The container exposes port 3000.
 | `PORT` | No | `3000` | HTTP listen port |
 | `NODE_ENV` | No | — | `production` or `development` |
 | `ALLOWED_HOSTS` | Yes (prod) | — | Comma-separated hostnames; server refuses to start without this in production |
-| `MTA_API_KEY` | Recommended | — | MTA GTFS-RT API key; works without but may be rate-limited. Register at https://api.mta.info/ |
 | `VAPID_PUBLIC_KEY` | For push | — | Generate: `npx web-push generate-vapid-keys` |
 | `VAPID_PRIVATE_KEY` | For push | — | Never commit to version control |
 | `VAPID_SUBJECT` | For push | `mailto:mta-my-way@example.com` | Contact URI included in push requests |
