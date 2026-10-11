@@ -183,4 +183,84 @@ describe("Preferences API integration", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "favorites and commutes must both be arrays" });
   });
+
+  it("requires a CSRF token on PUT even when authenticated", async () => {
+    const payload = { favorites: [], commutes: [] };
+
+    const missingTokenResponse = await app.request("/api/preferences", {
+      method: "PUT",
+      headers: { ...sessionHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    expect(missingTokenResponse.status).toBe(403);
+
+    const invalidTokenResponse = await app.request("/api/preferences", {
+      method: "PUT",
+      headers: {
+        ...sessionHeaders,
+        "Content-Type": "application/json",
+        "X-CSRF-Token": "not-a-valid-token",
+      },
+      body: JSON.stringify(payload),
+    });
+    expect(invalidTokenResponse.status).toBe(403);
+
+    // Nothing was persisted by the rejected requests.
+    const getResponse = await app.request("/api/preferences", { headers: sessionHeaders });
+    expect(await getResponse.json()).toMatchObject({ favorites: [], commutes: [] });
+  });
+
+  it("isolates preference snapshots between users", async () => {
+    const secondCredentials = await createTestUserCredentials();
+    const secondSession = await createSession(
+      secondCredentials.keyId,
+      "127.0.0.1",
+      undefined,
+      undefined,
+      { ipBinding: false, createRefreshToken: false }
+    );
+    const secondSessionHeaders = { "X-Session-Token": secondSession.sessionId };
+
+    // User A saves a favorite.
+    const putResponse = await putPreferences({
+      favorites: [{ id: "favorite-a", stationId: "101" }],
+      commutes: [],
+    });
+    expect(putResponse.status).toBe(200);
+
+    // User B sees only their own (default) snapshot, never A's data.
+    const secondGetResponse = await app.request("/api/preferences", {
+      headers: secondSessionHeaders,
+    });
+    expect(secondGetResponse.status).toBe(200);
+    const secondPreferences = await secondGetResponse.json();
+    expect(secondPreferences).toMatchObject({ favorites: [], commutes: [] });
+
+    // User B saves a different favorite; A's snapshot is unaffected.
+    const csrfToken = await getCsrfToken(app);
+    const secondPutResponse = await app.request("/api/preferences", {
+      method: "PUT",
+      headers: {
+        ...secondSessionHeaders,
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify({ favorites: [{ id: "favorite-b", stationId: "102" }], commutes: [] }),
+    });
+    expect(secondPutResponse.status).toBe(200);
+
+    const firstGetResponse = await app.request("/api/preferences", { headers: sessionHeaders });
+    expect(firstGetResponse.status).toBe(200);
+    expect(await firstGetResponse.json()).toMatchObject({
+      favorites: [{ id: "favorite-a", stationId: "101" }],
+    });
+
+    // Each user has exactly their own row in storage.
+    const rows = getPushDatabase()
+      .prepare("SELECT user_id FROM user_preferences ORDER BY user_id")
+      .all() as { user_id: string }[];
+    expect(rows.map((row) => row.user_id).sort()).toEqual(
+      [userId, secondCredentials.keyId].sort()
+    );
+  });
 });
