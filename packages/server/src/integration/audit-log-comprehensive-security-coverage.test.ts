@@ -16,6 +16,7 @@ import {
 } from "../middleware/authentication.js";
 import { requireAdmin, requireResourceAccess } from "../middleware/authorization.js";
 import { validateContentType } from "../middleware/content-type.js";
+import { csrfCookie } from "../middleware/cookie-security.js";
 import { csrfProtection, generateCsrfToken } from "../middleware/csrf-protection.js";
 import { hostHeaderProtection } from "../middleware/host-header-protection.js";
 import { httpMethodRestrictions } from "../middleware/http-method-restrictions.js";
@@ -33,6 +34,7 @@ import { cleanupAllState } from "./test-helpers.js";
 const PUBLIC = "/api/public/status";
 const TRIPS = "/api/trips";
 const ADMIN = "/api/admin/users";
+const COOKIE_ACTION = "/api/cookie-action";
 const ATTACKER_IP = "198.51.100.99";
 const ATTACKER_UA = "Security-Test-Scanner/1.0";
 
@@ -43,7 +45,7 @@ function createSecureApp(): Hono {
   app.use("*", securityHeaders());
   app.use("*", validateContentType());
   app.use("*", hostHeaderProtection({ allowedHosts: ["test.example"] }));
-  app.use("*", csrfProtection());
+  app.use("*", csrfProtection({ excludePaths: [COOKIE_ACTION] }));
   app.use("*", pathTraversalPrevention());
   app.use("*", hppProtection({ strategy: "reject" }));
   app.use("*", ssrfProtection({ allowUserProvidedUrls: true }));
@@ -58,6 +60,7 @@ function createSecureApp(): Hono {
   app.post(TRIPS, apiKeyAuth(), (c) => c.json({ created: true }));
   app.get(ADMIN, apiKeyAuth(), requireAdmin(), (c) => c.json({ users: [] }));
   app.get("/api/public/large", (c) => c.json({ payload: "x".repeat(256) }));
+  app.post(COOKIE_ACTION, csrfCookie(), (c) => c.json({ created: true }));
   return app;
 }
 
@@ -310,6 +313,24 @@ describe("security middleware audit coverage", () => {
     const event = authFailure("missing_csrf_token");
     expect((event.metadata?.details as Record<string, unknown>).reason).toBe("missing_csrf_token");
     expect(event.method).toBe("POST");
+  });
+
+  it("audits an invalid CSRF cookie with its failure reason and request context", async () => {
+    const response = await request(app, "POST", COOKIE_ACTION, {
+      ip: ATTACKER_IP,
+      userAgent: ATTACKER_UA,
+      headers: { Cookie: "csrf_token=not-a-valid-signed-cookie" },
+    });
+
+    expect(response.status).toBe(403);
+    const event = authFailure("missing_csrf_cookie");
+    expect(event.category).toBe("security");
+    expect(event.success).toBe(false);
+    expect(event.severity).toBe("error");
+    expect(event.path).toBe(COOKIE_ACTION);
+    expect(event.method).toBe("POST");
+    expect(event.metadata?.details).toMatchObject({ reason: "missing_csrf_cookie" });
+    expectIncidentContext(event, ATTACKER_IP, ATTACKER_UA);
   });
 
   it("audits a restricted HTTP method that Request can construct", async () => {
