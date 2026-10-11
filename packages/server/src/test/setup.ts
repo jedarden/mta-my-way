@@ -18,10 +18,6 @@ import { afterEach, beforeEach, vi } from "vitest";
 import { cleanupAllState } from "../integration/test-helpers.js";
 import { closePushDatabase, initPushDatabase } from "../push/subscriptions.js";
 
-// Enable test mode for rate limiter (disables rate limiting in tests)
-const { setRateLimiterTestMode } = await import("../middleware/rate-limiter.js");
-setRateLimiterTestMode(true);
-
 // Reset ALL shared mutable state before each test.
 // This single call replaces the previous piecemeal resets and guarantees
 // that no module-level Map/Set/array leaks between test files.
@@ -79,6 +75,17 @@ console.warn = (...args) => {
   // JSON, blocked attacks, rate limits. The events themselves are asserted via
   // injected logFn / console spies, so only the stdout noise is silenced here.
   if (typeof msg === "string" && msg.includes('"message":"security_event"')) {
+    return;
+  }
+  // Input-inspection warnings from the sanitization middleware (sanitization.ts)
+  // are deliberate byproducts of the attack-payload fixtures; the suites that
+  // exercise them mock the logger module. If a WIP import graph bypasses that
+  // mock, the real logger emits these lines into the test output (reproduced
+  // 2026-09-13; pulse captured one twice), so silence them at this last layer.
+  if (
+    typeof msg === "string" &&
+    (msg.includes("pattern detected in input") || msg.includes("detected and removed from input"))
+  ) {
     return;
   }
   originalWarn.call(console, ...args);

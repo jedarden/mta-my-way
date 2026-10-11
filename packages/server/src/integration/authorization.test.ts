@@ -9,7 +9,7 @@
  */
 
 import { Hono } from "hono";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   getSystemStatus,
   getUserSummaries,
@@ -26,7 +26,6 @@ import {
 import {
   addAuditEvent,
   applyAuditLogRetention,
-  clearAuditLog,
   exportAuditLogAsCsv,
   exportAuditLogAsJson,
   getAuditLogForResource,
@@ -51,6 +50,7 @@ import {
 } from "../middleware/enhanced-authorization.js";
 import { type Permission, type UserRole } from "../middleware/rbac.js";
 
+import { cleanupAllState } from "./test-helpers.js";
 describe("Enhanced Authorization Integration Tests", () => {
   let testKeyId: string;
   let testApiKey: string;
@@ -58,6 +58,7 @@ describe("Enhanced Authorization Integration Tests", () => {
   let adminApiKey: string;
 
   beforeEach(async () => {
+    await cleanupAllState();
     // Create test user API key
     testKeyId = "test_key_" + Math.random().toString(36).substring(7);
     testApiKey = await generateApiKey();
@@ -97,14 +98,6 @@ describe("Enhanced Authorization Integration Tests", () => {
 
     await registerApiKey(adminKeyData);
     registerApiKeyWithMetadata(adminKeyData, "Admin key");
-
-    // Clear audit log between tests
-    clearAuditLog();
-  });
-
-  afterEach(() => {
-    // Clean up
-    clearAuditLog();
   });
 
   describe("API Key Management", () => {

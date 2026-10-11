@@ -38,13 +38,13 @@ import {
   isFeedStale,
   recordFeedFailure,
   recordFeedSuccess,
-  resetTestFeed,
   updateArrivals,
   updatePositions,
 } from "../cache.js";
 import type { ParsedFeed } from "../parser.js";
 import {
   TEST_STATIONS,
+  cleanupAllState,
   closeDatabase,
   createIntegrationTestDatabase,
   createTestUserCredentials,
@@ -128,6 +128,7 @@ describe("Cache Integration Tests", () => {
   let db: ReturnType<typeof createIntegrationTestDatabase>;
 
   beforeEach(async () => {
+    await cleanupAllState();
     db = createIntegrationTestDatabase();
     const userCreds = await createTestUserCredentials();
     authHeaders = { Authorization: userCreds.authorizationHeader };
@@ -154,11 +155,6 @@ describe("Cache Integration Tests", () => {
   });
 
   describe("Feed State Management", () => {
-    beforeEach(() => {
-      // Reset feed state before each test
-      resetTestFeed("gtfs");
-    });
-
     describe("recordFeedSuccess", () => {
       it("records successful feed poll", () => {
         const parsed = createMockParsedFeed();
@@ -755,11 +751,6 @@ describe("Cache Integration Tests", () => {
   });
 
   describe("Cache Metrics Integration", () => {
-    beforeEach(() => {
-      // Reset feed state before each test
-      resetTestFeed("gtfs");
-    });
-
     describe("getFeedMetrics", () => {
       it("calculates average latency", () => {
         recordFeedSuccess("gtfs", createMockParsedFeed(), 100, 150);
