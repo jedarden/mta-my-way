@@ -49,7 +49,9 @@ scheduling. Bead: `mtamyway-1a4ef354`.
   `body.head_commit.message notMatches '^ci: (auto-bump version|initialize
   VERSION)'`. Bump commits no longer trigger; any other head-commit message on
   `refs/heads/main` still triggers; author filter retained. Live Sensor CRD
-  verified carrying the filter 15:32Z and 16:03Z.
+  verified carrying the filter 15:32Z and 16:03Z. **This never took effect —
+  `notMatches` is not an Argo Events comparator; superseded by `09ded460`
+  (`!=`, 2026-10-11). See "Correction (2026-10-11)" below.**
 - **`c44cfd20` + `61c07622`** — `k8s/iad-ci/argo-workflows/mta-my-way-workflowtemplate.yml`:
   `spec.synchronization.mutexes: [{name: mta-my-way-build}]` (list form,
   matching every other mutex-using template in that directory; Argo Workflows
@@ -130,7 +132,40 @@ nowhere).
   The behavioral half (a bump push producing *no* second run) had not yet been
   observable at this writing — no bump has been pushed since the filter landed
   (`trjlb` mutex-blocked before `resolve-version`); the next natural bump is
-  the test.
+  the test. *(Superseded: the CRD carried the filter but the running Sensor
+  never did — see the correction below. `trjlb` was triggered by the frozen
+  pre-filter pod.)*
+
+## Correction (2026-10-11): the bump filter never ran until `09ded460`
+
+A CRD carrying a field is not proof that the Sensor runs it. Argo Events
+v1.9.10 has no `notMatches` comparator, so from **2026-09-21T15:32:00Z** to
+**2026-10-11T06:55:54Z** the sensor controller rejected every reconcile of
+`mta-my-way-sensor` (`validation error: comparator notMatches not supported`,
+654 errors on 10-10/11 alone). The Sensor Deployment stayed frozen on the
+pre-`c44cfd20` spec. Pushes still triggered CI (243 triggers, 0 filtered,
+09-22 → 10-11), but every bump commit got its duplicate run, and the Sensor
+missed the later resource and P1 dependable-node affinity rollouts.
+
+- **Fix:** declarative-config `09ded460` (comparator `'!='`), plus comment-only
+  `90098233` recording the semantics. In v1.9.10
+  `pkg/sensors/dependencies/filter.go`, a `type: string` value is compiled as
+  a Go regexp and `!=` passes only when it does **not** match. Strings accept
+  only `=`, `!=` or empty. `^` anchors to the start of the whole message (no
+  `(?m)`), so only a message whose first line starts with the bump/init text
+  is skipped.
+- **Live, 2026-10-11:** Sensor `Deployed=True` from 07:12Z with no controller
+  errors since. The Deployment rolled at 07:02:40Z (ReplicaSet `df5f86d98`)
+  and carries the preferred `NotIn gp.vs1.2xlarge-iad` affinity. Pod `t9npk`
+  is Ready with 0 restarts on a `gp.vs1.medium-iad` node. ArgoCD
+  `argo-events-ns-iad-ci` is Synced/Healthy. jetstream-watchdog polls consumer
+  `group-2498103259`: tracked=1, pending=0, ack-pending=0.
+- **Natural witness (sensor log):** real pushes triggered `skmfw`, `h6mwf`,
+  `j22dx`, `h55l5`, `jgdtd` and `swbq8`. Each bump logged
+  `not interested in dependency mta-my-way-push (didn't pass filter)` a few
+  seconds after it was pushed: 0.0.755 `a2f32c55` at 08:17:12Z, 0.0.756
+  `e82b7886` at 08:29:18Z, 0.0.757 `efa5c361` at 12:07:51Z. Before the fix,
+  bump 0.0.754 (`1de7fe11`, 06:13:58Z) still triggered `hczrb`.
 
 ## Relation to other beads
 
