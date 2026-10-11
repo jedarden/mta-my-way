@@ -60,7 +60,7 @@ describe("Password Reset Flow Integration", () => {
     _clearAllRateLimits();
 
     // Set environment variable to allow localhost in tests
-    process.env.ALLOWED_HOSTS = "localhost:5173,127.0.0.1:5173";
+    vi.stubEnv("ALLOWED_HOSTS", "localhost:5173,127.0.0.1:5173");
 
     // Create test app with minimal routes
     const stations = {};
@@ -106,6 +106,7 @@ describe("Password Reset Flow Integration", () => {
 
     // Restore real timers
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
   // Helper to create headers that pass same-origin checks

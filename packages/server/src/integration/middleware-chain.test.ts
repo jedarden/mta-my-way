@@ -661,9 +661,8 @@ describe("Middleware Chain Integration", () => {
 
   describe("Host Header Protection Middleware", () => {
     it("should validate Host header in production mode", async () => {
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
-      process.env.ALLOWED_HOSTS = "localhost,example.com";
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("ALLOWED_HOSTS", "localhost,example.com");
 
       try {
         const app = createApp(
@@ -691,7 +690,7 @@ describe("Middleware Chain Integration", () => {
         // May be blocked or allowed depending on test configuration
         expect(invalidResponse.status).toBeGreaterThanOrEqual(200);
       } finally {
-        process.env.NODE_ENV = originalEnv;
+        vi.unstubAllEnvs();
       }
     });
   });

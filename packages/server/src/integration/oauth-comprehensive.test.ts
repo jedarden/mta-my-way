@@ -104,11 +104,11 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
     resetOAuthForTesting();
 
     // Set up environment variables for OAuth
-    process.env.BASE_URL = "http://localhost:3001";
-    process.env.GOOGLE_OAUTH_CLIENT_ID = "test-google-client";
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET = "test-google-secret";
-    process.env.GITHUB_OAUTH_CLIENT_ID = "test-github-client";
-    process.env.GITHUB_OAUTH_CLIENT_SECRET = "test-github-secret";
+    vi.stubEnv("BASE_URL", "http://localhost:3001");
+    vi.stubEnv("GOOGLE_OAUTH_CLIENT_ID", "test-google-client");
+    vi.stubEnv("GOOGLE_OAUTH_CLIENT_SECRET", "test-google-secret");
+    vi.stubEnv("GITHUB_OAUTH_CLIENT_ID", "test-github-client");
+    vi.stubEnv("GITHUB_OAUTH_CLIENT_SECRET", "test-github-secret");
 
     // Create app instance
     app = createApp(STATIONS, ROUTES, COMPLEXES, {}, "/nonexistent/dist");
@@ -120,6 +120,7 @@ describe("Comprehensive OAuth 2.0 Sign-In Flow", () => {
   afterEach(() => {
     resetOAuthForTesting();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   describe("OAuth Provider Discovery", () => {

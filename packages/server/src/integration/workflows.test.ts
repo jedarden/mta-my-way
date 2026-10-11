@@ -190,7 +190,7 @@ describe("End-to-End Workflow Integration Tests", () => {
     vi.setSystemTime(new Date("2026-04-10T08:00:00Z"));
 
     // Ensure CORE_ONLY is false so trip tracking routes are mounted
-    process.env.CORE_ONLY = "false";
+    vi.stubEnv("CORE_ONLY", "false");
 
     // Reset all module-level state FIRST (before any initialization)
     await cleanupAllState();
@@ -218,6 +218,7 @@ describe("End-to-End Workflow Integration Tests", () => {
   afterEach(async () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     closeDatabase(db);
     // Clean up all module-level state between tests
     await cleanupAllState();

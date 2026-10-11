@@ -1229,15 +1229,9 @@ describe("Audit logging for middleware security events", () => {
     it("logs external redirect URL attempt", async () => {
       const app = createOpenRedirectApp();
 
-      const beforeMs = Date.now();
-
       const res = await app.request("/api/redirect?url=https://evil.com", {
         headers: { "CF-Connecting-IP": "10.0.0.120" },
       });
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      const afterMs = Date.now();
 
       expect(res.status).toBe(400);
 
@@ -1246,12 +1240,9 @@ describe("Audit logging for middleware security events", () => {
         clientIp: "10.0.0.120",
       });
 
-      // Filter by time to get only this test's events
-      const events = allEvents.filter((e) => e.timestamp >= beforeMs && e.timestamp <= afterMs);
+      expect(allEvents.length).toBeGreaterThanOrEqual(1);
 
-      expect(events.length).toBeGreaterThanOrEqual(1);
-
-      const event = events[0]!;
+      const event = allEvents[0]!;
       expect(event.category).toBe("security");
       expect(event.severity).toBe("warning");
       expect(event.action).toBe("open_redirect_blocked");
@@ -1259,22 +1250,15 @@ describe("Audit logging for middleware security events", () => {
       expect(event.clientIp).toBe("10.0.0.120");
       expect(event.error).toBe("Open redirect attempt detected");
       expect(event.metadata?.redirectTarget).toContain("https://");
-      expect(event.timestamp).toBeGreaterThanOrEqual(beforeMs);
-      expect(event.timestamp).toBeLessThanOrEqual(afterMs);
+      expect(event.timestamp).toBeGreaterThan(0);
     });
 
     it("logs javascript: URL redirect attempt", async () => {
       const app = createOpenRedirectApp();
 
-      const beforeMs = Date.now();
-
       const res = await app.request("/api/redirect?redirect=javascript:alert(1)", {
         headers: { "CF-Connecting-IP": "10.0.0.121" },
       });
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      const afterMs = Date.now();
 
       // Verify the request was actually blocked
       expect(res.status).toBe(400);
@@ -1284,12 +1268,10 @@ describe("Audit logging for middleware security events", () => {
         clientIp: "10.0.0.121",
       });
 
-      // Filter by time to get only this test's events
-      const events = allEvents.filter((e) => e.timestamp >= beforeMs && e.timestamp <= afterMs);
+      expect(allEvents.length).toBeGreaterThanOrEqual(1);
 
-      expect(events.length).toBeGreaterThanOrEqual(1);
-
-      const event = events[0]!;
+      const event = allEvents[0]!;
+      expect(event.timestamp).toBeGreaterThan(0);
       expect(event.metadata?.redirectTarget).toContain("javascript:");
     });
 
@@ -1454,9 +1436,6 @@ describe("Audit logging for middleware security events", () => {
 
   describe("Cross-middleware event correlation", () => {
     it("correlates events from multiple middleware in single request", async () => {
-      // Add a small delay to ensure clean state from previous test
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
       const app = new Hono();
 
       // Stack multiple security middleware
@@ -1469,8 +1448,6 @@ describe("Audit logging for middleware security events", () => {
       const testIp = "10.0.0.200";
       const correlationId = "multi-middleware-test";
 
-      const beforeMs = Date.now();
-
       // Request that triggers both protections - use query param with path traversal pattern
       await app.request("/api/data?file=../../etc/passwd&param=1&param=2", {
         headers: {
@@ -1478,14 +1455,10 @@ describe("Audit logging for middleware security events", () => {
         },
       });
 
-      // Add delay to ensure events are processed
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      const afterMs = Date.now();
-
-      // Query without time filter first, then filter manually
+      // The middleware records audit events synchronously before completing
+      // the response, and each test uses a unique client IP.
       const allEvents = queryAuditLog({ clientIp: testIp });
-      const events = allEvents.filter((e) => e.timestamp >= beforeMs && e.timestamp <= afterMs);
+      const events = allEvents;
 
       // Should have at least path traversal event
       const pathTraversalEvents = events.filter((e) => e.action === "path_traversal_blocked");
@@ -1496,8 +1469,6 @@ describe("Audit logging for middleware security events", () => {
         expect(event.clientIp).toBe(testIp);
         expect(event.timestamp).toBeGreaterThan(0);
         expect(typeof event.timestamp).toBe("number");
-        expect(event.timestamp).toBeGreaterThanOrEqual(beforeMs);
-        expect(event.timestamp).toBeLessThanOrEqual(afterMs);
       });
     });
 

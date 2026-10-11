@@ -30,7 +30,7 @@
 
 import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type AuditEvent,
   type AuditEventCategory,
@@ -353,6 +353,8 @@ describe("audit logging across the middleware chain", () => {
 
     it("exhausting the per-IP quota logs exactly one rate_limit_exceeded event", async () => {
       const app = buildOpenApp();
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now);
 
       // The bucket holds 60 tokens; the 61st request is the violation
       let lastStatus = 0;
@@ -375,14 +377,17 @@ describe("audit logging across the middleware chain", () => {
 
     it("quota reset: after the refill interval the next request succeeds and logs no new violation", async () => {
       const app = buildOpenApp();
+      const now = Date.now();
+      const dateNow = vi.spyOn(Date, "now").mockReturnValue(now);
 
       for (let i = 0; i < 61; i++) {
         await chainRequest(app, "/api/open");
       }
       expect(eventsByAction("rate_limit_exceeded")).toHaveLength(1);
 
-      // The bucket refills one token per second
-      await new Promise((resolve) => setTimeout(resolve, 1100));
+      // Advance the bucket clock past its one-second refill interval without
+      // relying on wall-clock scheduling.
+      dateNow.mockReturnValue(now + 1100);
 
       const res = await chainRequest(app, "/api/open");
       expect(res.status).toBe(200);
