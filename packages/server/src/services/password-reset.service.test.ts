@@ -33,7 +33,13 @@ vi.mock("../utils/fetch.js", () => ({
 }));
 vi.mock("@aws-sdk/client-ses", () => ({
   SESClient: vi.fn(),
-  SendEmailCommand: vi.fn().mockImplementation((params: unknown) => params),
+  // Both classes are constructed with `new`. Vitest 4 rejects arrow-function
+  // implementations on constructor calls ("is not a constructor"), so the
+  // implementation must be a `function` — its returned object then becomes
+  // the constructed instance (standard JS constructor semantics).
+  SendEmailCommand: vi.fn().mockImplementation(function (params: unknown) {
+    return params;
+  }),
 }));
 vi.mock("nodemailer", () => ({
   default: {
@@ -56,10 +62,12 @@ describe("Password Reset Email Service", () => {
     vi.mocked(logger.logger).warn = vi.fn();
     vi.mocked(logger.logger).error = vi.fn();
 
-    // Default SES mock: succeeds with a fake message ID
-    vi.mocked(SESClient).mockImplementation(
-      () => ({ send: vi.fn().mockResolvedValue({ MessageId: "ses-msg-123" }) }) as any
-    );
+    // Default SES mock: succeeds with a fake message ID.
+    // `function` implementation — see the SendEmailCommand note above: vitest 4
+    // cannot `new` an arrow-function mock implementation.
+    vi.mocked(SESClient).mockImplementation(function () {
+      return { send: vi.fn().mockResolvedValue({ MessageId: "ses-msg-123" }) } as any;
+    });
 
     // Default nodemailer mock: succeeds with a fake message ID
     vi.mocked(nodemailer.createTransport).mockReturnValue({
@@ -392,12 +400,12 @@ describe("Password Reset Email Service", () => {
     });
 
     it("should fail when SES call throws a credential error", async () => {
-      vi.mocked(SESClient).mockImplementationOnce(
-        () =>
-          ({
-            send: vi.fn().mockRejectedValue(new Error("SES credentials not configured")),
-          }) as any
-      );
+      // `function` implementation — constructible under vitest 4 (see file top).
+      vi.mocked(SESClient).mockImplementationOnce(function () {
+        return {
+          send: vi.fn().mockRejectedValue(new Error("SES credentials not configured")),
+        } as any;
+      });
 
       configureEmailProvider({
         provider: "ses",

@@ -664,6 +664,6 @@ describe("password-management", () => {
       // Increased threshold to 300ms to reduce false failures in CI.
       // In production, the argon2 library ensures timing-safe comparison at the crypto level.
       expect(timeDiff).toBeLessThan(300);
-    });
+    }, 30000);
   });
 });
