@@ -259,7 +259,11 @@ export function csrfProtection(options: CsrfProtectionOptions = {}): MiddlewareH
     const path = c.req.path;
 
     // Check if path is excluded
-    if (excludePaths.some((exclude) => path.startsWith(exclude))) {
+    if (
+      excludePaths.some(
+        (exclude) => path === exclude || path.startsWith(`${exclude.replace(/\/$/, "")}/`)
+      )
+    ) {
       return next();
     }
 

@@ -59,6 +59,7 @@ describe("CSRF protection on state-changing API operations", () => {
 
     // Mock state-changing routes (simulating real API endpoints)
     app.post("/api/commute/analyze", (c) => c.json({ status: "analyzed" }));
+    app.options("/api/commute/analyze", () => new Response(null, { status: 204 }));
     app.post("/api/push/subscribe", (c) => c.json({ status: "subscribed" }));
     app.delete("/api/push/unsubscribe", (c) => c.json({ status: "unsubscribed" }));
     app.patch("/api/push/subscription", (c) => c.json({ status: "updated" }));
@@ -479,12 +480,11 @@ describe("CSRF protection on state-changing API operations", () => {
     });
 
     it("allows OPTIONS requests without CSRF token", async () => {
-      const res = await app.request("/api/stations", {
+      const res = await app.request("/api/commute/analyze", {
         method: "OPTIONS",
       });
 
-      // OPTIONS might return 200 or 204 depending on implementation
-      expect([200, 204]).toContain(res.status);
+      expect(res.status).toBe(204);
     });
   });
 

@@ -19,6 +19,7 @@ import type { ComplexIndex, RouteIndex, StationIndex } from "@mta-my-way/shared"
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { initDelayPredictor } from "../delay-predictor.js";
+import { configureWebPush, generateVapidKeys } from "../push/vapid.js";
 import {
   cleanupAllState,
   createTestAdminCredentials,
@@ -460,6 +461,7 @@ describe("E2E Middleware Chain Integration", () => {
               auth: "test-auth",
             },
           },
+          favorites: [],
         }),
       });
 
@@ -721,6 +723,9 @@ describe("E2E Middleware Chain Integration", () => {
     });
 
     it("should handle complete push subscription workflow", async () => {
+      // App creation does not perform the startup wiring that supplies the
+      // public key; configure it before exercising the browser workflow.
+      configureWebPush(generateVapidKeys());
       const app = createApp(
         TEST_STATIONS,
         TEST_ROUTES,
@@ -755,6 +760,7 @@ describe("E2E Middleware Chain Integration", () => {
               auth: "test-auth",
             },
           },
+          favorites: [],
         }),
       });
 

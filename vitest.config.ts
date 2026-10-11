@@ -23,15 +23,12 @@ function virtualPwaRegisterPlugin() {
 
 export default defineConfig({
   plugins: [virtualPwaRegisterPlugin()],
-  pool: "forks",
-  poolOptions: {
-    forks: {
-      singleFork: false,
-      minForks: 1,
-      maxForks: 4,
-    },
-  },
   test: {
+    pool: "forks",
+    // Vitest 4 removed poolOptions; maxWorkers is the active worker limit.
+    // Keeping this at four prevents large integration runs from exhausting
+    // the shared test host and timing out otherwise fast cleanup hooks.
+    maxWorkers: 4,
     env: {
       TEST_MODE: "true",
     },
