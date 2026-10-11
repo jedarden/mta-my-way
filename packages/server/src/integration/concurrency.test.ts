@@ -111,6 +111,10 @@ const TEST_TRANSFERS: Record<string, TransferConnection[]> = {};
 // ---------------------------------------------------------------------------
 
 describe("Concurrency and Race Conditions Integration Tests", () => {
+  // Every test here drives multiple requests through the full middleware
+  // chain against SQLite, so each carries a raised 30s per-test budget
+  // (a few 20s from an earlier pass): the 5s default flakes under
+  // shared-box load even though the suite passes standalone.
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
   let authHeaders: { Authorization: string };
@@ -202,9 +206,12 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       // All IDs should be unique
       expect(tripIds.size).toBe(tripCount);
-    });
+    }, 30000);
 
     it("maintains data consistency under concurrent writes", async () => {
+      // 10 sequential full-middleware POSTs + DB round-trips — raised
+      // per-test timeout like its siblings (timed out at the 5s default in
+      // the full-suite run of 2026-10-11 while passing standalone).
       const now = Date.now();
       const tripCount = 10;
 
@@ -245,7 +252,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       // Verify all IDs are unique
       expect(new Set(tripIds).size).toBe(tripCount);
-    });
+    }, 30000);
   });
 
   describe("Concurrent updates to same resource", () => {
@@ -337,7 +344,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       // All reads should succeed (or return 404 if trip was deleted during test)
       const reads = results.filter((r) => r.type === "read");
       expect(reads.every((r) => r.status === 200 || r.status === 404)).toBe(true);
-    });
+    }, 30000);
   });
 
   describe("Concurrent deletions", () => {
@@ -421,7 +428,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       // Trip should be deleted
       const trip = getTripById(tripId);
       expect(trip).toBeNull();
-    });
+    }, 30000);
   });
 
   describe("Statistics calculation under concurrent load", () => {
@@ -454,7 +461,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       expect(stats.totalTrips).toBe(tripCount);
       expect(stats.averageDurationMinutes).toBeCloseTo(55, 0);
-    });
+    }, 30000);
 
     it("handles concurrent stats queries", async () => {
       const now = Date.now();
@@ -490,7 +497,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
         expect(stats.totalTrips).toBe(firstStats.totalTrips);
         expect(stats.averageDurationMinutes).toBe(firstStats.averageDurationMinutes);
       }
-    });
+    }, 30000);
   });
 
   describe("Race conditions in filtering and pagination", () => {
@@ -535,7 +542,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
       ]);
       expect(line1Trips.trips.every((t: { line: string }) => t.line === "1")).toBe(true);
       expect(lineATrips.trips.every((t: { line: string }) => t.line === "A")).toBe(true);
-    });
+    }, 30000);
   });
 
   describe("Database consistency under concurrent operations", () => {
@@ -631,7 +638,7 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       // All should succeed with proper auth
       expect(responses.every((r) => r.status === 201)).toBe(true);
-    });
+    }, 30000);
 
     it("rejects concurrent unauthorized requests", async () => {
       const now = Date.now();
@@ -655,6 +662,6 @@ describe("Concurrency and Race Conditions Integration Tests", () => {
 
       // All should be rejected (401 Unauthorized or 403 Forbidden)
       expect(responses.every((r) => r.status === 401 || r.status === 403)).toBe(true);
-    });
+    }, 30000);
   });
 });
