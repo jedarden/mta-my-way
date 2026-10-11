@@ -1468,7 +1468,7 @@ describe("Middleware Chain Integration", () => {
   });
 
   describe("Rate Limiter Cross-Middleware Integration", () => {
-    it("should count requests that pass through authentication middleware", async () => {
+    it("should attach rate limit headers to authenticated requests", async () => {
       const app = createApp(
         TEST_STATIONS,
         TEST_ROUTES,
@@ -1499,12 +1499,13 @@ describe("Middleware Chain Integration", () => {
         expect(response.status).toBe(200);
       });
 
-      // Verify rate limit headers are present and decrementing
-      const firstLimit = responses[0].headers.get("x-ratelimit-remaining");
-      const lastLimit = responses[responses.length - 1].headers.get("x-ratelimit-remaining");
-
-      if (firstLimit && lastLimit) {
-        expect(parseInt(firstLimit, 10)).toBeGreaterThanOrEqual(parseInt(lastLimit, 10));
+      // Concurrent responses need not preserve the order in which the limiter
+      // admitted their requests. Counting itself is pinned by the sequential
+      // rate-limiter-cross-middleware-counting integration suite.
+      for (const response of responses) {
+        const remaining = response.headers.get("x-ratelimit-remaining");
+        expect(remaining).not.toBeNull();
+        expect(Number.isInteger(Number(remaining))).toBe(true);
       }
     });
 
