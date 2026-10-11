@@ -19,12 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getAlertsStatus, setAlertsForTesting } from "../alerts-poller.js";
 import { createApp } from "../app.js";
 import { setArrivalsForTesting } from "../cache.js";
-import {
-  TEST_STATIONS,
-  cleanupAllState,
-  closeDatabase,
-  createIntegrationTestDatabase,
-} from "./test-helpers.js";
+import { TEST_STATIONS, cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -77,7 +72,6 @@ describe("Health and Monitoring Integration Tests", () => {
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
-    const db = createIntegrationTestDatabase();
     app = createApp(
       TEST_STATIONS,
       TEST_ROUTES,

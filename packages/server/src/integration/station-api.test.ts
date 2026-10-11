@@ -14,14 +14,9 @@ import type {
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import {
-  TEST_STATIONS,
-  cleanupAllState,
-  closeDatabase,
-  createIntegrationTestDatabase,
-} from "./test-helpers.js";
+import { TEST_STATIONS, cleanupAllState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -75,7 +70,6 @@ describe("Station API Integration Tests", () => {
 
   beforeEach(async () => {
     await cleanupAllState();
-    const db = createIntegrationTestDatabase();
     app = createApp(
       TEST_STATIONS,
       TEST_ROUTES,
@@ -83,10 +77,6 @@ describe("Station API Integration Tests", () => {
       TEST_TRANSFERS,
       "/nonexistent/dist"
     );
-  });
-
-  afterEach(() => {
-    // Clean up is handled by garbage collection for in-memory db
   });
 
   describe("GET /api/stations", () => {

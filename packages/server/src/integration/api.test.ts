@@ -10,7 +10,7 @@
 
 import type { ComplexIndex, RouteIndex, TransferConnection } from "@mta-my-way/shared";
 import type Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createApp } from "../app.js";
 import {
@@ -664,26 +664,39 @@ describe("API Integration Tests", () => {
     });
 
     describe("DELETE /api/push/unsubscribe", () => {
-      beforeEach(() => {
-        // Mock upsertSubscription to create a subscription
-        vi.doMock("../push/subscriptions.js", () => ({
-          getSubscriptionCount: vi.fn(() => 1),
-          upsertSubscription: vi.fn(),
-          removeSubscription: vi.fn(() => true),
-        }));
-      });
+      it("removes the authenticated user's subscription", async () => {
+        const endpoint = "https://fcm.googleapis.com/fcm/send/unsubscribe-test";
+        const subscribeRes = await requestWithAuthAndCsrf(app, "/api/push/subscribe", authHeaders, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: {
+              endpoint,
+              keys: { p256dh: "test-p256dh", auth: "test-auth" },
+            },
+            favorites: [{ id: "fav-1", stationId: "101", lines: ["1"], direction: "both" }],
+          }),
+        });
+        expect(subscribeRes.status, `POST /api/push/subscribe should store ${endpoint}`).toBe(200);
+        expect(
+          (await getAllSubscriptions()).some((subscription) => subscription.endpoint === endpoint),
+          `subscription database should contain ${endpoint} before DELETE /api/push/unsubscribe`
+        ).toBe(true);
 
-      it("validates endpoint in request body", async () => {
         const res = await requestWithAuthAndCsrf(app, "/api/push/unsubscribe", authHeaders, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            endpoint: "https://fcm.googleapis.com/fcm/send/test-endpoint",
-          }),
+          body: JSON.stringify({ endpoint }),
         });
 
-        // Should succeed, return validation error, or fail RBAC check
-        expect([200, 400, 403]).toContain(res.status);
+        expect(res.status, `DELETE /api/push/unsubscribe should remove ${endpoint}`).toBe(200);
+        expect(await res.json(), `DELETE /api/push/unsubscribe response for ${endpoint}`).toEqual({
+          success: true,
+        });
+        expect(
+          (await getAllSubscriptions()).some((subscription) => subscription.endpoint === endpoint),
+          `subscription database should not contain ${endpoint} after DELETE /api/push/unsubscribe`
+        ).toBe(false);
       });
     });
   });

@@ -134,8 +134,9 @@ describe("Database Operations Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     closeDatabase(db);
+    await cleanupAllState();
   });
 
   describe("Transaction integrity", () => {

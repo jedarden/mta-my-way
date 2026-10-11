@@ -119,10 +119,11 @@ describe("Positions API Integration Tests", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     closeDatabase(db);
+    await cleanupAllState();
   });
 
   describe("GET /api/positions/:lineId", () => {

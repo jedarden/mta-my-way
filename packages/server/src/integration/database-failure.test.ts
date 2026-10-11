@@ -25,180 +25,191 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createApp } from "../app.js";
 import {
   closePushDatabase,
   configurePushDatabase,
   getPushDatabaseInitError,
+  initPushDatabase,
   isPushDatabaseReady,
 } from "../push/subscriptions.js";
 
-// Store original process env
-const originalEnv = process.env;
+import {
+  TEST_STATIONS,
+  cleanupAllState,
+  createTestUserCredentials,
+  requestWithCsrf,
+} from "./test-helpers.js";
+const originalCoreOnly = process.env.CORE_ONLY;
+const originalPushDbPath = process.env.PUSH_DB_PATH;
+const createTestApp = () => createApp(TEST_STATIONS, {}, {}, {}, "/nonexistent/dist");
 
-import { cleanupAllState } from "./test-helpers.js";
-describe("Database Failure Scenarios", () => {
-  const invalidDbPaths = [
-    "/nonexistent/path/subscriptions.db", // Parent directory doesn't exist
-    "/dev/null/full/subscriptions.db", // Cannot create in /dev/null
-    "/root/.config/subscriptions.db", // Permission denied (typically)
-  ];
+beforeEach(async () => {
+  await cleanupAllState();
+  delete process.env.CORE_ONLY;
+  delete process.env.PUSH_DB_PATH;
+  closePushDatabase();
+});
 
-  beforeEach(async () => {
-    await cleanupAllState();
-    // Reset environment
-    process.env = { ...originalEnv };
+afterEach(async () => {
+  await cleanupAllState();
+  closePushDatabase();
+  if (originalCoreOnly === undefined) {
     delete process.env.CORE_ONLY;
+  } else {
+    process.env.CORE_ONLY = originalCoreOnly;
+  }
+  if (originalPushDbPath === undefined) {
     delete process.env.PUSH_DB_PATH;
-    closePushDatabase();
-  });
+  } else {
+    process.env.PUSH_DB_PATH = originalPushDbPath;
+  }
+});
 
-  afterEach(async () => {
-    // Clean up
-    process.env = originalEnv;
-    closePushDatabase();
-  });
-
+describe("Database Failure Scenarios", () => {
   describe("server startup with invalid database paths", () => {
     it("should start successfully when database path parent directory does not exist", async () => {
       const invalidPath = "/nonexistent/deep/path/subscriptions.db";
 
-      // Configure invalid path
-      configurePushDatabase(invalidPath);
-
-      // Attempt to trigger DB initialization (lazy)
-      expect(isPushDatabaseReady()).toBe(false);
-
-      // The server should have logged the error but not crashed
-      // Note: The error occurs when DB is actually accessed, not during configurePushDatabase
-      // Since we haven't triggered DB access yet, there may not be an error yet
-      const error = getPushDatabaseInitError();
-      // The error might not be set yet since DB init is lazy and we haven't accessed it
-      // Just verify the DB is not ready
-      expect(isPushDatabaseReady()).toBe(false);
+      initPushDatabase(invalidPath);
+      expect(isPushDatabaseReady(), "push DB should reject a missing parent directory").toBe(false);
+      expect(
+        getPushDatabaseInitError(),
+        "missing parent directory should record a DB error"
+      ).toBeInstanceOf(Error);
+      const res = await createTestApp().request("/healthz");
+      expect(res.status, "GET /healthz should remain available after push DB failure").toBe(200);
     });
 
     it("should start successfully when database path is unwritable", async () => {
-      // Use a path that typically cannot be written to
-      const unwritablePath = "/root/.mta-my-way/subscriptions.db";
-
-      configurePushDatabase(unwritablePath);
-
-      // DB should not be ready
-      expect(isPushDatabaseReady()).toBe(false);
-
-      // Should have an initialization error
-      const error = getPushDatabaseInitError();
-      expect(error).toBeDefined();
+      const unwritablePath = "/dev/null/subscriptions.db";
+      initPushDatabase(unwritablePath);
+      expect(isPushDatabaseReady(), "push DB should reject an unwritable path").toBe(false);
+      expect(getPushDatabaseInitError(), "unwritable path should record a DB error").toBeInstanceOf(
+        Error
+      );
+      const res = await createTestApp().request("/healthz");
+      expect(res.status, "GET /healthz should remain available for an unwritable push DB").toBe(
+        200
+      );
     });
   });
 
   describe("health endpoint reports degraded status", () => {
-    it("should report push DB as degraded when unavailable", () => {
-      // The health endpoint derives pushDb's degraded status from the push
-      // module's readiness signal alone, so assert that signal directly.
-      // Booting the entry point to "create a test server" is not an option —
-      // see the NOTE at the top of this file: importing ../index.js runs the
-      // real main() in the background, whose startup error logs land in the
-      // test output and get captured by the pulse scanner.
+    it("should report push DB as degraded when unavailable", async () => {
       const tempDir = join(tmpdir(), `mta-test-${Date.now()}`);
       const invalidDbPath = join(tempDir, "nonexistent", "subscriptions.db");
 
       configurePushDatabase(invalidDbPath);
 
-      // Lazy-init contract: configuring an unwritable path degrades the
-      // subsystem without recording an error until something actually
-      // touches the database. Degraded — not crashed — is the state the
-      // health endpoint must report.
-      expect(isPushDatabaseReady()).toBe(false);
+      const res = await createTestApp().request("/api/health");
+      expect(res.status, "GET /api/health should respond while push DB is degraded").toBe(200);
+      expect(
+        (await res.json()).pushDb,
+        "GET /api/health should report degraded push DB state"
+      ).toMatchObject({ ready: false, subscriptionCount: 0 });
       expect(getPushDatabaseInitError()).toBeNull();
     });
   });
 
   describe("DB-dependent endpoints return 503", () => {
     it("should return 503 for push subscribe when DB unavailable", async () => {
-      // Configure invalid DB path
       const invalidPath = "/invalid/nonexistent/path/subscriptions.db";
       configurePushDatabase(invalidPath);
-
-      // Verify DB is not ready
       expect(isPushDatabaseReady()).toBe(false);
-
-      // In a real HTTP test, we would:
-      // 1. Start the server
-      // 2. POST to /api/push/subscribe
-      // 3. Verify response is 503 with { error: "...", degraded: true }
-
-      // For now, verify module state indicates degradation
-      const error = getPushDatabaseInitError();
-      expect(error).toBeDefined();
+      const credentials = await createTestUserCredentials();
+      const res = await requestWithCsrf(createTestApp(), "/api/push/subscribe", {
+        method: "POST",
+        headers: {
+          Authorization: credentials.authorizationHeader,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+      expect(res.status, "POST /api/push/subscribe should return 503 without push DB").toBe(503);
+      expect(
+        await res.json(),
+        "POST /api/push/subscribe should report degraded state"
+      ).toMatchObject({ degraded: true });
     });
 
     it("should return 503 for trip recording when DB unavailable", async () => {
       const invalidPath = "/invalid/nonexistent/path/subscriptions.db";
       configurePushDatabase(invalidPath);
-
       expect(isPushDatabaseReady()).toBe(false);
-
-      // Trip tracking shares the same DB
-      // In a real HTTP test, we would POST to /api/trips
-      // and verify 503 response
-
-      const error = getPushDatabaseInitError();
-      expect(error).toBeDefined();
+      const credentials = await createTestUserCredentials();
+      const res = await requestWithCsrf(createTestApp(), "/api/trips", {
+        method: "POST",
+        headers: {
+          Authorization: credentials.authorizationHeader,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+      expect(res.status, "POST /api/trips should return 503 without push DB").toBe(503);
+      expect(await res.json(), "POST /api/trips should report degraded state").toMatchObject({
+        degraded: true,
+      });
     });
 
     it("should return 503 for trip queries when DB unavailable", async () => {
       const invalidPath = "/invalid/nonexistent/path/subscriptions.db";
       configurePushDatabase(invalidPath);
-
       expect(isPushDatabaseReady()).toBe(false);
-
-      // In a real HTTP test, we would GET /api/trips
-      // and verify 503 response
+      const credentials = await createTestUserCredentials();
+      const res = await createTestApp().request("/api/trips", {
+        headers: { Authorization: credentials.authorizationHeader },
+      });
+      expect(res.status, "GET /api/trips should return 503 without push DB").toBe(503);
+      expect(await res.json(), "GET /api/trips should report degraded state").toMatchObject({
+        degraded: true,
+      });
     });
   });
 
   describe("stateless endpoints remain available", () => {
-    it("should serve arrivals when DB unavailable", async () => {
+    it("should serve stations when DB unavailable", async () => {
       const invalidPath = "/invalid/nonexistent/path/subscriptions.db";
       configurePushDatabase(invalidPath);
-
-      expect(isPushDatabaseReady()).toBe(false);
-
-      // Stateless endpoints like /api/arrivals, /api/stations, /api/alerts
-      // should continue working even when DB is unavailable
-      // In a real HTTP test, we would verify these endpoints return 200
+      const res = await createTestApp().request("/api/stations");
+      expect(res.status, "GET /api/stations should remain available without push DB").toBe(200);
+      expect(
+        (await res.json()).map((station: { id: string }) => station.id),
+        "GET /api/stations should retain fixture stations"
+      ).toEqual(Object.keys(TEST_STATIONS));
     });
 
-    it("should serve static assets when DB unavailable", async () => {
+    it("should serve readiness when DB unavailable", async () => {
       const invalidPath = "/invalid/nonexistent/path/subscriptions.db";
       configurePushDatabase(invalidPath);
-
-      expect(isPushDatabaseReady()).toBe(false);
-
-      // Static PWA assets should be served normally
-      // In a real HTTP test, we would verify GET / returns 200
+      const res = await createTestApp().request("/healthz");
+      expect(res.status, "GET /healthz should remain available without push DB").toBe(200);
+      expect(await res.json(), "GET /healthz should report ready stateless service").toMatchObject({
+        status: "ok",
+      });
     });
   });
 });
 
 describe("Database recovery after initial failure", () => {
   it("should allow DB to become available after initial failure", async () => {
-    // Start with invalid path
     const invalidPath = "/invalid/nonexistent/path/subscriptions.db";
-    configurePushDatabase(invalidPath);
+    initPushDatabase(invalidPath);
 
-    expect(isPushDatabaseReady()).toBe(false);
-    expect(getPushDatabaseInitError()).toBeDefined();
+    expect(isPushDatabaseReady(), "push DB should fail before recovery").toBe(false);
+    expect(
+      getPushDatabaseInitError(),
+      "failed push DB should retain its init error"
+    ).toBeInstanceOf(Error);
 
-    // Close and reconfigure with valid path
-    closePushDatabase();
-
-    const validPath = join(tmpdir(), `test-db-${Date.now()}.db`);
-    configurePushDatabase(validPath);
-
-    // DB should still not be ready until first use (lazy init)
-    // But the error should be cleared
+    initPushDatabase(":memory:");
+    expect(isPushDatabaseReady(), "in-memory push DB should recover after failure").toBe(true);
     expect(getPushDatabaseInitError()).toBeNull();
+    const res = await createTestApp().request("/api/health");
+    expect(res.status, "GET /api/health should respond after push DB recovery").toBe(200);
+    expect(
+      (await res.json()).pushDb,
+      "GET /api/health should report recovered push DB state"
+    ).toMatchObject({ ready: true, subscriptionCount: 0 });
   });
 });

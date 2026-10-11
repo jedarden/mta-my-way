@@ -130,11 +130,12 @@ describe("Alerts and Equipment Integration Tests", () => {
     app = createApp(TEST_STATIONS, TEST_ROUTES, {}, {}, "/nonexistent/dist");
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     resetAlertsCacheForTesting();
     vi.useRealTimers();
     vi.restoreAllMocks();
     closeDatabase(db);
+    await cleanupAllState();
   });
 
   describe("GET /api/alerts", () => {
