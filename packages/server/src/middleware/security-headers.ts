@@ -85,7 +85,15 @@ const PERMISSIONS_POLICY =
  */
 const DEFAULT_CSP =
   "default-src 'self'; " +
-  "script-src 'self' 'unsafe-inline'; " +
+  // https://esm.sh: the Agentation toolbar (workspace agentation rule;
+  // mtamyway-3944486f) is mounted on every HTML entry point — the PWA and
+  // /status — via an import map that resolves the toolbar's bare react
+  // specifiers to pinned esm.sh modules (see packages/web/public/
+  // agentation.js). Without this origin in script-src the browser blocks
+  // those module fetches and the toolbar silently never mounts. Only the
+  // HTML pages fetch from it; API responses are JSON and never execute
+  // script, so the added surface is limited to the pinned esm.sh origins.
+  "script-src 'self' 'unsafe-inline' https://esm.sh; " +
   "style-src 'self' 'unsafe-inline'; " +
   "img-src 'self' data: https:; " +
   "connect-src 'self'; " +

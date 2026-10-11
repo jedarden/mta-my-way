@@ -80,6 +80,9 @@ describe("Agentation wiring on GET /status", () => {
     const res = await app.request("/status");
     expect(res.status).toBe(200);
 
+    const csp = res.headers.get("content-security-policy");
+    expect(csp).toContain("script-src 'self' 'unsafe-inline' https://esm.sh");
+
     const html = await res.text();
 
     // One import map, and it precedes the module tag that needs it.
