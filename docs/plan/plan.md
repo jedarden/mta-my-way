@@ -1286,7 +1286,7 @@ mta-my-way/                              # Application source (this repo)
 |   |   |   |-- services/               # Business logic services
 |   |   |   |   |-- push-service.ts    # Web Push notifications
 |   |   |   |-- endpoints/              # Endpoint handlers
-|   |   |   |   |-- health.ts           # GET /health, /api/health
+|   |   |   |   |-- health.ts           # GET /healthz, /api/health
 |   |   |   |   |-- metrics.ts          # GET /metrics (Prometheus)
 |   |   |   |-- routes/                 # Route handlers
 |   |   |   |   |-- password-reset.routes.ts  # Credential reset flow (enabled)
@@ -1426,7 +1426,7 @@ curl -sk https://argocd-ro-ardenone-manager-ts.ardenone.com:8444/api/v1/applicat
 
 ### 9.5 Monitoring
 
-- **Health checks:** Kubernetes liveness and readiness probes on `GET /health` (or `GET /api/health`). The health endpoint reports per-feed status (last successful fetch, age, error count), uptime, memory usage, and active connections.
+- **Health checks:** Kubernetes liveness uses a TCP check, while lightweight readiness uses `GET /healthz`. The separate `GET /api/health` endpoint reports per-feed status (last successful fetch, age, error count), uptime, memory usage, and active connections.
 - **Structured logging:** Pino-based JSON logging with contextual metadata (see `docs/observability.md`). Log levels: debug, info, warn, error. Logs written to stdout for Kubernetes log aggregation.
 - **Metrics:** Prometheus metrics exposed at `GET /metrics` (HTTP requests, cache hits/misses, feed poll duration, push notifications, trips, commute analysis, station search, delay predictions, context detections, alerts, equipment outages).
 - **Distributed tracing:** OpenTelemetry (OTLP gRPC) for request tracing and performance debugging (see `packages/server/src/observability/tracing.ts`).
@@ -1634,7 +1634,7 @@ Failed polls log the error:
 
 ### 15.3 Alerting
 
-- **Kubernetes readiness probe** calls `GET /health`. Returns 503 when 3+ feeds have been failing for >5 minutes, triggering pod restart.
+- **Kubernetes readiness probe** uses `GET /healthz` for lightweight process readiness. The MTA My Way core deployment intentionally keeps `GET /api/health` as its feed-health gate; see `docs/operations/readiness-endpoints.md` for the probe audit. The detailed endpoint may return 503 when 3+ feeds have been failing for >5 minutes.
 - **Liveness probe** is a simple TCP check on port 3000.
 - The `/status` page renders the health endpoint as a human-readable dashboard.
 - **Structured logging** captures backend errors (parsing failures, unhandled exceptions) and frontend errors (rendering crashes, API call failures) via Pino JSON logs, aggregated by Kubernetes log infrastructure.
@@ -1716,6 +1716,14 @@ The following shipped features represent deliberate deviations from the original
 ---
 
 ## ADR-001: 2026-07-20 — Decouple the Core Read Path from Persistent-Volume-Backed State
+
+> *Amended 2026-09-13 — the core→stateful proxy mechanism described in the
+> wiring paragraph below was superseded by ingress-level routing
+> (declarative-config `d23c4a87`); router-level routing is ratified as its
+> deliberate replacement in
+> `docs/notes/adr-001-core-only-stateful-routes-decision.md`. The ADR text
+> below is retained unmodified as the immutable record; its split and
+> availability goal are unchanged.*
 
 ### Context
 
