@@ -868,6 +868,18 @@ describe("API /api/arrivals/:stationId", () => {
     expect(Array.isArray(body.southbound)).toBe(true);
   });
 
+  it("keeps anonymous core arrivals available when session state cannot be resolved", async () => {
+    const res = await app.request("/api/arrivals/101", {
+      headers: { Cookie: "session_id=unavailable-session-state" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      stationId: "101",
+      stationName: "South Ferry",
+    });
+  });
+
   it("returns 404 for unknown station", async () => {
     const res = await app.request("/api/arrivals/999");
     expect(res.status).toBe(404);
@@ -877,6 +889,21 @@ describe("API /api/arrivals/:stationId", () => {
     const res = await app.request("/api/arrivals/101");
     const cacheControl = res.headers.get("Cache-Control");
     expect(cacheControl).toContain("public");
+  });
+});
+
+describe("disabled account-management routes", () => {
+  let app: Hono;
+
+  beforeEach(() => {
+    app = createTestApp();
+  });
+
+  it("keeps MFA, API-key management, and admin routes unmounted", async () => {
+    for (const path of ["/api/auth/mfa/status", "/api/auth/api-keys", "/api/admin/users"]) {
+      const response = await app.request(path);
+      expect(response.status, path).toBe(404);
+    }
   });
 });
 
