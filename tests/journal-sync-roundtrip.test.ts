@@ -108,8 +108,10 @@ function makeLocalTrip(): TripRecord {
 async function freshHarness() {
   vi.resetModules();
   vi.stubGlobal("localStorage", memoryStorage());
-  // journalApi reads the CSRF token off document.cookie before a write.
-  vi.stubGlobal("document", { cookie: "csrf_token=test-csrf-token" });
+  // Leave the cookie empty so journalApi obtains a fresh, server-generated
+  // single-use token from /api/csrf-token for every state-changing request.
+  // An arbitrary fixture value is rejected by the real CSRF token store.
+  vi.stubGlobal("document", { cookie: "" });
 
   const helpers = await import("../packages/server/src/integration/test-helpers");
   const { setRateLimiterTestMode } = await import("../packages/server/src/middleware/rate-limiter");

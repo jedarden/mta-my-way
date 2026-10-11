@@ -14,13 +14,24 @@ import { FareTracker } from "./FareTracker";
 
 /** Shape a store tick into a week with some rides already logged. */
 function seedRides(weekly: number, monthly = weekly) {
+  const rideDate = new Date().toISOString();
+  const rideLog = Array.from({ length: Math.max(weekly, monthly) }, (_, index) => ({
+    date: rideDate,
+    stationId: `test-${index}`,
+    time: Date.now() - index,
+    source: "tracked" as const,
+  }));
+
   useFareStore.setState((state) => ({
     tracking: {
       ...state.tracking,
       weeklyRides: weekly,
       monthlyRides: monthly,
-      weekStartDate: "2026-08-31",
-      monthStartDate: "2026-08-01",
+      // getCapStatus recomputes period counters from rideLog when the stored
+      // period is empty. Keep the fixture aligned with that source of truth.
+      weekStartDate: "",
+      monthStartDate: "",
+      rideLog,
     },
   }));
 }
