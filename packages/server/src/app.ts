@@ -1029,6 +1029,40 @@ ${
       <a href="/api/health" style="color: #38bdf8;">View JSON</a>
     </div>
   </div>
+
+  <!--
+    Agentation visual-feedback toolbar (workspace agentation rule). The
+    import map MUST come before the module tag below it: /agentation.js
+    imports bare "react" specifiers that only resolve through a map the
+    browser has already processed, and a broken pairing kills the module
+    silently while this page still renders. /agentation.js is served
+    same-origin from packages/web/public/ (copied to web dist at build).
+    Version pins are deliberate, matching public/agentation.js.
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react-dom": "https://esm.sh/react-dom@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime"
+    }
+  }
+  </script>
+  <script type="module" src="/agentation.js"></script>
+  <script>
+  // Agentation must mount; the module above dies silently if its import map
+  // is broken or esm.sh is unreachable.
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (!document.getElementById('agentation-root')) {
+        console.warn('Agentation did not mount; check the import map and /agentation.js module');
+      } else {
+        console.log('✓ Agentation mounted successfully');
+      }
+    }, 2000);
+  });
+  </script>
 </body>
 </html>`;
   }

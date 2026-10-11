@@ -82,6 +82,27 @@
         </main>
       </div>
     </div>
+    <!--
+      Agentation visual-feedback toolbar (workspace agentation rule). The
+      import map MUST precede the first module script: /agentation.js
+      imports bare `react` specifiers, which only resolve through a map the
+      browser has already processed — a map that follows (or is omitted
+      next to) the module dies with "Failed to resolve module specifier"
+      while the page renders perfectly. Inline and fetch-free, so it adds
+      nothing to the parse-time critical chain the resource-hint policy
+      above protects. The version pins are deliberate, matching the pinned
+      entries in public/agentation.js.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@18.3.1",
+          "react-dom": "https://esm.sh/react-dom@18.3.1",
+          "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+          "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime"
+        }
+      }
+    </script>
     <script type="module">
       // Boot the app only after the static shell above has painted
       // (mtamyway-f2a65cf7). A module script evaluates as soon as it is
@@ -97,13 +118,96 @@
       // paint is out, making the first painted frame strictly precede the
       // app graph's fetches. rAF is paused while the tab is hidden and runs
       // on reveal, so a background-tab load still boots when it is viewed.
+      // The resolved promise is published for the Agentation loader below,
+      // which must not fetch during the app graph's boot window (measured:
+      // same-gate toolbar fetches compete with the app chunks for bandwidth
+      // under simulated throttling and pushed app-content LCP past the 2.5s
+      // budget — 3.4s vs 2.1s with the toolbar chained after the graph).
       let booted = false;
       const boot = () => {
         if (booted) return;
         booted = true;
-        void import("/src/main.tsx");
+        window.__appGraphReady = import("/src/main.tsx").catch(() => {});
       };
       requestAnimationFrame(() => setTimeout(boot, 0));
+    </script>
+    <!--
+      Agentation toolbar (workspace agentation rule), loaded from the same
+      post-paint gate as the app graph: a parse-time <script type="module"
+      src="/agentation.js"> would start the /agentation.js fetch and the
+      esm.sh React fetches it triggers before the first painted frame, and
+      Lantern charges every request initiated before first paint to FCP —
+      exactly what the app-graph gating above exists to avoid. This loader
+      is a classic (non-module) script on purpose: the bundler leaves
+      classic inline scripts untouched, so import() fires at runtime with
+      the literal URL, and dynamic import from a classic script still
+      resolves through the import map above.
+
+      The import itself waits for the app graph to resolve
+      (window.__appGraphReady), and then for the app's fetch cascade (lazy
+      route chunks, initial API calls) to go quiet: the initial screen is a
+      lazy() chunk whose fetch begins only after main.tsx executes, so a
+      toolbar import chained at main.tsx-resolution time still shares the
+      boot window with it — measured LCP 3.4s vs 2.1s under LHCI simulated
+      throttling. Waiting for 600ms of resource-timing silence (capped at
+      4s) puts the toolbar's esm.sh fetches strictly after the app's boot
+      fetches in the observed waterfall. The feedback toolbar is the
+      lowest-priority script on the page; it loads last by construction.
+      This script's rAF is registered after the boot script's, so by the
+      time its timer fires, __appGraphReady already exists.
+    -->
+    <script>
+      (function () {
+        var loadToolbar = function () {
+          (window.__appGraphReady || Promise.resolve())
+            .then(function () {
+              // Resolve once the app's own fetch cascade has gone quiet
+              // (600ms with no new resource entries), or after 4s hard cap.
+              return new Promise(function (resolve) {
+                var started = performance.now();
+                var last = performance.getEntriesByType("resource").length;
+                var quietMs = 0;
+                var tick = setInterval(function () {
+                  var n = performance.getEntriesByType("resource").length;
+                  quietMs = n === last ? quietMs + 300 : 0;
+                  last = n;
+                  if (quietMs >= 600 || performance.now() - started > 4000) {
+                    clearInterval(tick);
+                    resolve();
+                  }
+                }, 300);
+              });
+            })
+            .then(function () {
+              return import("/agentation.js");
+            })
+            .catch(function () {
+              // mount failure is reported by the self-check below
+            });
+        };
+        requestAnimationFrame(function () {
+          setTimeout(loadToolbar, 0);
+        });
+        // Agentation must mount; the module dies silently if its import
+        // map is broken or esm.sh is unreachable. Poll rather than check
+        // once: the toolbar now loads only after the app graph resolves,
+        // which on a slow link is seconds after the load event.
+        window.addEventListener("load", function () {
+          var attempts = 0;
+          var check = setInterval(function () {
+            attempts += 1;
+            if (document.getElementById("agentation-root")) {
+              clearInterval(check);
+              console.log("✓ Agentation mounted successfully");
+            } else if (attempts >= 20) {
+              clearInterval(check);
+              console.warn(
+                "Agentation did not mount; check the import map and /agentation.js module"
+              );
+            }
+          }, 1000);
+        });
+      })();
     </script>
   </body>
 </html>
