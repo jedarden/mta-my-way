@@ -68,6 +68,11 @@ ENV NODE_ENV=production
 # Run as non-root for container security
 USER node
 
+# Exercise the final runtime filesystem before publishing the image. This starts
+# the server in both deployment modes, so missing generated modules (including
+# the GTFS protobuf output) or runtime-only dependencies fail the image build.
+RUN /app/packages/server/scripts/container-startup-smoke.sh
+
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
