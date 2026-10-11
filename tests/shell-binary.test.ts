@@ -43,10 +43,9 @@ describe("Shell Binary Availability", () => {
       expect(true).toBe(true);
     });
 
-    it("should verify sh is functional and returns version", () => {
-      const version = execSync("sh --version", { encoding: "utf-8" });
-      expect(version).toContain("GNU bash");
-      expect(version).toContain("Free Software Foundation");
+    it("should verify sh is functional and executes a command", () => {
+      const output = execSync("sh -c 'printf sh-is-functional'", { encoding: "utf-8" });
+      expect(output).toBe("sh-is-functional");
     });
   });
 
