@@ -305,15 +305,30 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
     it("passes N-1 requests and rejects the Nth with the 429 + Retry-After shape", async () => {
       const app = createSeededApp();
 
-      // The full allotment: 60 requests pass, counters stepping 59 → 0.
-      for (let i = 0; i < 60; i++) {
+      // Start with 59 public requests, then cross the boundary on the
+      // protected route so auth and authorization precede both decisions.
+      for (let i = 0; i < 59; i++) {
         const res = await app.request("/api/stations", { headers: withIp(IP_BOUNDARY) });
         expect(res.status).toBe(200);
         expect(remainingOf(res)).toBe(59 - i);
         expect(res.headers.get("retry-after")).toBeNull();
       }
 
-      const exhausted = await app.request("/api/stations", { headers: withIp(IP_BOUNDARY) });
+      const credentials = await createTestUserCredentials();
+      const lastAllowed = await app.request("/api/commute/analyze", {
+        method: "POST",
+        headers: postHeaders(IP_BOUNDARY, credentials.authorizationHeader, await getCsrfToken(app)),
+        body: ANALYZE_BODY,
+      });
+      expect(lastAllowed.status).toBe(200);
+      expect(remainingOf(lastAllowed)).toBe(0);
+      expect(lastAllowed.headers.get("retry-after")).toBeNull();
+
+      const exhausted = await app.request("/api/commute/analyze", {
+        method: "POST",
+        headers: postHeaders(IP_BOUNDARY, credentials.authorizationHeader, await getCsrfToken(app)),
+        body: ANALYZE_BODY,
+      });
 
       await assertRateLimited(exhausted, { retryAfter: 1, error: "Too many requests" });
       assertHeader(exhausted, "retry-after", "1");
