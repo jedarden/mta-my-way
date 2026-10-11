@@ -12,7 +12,10 @@ describe("shell execution", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toBeTruthy();
-      expect(result.stdout).toContain("/mta-my-way");
+      // pwd must report the process working directory. Asserting the actual
+      // cwd keeps this path-independent: CI clones the repo to /src, so a
+      // hardcoded "/mta-my-way" can never pass there.
+      expect(result.stdout).toContain(process.cwd());
       expect(result.stderr).toBe("");
       expect(result.timedOut).toBe(false);
     });

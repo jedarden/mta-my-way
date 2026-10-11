@@ -17,15 +17,18 @@
 
 import type {
   Alert,
+  ArrivalTime,
   ComplexIndex,
   RouteIndex,
   Station,
+  StationArrivals,
   StationIndex,
   TransferConnection,
 } from "@mta-my-way/shared";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
+import { resetAllCacheStateForTesting, setArrivalsForTesting } from "./cache.js";
 
 // Test fixtures
 const STATIONS: StationIndex = {
@@ -118,6 +121,52 @@ function createTestApp(): Hono {
 }
 
 /**
+ * Seed cached arrivals for the fixture stations.
+ *
+ * The arrivals endpoint 404s ("Station not found or no data yet") until the
+ * feed poller has cached data for a station, so tests that expect a 200 must
+ * seed the cache the way the poller would.
+ */
+function seedArrivals(): void {
+  const now = Math.floor(Date.now() / 1000);
+  const arrival = (overrides: Partial<ArrivalTime>): ArrivalTime => ({
+    line: "1",
+    direction: "N",
+    arrivalTime: now + 300,
+    minutesAway: 5,
+    isAssigned: true,
+    isRerouted: false,
+    isExpress: false,
+    tripId: "test-trip-101-n",
+    destination: "South Ferry",
+    confidence: "high",
+    feedName: "gtfs",
+    feedAge: 10,
+    ...overrides,
+  });
+  const arrivalsFor = (stationId: string, stationName: string): StationArrivals => ({
+    stationId,
+    stationName,
+    updatedAt: now,
+    feedAge: 10,
+    northbound: [arrival({})],
+    southbound: [
+      arrival({
+        direction: "S",
+        tripId: `test-trip-${stationId}-s`,
+        arrivalTime: now + 600,
+        minutesAway: 10,
+      }),
+    ],
+    alerts: [],
+  });
+
+  setArrivalsForTesting("101", arrivalsFor("101", "South Ferry"));
+  setArrivalsForTesting("725", arrivalsFor("725", "Times Sq-42 St"));
+  setArrivalsForTesting("726", arrivalsFor("726", "42 St-Port Authority"));
+}
+
+/**
  * Performance assertion helper
  * @param startTime Request start time in milliseconds
  * @param maxMs Maximum acceptable response time in milliseconds (default: 2000ms)
@@ -131,7 +180,9 @@ describe("Public API Health Test Suite", () => {
   let app: Hono;
 
   beforeEach(() => {
+    resetAllCacheStateForTesting();
     app = createTestApp();
+    seedArrivals();
   });
 
   describe("Arrivals Endpoint (/api/arrivals/:stationId)", () => {
