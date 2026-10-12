@@ -96,6 +96,9 @@ export default defineConfig({
         // Server package - uses node environment
         test: {
           environment: "node",
+          // Inline projects use Vitest's 5s default unless set here; password
+          // hashing tests exceed it under the resource-limited CI runner.
+          testTimeout: 10000,
           include: ["packages/server/src/**/*.test.ts"],
           setupFiles: ["./packages/server/src/test/setup.ts"],
         },
