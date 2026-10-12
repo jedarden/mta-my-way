@@ -11,6 +11,7 @@
     "dev": "node --watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "process-gtfs": "node scripts/process-gtfs.mjs",
     "process-gtfs:verbose": "node scripts/process-gtfs.mjs --verbose",
     "migrate": "node scripts/migrate.mjs",
