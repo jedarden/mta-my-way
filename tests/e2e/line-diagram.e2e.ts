@@ -51,12 +51,12 @@ test.describe("Line diagram", () => {
   test("loads the line screen and its diagram", async ({ page }) => {
     await expect(page).toHaveURL(/\/line\/1$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/1|Broadway/i);
-    await expect(page.locator('main figure[role="img"]')).toBeVisible();
-    await expect(page.locator('main figure[role="img"] svg')).toBeVisible();
+    await expect(page.locator("main figure")).toBeVisible();
+    await expect(page.locator("main figure svg")).toBeVisible();
   });
 
   test("renders station markers, transfer ring, labels, and line color", async ({ page }) => {
-    const svg = page.locator('main figure[role="img"] svg');
+    const svg = page.locator("main figure svg");
     await expect(svg.locator(":scope > g")).toHaveCount(5); // 3 stations and 2 trains
     await expect(svg.locator("text")).toContainText([/South Ferry/, /Times Sq/]);
     await expect(svg.locator('line[stroke="#EE352E"]')).toHaveCount(1);
@@ -64,8 +64,8 @@ test.describe("Line diagram", () => {
   });
 
   test("shows direction, train count, spacing, and legend", async ({ page }) => {
-    const diagram = page.locator('main figure[role="img"]');
-    await expect(diagram).toHaveAttribute("aria-label", /1 line: 2 trains, evenly spaced/);
+    const diagram = page.locator("main figure");
+    await expect(diagram.locator("figcaption")).toContainText("1 line: 2 trains, evenly spaced");
     await expect(diagram.locator('[aria-live="polite"]')).toContainText("2 trains");
     await expect(page.locator("main")).toContainText("2 trains tracking");
     await expect(page.locator("main")).toContainText("Northbound");
@@ -102,13 +102,12 @@ test.describe("Line diagram", () => {
   });
 
   test("refreshes the diagram with new API data", async ({ page }) => {
-    await expect(page.locator('main figure[role="img"]')).toHaveAttribute("aria-label", /2 trains/);
+    await expect(page.locator("main figure figcaption")).toContainText(/2 trains/);
     await page.route("**/api/positions/1", (route) =>
       route.fulfill({ json: { ...diagramData, trains: [] } })
     );
     await page.getByRole("button", { name: "Refresh train positions" }).click();
-    await expect(page.locator('main figure[role="img"]')).toHaveAttribute(
-      "aria-label",
+    await expect(page.locator("main figure figcaption")).toContainText(
       "1 line: no trains currently tracking"
     );
     await expect(page.locator("main")).toContainText("0 trains tracking");
@@ -117,7 +116,7 @@ test.describe("Line diagram", () => {
   test("keeps station diagram visible when the train feed fails after loading", async ({
     page,
   }) => {
-    await expect(page.locator('main figure[role="img"]')).toHaveAttribute("aria-label", /2 trains/);
+    await expect(page.locator("main figure figcaption")).toContainText(/2 trains/);
     // A 4xx response fails immediately; network errors and 5xx responses are
     // retried by the API client with backoff before the UI can show an error.
     await page.route("**/api/positions/1", (route) =>
@@ -125,7 +124,7 @@ test.describe("Line diagram", () => {
     );
     await page.getByRole("button", { name: "Refresh train positions" }).click();
     await expect(page.locator("main").getByRole("alert")).toBeVisible();
-    await expect(page.locator('main figure[role="img"]')).toBeVisible();
+    await expect(page.locator("main figure")).toBeVisible();
   });
 
   test("recovers when the initial feed request fails", async ({ page }) => {
@@ -139,7 +138,7 @@ test.describe("Line diagram", () => {
     await expect(page.locator("main").getByRole("alert")).toBeVisible();
     failing = false;
     await page.locator("main").getByRole("button", { name: "Try again" }).click();
-    await expect(page.locator('main figure[role="img"]')).toBeVisible();
+    await expect(page.locator("main figure")).toBeVisible();
   });
 
   test("reports an invalid line ID", async ({ page }) => {

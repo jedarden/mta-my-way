@@ -146,8 +146,8 @@ test.describe("Transit map", () => {
     await expect(
       page.getByRole("button", { name: "Times Sq-42 St (transfer station)" })
     ).toBeVisible();
-    await expect(page.locator('path[aria-label="1 line"]')).toBeAttached();
-    await expect(page.locator('path[aria-label="A line"]')).toBeAttached();
+    await expect(page.locator('path[aria-hidden="true"][stroke="#EE352E"]')).toBeAttached();
+    await expect(page.locator('path[aria-hidden="true"][stroke="#0039A6"]')).toBeAttached();
     await expect(
       page.getByRole("button", { name: "Northbound 1 train to Times Sq-42 St" })
     ).toBeVisible();
@@ -201,12 +201,12 @@ test.describe("Transit map", () => {
     await lineOne.click();
     await expect(lineOne).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Hide line filter" })).toContainText("1");
-    await expect(page.locator('path[aria-label="1 line"]')).toBeAttached();
-    await expect(page.locator('path[aria-label="A line"]')).toHaveCount(0);
+    await expect(page.locator('path[aria-hidden="true"][stroke="#EE352E"]')).toBeAttached();
+    await expect(page.locator('path[aria-hidden="true"][stroke="#0039A6"]')).toHaveCount(0);
 
     await page.getByRole("button", { name: "Clear" }).click();
     await expect(lineOne).toHaveAttribute("aria-pressed", "false");
-    await expect(page.locator('path[aria-label="A line"]')).toBeAttached();
+    await expect(page.locator('path[aria-hidden="true"][stroke="#0039A6"]')).toBeAttached();
     await page.getByRole("button", { name: "Hide line filter" }).click();
     await expect(lineOne).toHaveCount(0);
   });
