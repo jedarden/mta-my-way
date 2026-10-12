@@ -78,15 +78,16 @@ test.describe("Search Journey", () => {
     const searchInput = page.getByRole("searchbox", { name: "Search stations" });
     await searchInput.fill("xyznonexistentstation123");
 
-    // Wait a moment for search to process
-    await page.waitForTimeout(500);
-
     // Should show empty state or no results
-    const hasEmptyState = await page.getByText(/no stations found/i).count();
-    const hasPopular = await page.getByText(/popular stations/i).count();
+    await expect
+      .poll(async () => {
+        const hasEmptyState = await page.getByText(/no stations found/i).count();
+        const hasPopular = await page.getByText(/popular stations/i).count();
+        return hasEmptyState + hasPopular;
+      })
+      .toBeGreaterThan(0);
 
     // Either empty state or back to popular stations
-    expect(hasEmptyState + hasPopular).toBeGreaterThan(0);
   });
 });
 

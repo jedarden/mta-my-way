@@ -95,7 +95,7 @@ test.describe("Trip Tracking Screen", () => {
       await page.goto("/trip/mock-delayed-trip?origin=101&dest=725");
 
       // Anomaly banner might appear
-      const anomalyBanner = page.locator("role=alert:has-text(/delay|longer than usual/i)");
+      const anomalyBanner = page.locator('[role="alert"]:has-text(/delay|longer than usual/i)');
       const hasBanner = await anomalyBanner.count();
 
       if (hasBanner > 0) {
@@ -124,8 +124,8 @@ test.describe("Trip Tracking Screen", () => {
       await page.goto("/trip/mock-active-trip-123?origin=101&dest=725");
 
       const stopButton = page
-        .locator('role=button:has-text("Stop Tracking")')
-        .or(page.locator('role=button[aria-label*="stop" i]'));
+        .locator('button:has-text("Stop Tracking")')
+        .or(page.locator('button[aria-label*="stop" i]'));
       await expect(stopButton).toBeAttached();
     });
 
@@ -133,8 +133,8 @@ test.describe("Trip Tracking Screen", () => {
       await page.goto("/trip/mock-active-trip-123?origin=101&dest=725");
 
       const stopButton = page
-        .locator('role=button:has-text("Stop Tracking")')
-        .or(page.locator('role=button[aria-label*="stop" i]'));
+        .locator('button:has-text("Stop Tracking")')
+        .or(page.locator('button[aria-label*="stop" i]'));
       const hasStopButton = await stopButton.count();
 
       if (hasStopButton > 0) {
@@ -150,8 +150,8 @@ test.describe("Trip Tracking Screen", () => {
       await page.goto("/trip/mock-active-trip-123?origin=101&dest=725");
 
       const shareButton = page
-        .locator('role=button[aria-label*="share" i]')
-        .or(page.locator('role=button:has-text("Share")'));
+        .locator('button[aria-label*="share" i]')
+        .or(page.locator('button:has-text("Share")'));
       await expect(shareButton).toBeAttached();
     });
 
@@ -159,8 +159,8 @@ test.describe("Trip Tracking Screen", () => {
       await page.goto("/trip/mock-active-trip-123?origin=101&dest=725");
 
       const shareButton = page
-        .locator('role=button[aria-label*="share" i]')
-        .or(page.locator('role=button:has-text("Share")'));
+        .locator('button[aria-label*="share" i]')
+        .or(page.locator('button:has-text("Share")'));
       const hasShareButton = await shareButton.count();
 
       if (hasShareButton > 0) {
@@ -204,7 +204,7 @@ test.describe("Trip Tracking Screen", () => {
     test("should not show stop tracking button for expired trips", async ({ page }) => {
       await page.goto("/trip/mock-expired-trip");
 
-      const stopButton = page.locator('role=button:has-text("Stop Tracking")');
+      const stopButton = page.locator('button:has-text("Stop Tracking")');
       const hasButton = await stopButton.count();
 
       // Stop tracking button should not be visible for expired trips
@@ -219,9 +219,7 @@ test.describe("Trip Tracking Screen", () => {
     test("should navigate back to previous screen", async ({ page }) => {
       await page.goto("/trip/mock-active-trip-123");
 
-      const backButton = page.locator(
-        'role=link[aria-label*="back" i], role=button[aria-label*="back" i]'
-      );
+      const backButton = page.locator('a[aria-label*="back" i], button[aria-label*="back" i]');
       await backButton.first().click();
 
       // Should navigate away
@@ -286,9 +284,6 @@ test.describe("Trip Tracking Screen", () => {
       // Get initial ETA
       const initialEta = await page.locator("text=/\\d+ min/i").first().textContent();
 
-      // Wait for update
-      await page.waitForTimeout(6000);
-
       // Get updated ETA
       const updatedEta = await page.locator("text=/\\d+ min/i").first().textContent();
 
@@ -329,7 +324,7 @@ test.describe("Trip Tracking Screen", () => {
     test("should have accessible stop tracking button", async ({ page }) => {
       await page.goto("/trip/mock-active-trip-123?origin=101&dest=725");
 
-      const stopButton = page.locator('role=button:has-text("Stop Tracking")');
+      const stopButton = page.locator('button:has-text("Stop Tracking")');
       const hasButton = await stopButton.count();
 
       if (hasButton > 0) {
@@ -350,10 +345,6 @@ test.describe("Trip Tracking Screen", () => {
       });
 
       await page.goto("/trip/mock-active-trip-123?origin=101&dest=725");
-
-      // Should make API request for trip data
-      // Give it some time to load
-      await page.waitForTimeout(2000);
 
       // API might be called or data might come from cache
       const tripContent = page.locator('role=heading[name="Live Trip"]');
@@ -418,8 +409,8 @@ test.describe("Trip Tracking Screen", () => {
 
       // Look for journal link
       const journalLink = page
-        .locator('role=link:has-text("journal")')
-        .or(page.locator('role=link[href="/journal"]'));
+        .locator('a:has-text("journal")')
+        .or(page.locator('a[href="/journal"]'));
       const hasLink = await journalLink.count();
 
       if (hasLink > 0) {

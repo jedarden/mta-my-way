@@ -161,7 +161,7 @@ test.describe("Commute Workflow", () => {
           await originPicker.first().click();
 
           // Should see station search
-          const searchInput = page.locator('role=searchbox, input[type="text"]');
+          const searchInput = page.locator('input, input[type="text"]');
           await expect(searchInput.first()).toBeAttached();
         }
       }
@@ -186,7 +186,7 @@ test.describe("Commute Workflow", () => {
           await destPicker.first().click();
 
           // Should see station search
-          const searchInput = page.locator('role=searchbox, input[type="text"]');
+          const searchInput = page.locator('input, input[type="text"]');
           await expect(searchInput.first()).toBeAttached();
         }
       }
@@ -349,9 +349,6 @@ test.describe("Commute Workflow", () => {
     test("should display commute analysis", async ({ page }) => {
       await page.goto("/commute/test-commute-1");
 
-      // Wait for analysis to load
-      await page.waitForTimeout(2000);
-
       // Should have analysis section
       const analysis = page.locator("text=/recommended|direct|transfer/i");
       await expect(analysis).toBeAttached();
@@ -362,8 +359,6 @@ test.describe("Commute Workflow", () => {
     }) => {
       await page.goto("/commute/test-commute-1");
 
-      await page.waitForTimeout(2000);
-
       // Look for route comparison section
       const comparison = page.locator("text=/vs|comparison|alternate/i");
       await expect(comparison).toBeAttached();
@@ -372,8 +367,6 @@ test.describe("Commute Workflow", () => {
     test("should show transfer details", async ({ page }) => {
       await page.goto("/commute/test-commute-1");
 
-      await page.waitForTimeout(2000);
-
       // Should have transfer detail section
       const transferDetail = page.locator("text=/transfer|stop|arrive/i");
       await expect(transferDetail).toBeAttached();
@@ -381,8 +374,6 @@ test.describe("Commute Workflow", () => {
 
     test("should show walking comparison for short trips", async ({ page }) => {
       await page.goto("/commute/test-commute-1");
-
-      await page.waitForTimeout(2000);
 
       // Walking comparison may be shown for short distances
       const walking = page.locator("text=/walk|walking|pedestrian/i");

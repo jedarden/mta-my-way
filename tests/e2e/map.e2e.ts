@@ -74,7 +74,7 @@ test.describe("Map Screen", () => {
 
       // Try to find a close button or back button
       const closeButton = page.locator(
-        'role=button[aria-label*="Close" i], role=button[aria-label*="Back" i]'
+        'button[aria-label*="Close" i], button[aria-label*="Back" i]'
       );
       const hasClose = await closeButton.count();
 
@@ -105,8 +105,8 @@ test.describe("Map Screen", () => {
 
       // Find refresh button
       const refreshButton = page
-        .locator('role=button[aria-label*="refresh" i]')
-        .or(page.locator('role=button:has-text("Refresh")'));
+        .locator('button[aria-label*="refresh" i]')
+        .or(page.locator('button:has-text("Refresh")'));
       const hasRefresh = await refreshButton.count();
 
       if (hasRefresh > 0) {
@@ -126,29 +126,27 @@ test.describe("Map Screen", () => {
   test.describe("Line Filtering", () => {
     test("should show filter button", async ({ page }) => {
       const filterButton = page
-        .locator('role=button:has-text("Filter")')
-        .or(page.locator('role=button[aria-label*="filter" i]'));
+        .locator('button:has-text("Filter")')
+        .or(page.locator('button[aria-label*="filter" i]'));
       await expect(filterButton).toBeVisible();
     });
 
     test("should open line filter panel", async ({ page }) => {
       const filterButton = page
-        .locator('role=button:has-text("Filter")')
-        .or(page.locator('role=button[aria-label*="filter" i]'));
+        .locator('button:has-text("Filter")')
+        .or(page.locator('button[aria-label*="filter" i]'));
 
       await filterButton.click();
 
       // Should see filter panel with line buttons
-      const lineButtons = page.locator(
-        'role=button[aria-pressed="true"], role=button[aria-pressed="false"]'
-      );
+      const lineButtons = page.locator('button[aria-pressed="true"], button[aria-pressed="false"]');
       await expect(lineButtons.first()).toBeVisible();
     });
 
     test("should filter by specific line", async ({ page }) => {
       const filterButton = page
-        .locator('role=button:has-text("Filter")')
-        .or(page.locator('role=button[aria-label*="filter" i]'));
+        .locator('button:has-text("Filter")')
+        .or(page.locator('button[aria-label*="filter" i]'));
 
       await filterButton.click();
 
@@ -164,7 +162,7 @@ test.describe("Map Screen", () => {
 
         // Filter indicator should update
         const filterCount = page
-          .locator("role=button:has-text(/Filter\\s*\\d+/)")
+          .locator("button:has-text(/Filter\\s*\\d+/)")
           .or(page.locator('[class*="badge"], [class*="count"]'));
         const hasCount = await filterCount.count();
 
@@ -176,22 +174,22 @@ test.describe("Map Screen", () => {
 
     test("should clear all filters", async ({ page }) => {
       const filterButton = page
-        .locator('role=button:has-text("Filter")')
-        .or(page.locator('role=button[aria-label*="filter" i]'));
+        .locator('button:has-text("Filter")')
+        .or(page.locator('button[aria-label*="filter" i]'));
 
       await filterButton.click();
 
       // Look for "Clear" or "All" button
       const clearButton = page
-        .locator('role=button:has-text("Clear")')
-        .or(page.locator('role=button:has-text("All")'));
+        .locator('button:has-text("Clear")')
+        .or(page.locator('button:has-text("All")'));
       const hasClear = await clearButton.count();
 
       if (hasClear > 0) {
         await clearButton.first().click();
 
         // Filters should be cleared
-        const filterCount = page.locator("role=button:has-text(/Filter\\s*\\d+/)");
+        const filterCount = page.locator("button:has-text(/Filter\\s*\\d+/)");
         const hasCount = await filterCount.count();
 
         if (hasCount > 0) {
@@ -203,8 +201,8 @@ test.describe("Map Screen", () => {
 
     test("should close filter panel", async ({ page }) => {
       const filterButton = page
-        .locator('role=button:has-text("Filter")')
-        .or(page.locator('role=button[aria-label*="filter" i]'));
+        .locator('button:has-text("Filter")')
+        .or(page.locator('button[aria-label*="filter" i]'));
 
       // Open filter
       await filterButton.click();
@@ -227,8 +225,8 @@ test.describe("Map Screen", () => {
   test.describe("Navigation", () => {
     test("should navigate back to home", async ({ page }) => {
       const backButton = page
-        .locator('role=link[aria-label*="back" i]')
-        .or(page.locator('role=button[aria-label*="back" i]'));
+        .locator('a[aria-label*="back" i]')
+        .or(page.locator('button[aria-label*="back" i]'));
 
       await backButton.click();
 
@@ -331,12 +329,12 @@ test.describe("Map Screen", () => {
     test("should have proper ARIA labels on map controls", async ({ page }) => {
       // Filter button should have aria-label
       const filterButton = page.locator(
-        'role=button[aria-label*="filter" i], role=button:has-text("Filter")'
+        'button[aria-label*="filter" i], button:has-text("Filter")'
       );
       await expect(filterButton).toBeAttached();
 
       // Refresh button should have aria-label
-      const refreshButton = page.locator('role=button[aria-label*="refresh" i]');
+      const refreshButton = page.locator('button[aria-label*="refresh" i]');
       await expect(refreshButton).toBeAttached();
     });
 
@@ -354,8 +352,8 @@ test.describe("Map Screen", () => {
 
     test("should announce screen changes", async ({ page }) => {
       const filterButton = page
-        .locator('role=button:has-text("Filter")')
-        .or(page.locator('role=button[aria-label*="filter" i]'));
+        .locator('button:has-text("Filter")')
+        .or(page.locator('button[aria-label*="filter" i]'));
 
       await filterButton.click();
 

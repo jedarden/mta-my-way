@@ -26,7 +26,7 @@ test.describe("Line Diagram Screen", () => {
     });
 
     test("should show line name/identifier", async ({ page }) => {
-      const lineHeading = page.locator("role=heading:has-text(/1 Train|Line 1|Broadway/i)");
+      const lineHeading = page.locator('[role="heading"]:has-text(/1 Train|Line 1|Broadway/i)');
       const hasHeading = await lineHeading.count();
 
       if (hasHeading > 0) {
@@ -35,9 +35,7 @@ test.describe("Line Diagram Screen", () => {
     });
 
     test("should have back button", async ({ page }) => {
-      const backButton = page.locator(
-        'role=link[aria-label*="back" i], role=button[aria-label*="back" i]'
-      );
+      const backButton = page.locator('a[aria-label*="back" i], button[aria-label*="back" i]');
       await expect(backButton.first()).toBeAttached();
     });
   });
@@ -241,7 +239,7 @@ test.describe("Line Diagram Screen", () => {
       await page.goto("/map"); // Map screen has line selector
 
       const lineSelector = page
-        .locator('role=button:has-text("Filter")')
+        .locator('button:has-text("Filter")')
         .or(page.locator("[role='combobox'], [role='menu']"));
       const hasSelector = await lineSelector.count();
 
@@ -254,14 +252,14 @@ test.describe("Line Diagram Screen", () => {
       await page.goto("/diagram/1");
 
       // Look for line switcher
-      const lineSwitcher = page.locator('role=button:has-text(/A|C|E|2|3/), [role="menu"]').first();
+      const lineSwitcher = page.locator('button:has-text(/A|C|E|2|3/), [role="menu"]').first();
       const hasSwitcher = await lineSwitcher.count();
 
       if (hasSwitcher > 0) {
         await lineSwitcher.click();
 
         // Select a different line
-        const lineOption = page.locator("role=menuitem, role=option").first();
+        const lineOption = page.locator('[role="menuitem"], [role="option"]').first();
         const hasOption = await lineOption.count();
 
         if (hasOption > 0) {
@@ -312,9 +310,9 @@ test.describe("Line Diagram Screen", () => {
     test("should have zoom controls", async ({ page }) => {
       await page.waitForSelector("svg", { timeout: 5000 });
 
-      const zoomIn = page.locator('role=button:has-text("Zoom In"), [aria-label*="zoom in" i]');
-      const zoomOut = page.locator('role=button:has-text("Zoom Out"), [aria-label*="zoom out" i]');
-      const resetZoom = page.locator('role=button:has-text("Reset"), [aria-label*="reset" i]');
+      const zoomIn = page.locator('button:has-text("Zoom In"), [aria-label*="zoom in" i]');
+      const zoomOut = page.locator('button:has-text("Zoom Out"), [aria-label*="zoom out" i]');
+      const resetZoom = page.locator('button:has-text("Reset"), [aria-label*="reset" i]');
 
       const hasZoomIn = await zoomIn.count();
       const hasZoomOut = await zoomOut.count();
@@ -351,7 +349,7 @@ test.describe("Line Diagram Screen", () => {
       await page.waitForSelector("svg", { timeout: 5000 });
 
       const refreshButton = page.locator(
-        'role=button[aria-label*="refresh" i], role=button:has-text("Refresh")'
+        'button[aria-label*="refresh" i], button:has-text("Refresh")'
       );
       const hasRefresh = await refreshButton.count();
 
@@ -364,7 +362,7 @@ test.describe("Line Diagram Screen", () => {
       await page.waitForSelector("svg", { timeout: 5000 });
 
       const refreshButton = page.locator(
-        'role=button[aria-label*="refresh" i], role=button:has-text("Refresh")'
+        'button[aria-label*="refresh" i], button:has-text("Refresh")'
       );
       const hasRefresh = await refreshButton.count();
 
@@ -385,9 +383,7 @@ test.describe("Line Diagram Screen", () => {
 
   test.describe("Navigation", () => {
     test("should navigate back to previous screen", async ({ page }) => {
-      const backButton = page.locator(
-        'role=link[aria-label*="back" i], role=button[aria-label*="back" i]'
-      );
+      const backButton = page.locator('a[aria-label*="back" i], button[aria-label*="back" i]');
 
       await backButton.first().click();
 

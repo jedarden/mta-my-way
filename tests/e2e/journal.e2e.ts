@@ -20,8 +20,8 @@ test.describe("Journal Screen", () => {
 
     // Try to find a link to journal
     const journalLink = page
-      .locator('role=link[href="/journal"]')
-      .or(page.locator('role=button:has-text("Journal")'));
+      .locator('a[href="/journal"]')
+      .or(page.locator('button:has-text("Journal")'));
     const hasLink = await journalLink.count();
 
     if (hasLink > 0) {
@@ -191,8 +191,8 @@ test.describe("Journal Screen", () => {
       await page.goto("/journal");
 
       const historyButton = page
-        .locator('role=button:has-text("History")')
-        .or(page.locator('role=button[aria-label*="history" i]'));
+        .locator('button:has-text("History")')
+        .or(page.locator('button[aria-label*="history" i]'));
       await expect(historyButton).toBeAttached();
     });
 
@@ -204,9 +204,6 @@ test.describe("Journal Screen", () => {
 
       if (hasButton > 0) {
         await historyButton.click();
-
-        // Wait for expansion
-        await page.waitForTimeout(500);
 
         // Should see trip list items
         const tripItems = page.locator('[role="listitem"], [class*="trip"]');
@@ -254,11 +251,10 @@ test.describe("Journal Screen", () => {
 
       if (hasHistory > 0) {
         await historyButton.click();
-        await page.waitForTimeout(500);
       }
 
       // Try to click on a trip
-      const tripItem = page.locator('role=button, [role="listitem"]').first();
+      const tripItem = page.locator('button, [role="listitem"]').first();
       const hasTrip = await tripItem.count();
 
       if (hasTrip > 0) {

@@ -7,6 +7,25 @@
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
+const isCI = process.env["CI"] === "1" || process.env["CI"] === "true";
+const baseURL = process.env["PLAYWRIGHT_BASE_URL"] || "http://localhost:3001";
+const completedOnboardingStorageState = {
+  origins: [
+    {
+      origin: new URL(baseURL).origin,
+      localStorage: [
+        {
+          name: "mta-favorites",
+          value: JSON.stringify({
+            state: { favorites: [], commutes: [], tapHistory: [], onboardingComplete: true },
+            version: 1,
+          }),
+        },
+      ],
+    },
+  ],
+};
+
 /**
  * Playwright's own browser download cannot launch on this NixOS host — the
  * bundled headless shell is linked against `libglib-2.0.so.0`, which is not on
@@ -22,42 +41,45 @@ function resolveChromiumExecutable(): string | undefined {
 
 export default defineConfig({
   testDir: "./",
-  testMatch: ["**/*.e2e.ts"],
+  // Keep generated clean-room fixtures and Playwright output out of test
+  // discovery. Playwright does not honor .gitignore when matching files.
+  testMatch: ["*.e2e.ts"],
+  testIgnore: ["**/.tmp-*/**", "**/test-results/**", "**/playwright-report/**"],
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: "html",
+  forbidOnly: isCI,
+  retries: isCI ? 2 : 0,
+  workers: isCI ? 2 : undefined,
+  timeout: isCI ? 60_000 : 30_000,
+  expect: { timeout: isCI ? 10_000 : 5_000 },
+  reporter: "line",
   use: {
-    // launchOptions, not a flat key: flat executablePath is not a TestOption
-    // and is silently ignored.
-    launchOptions: { executablePath: resolveChromiumExecutable() },
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3001",
-    trace: "on-first-retry",
+    baseURL,
+    storageState: completedOnboardingStorageState,
+    actionTimeout: isCI ? 20_000 : 10_000,
+    navigationTimeout: isCI ? 30_000 : 15_000,
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
 
+  // CI installs Chromium only. Keep the cross-browser matrix available for
+  // local runs without making a clean CI checkout depend on extra browsers.
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: { executablePath: resolveChromiumExecutable() },
+      },
     },
-    {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-    {
-      name: "Mobile Chrome",
-      use: { ...devices["Pixel 5"] },
-    },
-    {
-      name: "Mobile Safari",
-      use: { ...devices["iPhone 12"] },
-    },
+    ...(!isCI
+      ? [
+          { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+          { name: "webkit", use: { ...devices["Desktop Safari"] } },
+          { name: "Mobile Chrome", use: { ...devices["Pixel 5"] } },
+          { name: "Mobile Safari", use: { ...devices["iPhone 12"] } },
+        ]
+      : []),
   ],
 
   // Start the local dev server before running tests.
@@ -111,7 +133,7 @@ export default defineConfig({
       TEST_MODE: "true",
     },
     url: "http://localhost:3001/healthz",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !isCI,
     timeout: 60 * 1000,
   },
 });

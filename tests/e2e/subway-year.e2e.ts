@@ -23,9 +23,7 @@ test.describe("Stats / Subway Year Screen", () => {
       await page.goto("/journal");
 
       // Look for stats link
-      const statsLink = page.locator(
-        'role=button:has-text("Subway Year"), role=link[href="/stats"]'
-      );
+      const statsLink = page.locator('button:has-text("Subway Year"), a[href="/stats"]');
       const hasLink = await statsLink.count();
 
       if (hasLink > 0) {
@@ -41,7 +39,7 @@ test.describe("Stats / Subway Year Screen", () => {
     test("should have back button to journal", async ({ page }) => {
       await page.goto("/stats");
 
-      const backButton = page.locator('role=button:has-text("Back")');
+      const backButton = page.locator('button:has-text("Back")');
       await expect(backButton).toBeVisible();
 
       await backButton.click();
@@ -87,7 +85,7 @@ test.describe("Stats / Subway Year Screen", () => {
     test("should have link to set up commute", async ({ page }) => {
       await page.goto("/stats");
 
-      const commuteLink = page.locator('role=button:has-text("Set up a commute")');
+      const commuteLink = page.locator('button:has-text("Set up a commute")');
       await expect(commuteLink).toBeAttached();
 
       await commuteLink.click();
@@ -128,7 +126,7 @@ test.describe("Stats / Subway Year Screen", () => {
       const windows = ["This Month", "This Quarter", "This Year", "All Time"];
 
       for (const window of windows) {
-        const button = page.locator(`role=button:has-text("${window}")`);
+        const button = page.locator(`button:has-text("${window}")`);
         await expect(button).toBeAttached();
       }
     });
@@ -137,7 +135,7 @@ test.describe("Stats / Subway Year Screen", () => {
       await page.goto("/stats");
 
       // Click on different windows
-      const monthButton = page.locator('role=button:has-text("This Month")');
+      const monthButton = page.locator('button:has-text("This Month")');
       await monthButton.click();
 
       // Should be selected
@@ -152,7 +150,7 @@ test.describe("Stats / Subway Year Screen", () => {
       }
 
       // Try another window
-      const yearButton = page.locator('role=button:has-text("This Year")');
+      const yearButton = page.locator('button:has-text("This Year")');
       await yearButton.click();
 
       const yearSelected = await yearButton.evaluate((el) => {
@@ -178,10 +176,7 @@ test.describe("Stats / Subway Year Screen", () => {
         .textContent();
 
       // Switch to All Time
-      await page.click('role=button:has-text("All Time")');
-
-      // Wait for update
-      await page.waitForTimeout(500);
+      await page.click('button:has-text("All Time")');
 
       // Get updated trip count
       const updatedTrips = await page
@@ -434,7 +429,7 @@ test.describe("Stats / Subway Year Screen", () => {
     test("should have share button", async ({ page }) => {
       await page.goto("/stats");
 
-      const shareButton = page.locator('role=button:has-text("Share")');
+      const shareButton = page.locator('button:has-text("Share")');
       await expect(shareButton).toBeVisible();
     });
 
@@ -448,12 +443,11 @@ test.describe("Stats / Subway Year Screen", () => {
 
       await page.goto("/stats");
 
-      const shareButton = page.locator('role=button:has-text("Share")');
+      const shareButton = page.locator('button:has-text("Share")');
       await shareButton.click();
 
-      // Share dialog or download should be triggered
-      // We just verify no errors occur
-      await page.waitForTimeout(500);
+      // Share dialog or download is browser-dependent; a successful click is
+      // the contract under test.
     });
 
     test("should show loading state while sharing", async ({ page }) => {
@@ -467,7 +461,7 @@ test.describe("Stats / Subway Year Screen", () => {
 
       await page.goto("/stats");
 
-      const shareButton = page.locator('role=button:has-text("Share My Subway Year")');
+      const shareButton = page.locator('button:has-text("Share My Subway Year")');
       await shareButton.click();
 
       // Button should show "Sharing..." state
@@ -566,9 +560,7 @@ test.describe("Stats / Subway Year Screen", () => {
     test("should have aria-pressed on time window buttons", async ({ page }) => {
       await page.goto("/stats");
 
-      const windowButtons = page.locator(
-        'role=button:has-text("This"), role=button:has-text("All")'
-      );
+      const windowButtons = page.locator('button:has-text("This"), button:has-text("All")');
       const count = await windowButtons.count();
 
       for (let i = 0; i < Math.min(count, 2); i++) {

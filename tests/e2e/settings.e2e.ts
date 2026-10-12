@@ -24,16 +24,12 @@ test.describe("Settings Screen", () => {
     });
 
     test("should have back button", async ({ page }) => {
-      const backButton = page.locator(
-        'role=link[aria-label*="back" i], role=button[aria-label*="back" i]'
-      );
+      const backButton = page.locator('a[aria-label*="back" i], button[aria-label*="back" i]');
       await expect(backButton.first()).toBeAttached();
     });
 
     test("should navigate back when back button is clicked", async ({ page }) => {
-      const backButton = page.locator(
-        'role=link[aria-label*="back" i], role=button[aria-label*="back" i]'
-      );
+      const backButton = page.locator('a[aria-label*="back" i], button[aria-label*="back" i]');
       await backButton.first().click();
 
       // Should navigate away from settings
@@ -64,7 +60,7 @@ test.describe("Settings Screen", () => {
 
       // Find theme selector
       const themeOption = page
-        .locator('role=button:has-text("Dark")')
+        .locator('button:has-text("Dark")')
         .or(page.locator('[role="radiogroup"] > *'));
       const hasOption = await themeOption.count();
 
@@ -91,19 +87,17 @@ test.describe("Settings Screen", () => {
 
       // Toggle to dark mode
       const darkOption = page
-        .locator('role=button:has-text("Dark")')
+        .locator('button:has-text("Dark")')
         .or(page.locator('[value="dark"], [data-theme="dark"]'));
       const hasDark = await darkOption.count();
 
       if (hasDark > 0) {
         await darkOption.first().click();
 
-        // Wait for theme to apply
-        await page.waitForTimeout(100);
-
-        const newBg = await page.evaluate(() => {
-          return getComputedStyle(document.body).backgroundColor;
-        });
+        await expect
+          .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+          .toBeTruthy();
+        const newBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
         // Background should have changed (or at least be different)
         expect(newBg).toBeTruthy();
@@ -148,7 +142,7 @@ test.describe("Settings Screen", () => {
 
       // Look for interval selector (buttons, dropdown, or slider)
       const intervalControl = page.locator(
-        'role=button:has-text(/\\d+ sec/), [role="combobox"], input[type="range"]'
+        'button:has-text(/\\d+ sec/), [role="combobox"], input[type="range"]'
       );
       const hasControl = await intervalControl.count();
 
@@ -185,8 +179,8 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       const enableButton = page
-        .locator('role=button:has-text("Enable")')
-        .or(page.locator('role=button:has-text("Subscribe")'));
+        .locator('button:has-text("Enable")')
+        .or(page.locator('button:has-text("Subscribe")'));
       const hasButton = await enableButton.count();
 
       if (hasButton > 0) {
@@ -254,7 +248,7 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       const exportButton = page
-        .locator('role=button:has-text("Export")')
+        .locator('button:has-text("Export")')
         .or(page.locator("text=/export data|download/i"));
       await expect(exportButton).toBeAttached();
     });
@@ -263,8 +257,8 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       const exportButton = page
-        .locator('role=button:has-text("Export")')
-        .or(page.locator('role=button:has-text("Download")'));
+        .locator('button:has-text("Export")')
+        .or(page.locator('button:has-text("Download")'));
       const hasButton = await exportButton.count();
 
       if (hasButton > 0) {
@@ -285,7 +279,7 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       const clearButton = page
-        .locator('role=button:has-text("Clear")')
+        .locator('button:has-text("Clear")')
         .or(page.locator("text=/clear data|reset|delete all/i"));
       await expect(clearButton).toBeAttached();
     });
@@ -294,8 +288,8 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       const clearButton = page
-        .locator('role=button:has-text("Clear")')
-        .or(page.locator('role=button:has-text("Delete")'));
+        .locator('button:has-text("Clear")')
+        .or(page.locator('button:has-text("Delete")'));
       const hasButton = await clearButton.count();
 
       if (hasButton > 0) {
@@ -310,11 +304,11 @@ test.describe("Settings Screen", () => {
 
           // Should have confirm and cancel buttons
           const confirmButton = page
-            .locator('role=button:has-text("Confirm")')
-            .or(page.locator('role=button:has-text("Clear")'));
+            .locator('button:has-text("Confirm")')
+            .or(page.locator('button:has-text("Clear")'));
           await expect(confirmButton).toBeAttached();
 
-          const cancelButton = page.locator('role=button:has-text("Cancel")');
+          const cancelButton = page.locator('button:has-text("Cancel")');
           await expect(cancelButton).toBeAttached();
         }
       }
@@ -340,9 +334,9 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       const supportLink = page
-        .locator('role=link:has-text("Support")')
-        .or(page.locator('role=link:has-text("Help")'));
-      const privacyLink = page.locator('role=link:has-text("Privacy")');
+        .locator('a:has-text("Support")')
+        .or(page.locator('a:has-text("Help")'));
+      const privacyLink = page.locator('a:has-text("Privacy")');
 
       // At least one should exist
       const hasLinks = (await supportLink.count()) + (await privacyLink.count()) > 0;
