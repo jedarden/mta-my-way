@@ -17,6 +17,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "json-summary"],
+      thresholds: {
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80,
+      },
       // The suite carries known-red tests outside any single coverage pass's
       // scope; without this vitest suppresses the report entirely whenever a
       // run has failures, which made coverage silently unmeasurable.

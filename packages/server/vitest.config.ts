@@ -16,6 +16,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "json-summary"],
+      thresholds: {
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80,
+      },
       // Without this vitest suppresses the report whenever the run has any
       // failing test, even failures from files outside coverage scope —
       // the full-suite report was silently never emitted until this was set.

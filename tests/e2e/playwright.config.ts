@@ -77,6 +77,21 @@ export default defineConfig({
         launchOptions: { executablePath: resolveChromiumExecutable() },
       },
     },
+    ...(isCI
+      ? [
+          {
+            // The GitOps WCAG job selects this project explicitly. Limit the
+            // CI mobile project to that audit so the normal Chromium suite is
+            // not duplicated at a second viewport.
+            name: "Mobile Chrome",
+            testMatch: "wcag-audit.e2e.ts",
+            use: {
+              ...devices["Pixel 5"],
+              launchOptions: { executablePath: resolveChromiumExecutable() },
+            },
+          },
+        ]
+      : []),
     ...(!isCI
       ? [
           { name: "firefox", use: { ...devices["Desktop Firefox"] } },
