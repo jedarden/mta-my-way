@@ -249,8 +249,8 @@ describe("MapScreen line filter", () => {
     const { container } = renderMapScreen();
     await settle();
 
-    expect(container.querySelector('path[aria-label="1 line"]')).not.toBeNull();
-    expect(container.querySelector('path[aria-label="A line"]')).not.toBeNull();
+    expect(container.querySelector('path[aria-hidden="true"][stroke="#EE352E"]')).not.toBeNull();
+    expect(container.querySelector('path[aria-hidden="true"][stroke="#0039A6"]')).not.toBeNull();
   });
 
   it("narrows the map to the selected line", async () => {
@@ -261,8 +261,8 @@ describe("MapScreen line filter", () => {
     fireEvent.click(screen.getByRole("button", { name: "A", pressed: false }));
     await settle();
 
-    expect(container.querySelector('path[aria-label="1 line"]')).toBeNull();
-    expect(container.querySelector('path[aria-label="A line"]')).not.toBeNull();
+    expect(container.querySelector('path[aria-hidden="true"][stroke="#EE352E"]')).toBeNull();
+    expect(container.querySelector('path[aria-hidden="true"][stroke="#0039A6"]')).not.toBeNull();
     expect(
       screen.queryByRole("button", { name: "Northbound 1 train to South Ferry" })
     ).not.toBeInTheDocument();

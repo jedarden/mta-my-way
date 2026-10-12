@@ -89,17 +89,16 @@ export function TrainDiagram({
   const reducedMotion = useReducedMotion();
 
   return (
-    <figure
-      className={className}
-      role="img"
-      aria-label={getAriaLabel(routeId, trainCount, spacingSummary)}
-    >
+    <figure className={className} aria-labelledby={`train-diagram-label-${routeId}`}>
+      <figcaption id={`train-diagram-label-${routeId}`} className="sr-only">
+        {getAriaLabel(routeId, trainCount, spacingSummary)}
+      </figcaption>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
         className="w-full h-auto"
-        role="presentation"
-        aria-hidden="true"
+        role="group"
+        aria-label="Interactive train positions diagram"
       >
         {/* Main line */}
         <line

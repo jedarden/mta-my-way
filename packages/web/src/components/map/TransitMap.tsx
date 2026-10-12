@@ -251,7 +251,7 @@ export const TransitMap = memo(function TransitMap({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   opacity={0.7}
-                  aria-label={`${line.routeId} line`}
+                  aria-hidden="true"
                 />
               )}
             </g>

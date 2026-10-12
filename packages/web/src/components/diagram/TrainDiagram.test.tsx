@@ -42,7 +42,10 @@ describe("TrainDiagram", () => {
     render(<TrainDiagram data={data} />);
 
     expect(
-      screen.getByRole("img", { name: "1 line: no trains currently tracking" })
+      screen.getByRole("figure", { name: "1 line: no trains currently tracking" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Interactive train positions diagram" })
     ).toBeInTheDocument();
     expect(screen.getByText("Very Long T…")).toBeInTheDocument();
     expect(screen.getByText("Transfer")).toBeInTheDocument();
@@ -72,9 +75,9 @@ describe("TrainDiagram", () => {
       />
     );
 
-    expect(screen.getByRole("img", { name: /1 line: 2 trains/ })).toBeInTheDocument();
-    // The SVG is aria-hidden by the component, so inspect the train dot nodes
-    // directly while checking their labels and keyboard handlers.
+    expect(screen.getByRole("figure", { name: /1 line: 2 trains/ })).toBeInTheDocument();
+    // Inspect the interactive train dot nodes directly while checking their
+    // labels and keyboard handlers.
     const north = container.querySelector<SVGGElement>(
       'g[role="button"][aria-label*="Northbound"]'
     )!;
@@ -109,7 +112,9 @@ describe("TrainDiagram", () => {
       />
     );
 
-    expect(screen.getByRole("img", { name: "1 line: 1 train, single train" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("figure", { name: "1 line: 1 train, single train" })
+    ).toBeInTheDocument();
     expect(container.querySelector('g[role="button"] animate')).toBeNull();
   });
 });

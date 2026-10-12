@@ -109,8 +109,8 @@ describe("TransitMap mounting", () => {
   });
 
   // A <path> carries no implicit ARIA role, so it is not reachable through
-  // getByRole — locate it by the aria-label the component sets on it.
-  const linePath = (container: HTMLElement) => container.querySelector('path[aria-label="1 line"]');
+  // getByRole — locate the decorative route path by its explicit hidden state.
+  const linePath = (container: HTMLElement) => container.querySelector('path[aria-hidden="true"]');
 
   it("draws the polyline for a route whose stops all resolve", () => {
     const { container } = renderMap();

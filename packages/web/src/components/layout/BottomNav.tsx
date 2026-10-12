@@ -18,13 +18,18 @@ export default function BottomNav() {
       role="navigation"
       aria-label="Main navigation"
     >
-      <ul className="flex justify-around items-center h-14" role="list">
+      <ul className="grid grid-cols-4 items-center h-14 px-2" role="list">
         {navItems.map((item) => (
           <li key={item.path}>
             <NavLink
               to={item.path}
+              aria-label={
+                item.path === "/alerts" && myAlertsCount > 0
+                  ? `${item.label}, ${myAlertsCount} ${myAlertsCount === 1 ? "alert" : "alerts"}`
+                  : item.label
+              }
               className={({ isActive, isPending }) =>
-                `flex flex-col items-center justify-center min-h-touch min-w-touch px-4 rounded-lg transition-colors relative ${
+                `w-full flex flex-col items-center justify-center min-h-touch min-w-touch px-4 rounded-lg transition-colors relative ${
                   isActive
                     ? "text-mta-primary dark:text-blue-400"
                     : "text-text-secondary dark:text-dark-text-secondary hover:bg-surface dark:hover:bg-dark-surface"
@@ -38,8 +43,8 @@ export default function BottomNav() {
               {/* Alert badge */}
               {item.path === "/alerts" && myAlertsCount > 0 && (
                 <span
-                  className="absolute top-1 right-3 min-w-[18px] h-[18px] px-1 bg-mta-red text-white text-11 font-bold rounded-full flex items-center justify-center"
-                  aria-label={`${myAlertsCount} ${myAlertsCount === 1 ? "alert" : "alerts"}`}
+                  className="pointer-events-none absolute top-1 right-3 min-w-[18px] h-[18px] px-1 bg-mta-red text-white text-11 font-bold rounded-full flex items-center justify-center"
+                  aria-hidden="true"
                 >
                   {myAlertsCount > 99 ? "99+" : myAlertsCount}
                 </span>
