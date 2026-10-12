@@ -99,7 +99,7 @@ export const TransitMap = memo(function TransitMap({
   // Handle pan end
   const handlePanEnd = useCallback((e: React.PointerEvent) => {
     setIsDragging(false);
-    if (svgRef.current?.hasPointerCapture(e.pointerId)) {
+    if (svgRef.current?.hasPointerCapture?.(e.pointerId)) {
       svgRef.current.releasePointerCapture(e.pointerId);
     }
   }, []);
