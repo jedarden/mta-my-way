@@ -476,36 +476,23 @@ test.describe("Fare Tracking", () => {
 
     test("should update when rides are added", async ({ page }) => {
       await page.addInitScript(() => {
-        if (!localStorage.getItem("mta-fare")) {
-          const fareData = {
-            weeklyRides: 7,
-            monthlyRides: 28,
-            currentFare: 2.9,
-            unlimitedPassPrice: 132,
-            lastReset: new Date().toISOString(),
-          };
-          localStorage.setItem("mta-fare", JSON.stringify(fareData));
-        }
+        const firstLoad = sessionStorage.getItem("fare-update-fixture") !== "1";
+        sessionStorage.setItem("fare-update-fixture", "1");
+        const fareData = {
+          weeklyRides: firstLoad ? 7 : 8,
+          monthlyRides: firstLoad ? 28 : 29,
+          currentFare: 2.9,
+          unlimitedPassPrice: 132,
+          lastReset: new Date().toISOString(),
+        };
+        localStorage.setItem("mta-fare", JSON.stringify(fareData));
       });
 
       await page.goto("/");
       await expect(page.getByText("7/12")).toBeAttached();
 
-      // Add a ride
-      await page.evaluate(() => {
-        const data = localStorage.getItem("mta-fare");
-        if (data) {
-          const fareData = JSON.parse(data);
-          fareData.state.tracking.weeklyRides = 8;
-          fareData.state.tracking.monthlyRides = 29;
-          localStorage.setItem("mta-fare", JSON.stringify(fareData));
-        }
-      });
-
-      // Leave the live app before its in-memory state can persist over the
-      // fixture update, then re-open it from the updated storage value.
-      await page.goto("about:blank");
-      await page.goto("/");
+      // Simulate adding a ride on the next navigation and rehydrate the store.
+      await page.reload();
 
       // Should show updated count
       const ridesText = await page
