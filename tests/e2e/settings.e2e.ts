@@ -141,9 +141,10 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       // Look for interval selector (buttons, dropdown, or slider)
-      const intervalControl = page.locator(
-        'button:has-text(/\\d+ sec/), [role="combobox"], input[type="range"]'
-      );
+      const intervalControl = page
+        .getByRole("button", { name: /\d+ sec/ })
+        .or(page.getByRole("combobox"))
+        .or(page.locator('input[type="range"]'));
       const hasControl = await intervalControl.count();
 
       if (hasControl > 0) {

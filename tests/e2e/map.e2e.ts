@@ -162,7 +162,7 @@ test.describe("Map Screen", () => {
 
         // Filter indicator should update
         const filterCount = page
-          .locator("button:has-text(/Filter\\s*\\d+/)")
+          .getByRole("button", { name: /Filter\s*\d+/ })
           .or(page.locator('[class*="badge"], [class*="count"]'));
         const hasCount = await filterCount.count();
 
@@ -189,7 +189,7 @@ test.describe("Map Screen", () => {
         await clearButton.first().click();
 
         // Filters should be cleared
-        const filterCount = page.locator("button:has-text(/Filter\\s*\\d+/)");
+        const filterCount = page.getByRole("button", { name: /Filter\s*\d+/ });
         const hasCount = await filterCount.count();
 
         if (hasCount > 0) {

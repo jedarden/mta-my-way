@@ -26,7 +26,7 @@ test.describe("Line Diagram Screen", () => {
     });
 
     test("should show line name/identifier", async ({ page }) => {
-      const lineHeading = page.locator('[role="heading"]:has-text(/1 Train|Line 1|Broadway/i)');
+      const lineHeading = page.getByRole("heading", { name: /1 Train|Line 1|Broadway/i });
       const hasHeading = await lineHeading.count();
 
       if (hasHeading > 0) {
@@ -252,7 +252,10 @@ test.describe("Line Diagram Screen", () => {
       await page.goto("/diagram/1");
 
       // Look for line switcher
-      const lineSwitcher = page.locator('button:has-text(/A|C|E|2|3/), [role="menu"]').first();
+      const lineSwitcher = page
+        .getByRole("button", { name: /A|C|E|2|3/ })
+        .or(page.getByRole("menu"))
+        .first();
       const hasSwitcher = await lineSwitcher.count();
 
       if (hasSwitcher > 0) {

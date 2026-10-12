@@ -95,7 +95,7 @@ test.describe("Trip Tracking Screen", () => {
       await page.goto("/trip/mock-delayed-trip?origin=101&dest=725");
 
       // Anomaly banner might appear
-      const anomalyBanner = page.locator('[role="alert"]:has-text(/delay|longer than usual/i)');
+      const anomalyBanner = page.getByRole("alert").filter({ hasText: /delay|longer than usual/i });
       const hasBanner = await anomalyBanner.count();
 
       if (hasBanner > 0) {
