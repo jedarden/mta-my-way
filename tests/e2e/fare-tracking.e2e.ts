@@ -491,8 +491,8 @@ test.describe("Fare Tracking", () => {
         const data = localStorage.getItem("mta-fare");
         if (data) {
           const fareData = JSON.parse(data);
-          fareData.weeklyRides = 8;
-          fareData.monthlyRides = 29;
+          fareData.state.tracking.weeklyRides = 8;
+          fareData.state.tracking.monthlyRides = 29;
           localStorage.setItem("mta-fare", JSON.stringify(fareData));
         }
       });
