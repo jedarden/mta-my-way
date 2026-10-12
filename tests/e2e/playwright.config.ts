@@ -83,8 +83,9 @@ export default defineConfig({
   ],
 
   // Start the local dev server before running tests.
-  // Uses tsx to transpile TypeScript on-the-fly (avoids tsc -b build failures
-  // from unrelated type errors in the codebase).
+  // Build the web shell because packages/web/dist is a generated artifact and
+  // is intentionally absent from clean CI checkouts. Then use tsx to
+  // transpile the server TypeScript on-the-fly.
   //
   // Server startup sequence (packages/server/src/index.ts):
   //   1. Load GTFS static data (~1-2s)
@@ -128,7 +129,8 @@ export default defineConfig({
   //   - To reuse in CI: Not recommended (tests may share state), but possible
   //     by removing the CI env var in the workflow template.
   webServer: {
-    command: "npx tsx helpers/check-port.ts && cd ../.. && npx tsx packages/server/src/index.ts",
+    command:
+      "npx tsx helpers/check-port.ts && cd ../.. && npm run build --workspace=packages/web && npx tsx packages/server/src/index.ts",
     env: {
       TEST_MODE: "true",
     },
