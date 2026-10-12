@@ -16,7 +16,14 @@ import {
 const onRequestPermission = vi.fn();
 const onDismiss = vi.fn();
 
-function renderFallback(props: Partial<Parameters<typeof GeolocationPermissionFallback>[0]>) {
+type GeolocationPermissionFallbackProps = Parameters<typeof GeolocationPermissionFallback>[0];
+type GeolocationBannerProps = Parameters<typeof GeolocationPermissionBanner>[0];
+
+function renderFallback(
+  props: Partial<GeolocationPermissionFallbackProps> & {
+    permission: GeolocationPermissionFallbackProps["permission"];
+  }
+) {
   return render(
     <MemoryRouter>
       <GeolocationPermissionFallback onRequestPermission={onRequestPermission} {...props} />
@@ -24,10 +31,16 @@ function renderFallback(props: Partial<Parameters<typeof GeolocationPermissionFa
   );
 }
 
-function renderBanner(props: Partial<Parameters<typeof GeolocationPermissionBanner>[0]>) {
+function renderBanner(
+  props: Partial<GeolocationBannerProps> & { permission: GeolocationBannerProps["permission"] }
+) {
   return render(
     <MemoryRouter>
-      <GeolocationPermissionBanner onRequestPermission={onRequestPermission} onDismiss={onDismiss} {...props} />
+      <GeolocationPermissionBanner
+        onRequestPermission={onRequestPermission}
+        onDismiss={onDismiss}
+        {...props}
+      />
     </MemoryRouter>
   );
 }
@@ -73,10 +86,14 @@ describe("GeolocationPermissionFallback", () => {
       renderFallback({ permission: "denied" });
 
       expect(
-        screen.getByText(/Click the lock\/icon in your address bar → Site settings → Location → Allow/)
+        screen.getByText(
+          /Click the lock\/icon in your address bar → Site settings → Location → Allow/
+        )
       ).toBeInTheDocument();
       // canRequest is false for denied
-      expect(screen.queryByRole("button", { name: /enable location access/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /enable location access/i })
+      ).not.toBeInTheDocument();
     });
 
     it("shows iOS instructions on an iPhone user agent", () => {
@@ -85,9 +102,7 @@ describe("GeolocationPermissionFallback", () => {
       renderFallback({ permission: "denied" });
 
       expect(screen.getByText("iPhone/iPad:")).toBeInTheDocument();
-      expect(
-        screen.getByText(/Settings → Safari → Location → Allow/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Settings → Safari → Location → Allow/)).toBeInTheDocument();
     });
 
     it("shows Android instructions on an Android user agent", () => {
@@ -120,7 +135,9 @@ describe("GeolocationPermissionFallback", () => {
         )
       ).toBeInTheDocument();
       expect(screen.getByText("You can search for stations manually instead.")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /enable location access/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /enable location access/i })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -128,7 +145,9 @@ describe("GeolocationPermissionFallback", () => {
     it("shows the error message with a retry affordance", () => {
       renderFallback({ permission: "prompt", error: "Timeout waiting for location" });
 
-      expect(screen.getByRole("heading", { name: "Couldn't get your location" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Couldn't get your location" })
+      ).toBeInTheDocument();
       expect(screen.getByText("Timeout waiting for location")).toBeInTheDocument();
       expect(screen.getByText("Try again or search for stations manually.")).toBeInTheDocument();
 

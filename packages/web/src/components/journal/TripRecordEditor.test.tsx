@@ -6,9 +6,9 @@
  * delete confirmation flow, close affordances, and the focus trap.
  */
 
+import type { TripRecord } from "@mta-my-way/shared";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { TripRecord } from "@mta-my-way/shared";
 import { TripRecordEditor } from "./TripRecordEditor";
 
 const COMMUTE_ID = "commute-1";
@@ -97,16 +97,17 @@ describe("TripRecordEditor delay display", () => {
     [28, 25, "+3 min", "text-warning"], // > 2 late
     [26, 25, "+1 min", "text-text-secondary"], // within band
     [26, 30, "-4 min", "text-mta-primary"], // < -2 early
-  ])(
-    "renders delay for actual %i vs scheduled %i",
-    (actual, scheduled, text, colorClass) => {
-      renderEditor({ ...baseTrip, actualDurationMinutes: actual, scheduledDurationMinutes: scheduled });
+  ])("renders delay for actual %i vs scheduled %i", (actual, scheduled, text, colorClass) => {
+    renderEditor({
+      ...baseTrip,
+      actualDurationMinutes: actual,
+      scheduledDurationMinutes: scheduled,
+    });
 
-      const badge = screen.getByText(text);
-      expect(badge).toHaveClass(colorClass);
-      expect(screen.getByText(`${actual} min actual`)).toBeInTheDocument();
-    }
-  );
+    const badge = screen.getByText(text);
+    expect(badge).toHaveClass(colorClass);
+    expect(screen.getByText(`${actual} min actual`)).toBeInTheDocument();
+  });
 
   it("omits the delay badge when no scheduled duration is set", () => {
     renderEditor({ ...baseTrip, scheduledDurationMinutes: undefined });

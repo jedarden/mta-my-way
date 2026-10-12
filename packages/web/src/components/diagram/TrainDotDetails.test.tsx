@@ -17,7 +17,11 @@ import { TrainDotDetails } from "./TrainDotDetails";
 describe("TrainDotDetails", () => {
   it("shows a northbound heading for an N-direction train", () => {
     render(
-      <TrainDotDetails train={makeTrainPosition({ direction: "N" })} routeId="1" onClose={vi.fn()} />
+      <TrainDotDetails
+        train={makeTrainPosition({ direction: "N" })}
+        routeId="1"
+        onClose={vi.fn()}
+      />
     );
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -26,7 +30,11 @@ describe("TrainDotDetails", () => {
 
   it("shows a southbound heading for an S-direction train", () => {
     render(
-      <TrainDotDetails train={makeTrainPosition({ direction: "S" })} routeId="1" onClose={vi.fn()} />
+      <TrainDotDetails
+        train={makeTrainPosition({ direction: "S" })}
+        routeId="1"
+        onClose={vi.fn()}
+      />
     );
 
     expect(screen.getByText("Southbound Train")).toBeInTheDocument();
@@ -42,7 +50,11 @@ describe("TrainDotDetails", () => {
 
   it("shows an assigned status with success styling", () => {
     render(
-      <TrainDotDetails train={makeTrainPosition({ isAssigned: true })} routeId="1" onClose={vi.fn()} />
+      <TrainDotDetails
+        train={makeTrainPosition({ isAssigned: true })}
+        routeId="1"
+        onClose={vi.fn()}
+      />
     );
 
     const status = screen.getByText("Assigned");

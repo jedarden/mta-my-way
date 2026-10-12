@@ -47,7 +47,9 @@ describe("ImageErrorFallback", () => {
     });
 
     it("honors custom icon and text overrides", () => {
-      render(<ImageErrorFallback alt="A" icon={<span data-testid="custom-icon" />} text="Custom text" />);
+      render(
+        <ImageErrorFallback alt="A" icon={<span data-testid="custom-icon" />} text="Custom text" />
+      );
 
       expect(screen.getByTestId("custom-icon")).toBeInTheDocument();
       expect(screen.getByText("Custom text")).toBeInTheDocument();
@@ -81,7 +83,9 @@ describe("ImageErrorFallback", () => {
 
   describe("thumbnail variant", () => {
     it("uses the fixed thumbnail sizing and hides text", () => {
-      render(<ImageErrorFallback alt="Thumb" isThumbnail={true} canRetry={true} onRetry={onRetry} />);
+      render(
+        <ImageErrorFallback alt="Thumb" isThumbnail={true} canRetry={true} onRetry={onRetry} />
+      );
 
       const box = screen.getByRole("img");
       expect(box).toHaveClass("w-16", "h-16");
@@ -143,7 +147,13 @@ describe("ImageErrorFallback", () => {
 
     it("hides retry for thumbnails in text mode", () => {
       render(
-        <ImageErrorFallback alt="A" mode="text" isThumbnail={true} canRetry={true} onRetry={onRetry} />
+        <ImageErrorFallback
+          alt="A"
+          mode="text"
+          isThumbnail={true}
+          canRetry={true}
+          onRetry={onRetry}
+        />
       );
 
       expect(screen.queryByRole("button")).not.toBeInTheDocument();

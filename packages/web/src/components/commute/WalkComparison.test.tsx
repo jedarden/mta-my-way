@@ -14,9 +14,7 @@ import { describe, expect, it } from "vitest";
 import type { WalkComparisonResult } from "../../hooks/useWalkComparison";
 import { WalkComparison } from "./WalkComparison";
 
-const makeComparison = (
-  overrides: Partial<WalkComparisonResult> = {}
-): WalkComparisonResult => ({
+const makeComparison = (overrides: Partial<WalkComparisonResult> = {}): WalkComparisonResult => ({
   available: true,
   walkingMinutes: 9,
   distanceKm: 0.7,
@@ -101,11 +99,7 @@ describe("WalkComparison", () => {
   });
 
   it("replaces the transit column with a similarity note when times are close", () => {
-    render(
-      <WalkComparison
-        comparison={makeComparison({ recommendation: "similar" })}
-      />
-    );
+    render(<WalkComparison comparison={makeComparison({ recommendation: "similar" })} />);
 
     expect(screen.getByText("About the same as transit")).toBeInTheDocument();
     expect(screen.queryByText("min transit")).not.toBeInTheDocument();

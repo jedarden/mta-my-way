@@ -388,9 +388,7 @@ describe("StationScreen", () => {
     renderStationScreen();
 
     expect(await screen.findByText("Delays on the 7")).toBeInTheDocument();
-    expect(
-      screen.getByLabelText(/equipment outages at times sq-42 st/i)
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/equipment outages at times sq-42 st/i)).toBeInTheDocument();
   });
 
   it("invokes the arrivals refresh from the refresh button", async () => {

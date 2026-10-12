@@ -21,10 +21,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TripData, TripStopInfo } from "../lib/api";
-import type { TripStopProgress } from "../hooks/useTripTracker";
 import { useTripJournal } from "../hooks/useTripJournal";
+import type { TripStopProgress } from "../hooks/useTripTracker";
 import { useTripTracker } from "../hooks/useTripTracker";
+import type { TripData, TripStopInfo } from "../lib/api";
 import TripScreen from "./TripScreen";
 
 vi.mock("../hooks/useTripTracker", () => ({
@@ -317,7 +317,9 @@ describe("TripScreen", () => {
 
       renderTripScreen();
 
-      expect(screen.queryByRole("button", { name: "Stop tracking this trip" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Stop tracking this trip" })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -435,7 +437,9 @@ describe("TripScreen", () => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
       expect(screen.queryByText("ETA to destination")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Share trip progress" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Stop tracking this trip" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Stop tracking this trip" })
+      ).not.toBeInTheDocument();
     });
 
     it("omits the journal note when the trip was not logged to a commute", () => {

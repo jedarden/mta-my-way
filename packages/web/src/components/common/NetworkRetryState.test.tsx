@@ -110,7 +110,9 @@ describe("NetworkRetryState", () => {
     it("shows alert-specific exhausted messaging", () => {
       renderRetry({ context: "service alerts", attempt: 2, maxAttempts: 2 });
 
-      expect(screen.getByText("Couldn't fetch alerts after multiple attempts.")).toBeInTheDocument();
+      expect(
+        screen.getByText("Couldn't fetch alerts after multiple attempts.")
+      ).toBeInTheDocument();
     });
   });
 
@@ -194,7 +196,7 @@ describe("CompactNetworkRetry", () => {
   it("renders the default message with an enabled retry button", () => {
     render(
       <MemoryRouter>
-        <CompactNetworkRetry onRetry={onRetry} />
+        <CompactNetworkRetry onRetry={onRetry} isRetrying={false} />
       </MemoryRouter>
     );
 
@@ -210,7 +212,7 @@ describe("CompactNetworkRetry", () => {
   it("renders a custom message", () => {
     render(
       <MemoryRouter>
-        <CompactNetworkRetry onRetry={onRetry} message="Custom failure" />
+        <CompactNetworkRetry onRetry={onRetry} isRetrying={false} message="Custom failure" />
       </MemoryRouter>
     );
 

@@ -73,7 +73,10 @@ describe("CommutePresetCard", () => {
     rerender(
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
-          <Route path="/" element={<CommutePresetCard commute={makeCommute({ preferredLines: [] })} />} />
+          <Route
+            path="/"
+            element={<CommutePresetCard commute={makeCommute({ preferredLines: [] })} />}
+          />
           <Route path="/station/:stationId" element={<div>station-page</div>} />
           <Route path="/commute/:commuteId" element={<div>commute-detail-page</div>} />
         </Routes>

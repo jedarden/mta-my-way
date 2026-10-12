@@ -38,7 +38,12 @@ beforeEach(() => {
 describe("FavoriteEditor", () => {
   it("renders as a dialog labelled for the station being edited", () => {
     render(
-      <FavoriteEditor favorite={makeFavorite()} onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />
+      <FavoriteEditor
+        favorite={makeFavorite()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
 
     expect(screen.getByRole("dialog", { name: "Edit Times Sq-42 St" })).toHaveAttribute(
@@ -65,7 +70,12 @@ describe("FavoriteEditor", () => {
 
   it("fetches the station to offer every serving line, keeping the current selection", async () => {
     render(
-      <FavoriteEditor favorite={makeFavorite()} onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />
+      <FavoriteEditor
+        favorite={makeFavorite()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
 
     expect(mockGetStation).toHaveBeenCalledWith("725");
@@ -83,7 +93,12 @@ describe("FavoriteEditor", () => {
     mockGetStation.mockRejectedValue(new Error("offline"));
 
     render(
-      <FavoriteEditor favorite={makeFavorite()} onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />
+      <FavoriteEditor
+        favorite={makeFavorite()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
 
     await waitFor(() => {
@@ -94,7 +109,12 @@ describe("FavoriteEditor", () => {
 
   it("toggles a line into and out of the selection", () => {
     render(
-      <FavoriteEditor favorite={makeFavorite()} onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />
+      <FavoriteEditor
+        favorite={makeFavorite()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Hide 2 train" }));
@@ -125,7 +145,12 @@ describe("FavoriteEditor", () => {
 
   it("offers all three direction options and switches selection", () => {
     render(
-      <FavoriteEditor favorite={makeFavorite()} onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />
+      <FavoriteEditor
+        favorite={makeFavorite()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
 
     expect(screen.getByRole("radio", { name: "Uptown / Bronx-bound" })).toBeInTheDocument();
@@ -188,7 +213,12 @@ describe("FavoriteEditor", () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
     render(
-      <FavoriteEditor favorite={makeFavorite()} onSave={vi.fn()} onDelete={onDelete} onClose={vi.fn()} />
+      <FavoriteEditor
+        favorite={makeFavorite()}
+        onSave={vi.fn()}
+        onDelete={onDelete}
+        onClose={vi.fn()}
+      />
     );
 
     await user.click(screen.getByRole("button", { name: "Remove from favorites" }));
@@ -197,9 +227,7 @@ describe("FavoriteEditor", () => {
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onDelete).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "Remove from favorites" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove from favorites" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Remove from favorites" }));
     await user.click(screen.getByRole("button", { name: "Remove" }));
@@ -234,7 +262,12 @@ describe("FavoriteEditor", () => {
   it("keeps Tab cycling inside the dialog", async () => {
     const user = userEvent.setup();
     render(
-      <FavoriteEditor favorite={makeFavorite()} onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />
+      <FavoriteEditor
+        favorite={makeFavorite()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
 
     const dialog = screen.getByRole("dialog", { name: "Edit Times Sq-42 St" });

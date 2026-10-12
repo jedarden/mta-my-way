@@ -237,9 +237,7 @@ describe("SettingsScreen", () => {
       signInAs();
 
       renderScreen();
-      fireEvent.click(
-        screen.getByRole("button", { name: "Stop syncing and delete local data" })
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Stop syncing and delete local data" }));
 
       const dialog = screen.getByRole("alertdialog");
       expect(dialog).toBeInTheDocument();
@@ -254,9 +252,7 @@ describe("SettingsScreen", () => {
       signInAs();
 
       renderScreen();
-      fireEvent.click(
-        screen.getByRole("button", { name: "Stop syncing and delete local data" })
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Stop syncing and delete local data" }));
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
@@ -266,21 +262,15 @@ describe("SettingsScreen", () => {
       signInAs();
 
       renderScreen();
-      fireEvent.click(
-        screen.getByRole("button", { name: "Stop syncing and delete local data" })
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Stop syncing and delete local data" }));
       await act(async () => {
-        fireEvent.click(
-          screen.getByRole("button", { name: "Delete local data and sign out" })
-        );
+        fireEvent.click(screen.getByRole("button", { name: "Delete local data and sign out" }));
       });
 
       expect(vi.mocked(clearLocalPreferences)).toHaveBeenCalledTimes(1);
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
       expect(
-        screen.queryByText(
-          "We couldn't sign you out, so your local data was left unchanged."
-        )
+        screen.queryByText("We couldn't sign you out, so your local data was left unchanged.")
       ).not.toBeInTheDocument();
     });
 
@@ -289,20 +279,14 @@ describe("SettingsScreen", () => {
       useAuthStore.setState({ signOut: vi.fn().mockResolvedValue(false) });
 
       renderScreen();
-      fireEvent.click(
-        screen.getByRole("button", { name: "Stop syncing and delete local data" })
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Stop syncing and delete local data" }));
       await act(async () => {
-        fireEvent.click(
-          screen.getByRole("button", { name: "Delete local data and sign out" })
-        );
+        fireEvent.click(screen.getByRole("button", { name: "Delete local data and sign out" }));
       });
 
       expect(vi.mocked(clearLocalPreferences)).not.toHaveBeenCalled();
       expect(
-        screen.getByText(
-          "We couldn't sign you out, so your local data was left unchanged."
-        )
+        screen.getByText("We couldn't sign you out, so your local data was left unchanged.")
       ).toBeInTheDocument();
     });
   });
@@ -348,9 +332,10 @@ describe("SettingsScreen", () => {
       fireEvent.click(toggle);
 
       expect(useSettingsStore.getState().accessibleMode).toBe(true);
-      expect(
-        screen.getByRole("switch", { name: "Disable accessible mode" })
-      ).toHaveAttribute("aria-checked", "true");
+      expect(screen.getByRole("switch", { name: "Disable accessible mode" })).toHaveAttribute(
+        "aria-checked",
+        "true"
+      );
     });
 
     it("always renders the About section", () => {
@@ -363,9 +348,7 @@ describe("SettingsScreen", () => {
 
   describe("push notifications section", () => {
     it("explains the iOS 16.4 requirement on old iOS", () => {
-      vi.mocked(usePushNotifications).mockReturnValue(
-        makePushState({ isOldIOS: true })
-      );
+      vi.mocked(usePushNotifications).mockReturnValue(makePushState({ isOldIOS: true }));
 
       renderScreen();
 
@@ -377,9 +360,7 @@ describe("SettingsScreen", () => {
     });
 
     it("reports unsupported browsers", () => {
-      vi.mocked(usePushNotifications).mockReturnValue(
-        makePushState({ isSupported: false })
-      );
+      vi.mocked(usePushNotifications).mockReturnValue(makePushState({ isSupported: false }));
 
       renderScreen();
 
@@ -389,16 +370,12 @@ describe("SettingsScreen", () => {
     });
 
     it("reports blocked permissions", () => {
-      vi.mocked(usePushNotifications).mockReturnValue(
-        makePushState({ permission: "denied" })
-      );
+      vi.mocked(usePushNotifications).mockReturnValue(makePushState({ permission: "denied" }));
 
       renderScreen();
 
       expect(
-        screen.getByText(
-          "Notifications are blocked. Enable them in your browser or OS settings."
-        )
+        screen.getByText("Notifications are blocked. Enable them in your browser or OS settings.")
       ).toBeInTheDocument();
     });
 
@@ -414,9 +391,7 @@ describe("SettingsScreen", () => {
     });
 
     it("renders the on toggle and quiet hours section when subscribed", () => {
-      vi.mocked(usePushNotifications).mockReturnValue(
-        makePushState({ isSubscribed: true })
-      );
+      vi.mocked(usePushNotifications).mockReturnValue(makePushState({ isSubscribed: true }));
 
       renderScreen();
 
@@ -455,9 +430,7 @@ describe("SettingsScreen", () => {
 
       renderScreen();
 
-      expect(
-        screen.getByRole("switch", { name: "Enable push notifications" })
-      ).toBeDisabled();
+      expect(screen.getByRole("switch", { name: "Enable push notifications" })).toBeDisabled();
     });
 
     it("surfaces push errors as an alert", () => {
@@ -473,9 +446,7 @@ describe("SettingsScreen", () => {
 
   describe("quiet hours (subscribed)", () => {
     it("enables quiet hours and updates the window through the store", () => {
-      vi.mocked(usePushNotifications).mockReturnValue(
-        makePushState({ isSubscribed: true })
-      );
+      vi.mocked(usePushNotifications).mockReturnValue(makePushState({ isSubscribed: true }));
 
       renderScreen();
 
@@ -486,9 +457,10 @@ describe("SettingsScreen", () => {
       fireEvent.click(enable);
 
       expect(useSettingsStore.getState().quietHours.enabled).toBe(true);
-      expect(
-        screen.getByRole("switch", { name: "Disable quiet hours" })
-      ).toHaveAttribute("aria-checked", "true");
+      expect(screen.getByRole("switch", { name: "Disable quiet hours" })).toHaveAttribute(
+        "aria-checked",
+        "true"
+      );
 
       const start = screen.getByLabelText("Quiet hours start time");
       const end = screen.getByLabelText("Quiet hours end time");

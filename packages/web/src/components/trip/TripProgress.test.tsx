@@ -199,9 +199,7 @@ describe("TripProgress", () => {
     it("hides the line when there is no range", () => {
       renderProgress({ delayRisk: "high", delayMinutesRange: null });
 
-      expect(
-        screen.queryByText(/Adjusted for current conditions/)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/Adjusted for current conditions/)).not.toBeInTheDocument();
     });
   });
 });

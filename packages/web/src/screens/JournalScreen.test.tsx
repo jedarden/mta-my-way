@@ -6,10 +6,10 @@
  * router shim (MemoryRouter + Routes) so back/stats navigation is exercised.
  */
 
+import type { Commute, CommuteStats, TripRecord } from "@mta-my-way/shared";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Commute, CommuteStats, TripRecord } from "@mta-my-way/shared";
 
 // Layout chrome — mocked so the screen under test renders without the
 // Header/BottomNav data hooks (same pattern as Screen.test.tsx).
@@ -31,8 +31,8 @@ vi.mock("../components/common/LiveAnnouncer", () => ({
   useRouteChangeAnnouncer: () => vi.fn(),
 }));
 
-import JournalScreen from "./JournalScreen";
 import { useFavoritesStore, useJournalStore } from "../stores";
+import JournalScreen from "./JournalScreen";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -204,7 +204,11 @@ describe("JournalScreen with commute data", () => {
 
   it("shows the degenerate single-value sparkline instead of a chart", () => {
     seedJournal(
-      { c1: makeStats("c1", [makeTrip({ id: "only", date: daysAgo(0), actualDurationMinutes: 28 })]) },
+      {
+        c1: makeStats("c1", [
+          makeTrip({ id: "only", date: daysAgo(0), actualDurationMinutes: 28 }),
+        ]),
+      },
       [makeCommute("c1", "Work")]
     );
     renderJournal();
@@ -287,10 +291,7 @@ describe("JournalScreen trend badge", () => {
     [-1, "-1%", "text-text-secondary"],
     [0, "0%", "text-text-secondary"],
   ])("renders trend %i as %s with class %s", (trend, label, colorClass) => {
-    seedJournal(
-      { c1: makeStats("c1", defaultRecords(), { trend }) },
-      [makeCommute("c1", "Work")]
-    );
+    seedJournal({ c1: makeStats("c1", defaultRecords(), { trend }) }, [makeCommute("c1", "Work")]);
     renderJournal();
 
     const badge = screen.getByText(label);
@@ -310,10 +311,9 @@ describe("JournalScreen average delay coloring", () => {
     [-4, "-4min", "text-mta-primary"],
     [1, "+1min", "text-text-primary"],
   ])("renders average delay %i with class %s", (delay, text, colorClass) => {
-    seedJournal(
-      { c1: makeStats("c1", defaultRecords(), { averageDelayMinutes: delay }) },
-      [makeCommute("c1", "Work")]
-    );
+    seedJournal({ c1: makeStats("c1", defaultRecords(), { averageDelayMinutes: delay }) }, [
+      makeCommute("c1", "Work"),
+    ]);
     renderJournal();
 
     const cell = screen.getByText((_, element) => element?.textContent === text);
@@ -321,10 +321,9 @@ describe("JournalScreen average delay coloring", () => {
   });
 
   it("renders a negative overall average delay without a plus sign", () => {
-    seedJournal(
-      { c1: makeStats("c1", defaultRecords(), { averageDelayMinutes: -4 }) },
-      [makeCommute("c1", "Work")]
-    );
+    seedJournal({ c1: makeStats("c1", defaultRecords(), { averageDelayMinutes: -4 }) }, [
+      makeCommute("c1", "Work"),
+    ]);
     renderJournal();
 
     // Overall summary cell renders "-4" followed by an "m" unit span.
@@ -363,10 +362,10 @@ describe("JournalScreen trip history", () => {
   });
 
   it("shows only one expanded commute at a time", () => {
-    seedJournal(
-      { c1: makeStats("c1", defaultRecords()), c2: makeStats("c2", defaultRecords()) },
-      [makeCommute("c1", "Work"), makeCommute("c2", "Gym")]
-    );
+    seedJournal({ c1: makeStats("c1", defaultRecords()), c2: makeStats("c2", defaultRecords()) }, [
+      makeCommute("c1", "Work"),
+      makeCommute("c2", "Gym"),
+    ]);
     renderJournal();
 
     fireEvent.click(within(cardFor("Work")).getByRole("button", { name: "Show trip history" }));
@@ -476,9 +475,7 @@ describe("JournalScreen trip record editor", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    const updated = useJournalStore
-      .getState()
-      .stats["c1"]!.records.find((r) => r.id === "t-today");
+    const updated = useJournalStore.getState().stats["c1"]!.records.find((r) => r.id === "t-today");
     expect(updated?.notes).toBe("Missed the local");
     expect(updated?.scheduledDurationMinutes).toBe(28);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

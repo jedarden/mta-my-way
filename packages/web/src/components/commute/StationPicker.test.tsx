@@ -139,7 +139,12 @@ describe("StationPicker", () => {
   });
 
   it("shows the complex display name and caps result bullets at 8 lines", () => {
-    stationIndexState = { stations: makeStations(), complexes: [COMPLEX], loading: false, error: null };
+    stationIndexState = {
+      stations: makeStations(),
+      complexes: [COMPLEX],
+      loading: false,
+      error: null,
+    };
     render(<StationPicker title="Pick" onSelect={vi.fn()} onClose={vi.fn()} />);
 
     typeQuery("times");
@@ -177,7 +182,12 @@ describe("StationPicker", () => {
   });
 
   it("passes the complex display name when a complex result is selected", () => {
-    stationIndexState = { stations: makeStations(), complexes: [COMPLEX], loading: false, error: null };
+    stationIndexState = {
+      stations: makeStations(),
+      complexes: [COMPLEX],
+      loading: false,
+      error: null,
+    };
     const onSelect = vi.fn();
     render(<StationPicker title="Pick" onSelect={onSelect} onClose={vi.fn()} />);
 
@@ -201,7 +211,9 @@ describe("StationPicker", () => {
 
   it("closes from the backdrop", () => {
     const onClose = vi.fn();
-    const { container } = render(<StationPicker title="Pick" onSelect={vi.fn()} onClose={onClose} />);
+    const { container } = render(
+      <StationPicker title="Pick" onSelect={vi.fn()} onClose={onClose} />
+    );
 
     const backdrop = container.firstChild;
     expect(backdrop).toBeInstanceOf(HTMLDivElement);
