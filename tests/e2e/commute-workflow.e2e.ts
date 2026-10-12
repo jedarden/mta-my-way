@@ -19,6 +19,33 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Commute Workflow", () => {
   test.beforeEach(async ({ page }) => {
+    // A number of scenarios seed the persisted store through its legacy flat
+    // shape. Mirror those fields into Zustand's current nested state before
+    // the app rehydrates so each test remains isolated and deterministic.
+    await page.addInitScript(() => {
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key === "mta-favorites") {
+          try {
+            const persisted = JSON.parse(value) as Record<string, unknown>;
+            const state =
+              persisted.state && typeof persisted.state === "object"
+                ? (persisted.state as Record<string, unknown>)
+                : {};
+            for (const field of ["favorites", "commutes", "tapHistory", "onboardingComplete"]) {
+              if (Object.hasOwn(persisted, field)) state[field] = persisted[field];
+            }
+            persisted.state = state;
+            persisted.version ??= 1;
+            value = JSON.stringify(persisted);
+          } catch {
+            // Preserve malformed test data for the app to handle.
+          }
+        }
+        setItem.call(this, key, value);
+      };
+    });
+
     // Navigate to commute screen and wait for page to load
     await page.goto("/commute");
     // Wait for React to render by waiting for network to be idle

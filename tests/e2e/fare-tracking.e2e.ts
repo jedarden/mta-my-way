@@ -15,6 +15,44 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Fare Tracking", () => {
+  test.beforeEach(async ({ page }) => {
+    // Fare scenarios use the original flat fixture shape; normalize it to the
+    // current Zustand persist shape before fareStore rehydrates.
+    await page.addInitScript(() => {
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key === "mta-fare") {
+          try {
+            const persisted = JSON.parse(value) as Record<string, unknown>;
+            if (!persisted.state || typeof persisted.state !== "object") {
+              const now = new Date();
+              const weekStart = new Date(now);
+              const day = weekStart.getDay();
+              weekStart.setDate(weekStart.getDate() - ((day + 6) % 7));
+              const tracking = {
+                weeklyRides: persisted.weeklyRides ?? 0,
+                weekStartDate: weekStart.toISOString().slice(0, 10),
+                monthlyRides: persisted.monthlyRides ?? 0,
+                monthStartDate: new Date(now.getFullYear(), now.getMonth(), 1)
+                  .toISOString()
+                  .slice(0, 10),
+                rideLog: persisted.rideLog ?? [],
+                currentFare: persisted.currentFare ?? 3,
+                unlimitedPassPrice: persisted.unlimitedPassPrice ?? 132,
+              };
+              persisted.state = { tracking };
+              persisted.version = 2;
+              value = JSON.stringify(persisted);
+            }
+          } catch {
+            // Preserve malformed test data for the app to handle.
+          }
+        }
+        setItem.call(this, key, value);
+      };
+    });
+  });
+
   test.describe("Fare Tracker Display", () => {
     test("should display fare tracker when rides are tracked", async ({ page }) => {
       // Set up some rides in fare store
