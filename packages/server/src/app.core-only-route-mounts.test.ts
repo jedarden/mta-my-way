@@ -17,7 +17,11 @@
  * sit behind an `if (!CORE_ONLY)` mount gate in `app.ts` (push subscriptions,
  * trips/journal, OAuth, and the password-reset/preferences/session block) —
  * one representative path per family, probed through the single shared
- * constant `CORE_ONLY` exported from `config.ts`. That constant is the only
+ * constant `CORE_ONLY` exported from `config.ts`. The browser-facing `/auth/`
+ * prefix (same gate as the OAuth aliases, its own ingress prefix) has a
+ * dedicated pair of tests because a provider must be registered to
+ * distinguish a mounted begin handler (302) from the unmounted 404.
+ * That constant is the only
  * `CORE_ONLY` read in the codebase, so no per-route env parsing is involved
  * or may return. The handlers themselves are mode-agnostic; that is pinned
  * separately in `routes/password-reset.routes.test.ts` ("deployment-mode
@@ -204,6 +208,8 @@ async function importApp(coreOnly: boolean, webDistPath = "/nonexistent/dist"): 
 
 afterEach(() => {
   delete process.env.CORE_ONLY;
+  delete process.env.GOOGLE_OAUTH_CLIENT_ID;
+  delete process.env.GOOGLE_OAUTH_CLIENT_SECRET;
 });
 
 /**
@@ -311,6 +317,46 @@ describe("stateful-route mounting per deployment mode (ADR-001 amendment)", () =
       providers: unknown[];
     };
     expect(providers.providers).toEqual([]);
+  });
+
+  /**
+   * The browser-facing `/auth/*` family sits behind the same gate as the
+   * `/api/auth/oauth/*` aliases but is a separate ingress prefix (ADR-001 §4
+   * routes `/auth/` to the stateful deployment on its own), so it gets its
+   * own representative. A bare begin request cannot serve as one: with no
+   * provider configured the mounted handler answers 404 exactly like the
+   * unmounted fallthrough. Registering Google through the documented env
+   * credentials makes the mounted answer distinguishable — beginOAuth
+   * redirects (302) to the provider's authorization endpoint, which also
+   * proves the gate-internal `initializeDefaultProviders()` ran. Core mode
+   * must stay 404 even with credentials present, pinning that the mount
+   * gate — not missing configuration — is what unmounts the family.
+   */
+  it("keeps the browser-facing /auth/* family unmounted in core mode despite credentials", async () => {
+    process.env.GOOGLE_OAUTH_CLIENT_ID = "test-client-id";
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET = "test-client-secret";
+    const app = await importApp(true);
+
+    const res = await app.request("/auth/google");
+    expect(
+      res.status,
+      "/auth/:providerId must be unmounted in core mode — the ingress routes " +
+        "/auth/ to mta-my-way-stateful (docs/notes/adr-001-core-only-stateful-routes-decision.md §4)"
+    ).toBe(404);
+  });
+
+  it("mounts the browser-facing /auth/* family in full mode and initializes providers", async () => {
+    process.env.GOOGLE_OAUTH_CLIENT_ID = "test-client-id";
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET = "test-client-secret";
+    const app = await importApp(false);
+
+    const res = await app.request("/auth/google");
+    expect(res.status, "/auth/:providerId must answer from beginOAuth in full mode").toBe(302);
+    const location = res.headers.get("location") ?? "";
+    expect(location).toMatch(/^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
+    expect(location).toContain("client_id=test-client-id");
+    expect(location).toContain("redirect_uri=");
+    expect(location).toContain("state=");
   });
 
   it("keeps the core read path mounted in both modes", async () => {
