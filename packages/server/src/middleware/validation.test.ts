@@ -9,7 +9,7 @@
  */
 
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { validateBody, validateParams, validateQuery } from "./validation.js";
 
