@@ -359,14 +359,34 @@ describe("stateful-route mounting per deployment mode (ADR-001 amendment)", () =
     expect(location).toContain("state=");
   });
 
-  it("keeps the core read path mounted in both modes", async () => {
+  it("keeps the core read paths (stations, arrivals, alerts) mounted in both modes", async () => {
     for (const coreOnly of [true, false]) {
       const app = await importApp(coreOnly);
-      const res = await app.request("/api/stations");
+      const mode = coreOnly ? "core-only" : "full";
+
+      const stationsRes = await app.request("/api/stations");
+      expect(stationsRes.status, `/api/stations must stay mounted in ${mode} mode`).toBe(200);
+      expect(await stationsRes.json()).toEqual(Object.values(STATIONS));
+
+      // getArrivals is mocked to return null for every id, so a mounted
+      // handler answers its own "no data yet" 404 with a JSON body — distinct
+      // from the SPA catch-all's empty-body 404 the unmounted routes above
+      // get, which proves this isn't that fallback answering instead.
+      const arrivalsRes = await app.request("/api/arrivals/101");
+      expect(arrivalsRes.status, `/api/arrivals/:id must stay mounted in ${mode} mode`).toBe(404);
       expect(
-        res.status,
-        `/api/stations must stay mounted in ${coreOnly ? "core-only" : "full"} mode`
-      ).toBe(200);
+        await arrivalsRes.json(),
+        `/api/arrivals/:id must answer from its real handler, not the SPA fallback, in ${mode} mode`
+      ).toEqual({ error: "Station not found or no data yet" });
+
+      const alertsRes = await app.request("/api/alerts");
+      expect(alertsRes.status, `/api/alerts must stay mounted in ${mode} mode`).toBe(200);
+      const alertsBody = (await alertsRes.json()) as {
+        alerts: unknown[];
+        meta: { count: number };
+      };
+      expect(alertsBody.alerts).toEqual([]);
+      expect(alertsBody.meta.count).toBe(0);
     }
   });
 
