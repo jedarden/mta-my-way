@@ -122,8 +122,7 @@ test.describe("Screen Reader Compatibility", () => {
 
       // Main element should be able to receive focus
       await main.focus();
-      const focused = await page.evaluate(() => document.activeElement?.getAttribute("role"));
-      expect(focused).toBe("main");
+      await expect(main).toBeFocused();
     });
   });
 
@@ -136,7 +135,7 @@ test.describe("Screen Reader Compatibility", () => {
 
     test("should have aria-pressed on toggle buttons", async ({ page }) => {
       // Navigate to favorites section
-      const favoritesLink = page.locator('role=link[name="Home"]');
+      const favoritesLink = page.getByRole("link", { name: /Home$/ });
       await favoritesLink.click();
 
       // Look for any favorite toggle buttons (if any favorites exist)
@@ -153,7 +152,7 @@ test.describe("Screen Reader Compatibility", () => {
   test.describe("Form Inputs", () => {
     test("should have proper labels on form inputs", async ({ page }) => {
       // Navigate to search
-      await page.click('role=link[name="Search"]');
+      await page.getByRole("link", { name: /Search$/ }).click();
 
       // Check search input
       const searchInput = page.locator('role=searchbox[name="Search stations"]');
@@ -264,7 +263,7 @@ test.describe("Screen Reader Compatibility", () => {
       await page.goto("/station/001");
 
       // Check for live region that announces arrivals
-      const liveRegion = page.locator('[aria-live="polite"]');
+      const liveRegion = page.locator('[aria-live="polite"]').first();
       await expect(liveRegion).toBeAttached();
 
       // Live region should update with arrival information
