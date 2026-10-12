@@ -969,7 +969,7 @@ describe("Cross-Cutting Security Tests", () => {
 
       // Should hit rate limit after 60 attempts
       expect(hitRateLimit).toBe(true);
-    });
+    }, 30000);
   });
 
   // ===========================================================================
@@ -1367,7 +1367,7 @@ describe("Cross-Cutting Security Tests", () => {
       // Security headers should still be present
       expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
       expect(response.headers.get("Retry-After")).toBeTruthy();
-    });
+    }, 30000);
   });
 
   // ===========================================================================

@@ -4,6 +4,7 @@
  * Per plan.md Phase 4: Performance optimization with geofence-triggered pre-fetching.
  */
 
+import { Blob as NodeBlob } from "node:buffer";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearPrefetchCache,
@@ -78,11 +79,12 @@ describe("prefetch utilities", () => {
 
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
+        status: 200,
         headers: new Headers(),
         blob: vi
           .fn()
           .mockResolvedValue(
-            new Blob([JSON.stringify(mockResponse)], { type: "application/json" })
+            new NodeBlob([JSON.stringify(mockResponse)], { type: "application/json" })
           ),
       } as unknown as Response);
 
@@ -131,7 +133,7 @@ describe("prefetch utilities", () => {
       resolveFetch?.({
         ok: true,
         headers: new Headers(),
-        blob: vi.fn().mockResolvedValue(new Blob()),
+        blob: vi.fn().mockResolvedValue(new NodeBlob()),
       });
 
       await Promise.all([p1, p2, p3]);
@@ -156,7 +158,7 @@ describe("prefetch utilities", () => {
         blob: vi
           .fn()
           .mockResolvedValue(
-            new Blob([JSON.stringify(mockResponse)], { type: "application/json" })
+            new NodeBlob([JSON.stringify(mockResponse)], { type: "application/json" })
           ),
       } as unknown as Response);
 
@@ -169,7 +171,7 @@ describe("prefetch utilities", () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        blob: vi.fn().mockResolvedValue(new Blob()),
+        blob: vi.fn().mockResolvedValue(new NodeBlob()),
       } as unknown as Response);
 
       await prefetchStations(["123", "456", "123", "456", "789"]);
@@ -188,7 +190,7 @@ describe("prefetch utilities", () => {
         return Promise.resolve({
           ok: true,
           headers: new Headers(),
-          blob: vi.fn().mockResolvedValue(new Blob()),
+          blob: vi.fn().mockResolvedValue(new NodeBlob()),
         });
       });
 

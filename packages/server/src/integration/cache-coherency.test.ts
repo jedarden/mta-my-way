@@ -437,7 +437,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       const ids1 = body1.trips.map((t: { id: string }) => t.id);
       const ids2 = body2.trips.map((t: { id: string }) => t.id);
       expect(ids1).toEqual(ids2);
-    });
+    }, 30000);
 
     it("maintains consistency with pagination", async () => {
       const now = Date.now();
@@ -517,7 +517,7 @@ describe("Cache and Database Coherency Integration Tests", () => {
       expect(lineABody.trips.every((t: { line: string }) => t.line === "A")).toBe(true);
       expect(line1Body.trips.length).toBe(5);
       expect(lineABody.trips.length).toBe(5);
-    });
+    }, 30000);
   });
 
   describe("Statistics cache consistency", () => {

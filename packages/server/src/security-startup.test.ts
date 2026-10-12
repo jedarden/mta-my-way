@@ -87,6 +87,7 @@ describe("security-startup", () => {
       it("should pass with all security settings configured", () => {
         process.env.ALLOWED_HOSTS = "localhost,127.0.0.1";
         process.env.PASSWORD_PEPPER = "a".repeat(64);
+        process.env.SHELL = "/bin/sh";
         process.env.VAPID_PUBLIC_KEY = "public-key";
         process.env.VAPID_PRIVATE_KEY = "private-key";
 
@@ -193,6 +194,7 @@ describe("security-startup", () => {
       it("should pass with all required security settings", () => {
         process.env.ALLOWED_HOSTS = "example.com,www.example.com";
         process.env.PASSWORD_PEPPER = "a".repeat(64);
+        process.env.SHELL = "/bin/sh";
         process.env.VAPID_PUBLIC_KEY = "public-key";
         process.env.VAPID_PRIVATE_KEY = "private-key";
 
