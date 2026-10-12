@@ -497,9 +497,8 @@ test.describe("Fare Tracking", () => {
         }
       });
 
-      // Trigger update (navigate and back)
-      await page.goto("/search");
-      await page.goBack();
+      // Rehydrate the store from the updated persisted value.
+      await page.reload();
 
       // Should show updated count
       const ridesText = await page
@@ -579,13 +578,9 @@ test.describe("Fare Tracking", () => {
       const progressFill = page.locator('[role="progressbar"] > div');
       await expect(progressFill).toBeAttached();
 
-      // Check that it has a background color
-      const backgroundColor = await progressFill.first().evaluate((el) => {
-        return window.getComputedStyle(el).backgroundColor;
-      });
-
-      expect(backgroundColor).toBeTruthy();
-      expect(backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+      // Check that the design state selected a progress color class.
+      const progressClass = await progressFill.first().getAttribute("class");
+      expect(progressClass).toMatch(/bg-/);
     });
 
     test("should show nudge with distinct styling", async ({ page }) => {

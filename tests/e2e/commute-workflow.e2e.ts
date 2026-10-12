@@ -612,15 +612,7 @@ test.describe("Commute Workflow", () => {
       await page.goto("/commute/invalid-commute-id");
 
       // Should show error or redirect
-      const errorMessage = page.getByText(/not found|error/i);
-      const hasError = await errorMessage.count();
-
-      if (hasError > 0) {
-        await expect(errorMessage.first()).toBeVisible();
-      } else {
-        // Might redirect to commute list
-        await expect(page).toHaveURL(/\/commute\/?$/);
-      }
+      await expect(page.getByText("Commute not found")).toBeVisible();
     });
 
     test("should handle API errors gracefully", async ({ page }) => {
