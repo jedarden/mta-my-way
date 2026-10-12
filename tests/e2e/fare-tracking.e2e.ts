@@ -476,14 +476,16 @@ test.describe("Fare Tracking", () => {
 
     test("should update when rides are added", async ({ page }) => {
       await page.addInitScript(() => {
-        const fareData = {
-          weeklyRides: 7,
-          monthlyRides: 28,
-          currentFare: 2.9,
-          unlimitedPassPrice: 132,
-          lastReset: new Date().toISOString(),
-        };
-        localStorage.setItem("mta-fare", JSON.stringify(fareData));
+        if (!localStorage.getItem("mta-fare")) {
+          const fareData = {
+            weeklyRides: 7,
+            monthlyRides: 28,
+            currentFare: 2.9,
+            unlimitedPassPrice: 132,
+            lastReset: new Date().toISOString(),
+          };
+          localStorage.setItem("mta-fare", JSON.stringify(fareData));
+        }
       });
 
       await page.goto("/");
