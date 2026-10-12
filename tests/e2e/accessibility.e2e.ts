@@ -54,7 +54,7 @@ test.describe("Screen Reader Compatibility", () => {
       await expect(politeRegion).toBeAttached();
 
       // Check for assertive live region
-      const alertRegion = page.locator('[role="alert"][aria-live="assertive"]');
+      const alertRegion = page.locator('[role="alert"][aria-live="assertive"]').first();
       await expect(alertRegion).toBeAttached();
     });
 
@@ -62,9 +62,10 @@ test.describe("Screen Reader Compatibility", () => {
       // Navigate to alerts screen
       await page.getByRole("link", { name: /Alerts/ }).click();
 
-      // Check that the page title changed (screen readers will announce this)
-      const title = await page.title();
-      expect(title).toContain("Alerts");
+      // The SPA keeps one document title; the route heading is the announced
+      // page identity and is updated after navigation.
+      await expect(page).toHaveURL(/\/alerts$/);
+      await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
     });
   });
 
