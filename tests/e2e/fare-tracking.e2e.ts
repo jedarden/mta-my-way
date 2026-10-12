@@ -489,6 +489,7 @@ test.describe("Fare Tracking", () => {
       });
 
       await page.goto("/");
+      await expect(page.getByText("7/12")).toBeAttached();
 
       // Add a ride
       await page.evaluate(() => {
