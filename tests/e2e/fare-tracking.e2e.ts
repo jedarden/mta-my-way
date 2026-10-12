@@ -442,14 +442,16 @@ test.describe("Fare Tracking", () => {
     test("should persist fare data across page reloads", async ({ page }) => {
       // Set initial data
       await page.addInitScript(() => {
-        const fareData = {
-          weeklyRides: 7,
-          monthlyRides: 28,
-          currentFare: 2.9,
-          unlimitedPassPrice: 132,
-          lastReset: new Date().toISOString(),
-        };
-        localStorage.setItem("mta-fare", JSON.stringify(fareData));
+        if (!localStorage.getItem("mta-fare")) {
+          const fareData = {
+            weeklyRides: 7,
+            monthlyRides: 28,
+            currentFare: 2.9,
+            unlimitedPassPrice: 132,
+            lastReset: new Date().toISOString(),
+          };
+          localStorage.setItem("mta-fare", JSON.stringify(fareData));
+        }
       });
 
       await page.goto("/");
@@ -496,6 +498,16 @@ test.describe("Fare Tracking", () => {
           localStorage.setItem("mta-fare", JSON.stringify(fareData));
         }
       });
+
+      await expect
+        .poll(async () =>
+          page.evaluate(() => {
+            const data = localStorage.getItem("mta-fare");
+            if (!data) return null;
+            return JSON.parse(data).state?.tracking?.weeklyRides ?? null;
+          })
+        )
+        .toBe(8);
 
       // Rehydrate the store from the updated persisted value.
       await page.reload();
