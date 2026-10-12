@@ -7,6 +7,9 @@
  * - Circuit breaker: after 3 consecutive failures, pause 60s before retry
  * - First poll fires immediately on startup (no 30s cold-start delay)
  * - Structured JSON logging on every poll (timestamp, feed, status, latency)
+ * - An explicit 403 is classified "forbidden": never retried, reported
+ *   through the normal failure path with redacted diagnostics only (no
+ *   request headers, credentials, or response-body data)
  * - No API key required (MTA removed key requirement in 2025)
  */
 
@@ -152,7 +155,9 @@ const RETRY_OPTIONS: RetryOptions = {
     if (error instanceof Error && error.name === "AbortError") {
       return true;
     }
-    // Retry on 5xx server errors and 429 rate limiting
+    // Retry on 5xx server errors and 429 rate limiting. An explicit 403 is
+    // terminal — the feed service understood the request and refused it, so
+    // retrying cannot help (see classifyFeedError's "forbidden" branch).
     if (error instanceof Error && "status" in error) {
       const status = (error as { status: number }).status;
       return status === 429 || (status >= 500 && status < 600);
@@ -169,6 +174,31 @@ const RETRY_OPTIONS: RetryOptions = {
     });
   },
 };
+
+/**
+ * Classify a feed-fetch failure for metrics and structured diagnostics.
+ *
+ * `status` is present only when the failure came from a completed HTTP
+ * response; network, timeout and parse failures have none. The ladder
+ * mirrors RETRY_OPTIONS.isRetryable: 403 ("forbidden" — the service
+ * understood the request and rejected it), 429 ("rate_limited") and 5xx
+ * ("server_error") are the named buckets; every other completed response
+ * is a generic "http_error".
+ */
+function classifyFeedError(err: unknown): { errorType: string; status?: number } {
+  if (!(err instanceof Error)) return { errorType: "unknown" };
+  const rawStatus = (err as { status?: unknown }).status;
+  const status = typeof rawStatus === "number" ? rawStatus : undefined;
+  if (err.name === "AbortError") return { errorType: "timeout", status };
+  if (err.name === "TypeError") return { errorType: "network", status };
+  if (status === 403) return { errorType: "forbidden", status };
+  if (status === 429) return { errorType: "rate_limited", status };
+  if (status !== undefined && status >= 500 && status < 600) {
+    return { errorType: "server_error", status };
+  }
+  if (status !== undefined) return { errorType: "http_error", status };
+  return { errorType: "unknown" };
+}
 
 async function fetchFeed(config: FeedConfig): Promise<boolean> {
   return withChildSpan(
@@ -256,23 +286,9 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
         // Record feed poll duration and error metrics
         recordFeedPollDuration(latencyMs / 1000, config.id);
 
-        // Determine error type for metric labeling
-        let errorType: string;
-        if (err instanceof Error) {
-          if (err.name === "AbortError") {
-            errorType = "timeout";
-          } else if (err.name === "TypeError") {
-            errorType = "network";
-          } else if ("status" in err) {
-            const status = (err as { status: number }).status;
-            errorType =
-              status === 429 ? "rate_limited" : status >= 500 ? "server_error" : "http_error";
-          } else {
-            errorType = "unknown";
-          }
-        } else {
-          errorType = "unknown";
-        }
+        // Classify the failure (explicit 403 = "forbidden", an expected feed
+        // rejection — never retried, never fatal to the poll cycle).
+        const { errorType, status } = classifyFeedError(err);
         recordFeedError(config.id, errorType);
 
         // Add error attributes to span
@@ -280,8 +296,16 @@ async function fetchFeed(config: FeedConfig): Promise<boolean> {
         setSpanAttribute("feed.error_type", errorType);
         setSpanAttribute("feed.status", "error");
 
-        logger.error("Feed fetch failed", err as Error, {
+        // Redaction contract for this diagnostic, pinned by
+        // gtfs-feed-403.test.ts: it carries feed identity, the HTTP status
+        // when a response completed, safe timing, and the error message —
+        // never request headers, credential material, or response-body data.
+        // The logger additionally redacts sensitive context keys and
+        // serializes errors as name/message/stack/code only; the request
+        // itself carries no credentials (Accept-only header contract).
+        logger.error("Feed fetch failed", err instanceof Error ? err : new Error(message), {
           feed: config.id,
+          ...(status !== undefined ? { status } : {}),
           latency_ms: latencyMs,
           error: message,
         });

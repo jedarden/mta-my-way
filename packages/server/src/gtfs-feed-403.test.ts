@@ -33,6 +33,14 @@
  *
  * Offline: the MTA endpoint is never contacted — every response is mocked at
  * the tracedFetch seam. No real tokens, keys, or secrets appear anywhere.
+ *
+ * Explicit 403 handling (mtamyway-d4811957): a 403 is classified "forbidden"
+ * (not the generic "http_error"), never retried, and reported through the
+ * poller's normal failure path. The failure diagnostics carry feed identity,
+ * the HTTP status, safe timing, and the error message — and nothing
+ * credential-shaped: no request headers, no tokens, no response-body data
+ * (the forbidden response's body is never even read). The assertions below
+ * pin all of that.
  */
 
 import { MTA_ALERTS_FEED_URL, MTA_FEED_BASE_URL, SUBWAY_FEEDS } from "@mta-my-way/shared";
@@ -94,12 +102,16 @@ const okResponse = (): Response =>
   }) as unknown as Response;
 
 /** The live service's rejection for the current wire URL shape. */
-const forbiddenResponse = (): Response =>
+const forbiddenResponse = (): Response & { arrayBuffer: ReturnType<typeof vi.fn> } =>
   ({
     ok: false,
     status: 403,
     statusText: "Forbidden",
-  }) as unknown as Response;
+    // Spied so the failure-path tests can prove the rejected body is never
+    // read (a real 403 body is the service's error payload and must not be
+    // parsed, logged, or otherwise pulled into diagnostics).
+    arrayBuffer: vi.fn(),
+  }) as unknown as Response & { arrayBuffer: ReturnType<typeof vi.fn> };
 
 describe("GTFS feed 403 reproduction", () => {
   // Minimal station/route index — initPoller requires them before startPoller.
@@ -221,11 +233,12 @@ describe("GTFS feed 403 reproduction", () => {
 
   describe("403 response path", () => {
     it("surfaces a 403 on one feed as the captured Feed-fetch-failed error and keeps the rest of the poll running", async () => {
+      const forbidden = forbiddenResponse();
       mockTracedFetch.mockImplementation(async (url) => {
         // "gtfs" is the feed id the pulse finding captured (allSettled index 0).
         // The corrected wire URL ends in the encoded segment `nyct%2Fgtfs` —
         // %2Fgtfs matches only the A Division feed, not gtfs-ace/gtfs-l/etc.
-        return String(url).endsWith("%2Fgtfs") ? forbiddenResponse() : okResponse();
+        return String(url).endsWith("%2Fgtfs") ? forbidden : okResponse();
       });
 
       startPoller();
@@ -234,16 +247,39 @@ describe("GTFS feed 403 reproduction", () => {
       await vi.advanceTimersByTimeAsync(0);
       stopPoller();
 
-      // The exact log signature the pulse scanner captured.
+      // The exact log signature the pulse scanner captured, now carrying the
+      // discrete HTTP status alongside feed identity and safe timing.
       expect(mockLogger.error).toHaveBeenCalledWith(
         "Feed fetch failed",
         expect.any(Error),
         expect.objectContaining({
           feed: "gtfs",
+          status: 403,
           latency_ms: expect.any(Number),
           error: "HTTP 403 Forbidden",
         })
       );
+
+      // The diagnostic's context is exactly the safe set: feed identity,
+      // status, timing, and the error message — nothing else rides along.
+      const failureCall = mockLogger.error.mock.calls.find(
+        ([message]) => message === "Feed fetch failed"
+      );
+      expect(failureCall).toBeDefined();
+      const failureContext = failureCall![2] as Record<string, unknown>;
+      expect(Object.keys(failureContext).sort()).toEqual(["error", "feed", "latency_ms", "status"]);
+
+      // The error itself exposes only its message and status — no request
+      // headers or response payload are attached to it.
+      const errorArg = failureCall![1] as Error & { status?: number };
+      expect(errorArg.message).toBe("HTTP 403 Forbidden");
+      expect(errorArg.status).toBe(403);
+      expect(errorArg).not.toHaveProperty("headers");
+      expect(errorArg).not.toHaveProperty("body");
+
+      // A rejected body is the service's error payload — never read, so it
+      // can never reach diagnostics.
+      expect(forbidden.arrayBuffer).not.toHaveBeenCalled();
 
       // Failure recorded in the feed cache with the thrown error message.
       expect(cache.recordFeedFailure).toHaveBeenCalledWith(
@@ -257,9 +293,14 @@ describe("GTFS feed 403 reproduction", () => {
       expect(successfulFeeds).not.toContain("gtfs");
       expect(successfulFeeds).toHaveLength(SUBWAY_FEEDS.length - 1);
 
-      // 403 is neither rate limiting nor a server error, so the metric is a
-      // plain http_error — not rate_limited, not server_error.
-      expect(metrics.recordFeedError).toHaveBeenCalledWith("gtfs", "http_error");
+      // 403 is an explicit, expected feed rejection: classified "forbidden"
+      // in the error metric and the tracing span — not the generic
+      // http_error, not rate_limited, not server_error.
+      expect(metrics.recordFeedError).toHaveBeenCalledWith("gtfs", "forbidden");
+      expect(vi.mocked(tracing.setSpanAttribute)).toHaveBeenCalledWith(
+        "feed.error_type",
+        "forbidden"
+      );
 
       // Promise.allSettled semantics: the forbidden feed must not take down
       // the cycle — the remaining feeds are still parsed, transformed and
@@ -302,7 +343,7 @@ describe("GTFS feed 403 reproduction", () => {
         SUBWAY_FEEDS.map((feed) => [feed.id, "HTTP 403 Forbidden"]).sort()
       );
       const errorTypes = vi.mocked(metrics.recordFeedError).mock.calls.map(([, type]) => type);
-      expect(errorTypes).toEqual(Array(SUBWAY_FEEDS.length).fill("http_error"));
+      expect(errorTypes).toEqual(Array(SUBWAY_FEEDS.length).fill("forbidden"));
       expect(mockLogger.info).toHaveBeenCalledWith(
         "Poll complete",
         expect.objectContaining({
@@ -310,6 +351,60 @@ describe("GTFS feed 403 reproduction", () => {
           feeds_failed: SUBWAY_FEEDS.length,
         })
       );
+    });
+
+    it("emits no credential-shaped data in any diagnostic during a forbidden poll", async () => {
+      const forbidden = forbiddenResponse();
+      mockTracedFetch.mockResolvedValue(forbidden);
+
+      startPoller();
+      await vi.advanceTimersByTimeAsync(0);
+      // Run past the backoff ladder so every diagnostic the failure path can
+      // emit (including any retry warns) is covered by the scan below — a
+      // 403 must produce none, but the scan must not assume that.
+      await vi.advanceTimersByTimeAsync(10_000);
+      stopPoller();
+
+      // Mirror of the logger's own SENSITIVE_FIELDS list
+      // (observability/logger.ts): no diagnostic argument may carry a
+      // credential-shaped key at any nesting depth.
+      const sensitiveKey =
+        /^(password|passwd|token|secret|authorization|apikey|api_key|cookie|credential|private_key|privatekey|pepper|salt)$/i;
+
+      const keys: string[] = [];
+      const strings: string[] = [];
+      const inspect = (value: unknown): void => {
+        if (value === null || typeof value !== "object") {
+          if (typeof value === "string") strings.push(value);
+          return;
+        }
+        if (value instanceof Error) {
+          // What the logger serializes from an error: name, message,
+          // stack, code — inspect exactly those.
+          strings.push(value.name, value.message, value.stack ?? "");
+          return;
+        }
+        for (const [key, child] of Object.entries(value)) {
+          keys.push(key);
+          inspect(child);
+        }
+      };
+
+      for (const mockFn of [mockLogger.error, mockLogger.warn, mockLogger.info, mockLogger.debug]) {
+        for (const call of mockFn.mock.calls) {
+          for (const arg of call) inspect(arg);
+        }
+      }
+
+      for (const key of keys) {
+        expect(key).not.toMatch(sensitiveKey);
+      }
+      // The request header object is the only credential-shaped structure on
+      // this wire, and the rejected body is the service's error payload:
+      // neither may surface in diagnostics.
+      expect(keys).not.toContain("headers");
+      expect(strings).not.toContain("application/x-protobuf");
+      expect(forbidden.arrayBuffer).not.toHaveBeenCalled();
     });
   });
 });

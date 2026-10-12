@@ -18,16 +18,17 @@ index.ts: initPoller(stations, routes) → startPoller() → runPoll()
     → retry(() => tracedFetch(config.url, { headers, signal, method }))  // poller.ts:209
     → tracedFetch adds trace context, then calls global fetch(url, options)
       // observability/tracing.ts
-    → !response.ok → throw Error("HTTP 403 Forbidden"), .status = 403     // poller.ts:218-225
-  → catch → recordFeedFailure + recordFeedError("http_error")
-          + logger.error("Feed fetch failed", …)         // poller.ts:283 — the pulse signature
+    → !response.ok → throw Error("HTTP 403 Forbidden"), .status = 403
+  → catch → recordFeedFailure + recordFeedError("forbidden")
+          + logger.error("Feed fetch failed", { feed, status: 403, latency_ms, error })
 ```
 
-`SUBWAY_FEEDS` is the only affected URL source: the alerts feed
+`SUBWAY_FEEDS` is the only URL source for the poller: the alerts feed
 (`MTA_ALERTS_FEED_URL`) and the ENE feed are full literal URLs and are
 correctly shaped. The fixture downloader
-(`packages/server/src/test/fixtures/feeds/download-fixtures.ts:112`) builds the
-same broken shape as SUBWAY_FEEDS, but only ever runs as a maintainer tool.
+(`packages/server/src/test/fixtures/feeds/download-fixtures.ts`) builds its
+URLs the same way and was corrected in the same commit as `feeds.ts`; it only
+ever runs as a maintainer tool.
 
 ## Wire contract
 
@@ -37,7 +38,7 @@ no application authentication material:
 | Input | Value |
 |---|---|
 | Expected URL | `https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F<feed>`; for example, the `gtfs` feed ends in `nyct%2Fgtfs` |
-| Currently configured URL | `SUBWAY_FEEDS[i].url` expands to `https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F/<feed>`; the extra literal slash is the known 403 defect below |
+| Configured URL | `SUBWAY_FEEDS[i].url` expands to exactly the expected shape — feed id concatenated directly onto `MTA_FEED_BASE_URL` (fixed under `mtamyway-40979fb6`, commit `de2de5f4`) |
 | Method | `GET` |
 | Explicit poller header | `Accept: application/x-protobuf` |
 | Trace header | `tracedFetch` adds `traceparent` from its active span before calling global `fetch`; its value is generated per trace, not a credential |
@@ -69,21 +70,41 @@ URL therefore contains a literal `/` after the `%2F`:
 
 This matches the constraint documented on `MTA_FEED_BASE_URL` since the 2025
 endpoint change: path segments must use `%2F`, and a literal `/` in the path
-segment is rejected with 403. The template's extra `/` reintroduces exactly
-that literal slash. The fix (later work) is a one-character change in
-`feeds.ts` — drop the `/` from the template or the trailing `%2F` from the
-base — after which the defect-pin assertions in
-`packages/server/src/gtfs-feed-403.test.ts` ("pins the wire-URL defect…")
-should be flipped to require the corrected shape.
+segment is rejected with 403. The template's extra `/` reintroduced exactly
+that literal slash. **Fixed under `mtamyway-40979fb6`** (commit `de2de5f4`):
+`feeds.ts` (and the fixture downloader) now concatenate the feed id directly
+onto the base, and the defect-pin assertions in
+`packages/server/src/gtfs-feed-403.test.ts` require the corrected shape.
 
-## Error-path behavior (already correct, pinned by the test)
+## Error-path behavior (explicit 403 handling, mtamyway-d4811957)
 
 A 403 is non-retryable (only 429 and 5xx retry), so each forbidden feed costs
-exactly one wire attempt. The error is classified `http_error` in
-`recordFeedError` (neither `rate_limited` nor `server_error`), the failure is
+exactly one wire attempt. `classifyFeedError` in `poller.ts` names the bucket:
+a completed 403 response is classified `forbidden` — a distinct, expected
+feed rejection, not the generic `http_error` (which remains the bucket for
+any other completed 4xx), not `rate_limited` (429), not `server_error` (5xx).
+The classification lands in both the `recordFeedError` metric label and the
+`feed.error_type` span attribute.
+
+The failure diagnostic is an error-level structured log carrying exactly:
+
+| Field | Content |
+|---|---|
+| `feed` | feed id (identity) |
+| `status` | HTTP status, only when a response completed |
+| `latency_ms` | time-to-failure |
+| `error` | the thrown error message (`HTTP 403 Forbidden`) |
+
+Redaction contract (pinned by the test suite): the diagnostic carries no
+request headers, no credential material, and no response-body data — the
+rejected body is never even read. The logger additionally redacts
+sensitive-named context keys and serializes errors as name/message/stack/code
+only. The request itself carries no credentials (Accept-only header contract
+above), so there is no secret that could leak on this path. The failure is
 recorded in the feed cache with message `HTTP 403 Forbidden`, and
-`Promise.allSettled` semantics keep the rest of the poll running — the cycle
-completes with `feeds_ok`/`feeds_failed` counts reflecting the split.
+`Promise.allSettled` semantics keep the rest of the poll running — a 403
+never rejects the cycle; it completes with `feeds_ok`/`feeds_failed` counts
+reflecting the split.
 
 ## Deterministic reproduction
 
@@ -97,7 +118,11 @@ offline — responses are mocked at the `tracedFetch` seam):
 2. **Defect pin** — every `SUBWAY_FEEDS` URL contains `%2F/`; the alerts
    literal does not.
 3. **403 on one feed** — the pulse log signature (`"Feed fetch failed"`,
-   `feed: "gtfs"`, `error: "HTTP 403 Forbidden"`), `recordFeedFailure`,
-   `recordFeedError(…, "http_error")`, and the other 7 feeds still succeeding.
+   `feed: "gtfs"`, `status: 403`, `error: "HTTP 403 Forbidden"`),
+   `recordFeedFailure`, `recordFeedError(…, "forbidden")`, the safe
+   diagnostic shape, and the other 7 feeds still succeeding.
 4. **403 on all feeds** — one attempt per feed, no retry across the full
    backoff ladder, `feeds_ok: 0 / feeds_failed: 8`, poll completes.
+5. **Redaction scan** — across every diagnostic emitted during a fully
+   forbidden poll: no credential-shaped key (mirror of the logger's
+   `SENSITIVE_FIELDS`), no echoed request headers, no response-body read.
