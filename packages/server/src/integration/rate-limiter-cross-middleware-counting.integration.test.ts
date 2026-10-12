@@ -113,6 +113,18 @@ function remainingOf(response: Response): number {
   return Number(raw);
 }
 
+/** Upstream rejections never reach the limiter, so it stamps no headers. */
+function assertNoRateLimitHeaders(response: Response): void {
+  for (const name of [
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset",
+    "retry-after",
+  ]) {
+    assertNoHeader(response, name);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -219,7 +231,7 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
       expect(rejected.status).toBe(401);
       // The limiter sits downstream of authentication, so it never stamped
       // the rejection.
-      assertNoHeader(rejected, "x-ratelimit-remaining");
+      assertNoRateLimitHeaders(rejected);
 
       const next = await app.request("/api/stations", { headers: withIp(IP_UNAUTHENTICATED) });
       expect(next.status).toBe(200);
@@ -238,7 +250,7 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
       });
 
       expect(rejected.status).toBe(403);
-      assertNoHeader(rejected, "x-ratelimit-remaining");
+      assertNoRateLimitHeaders(rejected);
 
       const next = await app.request("/api/stations", { headers: withIp(IP_FORBIDDEN) });
       expect(next.status).toBe(200);
@@ -257,7 +269,7 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
       });
 
       expect(rejected.status).toBe(403);
-      assertNoHeader(rejected, "x-ratelimit-remaining");
+      assertNoRateLimitHeaders(rejected);
 
       const next = await app.request("/api/stations", { headers: withIp(IP_NO_CSRF) });
       expect(next.status).toBe(200);
@@ -279,6 +291,7 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
         body: ANALYZE_BODY,
       });
       expect(unauthenticated.status).toBe(401);
+      assertNoRateLimitHeaders(unauthenticated);
 
       const forbidden = await app.request("/api/commute/analyze", {
         method: "POST",
@@ -286,6 +299,7 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
         body: ANALYZE_BODY,
       });
       expect(forbidden.status).toBe(403);
+      assertNoRateLimitHeaders(forbidden);
 
       const csrfRejected = await app.request("/api/commute/analyze", {
         method: "POST",
@@ -293,6 +307,7 @@ describe("rate limiter cross-middleware counting through the real chain", () => 
         body: ANALYZE_BODY,
       });
       expect(csrfRejected.status).toBe(403);
+      assertNoRateLimitHeaders(csrfRejected);
 
       const second = await app.request("/api/stations", { headers: withIp(IP_INTERLEAVED) });
       expect(second.status).toBe(200);
