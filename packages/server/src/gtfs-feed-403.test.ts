@@ -20,15 +20,16 @@
  *   - Headers: exactly { Accept: "application/x-protobuf" } — no
  *     Authorization / x-api-key / token / cookie of any kind.
  *
- * KNOWN DEFECT captured here (live-verified 2026-09-17):
- *   SUBWAY_FEEDS builds each URL as `${MTA_FEED_BASE_URL}/${feed.id}` while
- *   MTA_FEED_BASE_URL already ends in the encoded segment `nyct%2F`. The wire
- *   URL therefore carries a literal `/` after the `%2F` (`nyct%2F/gtfs`), and
- *   the live endpoint answers 403 Forbidden to that shape while returning 200
- *   to the same path with the literal slash removed (`nyct%2Fgtfs`). The fix
- *   belongs in packages/shared/src/constants/feeds.ts (the alerts and ENE
- *   feeds are full literal URLs and are unaffected). When that fix lands,
- *   flip the defect-pin assertions in "wire URL" below to assert absence.
+ * FIXED DEFECT, pinned here as a regression (live-verified 2026-09-17, fixed
+ * under mtamyway-40979fb6): SUBWAY_FEEDS used to build each URL as
+ * `${MTA_FEED_BASE_URL}/${feed.id}` while MTA_FEED_BASE_URL already ends in
+ * the encoded segment `nyct%2F`. The wire URL therefore carried a literal `/`
+ * after the `%2F` (`nyct%2F/gtfs`), and the live endpoint answered 403
+ * Forbidden to that shape while returning 200 to the same path with the
+ * literal slash removed (`nyct%2Fgtfs`). The URLs in
+ * packages/shared/src/constants/feeds.ts now concatenate the feed id directly
+ * onto the base; the "wire URL" assertions below pin that corrected shape so
+ * the extra slash cannot come back.
  *
  * Offline: the MTA endpoint is never contacted — every response is mocked at
  * the tracedFetch seam. No real tokens, keys, or secrets appear anywhere.
@@ -169,10 +170,15 @@ describe("GTFS feed 403 reproduction", () => {
       expect(mockTracedFetch).toHaveBeenCalledTimes(SUBWAY_FEEDS.length);
 
       // URLs must be exactly the ones SUBWAY_FEEDS derives from the MTA base
-      // URL — one request per feed, none skipped, none extra.
+      // URL — one request per feed, none skipped, none extra — and each must
+      // carry the corrected encoded path (`nyct%2Fgtfs`, not `nyct%2F/gtfs`).
       const sentUrls = mockTracedFetch.mock.calls.map(([url]) => String(url)).sort();
-      const expectedUrls = SUBWAY_FEEDS.map((feed) => `${MTA_FEED_BASE_URL}/${feed.id}`).sort();
+      const expectedUrls = SUBWAY_FEEDS.map((feed) => `${MTA_FEED_BASE_URL}${feed.id}`).sort();
       expect(sentUrls).toEqual(expectedUrls);
+      expect(sentUrls).toEqual(SUBWAY_FEEDS.map((feed) => feed.url).sort());
+      for (const url of sentUrls) {
+        expect(url).not.toContain("%2F/");
+      }
 
       for (const [, options] of mockTracedFetch.mock.calls) {
         expect(options?.method).toBe("GET");
@@ -182,23 +188,32 @@ describe("GTFS feed 403 reproduction", () => {
         // regression (and a secret-handling risk), not a requirement.
         expect(options?.headers).toEqual({ Accept: "application/x-protobuf" });
       }
+
+      // The accepted (200) mocked response makes every feed succeed — the
+      // corrected wire shape is one the feed service answers, so a full poll
+      // records success for all eight feeds and no failure.
+      const successfulFeeds = vi
+        .mocked(cache.recordFeedSuccess)
+        .mock.calls.map(([feedId]) => feedId)
+        .sort();
+      expect(successfulFeeds).toEqual(SUBWAY_FEEDS.map((feed) => feed.id).sort());
+      expect(cache.recordFeedFailure).not.toHaveBeenCalled();
     });
 
-    it("pins the wire-URL defect that makes the live endpoint answer 403", () => {
+    it("pins the corrected wire URL the live endpoint answers 200", () => {
       // Live-verified 2026-09-17 (no credentials involved — none exist):
-      //   nyct%2F/gtfs  → 403 Forbidden   (current shape, %2F plus literal /)
-      //   nyct%2Fgtfs   → 200 OK          (encoded segment only)
-      // The base URL already ends in the encoded `nyct%2F`, so the template's
-      // extra `/` puts a literal slash into the path segment. When the fix in
-      // packages/shared/src/constants/feeds.ts lands, flip both assertions to
-      // require the corrected shape.
+      //   nyct%2F/gtfs  → 403 Forbidden   (former shape, %2F plus literal /)
+      //   nyct%2Fgtfs   → 200 OK          (encoded segment only — current)
+      // The base URL already ends in the encoded `nyct%2F`, so the feed id
+      // must be concatenated with no intervening `/`; a literal slash in the
+      // path segment is exactly the 403 defect this suite guards against.
       for (const feed of SUBWAY_FEEDS) {
-        expect(feed.url).toBe(`${MTA_FEED_BASE_URL}/${feed.id}`);
-        expect(feed.url).toContain("%2F/");
+        expect(feed.url).toBe(`${MTA_FEED_BASE_URL}${feed.id}`);
+        expect(feed.url).not.toContain("%2F/");
       }
 
       // The sibling alerts feed is a full literal and correctly shaped — the
-      // defect is confined to the SUBWAY_FEEDS template. (The ENE literal in
+      // defect was confined to the SUBWAY_FEEDS template. (The ENE literal in
       // feeds.ts is too, but the shared barrel does not re-export it.)
       expect(MTA_ALERTS_FEED_URL).not.toContain("%2F/");
     });
@@ -208,7 +223,9 @@ describe("GTFS feed 403 reproduction", () => {
     it("surfaces a 403 on one feed as the captured Feed-fetch-failed error and keeps the rest of the poll running", async () => {
       mockTracedFetch.mockImplementation(async (url) => {
         // "gtfs" is the feed id the pulse finding captured (allSettled index 0).
-        return String(url).endsWith("/gtfs") ? forbiddenResponse() : okResponse();
+        // The corrected wire URL ends in the encoded segment `nyct%2Fgtfs` —
+        // %2Fgtfs matches only the A Division feed, not gtfs-ace/gtfs-l/etc.
+        return String(url).endsWith("%2Fgtfs") ? forbiddenResponse() : okResponse();
       });
 
       startPoller();

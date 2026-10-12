@@ -109,7 +109,7 @@ async function downloadFixtures(): Promise<void> {
   // Download subway feeds
   for (const feedId of SUBWAY_FEED_IDS) {
     try {
-      const url = `${MTA_FEED_BASE_URL}/${feedId}`;
+      const url = `${MTA_FEED_BASE_URL}${feedId}`;
       const result = await downloadFeed(feedId, url);
       results.push(result);
 

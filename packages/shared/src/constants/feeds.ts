@@ -7,9 +7,13 @@
  * Base URL for MTA GTFS-RT feeds.
  *
  * IMPORTANT: The path segments must use %2F (encoded slash) rather than literal /.
- * The MTA updated their endpoint in 2025 to require this encoding — literal `/`
- * in path segments returns HTTP 403. No API key is needed (MTA removed the key
- * requirement entirely as of 2025).
+ * The MTA updated their endpoint in 2025 to require this encoding — a literal `/`
+ * after the `%2F` (as in `nyct%2F/gtfs`) returns HTTP 403. No API key is needed
+ * (MTA removed the key requirement entirely as of 2025).
+ *
+ * Concatenate feed IDs directly onto this constant (`${MTA_FEED_BASE_URL}gtfs`)
+ * — it already ends in the encoded `nyct%2F` segment, so no extra `/` may be
+ * inserted between the two.
  */
 export const MTA_FEED_BASE_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F";
 
@@ -47,49 +51,49 @@ export const SUBWAY_FEEDS: FeedConfig[] = [
     id: "gtfs",
     name: "A Division",
     lines: ["1", "2", "3", "4", "5", "6", "7", "S", "GS"],
-    url: `${MTA_FEED_BASE_URL}/gtfs`,
+    url: `${MTA_FEED_BASE_URL}gtfs`,
   },
   {
     id: "gtfs-ace",
     name: "A/C/E Lines",
     lines: ["A", "C", "E", "H", "FS"],
-    url: `${MTA_FEED_BASE_URL}/gtfs-ace`,
+    url: `${MTA_FEED_BASE_URL}gtfs-ace`,
   },
   {
     id: "gtfs-bdfm",
     name: "B/D/F/M Lines",
     lines: ["B", "D", "F", "M"],
-    url: `${MTA_FEED_BASE_URL}/gtfs-bdfm`,
+    url: `${MTA_FEED_BASE_URL}gtfs-bdfm`,
   },
   {
     id: "gtfs-g",
     name: "G Line",
     lines: ["G"],
-    url: `${MTA_FEED_BASE_URL}/gtfs-g`,
+    url: `${MTA_FEED_BASE_URL}gtfs-g`,
   },
   {
     id: "gtfs-jz",
     name: "J/Z Lines",
     lines: ["J", "Z"],
-    url: `${MTA_FEED_BASE_URL}/gtfs-jz`,
+    url: `${MTA_FEED_BASE_URL}gtfs-jz`,
   },
   {
     id: "gtfs-l",
     name: "L Line",
     lines: ["L"],
-    url: `${MTA_FEED_BASE_URL}/gtfs-l`,
+    url: `${MTA_FEED_BASE_URL}gtfs-l`,
   },
   {
     id: "gtfs-nqrw",
     name: "N/Q/R/W Lines",
     lines: ["N", "Q", "R", "W"],
-    url: `${MTA_FEED_BASE_URL}/gtfs-nqrw`,
+    url: `${MTA_FEED_BASE_URL}gtfs-nqrw`,
   },
   {
     id: "gtfs-si",
     name: "Staten Island Railway",
     lines: ["SIR"],
-    url: `${MTA_FEED_BASE_URL}/gtfs-si`,
+    url: `${MTA_FEED_BASE_URL}gtfs-si`,
   },
 ];
 
