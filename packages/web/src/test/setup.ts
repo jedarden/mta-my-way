@@ -26,7 +26,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Create a shared mock for registerSW that tests can import and spy on
+/**
+ * Shared setup-level registration stub for `virtual:pwa-register`.
+ * Vitest clears its call history before each test; it returns an `update` spy.
+ * For callback triggers, use the separate `mocks/pwa-register.ts` mock.
+ */
 export const mockRegisterSW = vi.fn(() => ({
   update: vi.fn(),
 }));
@@ -105,8 +109,7 @@ class MockCacheStorage {
   }
 
   /**
-   * Reset all cache state (for test isolation).
-   * Call this in beforeEach hooks to ensure clean state.
+   * Reset all cache state; the setup calls this before each test.
    */
   reset(): void {
     this.caches.clear();
@@ -117,5 +120,5 @@ class MockCacheStorage {
 const mockCacheStorage = new MockCacheStorage();
 global.caches = mockCacheStorage as unknown as CacheStorage;
 
-// Export for test cleanup
+/** Shared Cache Storage mock installed as `global.caches`; reset before each test. */
 export { mockCacheStorage };
