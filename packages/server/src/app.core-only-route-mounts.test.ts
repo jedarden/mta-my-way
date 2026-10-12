@@ -208,8 +208,10 @@ afterEach(() => {
 
 /**
  * One representative path per `if (!CORE_ONLY)`-gated route family in app.ts:
- * push subscriptions, trips/journal (trip tracking), OAuth, and the
- * password-reset/preferences/session block that ADR-001 §4 covers.
+ * push subscriptions, trips (trip tracking), the journal API (mounted behind
+ * the same gate as trips but under its own `/api/journal/*` path family and
+ * same-origin middleware), OAuth, and the password-reset/preferences/session
+ * block that ADR-001 §4 covers.
  * Each is probed with GET, which every family serves without a state-changing
  * request (so same-origin protection never fires and no database is touched).
  */
@@ -218,7 +220,8 @@ const STATEFUL_GET_ROUTES = [
   "/api/auth/session", // preferences/session block
   "/api/preferences", // preferences/session block
   "/api/push/vapid-public-key", // push subscriptions
-  "/api/trips", // trips/journal
+  "/api/trips", // trips (trip tracking)
+  "/api/journal/summary", // journal API
   "/api/auth/oauth/providers", // OAuth
 ] as const;
 
@@ -229,6 +232,7 @@ const FULL_MODE_EXPECTED_STATUS: Record<(typeof STATEFUL_GET_ROUTES)[number], nu
   "/api/preferences": 401, // requires a session
   "/api/push/vapid-public-key": 200, // mocked VAPID key
   "/api/trips": 401, // requires trips:read:own
+  "/api/journal/summary": 401, // requires journals:read:own
   "/api/auth/oauth/providers": 200, // no providers configured → empty list
 };
 
