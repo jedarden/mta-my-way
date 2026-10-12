@@ -45,7 +45,11 @@ export default defineConfig({
   // Keep generated clean-room fixtures and Playwright output out of test
   // discovery. Playwright does not honor .gitignore when matching files.
   testMatch: ["*.e2e.ts"],
-  testIgnore: ["**/.tmp-*/**", "**/test-results/**", "**/playwright-report/**"],
+  testIgnore: [
+    "**/tests/e2e/.tmp-*/**",
+    "**/tests/e2e/test-results/**",
+    "**/tests/e2e/playwright-report/**",
+  ],
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
