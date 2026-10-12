@@ -126,3 +126,52 @@ offline — responses are mocked at the `tracedFetch` seam):
 5. **Redaction scan** — across every diagnostic emitted during a fully
    forbidden poll: no credential-shaped key (mirror of the logger's
    `SENSITIVE_FIELDS`), no echoed request headers, no response-body read.
+
+## Lifecycle regression coverage (mtamyway-362386af)
+
+`packages/server/src/gtfs-poller-lifecycle.test.ts` extends the reproduction
+with the poller's full lifecycle. Unlike the 403 suite it only partially mocks
+the cache module: the parsed-feed store (`recordFeedSuccess`, `getAllParsedFeeds`,
+`getAllFeedAges`, `isCircuitOpen`) is the real in-memory implementation, so
+result preservation is proven against the actual store. Three tests:
+
+1. **Authorized success** — a full poll where every feed answers 200 proves
+   the whole success chain: one wire request per feed → bytes reach
+   `parseFeed` unchanged → the real store holds exactly the parsed objects →
+   the rebuild hands them to `transformFeeds` → its result reaches
+   `updateArrivals`/`updatePositions`, with per-feed success metrics
+   (`recordFeedPollDuration`, `recordFeedEntitiesProcessed`), `feed.status`
+   span attributes, the per-feed debug log, and `Poll complete` with
+   `feeds_ok: 8 / feeds_failed: 0`.
+2. **403 in a later poll** — poll 1 succeeds for all eight feeds; poll 2
+   (fired by the real 30 s interval) answers 403 to the `gtfs` feed and 200 to
+   the rest. Pins: one wire attempt for the forbidden feed (no retry),
+   `forbidden` classification, the redacted diagnostic shape, the unread
+   response body — and, against the real store, **preservation**: all eight
+   entries survive, the seven concurrent 200s carry their fresh parses, and
+   the forbidden feed keeps its poll-1 parse (serve stale rather than nothing).
+   One failure does not trip the circuit breaker. The cycle completes with
+   `feeds_ok: 7 / feeds_failed: 1`.
+3. **Success-path redaction scan** — across every diagnostic emitted during a
+   fully successful poll: no credential-shaped key (mirror of the logger's
+   `SENSITIVE_FIELDS`), no echoed request headers.
+
+## Deployment / configuration assumptions
+
+Restated for the completed fix; there are none beyond the code:
+
+- **No credentials to deploy.** The corrected request is credential-free —
+  the MTA has required no API key since 2025, the poller reads no feed URL or
+  key from the environment, config, or a secret store, and `MTA_API_KEY` does
+  not affect this request. There is no secret-store entry, ConfigMap, or
+  secret to provision for it.
+- **The corrected URL shape is the only requirement.** Deployment needs no
+  change: `SUBWAY_FEEDS` builds the URLs at runtime
+  (`MTA_FEED_BASE_URL` + feed id, commit `de2de5f4`), so any running
+  deployment of a build at or after `de2de5f4` issues the corrected
+  `nyct%2F<feed>` shape.
+- **Expected steady state.** A deployment behind a path that still 403s is
+  not a crash: the feed is classified `forbidden`, never retried within the
+  cycle, its last-good parse keeps being served, and the failure shows up as
+  a `forbidden` error metric and a redacted error log — so alerting should
+  key on the `forbidden` bucket rather than log volume.
