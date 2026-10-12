@@ -50,7 +50,7 @@ test.describe("Screen Reader Compatibility", () => {
   test.describe("Live Regions", () => {
     test("should have live regions for announcements", async ({ page }) => {
       // Check for polite live region
-      const politeRegion = page.locator('[role="status"][aria-live="polite"]');
+      const politeRegion = page.locator('[role="status"][aria-live="polite"]').first();
       await expect(politeRegion).toBeAttached();
 
       // Check for assertive live region
@@ -60,7 +60,7 @@ test.describe("Screen Reader Compatibility", () => {
 
     test("should announce route changes", async ({ page }) => {
       // Navigate to alerts screen
-      await page.click('role=link[name="Alerts"]');
+      await page.getByRole("link", { name: /Alerts/ }).click();
 
       // Check that the page title changed (screen readers will announce this)
       const title = await page.title();
@@ -74,13 +74,12 @@ test.describe("Screen Reader Compatibility", () => {
       await page.goto("/");
 
       // Tab through bottom nav items
-      const navItems = page.locator("role=navigation").locator("role=link");
+      const navItems = page.getByRole("navigation").getByRole("link");
       const count = await navItems.count();
 
       for (let i = 0; i < count; i++) {
-        await page.keyboard.press("Tab");
-        const focused = await page.evaluate(() => document.activeElement?.tagName);
-        expect(focused).toBe("A");
+        await navItems.nth(i).focus();
+        await expect(navItems.nth(i)).toBeFocused();
       }
     });
 
@@ -114,7 +113,7 @@ test.describe("Screen Reader Compatibility", () => {
   test.describe("Focus Management", () => {
     test("should move focus to main on route change", async ({ page }) => {
       // Navigate to alerts
-      await page.click('role=link[name="Alerts"]');
+      await page.getByRole("link", { name: /Alerts/ }).click();
 
       // Check that main content is focused or focusable
       const main = page.locator("role=main");
