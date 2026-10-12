@@ -43,6 +43,24 @@ test.describe("Fare Tracking", () => {
               persisted.state = { tracking };
               persisted.version = 2;
               value = JSON.stringify(persisted);
+            } else {
+              const state = persisted.state as Record<string, unknown>;
+              const tracking =
+                state.tracking && typeof state.tracking === "object"
+                  ? (state.tracking as Record<string, unknown>)
+                  : {};
+              for (const field of [
+                "weeklyRides",
+                "monthlyRides",
+                "currentFare",
+                "unlimitedPassPrice",
+                "rideLog",
+              ]) {
+                if (Object.hasOwn(persisted, field)) tracking[field] = persisted[field];
+              }
+              state.tracking = tracking;
+              persisted.version ??= 2;
+              value = JSON.stringify(persisted);
             }
           } catch {
             // Preserve malformed test data for the app to handle.
@@ -70,7 +88,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should see fare tracker section
-      const fareTracker = page.locator("text=/OMNY Fare Cap|Fare Cap/i");
+      const fareTracker = page.getByRole("article").filter({ hasText: /OMNY Fare Cap/i });
       await expect(fareTracker).toBeAttached();
     });
 
@@ -89,7 +107,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should show rides count (8/12 or similar)
-      const ridesText = page.locator("text=/\\d+\\/\\d+|rides/i");
+      const ridesText = page.locator("text=/\\d+\\/\\d+|rides/i").first();
       await expect(ridesText).toBeAttached();
     });
 
@@ -127,7 +145,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should show "X more until free"
-      const untilFree = page.locator("text=/more until free|free rides/i");
+      const untilFree = page.locator("text=/more until free|free rides/i").first();
       await expect(untilFree).toBeAttached();
     });
 
@@ -167,7 +185,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Should show "Free rides!" message
-      const freeRides = page.locator("text=/Free rides|12\\/12/i");
+      const freeRides = page.locator("text=/Free rides|12\\/12/i").first();
       await expect(freeRides).toBeAttached();
     });
 
@@ -382,7 +400,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Fare tracker should not be visible
-      const fareTracker = page.getByText(/OMNY Fare Cap/i);
+      const fareTracker = page.getByRole("article").filter({ hasText: /OMNY Fare Cap/i });
       const hasTracker = await fareTracker.count();
 
       expect(hasTracker).toBe(0);
@@ -396,7 +414,7 @@ test.describe("Fare Tracking", () => {
       await page.goto("/");
 
       // Initially no tracker
-      let fareTracker = page.getByText(/OMNY Fare Cap/i);
+      let fareTracker = page.getByRole("article").filter({ hasText: /OMNY Fare Cap/i });
       let hasTracker = await fareTracker.count();
       expect(hasTracker).toBe(0);
 
