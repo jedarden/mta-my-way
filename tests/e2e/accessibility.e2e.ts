@@ -233,7 +233,10 @@ test.describe("Screen Reader Compatibility", () => {
       // This test would require interacting with favorites
       // For now, we verify the badge structure
 
-      const alertBadge = page.locator('span[aria-label*="alert" i]');
+      const alertBadge = page
+        .getByRole("navigation")
+        .locator('span[aria-label*="alert" i]')
+        .filter({ hasText: /^\d/ });
       const hasBadge = (await alertBadge.count()) > 0;
 
       if (hasBadge) {
