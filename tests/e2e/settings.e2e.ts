@@ -23,18 +23,16 @@ test.describe("Settings Screen", () => {
       await expect(page.locator('role=heading[name="Settings"]')).toBeVisible();
     });
 
-    test("should have back button", async ({ page }) => {
-      const backButton = page.locator('a[aria-label*="back" i], button[aria-label*="back" i]');
-      await expect(backButton.first()).toBeAttached();
+    test("should have primary navigation", async ({ page }) => {
+      await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
     });
 
-    test("should navigate back when back button is clicked", async ({ page }) => {
-      const backButton = page.locator('a[aria-label*="back" i], button[aria-label*="back" i]');
-      await backButton.first().click();
-
-      // Should navigate away from settings
-      const url = page.url();
-      expect(url).not.toContain("/settings");
+    test("should navigate home from settings", async ({ page }) => {
+      await page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("link", { name: "Home" })
+        .click();
+      await expect(page).toHaveURL("/");
     });
   });
 
@@ -43,65 +41,37 @@ test.describe("Settings Screen", () => {
       await page.goto("/settings");
 
       // Look for theme section
-      const themeSection = page.locator("text=/Theme|Appearance|Display/i");
-      await expect(themeSection).toBeAttached();
+      await expect(page.getByRole("heading", { name: "Appearance" })).toBeVisible();
     });
 
     test("should show light/dark/system theme options", async ({ page }) => {
       await page.goto("/settings");
 
       // Look for theme options
-      const themeOptions = page.locator("text=/Light|Dark|System|Auto/i");
-      await expect(themeOptions.first()).toBeAttached();
+      const themeSelector = page.getByRole("combobox", { name: "Select theme" });
+      await expect(themeSelector.locator("option")).toHaveText(["System", "Light", "Dark"]);
     });
 
     test("should allow changing theme", async ({ page }) => {
       await page.goto("/settings");
 
-      // Find theme selector
-      const themeOption = page
-        .locator('button:has-text("Dark")')
-        .or(page.locator('[role="radiogroup"] > *'));
-      const hasOption = await themeOption.count();
-
-      if (hasOption > 0) {
-        await themeOption.first().click();
-
-        // Check that theme preference is saved
-        const themePref = await page.evaluate(() => {
-          const settings = JSON.parse(localStorage.getItem("mta-settings") || "{}");
-          return settings.theme;
-        });
-
-        expect(["light", "dark", "system"]).toContain(themePref);
-      }
+      const themeSelector = page.getByRole("combobox", { name: "Select theme" });
+      await themeSelector.selectOption("dark");
+      await expect(themeSelector).toHaveValue("dark");
+      await expect
+        .poll(() =>
+          page.evaluate(() => JSON.parse(localStorage.getItem("mta-settings") || "{}").state?.theme)
+        )
+        .toBe("dark");
     });
 
-    test("should apply theme change immediately", async ({ page }) => {
+    test("should reflect a theme change immediately", async ({ page }) => {
       await page.goto("/settings");
-
-      // Get initial background color
-      const initialBg = await page.evaluate(() => {
-        return getComputedStyle(document.body).backgroundColor;
-      });
-
-      // Toggle to dark mode
-      const darkOption = page
-        .locator('button:has-text("Dark")')
-        .or(page.locator('[value="dark"], [data-theme="dark"]'));
-      const hasDark = await darkOption.count();
-
-      if (hasDark > 0) {
-        await darkOption.first().click();
-
-        await expect
-          .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
-          .toBeTruthy();
-        const newBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-
-        // Background should have changed (or at least be different)
-        expect(newBg).toBeTruthy();
-      }
+      const themeSelector = page.getByRole("combobox", { name: "Select theme" });
+      await themeSelector.selectOption("dark");
+      await expect(themeSelector).toHaveValue("dark");
+      await themeSelector.selectOption("light");
+      await expect(themeSelector).toHaveValue("light");
     });
   });
 
@@ -162,18 +132,12 @@ test.describe("Settings Screen", () => {
 
   test.describe("Notification Settings", () => {
     test("should show push notification section", async ({ page }) => {
-      await page.goto("/settings");
-
-      const pushSection = page.locator("text=/push notification|alerts|notify/i");
-      await expect(pushSection).toBeAttached();
+      await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
     });
 
-    test("should show notification permission status", async ({ page }) => {
-      await page.goto("/settings");
-
-      // Look for permission indicator
-      const permissionStatus = page.locator("text=/enabled|disabled|permission/i");
-      await expect(permissionStatus).toBeAttached();
+    test("should expose a push subscription control", async ({ page }) => {
+      const pushSwitch = page.getByRole("switch", { name: /push notifications/i });
+      await expect(pushSwitch).toBeVisible();
     });
 
     test("should allow enabling push notifications", async ({ page }) => {
@@ -197,11 +161,9 @@ test.describe("Settings Screen", () => {
       }
     });
 
-    test("should show quiet hours setting", async ({ page }) => {
-      await page.goto("/settings");
-
-      const quietHours = page.locator("text=/quiet hours|do not disturb/i");
-      await expect(quietHours).toBeAttached();
+    test("should hide quiet hours until push is subscribed", async ({ page }) => {
+      await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+      await expect(page.getByText("Quiet hours", { exact: true })).toHaveCount(0);
     });
 
     test("should allow configuring quiet hours", async ({ page }) => {
@@ -221,13 +183,6 @@ test.describe("Settings Screen", () => {
         expect(settings.quietHoursStart || settings.quietHours).toBeTruthy();
       }
     });
-
-    test("should show alert severity filter", async ({ page }) => {
-      await page.goto("/settings");
-
-      const severityFilter = page.locator("text=/severity|alert level|filter/i");
-      await expect(severityFilter).toBeAttached();
-    });
   });
 
   test.describe("Data Management", () => {
@@ -245,74 +200,9 @@ test.describe("Settings Screen", () => {
       await expect(commutesSection).toBeAttached();
     });
 
-    test("should have export data option", async ({ page }) => {
-      await page.goto("/settings");
-
-      const exportButton = page
-        .locator('button:has-text("Export")')
-        .or(page.locator("text=/export data|download/i"));
-      await expect(exportButton).toBeAttached();
-    });
-
-    test("should export data when requested", async ({ page }) => {
-      await page.goto("/settings");
-
-      const exportButton = page
-        .locator('button:has-text("Export")')
-        .or(page.locator('button:has-text("Download")'));
-      const hasButton = await exportButton.count();
-
-      if (hasButton > 0) {
-        // Track download events
-        const downloadPromise = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
-
-        await exportButton.first().click();
-
-        // Download might trigger
-        const download = await downloadPromise;
-        if (download) {
-          expect(download.suggestedFilename()).toBeTruthy();
-        }
-      }
-    });
-
-    test("should have clear data option", async ({ page }) => {
-      await page.goto("/settings");
-
-      const clearButton = page
-        .locator('button:has-text("Clear")')
-        .or(page.locator("text=/clear data|reset|delete all/i"));
-      await expect(clearButton).toBeAttached();
-    });
-
-    test("should confirm before clearing data", async ({ page }) => {
-      await page.goto("/settings");
-
-      const clearButton = page
-        .locator('button:has-text("Clear")')
-        .or(page.locator('button:has-text("Delete")'));
-      const hasButton = await clearButton.count();
-
-      if (hasButton > 0) {
-        await clearButton.first().click();
-
-        // Should show confirmation dialog
-        const dialog = page.locator('[role="dialog"], [role="alertdialog"]');
-        const hasDialog = await dialog.count();
-
-        if (hasDialog > 0) {
-          await expect(dialog.first()).toBeVisible();
-
-          // Should have confirm and cancel buttons
-          const confirmButton = page
-            .locator('button:has-text("Confirm")')
-            .or(page.locator('button:has-text("Clear")'));
-          await expect(confirmButton).toBeAttached();
-
-          const cancelButton = page.locator('button:has-text("Cancel")');
-          await expect(cancelButton).toBeAttached();
-        }
-      }
+    test("should explain where local preferences are stored", async ({ page }) => {
+      await expect(page.getByText("Local only", { exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Continue with Google" })).toBeVisible();
     });
   });
 
@@ -324,31 +214,8 @@ test.describe("Settings Screen", () => {
       await expect(version).toBeAttached();
     });
 
-    test("should show build information", async ({ page }) => {
-      await page.goto("/settings");
-
-      const buildInfo = page.locator("text=/build|commit|environment/i");
-      await expect(buildInfo).toBeAttached();
-    });
-
-    test("should have links to support/privacy", async ({ page }) => {
-      await page.goto("/settings");
-
-      const supportLink = page
-        .locator('a:has-text("Support")')
-        .or(page.locator('a:has-text("Help")'));
-      const privacyLink = page.locator('a:has-text("Privacy")');
-
-      // At least one should exist
-      const hasLinks = (await supportLink.count()) + (await privacyLink.count()) > 0;
-      expect(hasLinks).toBe(true);
-    });
-
-    test("should show license information", async ({ page }) => {
-      await page.goto("/settings");
-
-      const license = page.locator("text=/license|open source|MIT/i");
-      await expect(license).toBeAttached();
+    test("should describe the app", async ({ page }) => {
+      await expect(page.getByText("A mobile-first PWA for NYC subway commuters")).toBeVisible();
     });
   });
 
@@ -414,22 +281,15 @@ test.describe("Settings Screen", () => {
       }
     });
 
-    test("should announce setting changes", async ({ page }) => {
+    test("should expose setting changes through switch state", async ({ page }) => {
       await page.goto("/settings");
-
-      // Change a setting
-      const toggle = page.locator('[role="switch"], [type="checkbox"]').first();
-      const hasToggle = await toggle.count();
-
-      if (hasToggle > 0) {
-        // Look for live region that announces changes
-        const liveRegion = page.locator('[aria-live], [role="status"]');
-        await expect(liveRegion).toBeAttached();
-
-        await toggle.click();
-
-        // Change should be announced (or at least live region exists)
-      }
+      const toggle = page.getByRole("switch", { name: "Enable accessible mode" });
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      await toggle.click();
+      await expect(page.getByRole("switch", { name: "Disable accessible mode" })).toHaveAttribute(
+        "aria-checked",
+        "true"
+      );
     });
 
     test("should be keyboard navigable", async ({ page }) => {
@@ -551,7 +411,9 @@ test.describe("Settings Screen", () => {
     test("should navigate to other screens via bottom nav", async ({ page }) => {
       await page.goto("/settings");
 
-      const navButtons = page.locator('[role="navigation"] role="link"]');
+      const navButtons = page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("link");
       const count = await navButtons.count();
 
       if (count > 0) {

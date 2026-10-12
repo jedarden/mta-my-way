@@ -7,7 +7,7 @@
 
 import { createServer } from "node:net";
 
-const PORT = 3001;
+const PORT = Number(process.env["PORT"] ?? "3001");
 
 function checkPort(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -37,9 +37,9 @@ async function main() {
     console.error(`❌ Port ${PORT} is already in use. Another process is listening on this port.`);
     console.error(
       "\nOptions:\n" +
-        "  1. Stop the existing process (find it with: lsof -i :3001)\n" +
+        `  1. Stop the existing process (find it with: lsof -i :${PORT})\n` +
         "  2. Let Playwright reuse the existing server (set CI=false for reuseExistingServer)\n" +
-        "  3. Use a different port (update playwright.config.ts baseURL and webServer.url)"
+        "  3. Use a different port (set PLAYWRIGHT_PORT)"
     );
     process.exit(1);
   }

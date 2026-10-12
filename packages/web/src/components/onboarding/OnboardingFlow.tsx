@@ -96,13 +96,16 @@ export default function OnboardingFlow() {
   // Auto-advance when location is granted and we have nearby stations
   useEffect(() => {
     if (step === "location" && coordinates && !geoLoading) {
+      // A successful GPS response can arrive before the station index. Wait
+      // for the index before deciding that there are no nearby stations.
+      if (stationsLoading) return;
       if (!userInNYC || nearbyStations.length === 0) {
         setStep("search-fallback");
       } else {
         setStep("nearby");
       }
     }
-  }, [step, coordinates, geoLoading, userInNYC, nearbyStations.length]);
+  }, [step, coordinates, geoLoading, stationsLoading, userInNYC, nearbyStations.length]);
 
   // Pre-select all nearby stations
   useEffect(() => {

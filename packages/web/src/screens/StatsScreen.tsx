@@ -628,8 +628,25 @@ export default function StatsScreen() {
       >
         <DataState
           status={stationsLoading ? "loading" : "success"}
-          data={hasData ? allRecords : null}
+          data={allRecords}
           error={null}
+          empty={
+            <div className="mt-8 bg-surface dark:bg-dark-surface rounded-lg p-6 text-center">
+              <p className="text-text-secondary dark:text-dark-text-secondary mb-2">
+                No trips recorded yet
+              </p>
+              <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                Start tracking commutes to see your personalized subway summary here
+              </p>
+              <button
+                type="button"
+                onClick={() => void navigate("/commute")}
+                className="mt-4 text-mta-primary font-medium text-13 min-h-touch px-4"
+              >
+                Set up a commute
+              </button>
+            </div>
+          }
           skeleton={
             <div className="space-y-3 mt-4">
               {Array.from({ length: 4 }).map((_, i) => (

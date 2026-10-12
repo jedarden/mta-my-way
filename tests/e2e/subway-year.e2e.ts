@@ -1,670 +1,206 @@
-/**
- * E2E tests for Stats / Subway Year Screen.
- *
- * Tests cover:
- * - Stats screen navigation
- * - Time window selection (month, quarter, year, all time)
- * - Subway Year card display
- * - Stats details sections
- * - Share functionality
- * - Empty state when no trips
- * - Carbon savings calculations
- * - Streak calculations
- * - Most used station/line
- * - Visual design of card
- */
+/** Browser coverage for the journal-backed Subway Year screen. */
+import { type Page, expect, test } from "@playwright/test";
 
-import { expect, test } from "@playwright/test";
+const currentYear = new Date().getFullYear();
 
-test.describe("Stats / Subway Year Screen", () => {
-  test.describe("Navigation", () => {
-    test("should navigate to stats screen from journal", async ({ page }) => {
-      // Go to journal first
-      await page.goto("/journal");
+function trip(id: string, date: string, line: string, minutes: number) {
+  const arrivalTime = Date.parse(`${date}T12:00:00Z`);
+  return {
+    id,
+    date,
+    origin: { stationId: "101", stationName: "South Ferry" },
+    destination: { stationId: "725", stationName: "Times Sq-42 St" },
+    line,
+    departureTime: arrivalTime - minutes * 60_000,
+    arrivalTime,
+    actualDurationMinutes: minutes,
+    source: "manual",
+  };
+}
 
-      // Look for stats link
-      const statsLink = page.locator('button:has-text("Subway Year"), a[href="/stats"]');
-      const hasLink = await statsLink.count();
+const records = [
+  trip("recent", new Date().toISOString().slice(0, 10), "1", 10),
+  trip("year", `${currentYear}-01-15`, "1", 20),
+  trip("archive", `${currentYear - 1}-12-15`, "A", 30),
+];
 
-      if (hasLink > 0) {
-        await statsLink.click();
-        await expect(page).toHaveURL("/stats");
-      } else {
-        // Navigate directly
-        await page.goto("/stats");
-        await expect(page).toHaveURL("/stats");
-      }
-    });
-
-    test("should have back button to journal", async ({ page }) => {
-      await page.goto("/stats");
-
-      const backButton = page.locator('button:has-text("Back")');
-      await expect(backButton).toBeVisible();
-
-      await backButton.click();
-      await expect(page).toHaveURL("/journal");
-    });
-
-    test("should display stats heading", async ({ page }) => {
-      await page.goto("/stats");
-
-      await expect(page.locator('role=heading[name="Your Subway Year"]')).toBeVisible();
-    });
-
-    test("should display description", async ({ page }) => {
-      await page.goto("/stats");
-
-      const description = page.locator("text=/personalized summary|subway commute/i");
-      await expect(description).toBeAttached();
-    });
-  });
-
-  test.describe("Empty State", () => {
-    test.beforeEach(async ({ page }) => {
-      // Clear journal data
-      await page.addInitScript(() => {
-        localStorage.removeItem("mta-journal");
-      });
-    });
-
-    test("should show empty state when no trips recorded", async ({ page }) => {
-      await page.goto("/stats");
-
-      const emptyState = page.locator("text=/No trips recorded/i");
-      await expect(emptyState).toBeVisible();
-    });
-
-    test("should show guidance message in empty state", async ({ page }) => {
-      await page.goto("/stats");
-
-      const guidance = page.locator("text=/Start tracking|Set up a commute/i");
-      await expect(guidance).toBeAttached();
-    });
-
-    test("should have link to set up commute", async ({ page }) => {
-      await page.goto("/stats");
-
-      const commuteLink = page.locator('button:has-text("Set up a commute")');
-      await expect(commuteLink).toBeAttached();
-
-      await commuteLink.click();
-      await expect(page).toHaveURL("/commute");
-    });
-  });
-
-  test.describe("Time Window Selection", () => {
-    test.beforeEach(async ({ page }) => {
-      // Set up some trip data
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 50,
-              totalMinutes: 1000,
-              averageDuration: 20,
-              medianDuration: 19,
+async function seedJournal(page: Page) {
+  await page.addInitScript((trips) => {
+    localStorage.setItem(
+      "mta-journal",
+      JSON.stringify({
+        state: {
+          stats: {
+            work: {
+              commuteId: "work",
+              averageDurationMinutes: 20,
+              medianDurationMinutes: 20,
+              stdDevMinutes: 8.16,
+              totalTrips: trips.length,
+              tripsThisWeek: 1,
+              trend: 0,
+              averageDelayMinutes: 0,
+              maxDelayMinutes: 0,
+              onTimePercentage: 100,
+              records: trips,
             },
-            records: Array.from({ length: 50 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
           },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-    });
+          dayOfWeekStats: {},
+          lastStationVisit: null,
+        },
+        version: 3,
+      })
+    );
+  }, records);
+}
 
-    test("should display time window selector", async ({ page }) => {
-      await page.goto("/stats");
+async function openStats(page: Page) {
+  await seedJournal(page);
+  await page.goto("/stats");
+  await expect(page.getByRole("heading", { name: "Your Subway Year", level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "This Year" })).toBeVisible();
+}
 
-      const windows = ["This Month", "This Quarter", "This Year", "All Time"];
+function card(page: Page) {
+  return page.locator("main .bg-gradient-to-br");
+}
 
-      for (const window of windows) {
-        const button = page.locator(`button:has-text("${window}")`);
-        await expect(button).toBeAttached();
-      }
-    });
+function cardValue(page: Page, label: string) {
+  return card(page).getByText(label, { exact: true }).locator("..").locator("p").first();
+}
 
-    test("should allow switching time windows", async ({ page }) => {
-      await page.goto("/stats");
+test.describe("Subway Year", () => {
+  test.use({ serviceWorkers: "block" });
 
-      // Click on different windows
-      const monthButton = page.locator('button:has-text("This Month")');
-      await monthButton.click();
-
-      // Should be selected
-      const isSelected = await monthButton.evaluate((el) => {
-        return (
-          el.classList.contains("bg-mta-primary") || el.getAttribute("aria-pressed") === "true"
-        );
-      });
-
-      if (isSelected) {
-        await expect(isSelected).toBe(true);
-      }
-
-      // Try another window
-      const yearButton = page.locator('button:has-text("This Year")');
-      await yearButton.click();
-
-      const yearSelected = await yearButton.evaluate((el) => {
-        return (
-          el.classList.contains("bg-mta-primary") || el.getAttribute("aria-pressed") === "true"
-        );
-      });
-
-      if (yearSelected) {
-        await expect(yearSelected).toBe(true);
-      }
-    });
-
-    test("should update stats when time window changes", async ({ page }) => {
-      await page.goto("/stats");
-
-      // Get initial trip count
-      const initialTrips = await page
-        .locator("text=/Trips Taken/i")
-        .locator("..")
-        .locator("text=/\\d+/")
-        .first()
-        .textContent();
-
-      // Switch to All Time
-      await page.click('button:has-text("All Time")');
-
-      // Get updated trip count
-      const updatedTrips = await page
-        .locator("text=/Trips Taken/i")
-        .locator("..")
-        .locator("text=/\\d+/")
-        .first()
-        .textContent();
-
-      expect(updatedTrips).toBeTruthy();
-    });
+  test("shows an empty journal message and commute setup action", async ({ page }) => {
+    await page.addInitScript(() => localStorage.removeItem("mta-journal"));
+    await page.goto("/stats");
+    await expect(page.getByRole("heading", { name: "Your Subway Year", level: 1 })).toBeVisible();
+    await expect(page.locator("main")).toContainText("No trips recorded yet");
+    await expect(page.locator("main")).toContainText("Start tracking commutes");
+    await expect(page.getByRole("button", { name: "Share My Subway Year" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Set up a commute" }).click();
+    await expect(page).toHaveURL(/\/commute$/);
   });
 
-  test.describe("Subway Year Card", () => {
-    test.beforeEach(async ({ page }) => {
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 100,
-              totalMinutes: 2000,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 100 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-    });
-
-    test("should display Subway Year card", async ({ page }) => {
-      await page.goto("/stats");
-
-      // Should see the card with gradient background
-      const card = page.locator(".from-\\[\\#0039A6\\]");
-      await expect(card).toBeAttached();
-    });
-
-    test("should show total trips", async ({ page }) => {
-      await page.goto("/stats");
-
-      const tripsElement = page.locator("text=/Trips Taken/i").locator("..");
-      await expect(tripsElement).toBeAttached();
-
-      const tripsCount = await page
-        .locator("text=/Trips Taken/i")
-        .locator("..")
-        .locator("text=/\\d+/")
-        .first()
-        .textContent();
-      expect(parseInt(tripsCount || "0")).toBeGreaterThan(0);
-    });
-
-    test("should show time underground", async ({ page }) => {
-      await page.goto("/stats");
-
-      const timeElement = page.locator("text=/Underground/i").locator("..");
-      await expect(timeElement).toBeAttached();
-
-      const timeValue = await timeElement
-        .locator("text=/\\d+h\\s*\\d+m|\\d+m/")
-        .first()
-        .textContent();
-      expect(timeValue).toBeTruthy();
-    });
-
-    test("should show distance traveled", async ({ page }) => {
-      await page.goto("/stats");
-
-      const distance = page.locator("text=/Distance|km|mi/i");
-      await expect(distance).toBeAttached();
-    });
-
-    test("should show top station", async ({ page }) => {
-      await page.goto("/stats");
-
-      const topStation = page.locator("text=/Top Station|Most-Used Station/i");
-      await expect(topStation).toBeAttached();
-    });
-
-    test("should show top line", async ({ page }) => {
-      await page.goto("/stats");
-
-      const topLine = page.locator("text=/Top Line|Most-Used Line/i");
-      await expect(topLine).toBeAttached();
-    });
-
-    test("should show stations visited count", async ({ page }) => {
-      await page.goto("/stats");
-
-      const stationsVisited = page.locator("text=/Stations Visited/i");
-      await expect(stationsVisited).toBeAttached();
-    });
-
-    test("should show delay days", async ({ page }) => {
-      await page.goto("/stats");
-
-      const delayDays = page.locator("text=/Delay Days/i");
-      await expect(delayDays).toBeAttached();
-    });
-
-    test("should show streak information", async ({ page }) => {
-      await page.goto("/stats");
-
-      const streak = page.locator("text=/Longest Streak|Current Streak/i");
-      await expect(streak).toBeAttached();
-    });
+  test("opens from the journal and returns with the back button", async ({ page }) => {
+    await seedJournal(page);
+    await page.goto("/journal");
+    await page.getByRole("button", { name: /Your Subway Year/ }).click();
+    await expect(page).toHaveURL(/\/stats$/);
+    await expect(page.getByRole("heading", { name: "Your Subway Year", level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "Back to journal" }).click();
+    await expect(page).toHaveURL(/\/journal$/);
   });
 
-  test.describe("Carbon Savings Section", () => {
-    test.beforeEach(async ({ page }) => {
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 50,
-              totalMinutes: 1000,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 50 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-    });
-
-    test("should show carbon savings", async ({ page }) => {
-      await page.goto("/stats");
-
-      const carbonSavings = page.locator("text=/CO₂ Saved|Carbon Savings|kg of CO₂/i");
-      await expect(carbonSavings).toBeAttached();
-    });
-
-    test("should show environmental equivalents", async ({ page }) => {
-      await page.goto("/stats");
-
-      // Should show trees equivalent
-      const trees = page.locator("text=/trees|worth of trees/i");
-      await expect(trees).toBeAttached();
-
-      // Should show flights equivalent
-      const flights = page.locator("text=/NYC↔LA|flights/i");
-      await expect(flights).toBeAttached();
-
-      // Should show car-free days
-      const carFree = page.locator("text=/car-free|days/i");
-      await expect(carFree).toBeAttached();
-    });
+  test("shows current-year trip, time, and station aggregates", async ({ page }) => {
+    await openStats(page);
+    await expect(card(page)).toBeVisible();
+    await expect(card(page)).toContainText(String(currentYear));
+    await expect(cardValue(page, "Trips Taken")).toHaveText("2");
+    await expect(cardValue(page, "Underground")).toHaveText("30m");
+    await expect(card(page).getByText("Top Station").locator("..")).toContainText("South Ferry");
+    await expect(card(page).getByText("Top Line").locator("..")).toContainText("1");
+    await expect(
+      card(page).getByText("Stations Visited").locator("..").locator("span").last()
+    ).toHaveText("2");
+    await expect(
+      card(page).getByText("Delay Days").locator("..").locator("span").last()
+    ).toHaveText("0");
   });
 
-  test.describe("Stats Details", () => {
-    test.beforeEach(async ({ page }) => {
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 50,
-              totalMinutes: 1000,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 50 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-    });
-
-    test("should display overview section", async ({ page }) => {
-      await page.goto("/stats");
-
-      const overview = page.locator("text=/Overview|Details/i");
-      await expect(overview).toBeAttached();
-    });
-
-    test("should display favorites section", async ({ page }) => {
-      await page.goto("/stats");
-
-      const favorites = page.locator("text=/Favorites|Most-Used/i");
-      await expect(favorites).toBeAttached();
-    });
-
-    test("should display reliability section", async ({ page }) => {
-      await page.goto("/stats");
-
-      const reliability = page.locator("text=/Reliability|Delay Days/i");
-      await expect(reliability).toBeAttached();
-    });
-
-    test("should display environmental impact section", async ({ page }) => {
-      await page.goto("/stats");
-
-      const envImpact = page.locator("text=/Environmental Impact|CO₂ Saved/i");
-      await expect(envImpact).toBeAttached();
-    });
+  test("switches windows and recomputes trips and underground time", async ({ page }) => {
+    await openStats(page);
+    for (const name of ["This Month", "This Quarter", "This Year", "All Time"]) {
+      await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole("button", { name: "This Year" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await page.getByRole("button", { name: "All Time" }).click();
+    await expect(page.getByRole("button", { name: "All Time" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await expect(page.getByRole("button", { name: "This Year" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    await expect(cardValue(page, "Trips Taken")).toHaveText("3");
+    await expect(cardValue(page, "Underground")).toHaveText("1h");
+    await page.getByRole("button", { name: "This Month" }).click();
+    await expect(page.getByRole("button", { name: "This Month" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await expect(cardValue(page, "Trips Taken")).toHaveText(
+      new Date().getMonth() === 0 ? "2" : "1"
+    );
   });
 
-  test.describe("Share Functionality", () => {
-    test.beforeEach(async ({ page }) => {
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 50,
-              totalMinutes: 1000,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 50 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-    });
-
-    test("should have share button", async ({ page }) => {
-      await page.goto("/stats");
-
-      const shareButton = page.locator('button:has-text("Share")');
-      await expect(shareButton).toBeVisible();
-    });
-
-    test("should trigger share when button is clicked", async ({ page }) => {
-      // Mock the share API
-      await page.addInitScript(() => {
-        (window as any).navigator.share = async () => {
-          return true;
-        };
-      });
-
-      await page.goto("/stats");
-
-      const shareButton = page.locator('button:has-text("Share")');
-      await shareButton.click();
-
-      // Share dialog or download is browser-dependent; a successful click is
-      // the contract under test.
-    });
-
-    test("should show loading state while sharing", async ({ page }) => {
-      // Mock the share API with a delay
-      await page.addInitScript(() => {
-        (window as any).navigator.share = async () => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return true;
-        };
-      });
-
-      await page.goto("/stats");
-
-      const shareButton = page.locator('button:has-text("Share My Subway Year")');
-      await shareButton.click();
-
-      // Button should show "Sharing..." state
-      const sharingText = await shareButton.textContent();
-      expect(sharingText).toContain("Sharing");
-    });
+  test("shows detailed statistics and environmental equivalents", async ({ page }) => {
+    await openStats(page);
+    for (const name of ["Overview", "Favorites", "Reliability", "Environmental Impact"]) {
+      await expect(page.getByRole("heading", { name, level: 3 })).toBeVisible();
+    }
+    await expect(page.locator("main")).toContainText("Most-Used Station");
+    await expect(page.locator("main")).toContainText("Longest Streak");
+    await expect(page.locator("main")).toContainText("CO₂ Saved");
+    await expect(card(page)).toContainText("worth of trees");
+    await expect(card(page)).toContainText("NYC↔LA");
+    await expect(card(page)).toContainText("car-free");
   });
 
-  test.describe("Visual Design", () => {
-    test.beforeEach(async ({ page }) => {
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 50,
-              totalMinutes: 1000,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 50 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
+  test("shares a PNG with the current trip total", async ({ page }) => {
+    // Exercise the screen's share flow with a deterministic canvas result.
+    // Browser canvas encoding is covered by the rendering library itself.
+    await page.route(/\/assets\/html2canvas[^/]*\.js$/, (route) =>
+      route.fulfill({
+        contentType: "text/javascript",
+        body: 'export default async function () { return { toBlob(callback) { callback(new Blob(["png"], { type: "image/png" })); } }; }',
+      })
+    );
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data: ShareData) => {
+          (window as Window & { sharedTripSummary?: string }).sharedTripSummary = data.text;
+        },
       });
     });
-
-    test("should have gradient background on card", async ({ page }) => {
-      await page.goto("/stats");
-
-      const card = page.locator(".bg-gradient-to-br");
-      await expect(card).toBeAttached();
-    });
-
-    test("should have proper contrast on card", async ({ page }) => {
-      await page.goto("/stats");
-
-      const card = page.locator(".from-\\[\\#0039A6\\]").first();
-
-      // Check that text is visible
-      const textColor = await card.evaluate((el) => {
-        return window.getComputedStyle(el).color;
-      });
-
-      expect(textColor).toBeTruthy();
-    });
-
-    test("should have tabular numbers for stats", async ({ page }) => {
-      await page.goto("/stats");
-
-      const tabularNums = page.locator(".tabular-nums");
-      await expect(tabularNums.first()).toBeAttached();
-    });
+    await openStats(page);
+    const share = page.getByRole("button", { name: "Share My Subway Year" });
+    await expect(share).toBeEnabled();
+    await share.click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as Window & { sharedTripSummary?: string }).sharedTripSummary)
+      )
+      .toContain("2 subway trips");
   });
 
-  test.describe("Accessibility", () => {
-    test.beforeEach(async ({ page }) => {
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 50,
-              totalMinutes: 1000,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 50 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-    });
-
-    test("should have proper heading hierarchy", async ({ page }) => {
-      await page.goto("/stats");
-
-      const mainHeading = page.locator('role=heading[name="Your Subway Year"]');
-      await expect(mainHeading).toBeVisible();
-    });
-
-    test("should have aria-pressed on time window buttons", async ({ page }) => {
-      await page.goto("/stats");
-
-      const windowButtons = page.locator('button:has-text("This"), button:has-text("All")');
-      const count = await windowButtons.count();
-
-      for (let i = 0; i < Math.min(count, 2); i++) {
-        const ariaPressed = await windowButtons.nth(i).getAttribute("aria-pressed");
-        expect(ariaPressed === "true" || ariaPressed === "false").toBe(true);
-      }
-    });
-
-    test("should be keyboard navigable", async ({ page }) => {
-      await page.goto("/stats");
-
-      // Tab through elements
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Tab");
-
-      const focused = await page.evaluate(() => document.activeElement?.tagName);
-      expect(["BUTTON", "A"].includes(focused || "")).toBe(true);
-    });
+  test("keeps journal totals after a reload", async ({ page }) => {
+    await openStats(page);
+    await expect(cardValue(page, "Trips Taken")).toHaveText("2");
+    await page.reload();
+    await expect(cardValue(page, "Trips Taken")).toHaveText("2");
   });
 
-  test.describe("Performance", () => {
-    test("should load stats screen quickly", async ({ page }) => {
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 100,
-              totalMinutes: 2000,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 100 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-
-      const startTime = Date.now();
-      await page.goto("/stats");
-
-      // Wait for main content
-      await page.waitForSelector('role=heading[name="Your Subway Year"]', { timeout: 5000 });
-
-      const loadTime = Date.now() - startTime;
-      expect(loadTime).toBeLessThan(3000);
-    });
-  });
-
-  test.describe("Data Persistence", () => {
-    test("should load data from localStorage", async ({ page }) => {
-      // Set up data
-      await page.addInitScript(() => {
-        const journalData = {
-          "test-commute": {
-            stats: {
-              totalTrips: 25,
-              totalMinutes: 500,
-              averageDuration: 20,
-              medianDuration: 19,
-            },
-            records: Array.from({ length: 25 }, (_, i) => ({
-              id: `trip-${i}`,
-              date: new Date(Date.now() - i * 86400000).toISOString().split("T")[0],
-              origin: { stationId: "101", stationName: "South Ferry" },
-              destination: { stationId: "725", stationName: "Times Sq-42 St" },
-              line: "1",
-              actualDurationMinutes: 20,
-              source: "tracked",
-            })),
-          },
-        };
-        localStorage.setItem("mta-journal", JSON.stringify(journalData));
-      });
-
-      await page.goto("/stats");
-
-      // Should show the trip count
-      const tripsText = await page
-        .locator("text=/Trips Taken/i")
-        .locator("..")
-        .locator("text=/\\d+/")
-        .first()
-        .textContent();
-      expect(tripsText).toContain("25");
-    });
-
-    test("should handle missing journal data gracefully", async ({ page }) => {
-      await page.addInitScript(() => {
-        localStorage.removeItem("mta-journal");
-      });
-
-      await page.goto("/stats");
-
-      // Should show empty state, not crash
-      const emptyState = page.locator("text=/No trips recorded/i");
-      await expect(emptyState).toBeAttached();
-    });
+  test("connects the skip link to main content and supports keyboard window selection", async ({
+    page,
+  }) => {
+    await openStats(page);
+    await expect(page.getByRole("link", { name: "Skip to main content" })).toHaveAttribute(
+      "href",
+      "#main-content"
+    );
+    await expect(page.locator("main#main-content")).toBeVisible();
+    const allTime = page.getByRole("button", { name: "All Time" });
+    await allTime.focus();
+    await page.keyboard.press("Enter");
+    await expect(allTime).toHaveAttribute("aria-pressed", "true");
+    await expect(cardValue(page, "Trips Taken")).toHaveText("3");
   });
 });

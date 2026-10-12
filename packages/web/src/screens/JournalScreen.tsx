@@ -529,7 +529,21 @@ export default function JournalScreen() {
             Commute Stats
           </h2>
 
-          <DataState status={hasData ? "success" : "success"} data={commuteIds} error={null}>
+          <DataState
+            status="success"
+            data={commuteIds}
+            error={null}
+            empty={
+              <div className="text-center py-8">
+                <p className="text-text-secondary dark:text-dark-text-secondary mb-2">
+                  No trips recorded yet
+                </p>
+                <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                  Track a commute or let the app infer trips from your station visits
+                </p>
+              </div>
+            }
+          >
             {() =>
               hasData ? (
                 <div className="space-y-3">

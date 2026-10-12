@@ -1,8 +1,9 @@
 /**
- * Screenshot capture script for README documentation.
+ * Screenshot capture checks for key screens.
  *
- * Captures key app screens at mobile viewport for README Preview section.
- * Run with: npx playwright test capture-screenshots --project="Mobile Chrome"
+ * Captures stay in each test's Playwright output directory so CI runs cannot
+ * overwrite tracked README images or another worker's local edits.
+ * To generate mobile captures, run with --project="Mobile Chrome".
  */
 
 import { expect, test } from "@playwright/test";
@@ -62,19 +63,19 @@ async function navigateToPage(page: import("@playwright/test").Page, path: strin
   expect(response?.status(), `${path} should return HTTP 200`).toBe(200);
 }
 
-test.describe("README Screenshots", () => {
+test.describe("Screen captures", () => {
   test.setTimeout(60_000);
-  test("capture home dashboard", async ({ page }) => {
+  test("capture home dashboard", async ({ page }, testInfo) => {
     await bypassOnboarding(page);
 
     // Capture home screen with favorites
     await page.screenshot({
-      path: "../../docs/screenshots/home-dashboard.png",
+      path: testInfo.outputPath("home-dashboard.png"),
       fullPage: false,
     });
   });
 
-  test("capture station detail", async ({ page }) => {
+  test("capture station detail", async ({ page }, testInfo) => {
     await bypassOnboarding(page);
     // Navigate to Times Square (station 725)
     await navigateToPage(page, "/station/725");
@@ -83,12 +84,12 @@ test.describe("README Screenshots", () => {
 
     // Capture station detail with arrivals
     await page.screenshot({
-      path: "../../docs/screenshots/station-detail.png",
+      path: testInfo.outputPath("station-detail.png"),
       fullPage: false,
     });
   });
 
-  test("capture commute planner", async ({ page }) => {
+  test("capture commute planner", async ({ page }, testInfo) => {
     await bypassOnboarding(page);
     // Navigate to commute planner
     await navigateToPage(page, "/commute");
@@ -96,24 +97,22 @@ test.describe("README Screenshots", () => {
 
     // Capture commute planner screen
     await page.screenshot({
-      path: "../../docs/screenshots/commute-planner.png",
+      path: testInfo.outputPath("commute-planner.png"),
       fullPage: false,
     });
   });
 
-  test("capture interactive map", async ({ page }) => {
+  test("capture interactive map", async ({ page }, testInfo) => {
     await bypassOnboarding(page);
     // Navigate to map
     await navigateToPage(page, "/map");
 
-    // Wait for map to render
-    await page.waitForSelector("svg", { timeout: 10000 });
-    // Wait a bit for SVG to fully render
-    await page.waitForTimeout(1000);
+    // Wait for a station marker so the captured map includes loaded route data.
+    await expect(page.locator('svg [role="button"]').first()).toBeVisible();
 
     // Capture interactive map screen
     await page.screenshot({
-      path: "../../docs/screenshots/interactive-map.png",
+      path: testInfo.outputPath("interactive-map.png"),
       fullPage: false,
     });
   });

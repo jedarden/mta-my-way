@@ -8,7 +8,8 @@ import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
 const isCI = process.env["CI"] === "1" || process.env["CI"] === "true";
-const baseURL = process.env["PLAYWRIGHT_BASE_URL"] || "http://localhost:3001";
+const serverPort = process.env["PLAYWRIGHT_PORT"] || "3001";
+const baseURL = process.env["PLAYWRIGHT_BASE_URL"] || `http://localhost:${serverPort}`;
 const completedOnboardingStorageState = {
   origins: [
     {
@@ -133,8 +134,9 @@ export default defineConfig({
       "npx tsx helpers/check-port.ts && cd ../.. && npm run build --workspace=packages/web && npx tsx packages/server/src/index.ts",
     env: {
       TEST_MODE: "true",
+      PORT: serverPort,
     },
-    url: "http://localhost:3001/healthz",
+    url: `http://localhost:${serverPort}/healthz`,
     reuseExistingServer: !isCI,
     timeout: 60 * 1000,
   },

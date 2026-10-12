@@ -1,526 +1,216 @@
-/**
- * E2E tests for the Trip Journal screen.
- *
- * Tests cover:
- * - Commute stats display
- * - Trip history list
- * - Trip editing
- * - Sparkline charts
- * - Trend indicators
- * - Navigation to stats
- * - Empty states
- */
+/** E2E coverage for the empty and populated commute journal. */
 
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
-test.describe("Journal Screen", () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to journal via commute screen
-    await page.goto("/commute");
+const commuteId = "journal-test-commute";
+const routeName = "South Ferry → Times Sq-42 St";
 
-    // Try to find a link to journal
-    const journalLink = page
-      .locator('a[href="/journal"]')
-      .or(page.locator('button:has-text("Journal")'));
-    const hasLink = await journalLink.count();
+function trip(id: number, daysAgo: number, duration: number, source: string) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
+  const arrivalTime = date.getTime();
+  return {
+    id: `journal-test-trip-${id}`,
+    date: new Date(arrivalTime).toISOString(),
+    origin: { stationId: "101", stationName: "South Ferry" },
+    destination: { stationId: "725", stationName: "Times Sq-42 St" },
+    line: "1",
+    departureTime: arrivalTime - duration * 60_000,
+    arrivalTime,
+    actualDurationMinutes: duration,
+    scheduledDurationMinutes: 20,
+    source,
+  };
+}
 
-    if (hasLink > 0) {
-      await journalLink.first().click();
-    } else {
-      // Go directly to journal
-      await page.goto("/journal");
-    }
-  });
+async function openJournal(
+  page: Page,
+  records = [trip(1, 0, 25, "tracked"), trip(2, 1, 30, "inferred"), trip(3, 2, 20, "manual")]
+) {
+  const stats = {
+    commuteId,
+    averageDurationMinutes: 25,
+    medianDurationMinutes: 25,
+    stdDevMinutes: 4.08,
+    totalTrips: records.length,
+    tripsThisWeek: 2,
+    trend: 12,
+    averageDelayMinutes: 5,
+    maxDelayMinutes: 10,
+    onTimePercentage: 33,
+    records,
+  };
 
-  test.describe("Journal Loading", () => {
-    test("should load journal screen successfully", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Should see journal heading
-      await expect(page.locator('role=heading[name="Trip Journal"]')).toBeVisible();
-    });
-
-    test("should show back button to commute", async ({ page }) => {
-      await page.goto("/journal");
-
-      const backButton = page
-        .getByRole("link", { name: /back/i })
-        .or(page.getByRole("button", { name: /back/i }));
-      await expect(backButton.first()).toBeVisible();
-    });
-
-    test("should navigate to commute when back is clicked", async ({ page }) => {
-      await page.goto("/journal");
-
-      const backButton = page
-        .getByRole("link", { name: /back/i })
-        .or(page.getByRole("button", { name: /back/i }));
-      await backButton.first().click();
-
-      await expect(page).toHaveURL(/\/commute/);
-    });
-  });
-
-  test.describe("Overall Stats Summary", () => {
-    test("should display total trips", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for total trips stat
-      const totalTrips = page.getByText(/Total Trips/i);
-      await expect(totalTrips.first()).toBeAttached();
-    });
-
-    test("should display average duration", async ({ page }) => {
-      await page.goto("/journal");
-
-      const avgDuration = page.getByText(/Avg Duration|Average/i);
-      await expect(avgDuration.first()).toBeAttached();
-    });
-
-    test("should display average delay", async ({ page }) => {
-      await page.goto("/journal");
-
-      const avgDelay = page.getByText(/Avg Delay|Average Delay/i);
-      await expect(avgDelay.first()).toBeAttached();
-    });
-
-    test("should display trips this week", async ({ page }) => {
-      await page.goto("/journal");
-
-      const tripsThisWeek = page.getByText(/This Week|week/i);
-      await expect(tripsThisWeek.first()).toBeAttached();
-    });
-  });
-
-  test.describe("Commute Stats Cards", () => {
-    test("should show commute stats section", async ({ page }) => {
-      await page.goto("/journal");
-
-      const statsHeading = page.locator('role=heading[name="Commute Stats"]');
-      await expect(statsHeading).toBeVisible();
-    });
-
-    test("should display commute cards with stats", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for stat cards (might not exist if no trips)
-      const statCards = page.locator('[class*="stat"], [class*="card"]');
-      const hasCards = await statCards.count();
-
-      if (hasCards > 0) {
-        // Should have at least one stat card
-        await expect(statCards.first()).toBeVisible();
-      }
-    });
-
-    test("should show commute name on stat card", async ({ page }) => {
-      await page.goto("/journal");
-
-      const commuteName = page.getByText(/Work|Home|Commute/i);
-      await expect(commuteName.first()).toBeAttached();
-    });
-
-    test("should display average, median, and delay stats", async ({ page }) => {
-      await page.goto("/journal");
-
-      const avgLabel = page.getByText(/Avg|Average/i);
-      const medianLabel = page.getByText(/Median/i);
-      const delayLabel = page.getByText(/Delay/i);
-
-      // These should exist even if no data (showing 0 or —)
-      await expect(avgLabel.first()).toBeAttached();
-      await expect(medianLabel.first()).toBeAttached();
-      await expect(delayLabel.first()).toBeAttached();
-    });
-  });
-
-  test.describe("Trend Indicators", () => {
-    test("should show trend percentage for each commute", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for trend indicators (e.g., +5%, -3%)
-      const trendIndicator = page.getByText(/[+-]\d+/i);
-      await expect(trendIndicator.first()).toBeAttached();
-    });
-
-    test("should color-code trends (red for increase, green for decrease)", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for colored trend elements
-      const trendElements = page.locator(
-        '[class*="severe"], [class*="warning"], [class*="mta-primary"]'
+  await page.addInitScript(
+    ({ id, journalStats }) => {
+      // Preserve edits on reload; each Playwright test starts in a fresh context.
+      if (localStorage.getItem("mta-journal")) return;
+      const favorites = JSON.parse(localStorage.getItem("mta-favorites") ?? "{}");
+      localStorage.setItem(
+        "mta-favorites",
+        JSON.stringify({
+          state: {
+            ...favorites.state,
+            favorites: [],
+            commutes: [
+              {
+                id,
+                name: "Work",
+                origin: { stationId: "101", stationName: "South Ferry" },
+                destination: { stationId: "725", stationName: "Times Sq-42 St" },
+                preferredLines: ["1"],
+                enableTransferSuggestions: true,
+              },
+            ],
+            tapHistory: [],
+            onboardingComplete: true,
+          },
+          version: 1,
+        })
       );
-      const hasTrends = await trendElements.count();
-
-      if (hasTrends > 0) {
-        await expect(trendElements.first()).toBeVisible();
-      }
-    });
-  });
-
-  test.describe("Sparkline Charts", () => {
-    test("should display sparkline for recent trips", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for SVG sparkline or chart
-      const sparkline = page.locator(
-        'svg polyline, svg line, [class*="chart"], [class*="sparkline"]'
+      localStorage.setItem(
+        "mta-journal",
+        JSON.stringify({
+          state: { stats: { [id]: journalStats }, dayOfWeekStats: {}, lastStationVisit: null },
+          version: 3,
+        })
       );
-      const hasChart = await sparkline.count();
+    },
+    { id: commuteId, journalStats: stats }
+  );
 
-      if (hasChart > 0) {
-        await expect(sparkline.first()).toBeVisible();
-      }
-    });
+  await page.goto("/journal");
+  await expect(page.getByRole("heading", { name: "Trip Journal" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Work" })).toBeVisible();
+}
 
-    test("should show average line on sparkline", async ({ page }) => {
-      await page.goto("/journal");
+async function showHistory(page: Page) {
+  await page.getByRole("button", { name: "Show trip history" }).click();
+  await expect(page.getByRole("button", { name: "Hide trip history" })).toHaveAttribute(
+    "aria-expanded",
+    "true"
+  );
+}
 
-      // Look for dashed line (average indicator)
-      const avgLine = page.locator('svg line[stroke-dasharray], [class*="average"]');
-      const hasAvg = await avgLine.count();
+async function openTripEditor(page: Page) {
+  await showHistory(page);
+  await page.getByRole("button").filter({ hasText: routeName }).first().click();
+  await expect(
+    page.getByRole("dialog", { name: /Edit trip from South Ferry to Times Sq-42 St/ })
+  ).toBeVisible();
+}
 
-      if (hasAvg > 0) {
-        await expect(avgLine.first()).toBeVisible();
-      }
-    });
+test.describe("Journal screen", () => {
+  test("shows its heading and empty-state guidance without recorded trips", async ({ page }) => {
+    await page.goto("/journal");
+
+    await expect(page.getByRole("heading", { level: 1, name: "Trip Journal" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Commute Stats" })).toBeVisible();
+    await expect(page.getByText("No trips recorded yet")).toBeVisible();
+    await expect(page.getByText(/Track a commute or let the app infer trips/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Your Subway Year/ })).toHaveCount(0);
   });
 
-  test.describe("Trip History", () => {
-    test("should have history button on stat card", async ({ page }) => {
-      await page.goto("/journal");
-
-      const historyButton = page
-        .locator('button:has-text("History")')
-        .or(page.locator('button[aria-label*="history" i]'));
-      await expect(historyButton).toBeAttached();
-    });
-
-    test("should expand trip history when clicked", async ({ page }) => {
-      await page.goto("/journal");
-
-      const historyButton = page.getByRole("button", { name: /history/i }).first();
-      const hasButton = await historyButton.count();
-
-      if (hasButton > 0) {
-        await historyButton.click();
-
-        // Should see trip list items
-        const tripItems = page.locator('[role="listitem"], [class*="trip"]');
-        const hasItems = await tripItems.count();
-
-        // Trip items might not exist if no trips recorded
-        if (hasItems > 0) {
-          await expect(tripItems.first()).toBeVisible();
-        }
-      }
-    });
-
-    test("should display trip history with dates", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for date displays (Today, Yesterday, or dates)
-      const dateDisplay = page.getByText(/Today|Yesterday|Jan|Feb|Mar|Apr|May|Jun/i);
-      await expect(dateDisplay.first()).toBeAttached();
-    });
-
-    test("should show delay information for each trip", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for delay indicators
-      const delayInfo = page.getByText(/\+\d+ min|-\d+ min|delay/i);
-      await expect(delayInfo.first()).toBeAttached();
-    });
-
-    test("should show trip source (tracked/inferred/manual)", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Look for source labels
-      const sourceLabel = page.getByText(/Tracked|Inferred|Manual/i);
-      await expect(sourceLabel.first()).toBeAttached();
-    });
+  test("returns to commutes from the back button", async ({ page }) => {
+    await page.goto("/journal");
+    await page.getByRole("button", { name: "Back to commutes" }).click();
+    await expect(page).toHaveURL(/\/commute$/);
   });
 
-  test.describe("Trip Editing", () => {
-    test("should open trip editor when trip is clicked", async ({ page }) => {
-      await page.goto("/journal");
+  test("shows the overall summary and commute statistics", async ({ page }) => {
+    await openJournal(page);
 
-      // Try to expand history first
-      const historyButton = page.getByRole("button", { name: /history/i }).first();
-      const hasHistory = await historyButton.count();
-
-      if (hasHistory > 0) {
-        await historyButton.click();
-      }
-
-      // Try to click on a trip
-      const tripItem = page.locator('button, [role="listitem"]').first();
-      const hasTrip = await tripItem.count();
-
-      if (hasTrip > 0) {
-        await tripItem.first().click();
-
-        // Editor modal might appear
-        const modal = page.locator('[role="dialog"], [class*="editor"], [class*="modal"]');
-        const hasModal = await modal.count();
-
-        if (hasModal > 0) {
-          await expect(modal.first()).toBeVisible();
-        }
-      }
-    });
-
-    test("should allow editing trip notes", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Find and click a trip to edit
-      const tripItem = page.locator("role=button").first();
-      const hasTrip = await tripItem.count();
-
-      if (hasTrip > 0) {
-        await tripItem.first().click();
-
-        // Look for notes field
-        const notesField = page.locator('[role="textbox"], textarea, input[type="text"]');
-        const hasField = await notesField.count();
-
-        if (hasField > 0) {
-          // Try to type in notes
-          await notesField.first().fill("Test note");
-
-          // Save button
-          const saveButton = page
-            .getByRole("button", { name: /save/i })
-            .or(page.locator('button[type="submit"]'));
-          const hasSave = await saveButton.count();
-
-          if (hasSave > 0) {
-            await saveButton.first().click();
-          }
-        }
-      }
-    });
-
-    test("should allow deleting trips", async ({ page }) => {
-      await page.goto("/journal");
-
-      const tripItem = page.locator("role=button").first();
-      const hasTrip = await tripItem.count();
-
-      if (hasTrip > 0) {
-        await tripItem.first().click();
-
-        // Look for delete button
-        const deleteButton = page
-          .getByRole("button", { name: /delete/i })
-          .or(page.locator('button[aria-label*="delete" i]'));
-        const hasDelete = await deleteButton.count();
-
-        if (hasDelete > 0) {
-          // Don't actually delete in tests, just verify button exists
-          await expect(deleteButton.first()).toBeAttached();
-        }
-      }
-    });
+    await expect(page.getByText("Total Trips").locator("..")).toContainText("3");
+    await expect(page.getByText("Avg Duration").locator("..")).toContainText("25m");
+    await expect(page.getByText("Avg Delay", { exact: true }).first().locator("..")).toContainText(
+      "+5m"
+    );
+    await expect(page.getByText("This Week").locator("..")).toContainText("2");
+    await expect(page.getByRole("heading", { name: "Work" })).toBeVisible();
+    await expect(page.getByText(routeName)).toBeVisible();
+    await expect(page.getByText("Median")).toBeVisible();
+    await expect(page.getByText("+12%", { exact: true })).toHaveClass(/text-severe/);
   });
 
-  test.describe("Subway Year Link", () => {
-    test("should show link to Subway Year stats", async ({ page }) => {
-      await page.goto("/journal");
+  test("draws the duration sparkline and average line", async ({ page }) => {
+    await openJournal(page);
 
-      const statsLink = page
-        .getByRole("button", { name: /subway year/i })
-        .or(page.locator('a[href="/stats"]'));
-      const hasLink = await statsLink.count();
-
-      if (hasLink > 0) {
-        await expect(statsLink.first()).toBeVisible();
-      }
-    });
-
-    test("should navigate to stats screen when clicked", async ({ page }) => {
-      await page.goto("/journal");
-
-      const statsLink = page
-        .getByRole("button", { name: /subway year/i })
-        .or(page.locator('a[href="/stats"]'));
-      const hasLink = await statsLink.count();
-
-      if (hasLink > 0) {
-        await statsLink.first().click();
-        await expect(page).toHaveURL(/\/stats/);
-      }
-    });
+    const sparkline = page.locator("svg:has(line[stroke-dasharray])");
+    await expect(sparkline).toBeVisible();
+    await expect(sparkline.locator("polyline[points]")).toHaveCount(1);
   });
 
-  test.describe("Empty States", () => {
-    test.beforeEach(async ({ page }) => {
-      // Clear localStorage to ensure empty state
-      await page.goto("/journal");
-      await page.evaluate(() => {
-        localStorage.clear();
-      });
-      await page.reload();
-    });
+  test("expands and collapses history with dates, sources, and delays", async ({ page }) => {
+    await openJournal(page);
+    await showHistory(page);
 
-    test("should show empty state when no trips recorded", async ({ page }) => {
-      await page.goto("/journal");
+    const trips = page.getByRole("button").filter({ hasText: routeName });
+    await expect(trips).toHaveCount(3);
+    await expect(trips.first()).toContainText("Today");
+    await expect(trips.first()).toContainText("Tracked");
+    await expect(trips.first()).toContainText("+5 min");
+    await expect(trips.nth(1)).toContainText("Inferred");
+    await expect(trips.nth(2)).toContainText("Manual");
 
-      const emptyState = page.getByText(/No trips|not recorded/i);
-      const hasEmpty = await emptyState.count();
-
-      if (hasEmpty > 0) {
-        await expect(emptyState).toBeVisible();
-      }
-    });
-
-    test("should show guidance message in empty state", async ({ page }) => {
-      await page.goto("/journal");
-
-      const guidance = page.getByText(/track|record|commute/i);
-      await expect(guidance.first()).toBeAttached();
-    });
+    await page.getByRole("button", { name: "Hide trip history" }).click();
+    await expect(trips).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Show trip history" })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
   });
 
-  test.describe("Accessibility", () => {
-    test("should have proper heading hierarchy", async ({ page }) => {
-      await page.goto("/journal");
+  test("opens the trip editor and saves notes across a reload", async ({ page }) => {
+    await openJournal(page);
+    await openTripEditor(page);
 
-      // Main heading should be h1
-      const mainHeading = page.locator('role=heading[level="1"]');
-      await expect(mainHeading.first()).toBeVisible();
-    });
+    await page.getByRole("textbox", { name: "Notes (optional)" }).fill("Signal delay at 14th St");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByText("Signal delay at 14th St")).toBeVisible();
 
-    test("should have expand/collapse announcements", async ({ page }) => {
-      await page.goto("/journal");
-
-      const historyButton = page.getByRole("button", { name: /history/i }).first();
-      const hasButton = await historyButton.count();
-
-      if (hasButton > 0) {
-        // Check for aria-expanded
-        const ariaExpanded = await historyButton.getAttribute("aria-expanded");
-        expect(ariaExpanded).toBeTruthy();
-      }
-    });
-
-    test("should be keyboard navigable", async ({ page }) => {
-      await page.goto("/journal");
-
-      // Tab through elements
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Tab");
-
-      const focused = await page.evaluate(() => document.activeElement?.tagName);
-      expect(["BUTTON", "A", "INPUT"].includes(focused || "")).toBe(true);
-    });
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Trip Journal" })).toBeVisible();
+    await showHistory(page);
+    await expect(page.getByText("Signal delay at 14th St")).toBeVisible();
   });
 
-  test.describe("Navigation", () => {
-    test("should navigate to stats screen", async ({ page }) => {
-      await page.goto("/journal");
+  test("confirms deletion and removes the selected trip", async ({ page }) => {
+    await openJournal(page);
+    await openTripEditor(page);
 
-      const statsButton = page
-        .getByRole("button", { name: /your subway year/i })
-        .or(page.locator('a[href="/stats"]'));
-      const hasButton = await statsButton.count();
-
-      if (hasButton > 0) {
-        await statsButton.first().click();
-        await expect(page).toHaveURL(/\/stats/);
-      }
-    });
-
-    test("should navigate back to commute screen", async ({ page }) => {
-      await page.goto("/journal");
-
-      const backButton = page
-        .getByRole("link", { name: /back/i })
-        .or(page.getByRole("button", { name: /back/i }));
-      await backButton.first().click();
-
-      await expect(page).toHaveURL(/\/commute/);
-    });
+    await page.getByRole("button", { name: "Delete trip" }).click();
+    await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button").filter({ hasText: routeName })).toHaveCount(2);
   });
 
-  test.describe("Performance", () => {
-    test("should load journal quickly", async ({ page }) => {
-      const startTime = Date.now();
-
-      await page.goto("/journal");
-
-      // Wait for main heading
-      await page.waitForSelector('role=heading[name="Trip Journal"]', { timeout: 5000 });
-
-      const loadTime = Date.now() - startTime;
-
-      expect(loadTime).toBeLessThan(3000);
-    });
-
-    test("should handle large trip histories efficiently", async ({ page }) => {
-      // Mock many trips
-      await page.addInitScript(() => {
-        const trips = Array.from({ length: 100 }, (_, i) => ({
-          id: `trip-${i}`,
-          origin: { stationId: "101", stationName: "South Ferry" },
-          destination: { stationId: "725", stationName: "Times Sq-42 St" },
-          line: "1",
-          date: new Date(Date.now() - i * 86400000).toISOString(),
-          actualDurationMinutes: 20,
-        }));
-        localStorage.setItem("mta-journal", JSON.stringify({ stats: {}, trips }));
-      });
-
-      await page.goto("/journal");
-
-      // Should still load reasonably fast
-      await page.waitForSelector('role=heading[name="Trip Journal"]', { timeout: 5000 });
-
-      const mainHeading = page.locator('role=heading[name="Trip Journal"]');
-      await expect(mainHeading).toBeVisible();
-    });
+  test("opens Subway Year from a populated journal", async ({ page }) => {
+    await openJournal(page);
+    await page.getByRole("button", { name: /Your Subway Year/ }).click();
+    await expect(page).toHaveURL(/\/stats$/);
   });
 
-  test.describe("Data Persistence", () => {
-    test("should save trip edits to localStorage", async ({ page }) => {
-      await page.goto("/journal");
+  test("supports keyboard expansion of trip history", async ({ page }) => {
+    await openJournal(page);
+    await page.getByRole("button", { name: "Show trip history" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Hide trip history" })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+  });
 
-      // Get initial localStorage state
-      const initialData = await page.evaluate(() => {
-        return localStorage.getItem("mta-journal");
-      });
+  test("limits a large history to the most recent 20 visible trips", async ({ page }) => {
+    const records = Array.from({ length: 100 }, (_, index) =>
+      trip(index + 1, index, 20 + (index % 5), "tracked")
+    );
+    await openJournal(page, records);
+    await showHistory(page);
 
-      // Open trip editor (if trips exist)
-      const tripItem = page.locator("role=button").first();
-      const hasTrip = await tripItem.count();
-
-      if (hasTrip > 0) {
-        await tripItem.first().click();
-
-        // Try to add a note
-        const notesField = page.locator('[role="textbox"], textarea').first();
-        const hasField = await notesField.count();
-
-        if (hasField > 0) {
-          await notesField.fill("E2E test note");
-
-          const saveButton = page.getByRole("button", { name: /save/i }).first();
-          const hasSave = await saveButton.count();
-
-          if (hasSave > 0) {
-            await saveButton.click();
-
-            // Reload and check
-            await page.reload();
-
-            const savedData = await page.evaluate(() => {
-              return localStorage.getItem("mta-journal");
-            });
-
-            expect(savedData).toBeTruthy();
-          }
-        }
-      }
-    });
+    await expect(page.getByRole("button").filter({ hasText: routeName })).toHaveCount(20);
+    await expect(page.getByText("Showing last 20 of 100 trips")).toBeVisible();
   });
 });

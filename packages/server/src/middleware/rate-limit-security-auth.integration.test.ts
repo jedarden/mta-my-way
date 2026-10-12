@@ -403,7 +403,7 @@ describe("host validation and browser security headers with authentication", () 
     expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
     expect(response.headers.get("Cross-Origin-Embedder-Policy")).toBe("require-corp");
     expect(response.headers.get("X-Permitted-Cross-Domain-Policies")).toBe("none");
-    expect(response.headers.get("Permissions-Policy")).toContain("geolocation=()");
+    expect(response.headers.get("Permissions-Policy")).toContain("geolocation=(self)");
 
     const csp = response.headers.get("Content-Security-Policy");
     expect(csp).toContain("default-src 'self'");

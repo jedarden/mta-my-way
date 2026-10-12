@@ -54,7 +54,7 @@ test.describe("Security headers", () => {
 
     const permissionsPolicy = response.headers()["permissions-policy"];
     expect(permissionsPolicy).toBeDefined();
-    expect(permissionsPolicy).toContain("geolocation=()");
+    expect(permissionsPolicy).toContain("geolocation=(self)");
   });
 
   test("sets Cross-Origin-Opener-Policy", async ({ request }) => {
@@ -112,7 +112,9 @@ test.describe("Rate limiting", () => {
 
 test.describe("OWASP A01: Broken Access Control", () => {
   test("blocks path traversal attempts", async ({ request }) => {
-    const response = await request.get("/api/stations/../../etc/passwd");
+    // Encode separators so the URL client does not normalize away the API
+    // route before the server can reject the traversal attempt.
+    const response = await request.get("/api/stations/%2E%2E%2F%2E%2E%2Fetc%2Fpasswd");
 
     // Should be blocked or return 404
     expect([400, 404]).toContain(response.status());

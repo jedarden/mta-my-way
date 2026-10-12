@@ -75,6 +75,7 @@ export const TransitMap = memo(function TransitMap({
   const handlePanStart = useCallback(
     (e: React.PointerEvent) => {
       if (e.button !== 0) return; // Only primary button
+      if ((e.target as Element).closest('[role="button"]')) return;
       setIsDragging(true);
       setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
       svgRef.current?.setPointerCapture(e.pointerId);
@@ -98,7 +99,9 @@ export const TransitMap = memo(function TransitMap({
   // Handle pan end
   const handlePanEnd = useCallback((e: React.PointerEvent) => {
     setIsDragging(false);
-    svgRef.current?.releasePointerCapture(e.pointerId);
+    if (svgRef.current?.hasPointerCapture(e.pointerId)) {
+      svgRef.current.releasePointerCapture(e.pointerId);
+    }
   }, []);
 
   // Handle zoom with wheel
@@ -299,7 +302,7 @@ export const TransitMap = memo(function TransitMap({
       </svg>
 
       {/* Zoom controls */}
-      <div className="absolute bottom-4 right-4 flex flex-col gap-2">
+      <div className="absolute bottom-20 right-4 flex flex-col gap-2">
         <button
           type="button"
           onClick={handleZoomIn}

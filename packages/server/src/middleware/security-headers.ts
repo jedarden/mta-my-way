@@ -60,10 +60,11 @@ export function getStrictCsp(nonce: string): string {
 
 /**
  * Permissions-Policy directive to restrict browser features.
- * Blocks geolocation, camera, microphone, payment, and other sensitive APIs.
+ * Allows this app to request geolocation for nearby-station onboarding while
+ * blocking other origins and unused sensitive APIs.
  */
 const PERMISSIONS_POLICY =
-  "geolocation=(), camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), ambient-light-sensor=()";
+  "geolocation=(self), camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), ambient-light-sensor=()";
 
 /**
  * Default Content Security Policy (Level 3).

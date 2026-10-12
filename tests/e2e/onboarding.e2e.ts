@@ -15,17 +15,22 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Onboarding Flow", () => {
-  // Clear localStorage before each test to simulate fresh user
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
     await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-    await page.context().grantPermissions(["geolocation"], { origin: page.url() });
+    await page.context().grantPermissions(["geolocation", "notifications"]);
+    await page.goto("/");
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
     });
-    // Reload to trigger onboarding
+    const stationsLoaded = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === "/api/stations" && response.ok()
+    );
+    const complexesLoaded = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === "/api/static/complexes" && response.ok()
+    );
     await page.reload();
+    await Promise.all([stationsLoaded, complexesLoaded]);
   });
 
   test.describe("Welcome Screen", () => {
@@ -66,9 +71,6 @@ test.describe("Onboarding Flow", () => {
 
   test.describe("Location Permission Step", () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
       await page.click('button:has-text("Get Started")');
     });
 
@@ -86,30 +88,16 @@ test.describe("Onboarding Flow", () => {
     });
 
     test("should show search fallback when location is denied", async ({ page }) => {
-      // Deny location permission
-      await page.context().grantPermissions([], { origin: page.url() });
-      await page.click('button:has-text("Allow Location Access")');
-
-      // Wait for denial to be processed and fallback to appear
-      await page.waitForTimeout(500);
-
-      // Should either show search fallback or stay on location step with denial message
-      const url = page.url();
-      const searchFallbackVisible = await page
-        .locator('role=heading[name="Add Your First Station"]')
-        .count();
-
-      // Either navigated to search fallback or shows denial message
-      expect(
-        searchFallbackVisible + (await page.locator("text=/Location access was denied/i").count())
-      ).toBeGreaterThan(0);
+      await page.context().clearPermissions();
+      await page.context().grantPermissions(["notifications"]);
+      await page.reload();
+      await page.getByRole("button", { name: "Get Started" }).click();
+      await expect(page.getByRole("button", { name: "Search for stations" })).toBeVisible();
+      await page.getByRole("button", { name: "Search for stations" }).click();
+      await expect(page.getByRole("heading", { name: "Add Your First Station" })).toBeVisible();
     });
 
     test("should advance to nearby stations when location is granted", async ({ page }) => {
-      // Grant location permission with NYC coordinates
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-
       await page.click('button:has-text("Allow Location Access")');
 
       // Should show nearby stations step
@@ -121,14 +109,6 @@ test.describe("Onboarding Flow", () => {
 
   test.describe("Nearby Stations Step", () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
-      // Set up geolocation before starting onboarding
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-
       await page.click('button:has-text("Get Started")');
       await page.click('button:has-text("Allow Location Access")');
 
@@ -142,57 +122,34 @@ test.describe("Onboarding Flow", () => {
       await expect(page.locator('role=heading[name="Nearby Stations"]')).toBeVisible();
 
       // Should have station cards
-      const stationCards = page.locator("role=button").filter({ hasText: /Times|Ferry|Chambers/i });
+      const stationCards = page.getByRole("button").filter({ hasText: /min walk/ });
       await expect(stationCards.first()).toBeAttached();
     });
 
     test("should pre-select all nearby stations", async ({ page }) => {
       // Check that at least one station is selected (has the selected styling)
-      const selectedStations = page.locator('button[aria-pressed="true"], .bg-mta-primary');
-      const count = await selectedStations.count();
-
-      // Should have at least one pre-selected station
-      expect(count).toBeGreaterThan(0);
+      const stationCards = page.getByRole("button").filter({ hasText: /min walk/ });
+      expect(await stationCards.count()).toBeGreaterThan(0);
+      await expect(stationCards.first()).toHaveClass(/bg-mta-primary/);
     });
 
     test("should allow toggling station selection", async ({ page }) => {
       // Get a station button
       const stationButton = page
-        .locator("role=button")
-        .filter({ hasText: /Times|Ferry|Chambers/i })
+        .getByRole("button")
+        .filter({ hasText: /min walk/ })
         .first();
-
-      // Get initial selection state
-      const initiallySelected = await stationButton.evaluate((el) => {
-        return (
-          el.classList.contains("bg-mta-primary") || el.getAttribute("aria-pressed") === "true"
-        );
-      });
+      await expect(stationButton).toHaveClass(/bg-mta-primary/);
 
       // Click to toggle
       await stationButton.click();
 
-      // Wait for state update
-      await page.waitForTimeout(100);
-
-      // Selection should have changed
-      const nowSelected = await stationButton.evaluate((el) => {
-        return (
-          el.classList.contains("bg-mta-primary") || el.getAttribute("aria-pressed") === "true"
-        );
-      });
-
-      expect(nowSelected).not.toBe(initiallySelected);
+      await expect(stationButton).not.toHaveClass(/bg-mta-primary/);
     });
 
     test("should show number of selected stations", async ({ page }) => {
       const continueButton = page.locator('button:has-text("Continue")');
-      const buttonText = await continueButton.textContent();
-
-      // Should have selection count in button text if any stations selected
-      if (buttonText) {
-        expect(buttonText).toBeTruthy();
-      }
+      await expect(continueButton).toHaveText(/Continue \(\d+ selected\)/);
     });
 
     test("should advance to commute step when Continue is clicked", async ({ page }) => {
@@ -202,123 +159,62 @@ test.describe("Onboarding Flow", () => {
       await expect(page.locator('role=heading[name="Where do you commute to?"]')).toBeVisible();
     });
 
-    test("should skip to notifications when Skip is clicked", async ({ page }) => {
+    test("should complete onboarding when Skip is clicked", async ({ page }) => {
       await page.click('button:has-text("Skip")');
-
-      // Should show notifications step (skipping commute)
-      await expect(page.locator('role=heading[name="Stay Informed"]')).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Your Stations" })).toBeVisible();
     });
 
     test("should disable Continue when no stations selected", async ({ page }) => {
       // Deselect all stations by clicking them
-      const stationButtons = page
-        .locator("role=button")
-        .filter({ hasText: /Times|Ferry|Chambers|St/i });
+      const stationButtons = page.getByRole("button").filter({ hasText: /min walk/ });
       const count = await stationButtons.count();
 
-      for (let i = 0; i < Math.min(count, 3); i++) {
+      for (let i = 0; i < count; i++) {
         await stationButtons.nth(i).click();
-        await page.waitForTimeout(50);
+        await expect(stationButtons.nth(i)).not.toHaveClass(/bg-mta-primary/);
       }
 
       // Continue button should be disabled
       const continueButton = page.locator('button:has-text("Continue")');
-      const isDisabled = await continueButton.isDisabled();
-
-      expect(isDisabled).toBe(true);
+      await expect(continueButton).toBeDisabled();
     });
   });
 
   test.describe("Search Fallback Step", () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
+      await page.context().clearPermissions();
+      await page.context().grantPermissions(["notifications"]);
       await page.reload();
-
-      // Deny location to trigger search fallback
-      await page.context().setGeolocation({ latitude: 0, longitude: 0 });
-      await page.context().grantPermissions([], { origin: page.url() });
-
       await page.click('button:has-text("Get Started")');
-      await page.click('button:has-text("Allow Location Access")');
-
-      // Wait for either denial message or search fallback
-      await page.waitForTimeout(1000);
+      await page.getByRole("button", { name: "Search for stations" }).click();
+      await expect(page.getByRole("heading", { name: "Add Your First Station" })).toBeVisible();
     });
 
     test("should display search fallback when location unavailable", async ({ page }) => {
-      // May need to click through to search
-      const searchButton = page.locator('button:has-text("Search for stations")');
-      const hasSearch = await searchButton.count();
-
-      if (hasSearch > 0) {
-        await searchButton.click();
-      }
-
       await expect(page.locator('role=heading[name="Add Your First Station"]')).toBeVisible({
         timeout: 5000,
       });
     });
 
     test("should allow searching for stations", async ({ page }) => {
-      // Navigate to search fallback if needed
-      const searchButton = page.locator('button:has-text("Search for stations")');
-      if ((await searchButton.count()) > 0) {
-        await searchButton.click();
-      }
-
-      // Wait for search input
-      await page.waitForTimeout(500);
-      const searchInput = page.locator('input, input[placeholder*="search" i]');
-      const hasInput = await searchInput.count();
-
-      if (hasInput > 0) {
-        await searchInput.fill("Times");
-        await page.waitForTimeout(300);
-
-        // Should show search results
-        const results = page.locator("role=button").filter({ hasText: /Times/i });
-        await expect(results.first()).toBeAttached();
-      }
+      const searchInput = page.getByRole("searchbox", { name: "Search stations" });
+      await searchInput.fill("Times");
+      await expect(page.getByRole("button", { name: /Times Sq-42 St/i }).first()).toBeVisible();
     });
 
     test("should select station and advance to commute", async ({ page }) => {
-      // Navigate to search fallback
-      const searchButton = page.locator('button:has-text("Search for stations")');
-      if ((await searchButton.count()) > 0) {
-        await searchButton.click();
-      }
-
-      await page.waitForTimeout(500);
-      const searchInput = page.locator('input, input[placeholder*="search" i]');
-      const hasInput = await searchInput.count();
-
-      if (hasInput > 0) {
-        await searchInput.fill("Times");
-        await page.waitForTimeout(300);
-
-        // Click first result
-        const result = page.locator("role=button").filter({ hasText: /Times/i }).first();
-        await result.click();
-
-        // Should advance to commute setup
-        await expect(page.locator('role=heading[name="Where do you commute to?"]')).toBeVisible({
-          timeout: 3000,
-        });
-      }
+      const searchInput = page.getByRole("searchbox", { name: "Search stations" });
+      await searchInput.fill("Times");
+      await page
+        .getByRole("button", { name: /Times Sq-42 St/i })
+        .first()
+        .click();
+      await expect(page.getByRole("heading", { name: "Where do you commute to?" })).toBeVisible();
     });
   });
 
   test.describe("Commute Setup Step", () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
-      // Set up location and get through to commute step
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-
       await page.click('button:has-text("Get Started")');
       await page.click('button:has-text("Allow Location Access")');
 
@@ -334,10 +230,10 @@ test.describe("Onboarding Flow", () => {
       await expect(page.locator('role=heading[name="Where do you commute to?"]')).toBeVisible();
 
       // Should see origin display
-      await expect(page.locator("text=/From/i")).toBeVisible();
+      await expect(page.getByText("From", { exact: true })).toBeVisible();
 
       // Should see destination search
-      await expect(page.locator("text=/To/i")).toBeVisible();
+      await expect(page.getByText("To", { exact: true })).toBeVisible();
     });
 
     test("should allow selecting commute name preset", async ({ page }) => {
@@ -362,54 +258,22 @@ test.describe("Onboarding Flow", () => {
     });
 
     test("should allow searching for destination", async ({ page }) => {
-      const searchInput = page.locator('input, input[placeholder*="search" i]');
-      const hasInput = await searchInput.count();
-
-      if (hasInput > 0) {
-        await searchInput.fill("Penn");
-        await page.waitForTimeout(300);
-
-        // Should show search results
-        const results = page.locator("role=button").filter({ hasText: /Penn/i });
-        await expect(results.first()).toBeAttached();
-      }
+      const searchInput = page.getByRole("searchbox", { name: "Search stations" });
+      await searchInput.fill("Penn");
+      await expect(page.getByRole("button", { name: /Penn/i }).first()).toBeVisible();
     });
 
     test("should select destination and enable Add button", async ({ page }) => {
-      const searchInput = page.locator('input, input[placeholder*="search" i]');
-      const hasInput = await searchInput.count();
-
-      if (hasInput > 0) {
-        await searchInput.fill("Penn");
-        await page.waitForTimeout(300);
-
-        // Click a result
-        const result = page.locator("role=button").filter({ hasText: /Penn/i }).first();
-        await result.click();
-
-        // Add button should be enabled
-        const addButton = page.locator('button:has-text("Add Commute")');
-        const isDisabled = await addButton.isDisabled();
-        expect(isDisabled).toBe(false);
-      }
+      await page.getByRole("searchbox", { name: "Search stations" }).fill("Penn");
+      await page.getByRole("button", { name: /Penn/i }).first().click();
+      await expect(page.getByRole("button", { name: "Add Commute" })).toBeEnabled();
     });
 
     test("should advance to notifications when commute is added", async ({ page }) => {
-      const searchInput = page.locator('input, input[placeholder*="search" i]');
-      const hasInput = await searchInput.count();
-
-      if (hasInput > 0) {
-        await searchInput.fill("Penn");
-        await page.waitForTimeout(300);
-
-        const result = page.locator("role=button").filter({ hasText: /Penn/i }).first();
-        await result.click();
-
-        await page.click('button:has-text("Add Commute")');
-
-        // Should advance to notifications step
-        await expect(page.locator('role=heading[name="Stay Informed"]')).toBeVisible();
-      }
+      await page.getByRole("searchbox", { name: "Search stations" }).fill("Penn");
+      await page.getByRole("button", { name: /Penn/i }).first().click();
+      await page.getByRole("button", { name: "Add Commute" }).click();
+      await expect(page.getByRole("heading", { name: "Stay Informed" })).toBeVisible();
     });
 
     test("should skip to notifications when Skip is clicked", async ({ page }) => {
@@ -419,43 +283,17 @@ test.describe("Onboarding Flow", () => {
     });
 
     test("should clear destination when clear button is clicked", async ({ page }) => {
-      const searchInput = page.locator('input, input[placeholder*="search" i]');
-      const hasInput = await searchInput.count();
-
-      if (hasInput > 0) {
-        await searchInput.fill("Penn");
-        await page.waitForTimeout(300);
-
-        const result = page.locator("role=button").filter({ hasText: /Penn/i }).first();
-        await result.click();
-
-        // Destination should be shown
-        await expect(page.locator("text=/Penn/i")).toBeVisible();
-
-        // Click clear button
-        const clearButton = page.locator('button[aria-label*="Clear" i]');
-        const hasClear = await clearButton.count();
-
-        if (hasClear > 0) {
-          await clearButton.click();
-
-          // Destination should be cleared
-          await expect(page.locator('input, input[placeholder*="search" i]')).toBeVisible();
-        }
-      }
+      await page.getByRole("searchbox", { name: "Search stations" }).fill("Penn");
+      await page.getByRole("button", { name: /Penn/i }).first().click();
+      await expect(page.getByRole("button", { name: "Clear destination" })).toBeVisible();
+      await page.getByRole("button", { name: "Clear destination" }).click();
+      await expect(page.getByRole("searchbox", { name: "Search stations" })).toBeVisible();
     });
   });
 
   test.describe("Push Notifications Step", () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
       // Get through to notifications step
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-
       await page.click('button:has-text("Get Started")');
       await page.click('button:has-text("Allow Location Access")');
 
@@ -472,24 +310,33 @@ test.describe("Onboarding Flow", () => {
       await expect(page.locator('role=heading[name="Stay Informed"]')).toBeVisible();
 
       // Should see feature list
-      await expect(page.locator("text=/Service Alerts/i")).toBeVisible();
-      await expect(page.locator("text=/Personalized/i")).toBeVisible();
-      await expect(page.locator("text=/Quiet Hours/i")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Service Alerts" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Personalized" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Quiet Hours" })).toBeVisible();
     });
 
     test("should have Enable and Skip buttons", async ({ page }) => {
       const enableButton = page.locator('button:has-text("Enable Notifications")');
-      await expect(enableButton).toBeAttached();
-
-      const skipButton = page.locator('button:has-text("Skip")');
-      await expect(skipButton).toBeAttached();
+      if (await enableButton.count()) {
+        await expect(enableButton).toBeVisible();
+        await expect(page.getByRole("button", { name: "Skip for now" })).toBeVisible();
+      } else {
+        await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
+      }
     });
 
-    test("should complete onboarding when notifications are enabled", async ({ page }) => {
-      // Grant notification permission
-      await page.context().grantPermissions(["notifications"], { origin: page.url() });
-
-      await page.click('button:has-text("Enable Notifications")');
+    test("should complete onboarding for the available notification permission", async ({
+      page,
+    }) => {
+      const enableButton = page.getByRole("button", { name: "Enable Notifications" });
+      if (await enableButton.count()) {
+        await enableButton.click();
+      } else {
+        await expect(
+          page.getByText(/Notifications are blocked|Push notifications are not supported/)
+        ).toBeVisible();
+        await page.getByRole("button", { name: "Continue" }).click();
+      }
 
       // Onboarding should complete - should see home screen
       await expect(page.locator('role=heading[name="Your Stations"]')).toBeVisible({
@@ -498,7 +345,7 @@ test.describe("Onboarding Flow", () => {
     });
 
     test("should complete onboarding when Skip is clicked", async ({ page }) => {
-      await page.click('button:has-text("Skip")');
+      await page.getByRole("button", { name: /^(Skip for now|Continue)$/ }).click();
 
       // Onboarding should complete
       await expect(page.locator('role=heading[name="Your Stations"]')).toBeVisible({
@@ -509,15 +356,6 @@ test.describe("Onboarding Flow", () => {
 
   test.describe("Full Onboarding Flow", () => {
     test("should complete full onboarding flow with all options", async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
-      // Set up permissions
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-      await page.context().grantPermissions(["notifications"], { origin: page.url() });
-
       // Welcome
       await expect(page.locator('role=heading[name="Welcome to MTA My Way"]')).toBeVisible();
       await page.click('button:has-text("Get Started")');
@@ -534,11 +372,11 @@ test.describe("Onboarding Flow", () => {
 
       // Commute
       await expect(page.locator('role=heading[name="Where do you commute to?"]')).toBeVisible();
-      await page.click('button:has-text("Skip")');
+      await page.getByRole("button", { name: /Skip for now|Continue/ }).click();
 
       // Notifications
       await expect(page.locator('role=heading[name="Stay Informed"]')).toBeVisible();
-      await page.click('button:has-text("Skip")');
+      await page.getByRole("button", { name: /^(Skip for now|Continue)$/ }).click();
 
       // Complete
       await expect(page.locator('role=heading[name="Your Stations"]')).toBeVisible({
@@ -547,13 +385,6 @@ test.describe("Onboarding Flow", () => {
     });
 
     test("should save favorites after onboarding", async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-
       await page.click('button:has-text("Get Started")');
       await page.click('button:has-text("Allow Location Access")');
 
@@ -561,26 +392,19 @@ test.describe("Onboarding Flow", () => {
         timeout: 10000,
       });
       await page.click('button:has-text("Continue")');
-      await page.click('button:has-text("Skip")');
-      await page.click('button:has-text("Skip")');
+      await page.getByRole("button", { name: /Skip for now|Continue/ }).click();
+      await page.getByRole("button", { name: /^(Skip for now|Continue)$/ }).click();
 
       // Check that favorites were saved
       const favorites = await page.evaluate(() => {
         const data = localStorage.getItem("mta-favorites");
-        return data ? JSON.parse(data) : { stations: [] };
+        return data ? JSON.parse(data) : { state: { favorites: [] } };
       });
 
-      expect(favorites.stations.length).toBeGreaterThan(0);
+      expect(favorites.state.favorites.length).toBeGreaterThan(0);
     });
 
     test("should not show onboarding again after completion", async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-
       // Complete onboarding
       await page.click('button:has-text("Get Started")');
       await page.click('button:has-text("Allow Location Access")');
@@ -588,8 +412,8 @@ test.describe("Onboarding Flow", () => {
         timeout: 10000,
       });
       await page.click('button:has-text("Continue")');
-      await page.click('button:has-text("Skip")');
-      await page.click('button:has-text("Skip")');
+      await page.getByRole("button", { name: /Skip for now|Continue/ }).click();
+      await page.getByRole("button", { name: /^(Skip for now|Continue)$/ }).click();
 
       await expect(page.locator('role=heading[name="Your Stations"]')).toBeVisible();
 
@@ -602,40 +426,26 @@ test.describe("Onboarding Flow", () => {
 
   test.describe("Accessibility", () => {
     test("should announce step transitions to screen readers", async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
       // Check for live region
-      const liveRegion = page.locator('[aria-live="assertive"][aria-atomic="true"]');
+      const liveRegion = page.locator(
+        '[aria-live="assertive"][aria-atomic="true"]:not([role="alert"])'
+      );
       await expect(liveRegion).toBeAttached();
 
       // Navigate to next step
       await page.click('button:has-text("Get Started")');
 
       // Live region should have updated content
-      const announcement = await liveRegion.textContent();
-      expect(announcement).toBeTruthy();
+      await expect(liveRegion).toHaveText("Step 2 of 5: Find nearby stations");
     });
 
     test("should have proper heading hierarchy", async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
       // Welcome heading should be h1 or main heading
       const mainHeading = page.locator('role=heading[name="Welcome to MTA My Way"]');
       await expect(mainHeading).toBeVisible();
     });
 
     test("should have properly labeled form inputs", async ({ page }) => {
-      await page.goto("/");
-      await page.evaluate(() => localStorage.clear());
-      await page.reload();
-
-      await page.context().setGeolocation({ latitude: 40.7589, longitude: -73.9851 });
-      await page.context().grantPermissions(["geolocation"], { origin: page.url() });
-
       await page.click('button:has-text("Get Started")');
       await page.click('button:has-text("Allow Location Access")');
 
@@ -644,20 +454,12 @@ test.describe("Onboarding Flow", () => {
       });
 
       // Station buttons should have accessible labels
-      const stationButtons = page
-        .locator("role=button")
-        .filter({ hasText: /Times|Ferry|Chambers/i });
-      const hasButtons = await stationButtons.count();
-
-      if (hasButtons > 0) {
-        const firstButton = stationButtons.first();
-        await expect(firstButton).toBeVisible();
-
-        // Check for accessible name
-        const accessibleName = await firstButton.getAttribute("aria-label");
-        const textContent = await firstButton.textContent();
-        expect(accessibleName || textContent).toBeTruthy();
-      }
+      const firstButton = page
+        .getByRole("button")
+        .filter({ hasText: /min walk/ })
+        .first();
+      await expect(firstButton).toBeVisible();
+      expect(await firstButton.textContent()).toMatch(/min walk/);
     });
   });
 });

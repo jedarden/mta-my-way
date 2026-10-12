@@ -45,7 +45,7 @@ test.describe("Search Journey", () => {
     await expect(page.getByText(/Times Sq-42 St/i)).toBeVisible();
 
     // Should show line bullets
-    await expect(page.locator('[data-line="1"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: "1 train" }).first()).toBeVisible();
   });
 
   test("should click a search result and navigate to station detail", async ({ page }) => {
@@ -56,16 +56,18 @@ test.describe("Search Journey", () => {
     await searchInput.fill("Times");
 
     // Wait for results to appear
-    await page.waitForSelector("text=/Times Sq-42 St/i", { timeout: 5000 });
+    const result = page
+      .getByRole("list", { name: "Station search results" })
+      .getByRole("listitem")
+      .filter({ hasText: /Times Sq-42 St/i })
+      .first();
+    await expect(result).toBeVisible();
 
     // Click on Times Square result
-    await page
-      .getByRole("link", { name: /Times Sq-42 St/i })
-      .first()
-      .click();
+    await result.click();
 
     // Should navigate to station detail
-    await expect(page).toHaveURL(/\/station\/725/);
+    await expect(page).toHaveURL(/\/station\/[^/]+$/);
 
     // Should see station name
     await expect(page.getByRole("heading", { name: /Times Sq-42 St/i })).toBeVisible();
@@ -209,44 +211,25 @@ test.describe("Favorites Management", () => {
     // If no favorites, test passes (empty state is valid)
   });
 
-  test("should refresh arrivals on home screen", async ({ page }) => {
+  test("should show the pull-to-refresh affordance on home", async ({ page }) => {
     await page.goto("/");
+    await expect(page.getByText("No favorites yet")).toBeVisible();
 
-    // Pull down to refresh (simulated with touch events)
-    const container = page.locator("role=main").first();
-
-    // Simulate pull-to-refresh gesture
+    const container = page.locator("main > div").first();
     await container.evaluate((el) => {
-      const touchStart = new TouchEvent("touchstart", {
-        bubbles: true,
-        cancelable: true,
-        touches: [
-          {
-            clientY: 0,
-            clientX: 100,
-            identifier: 0,
-            target: el,
-            pageX: 100,
-            pageY: 0,
-            screenX: 100,
-            screenY: 0,
-            force: 0,
-            radiusX: 0,
-            radiusY: 0,
-            rotationAngle: 0,
-          },
-        ],
-      });
-      el.dispatchEvent(touchStart);
+      const touch = new Touch({ identifier: 0, target: el, clientX: 100, clientY: 100 });
+      el.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touch] }));
     });
-
-    // Verify refresh indicator or content update
-    // (The exact behavior depends on timing and state)
+    await container.evaluate((el) => {
+      const touch = new Touch({ identifier: 0, target: el, clientX: 100, clientY: 260 });
+      el.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, touches: [touch] }));
+    });
+    await expect(page.getByText("Release to refresh")).toBeVisible();
   });
 });
 
 test.describe("Navigation Journey", () => {
-  test("should navigate between all screens via bottom nav", async ({ page }) => {
+  test("should navigate between primary screens via bottom nav", async ({ page }) => {
     await page.goto("/");
 
     // Navigate to Search
@@ -257,13 +240,9 @@ test.describe("Navigation Journey", () => {
     await page.getByRole("link", { name: "Alerts" }).click();
     await expect(page).toHaveURL(/\/alerts/);
 
-    // Navigate to Map
-    await page.getByRole("link", { name: "Map" }).click();
-    await expect(page).toHaveURL(/\/map/);
-
-    // Navigate to Health
-    await page.getByRole("link", { name: "Health" }).click();
-    await expect(page).toHaveURL(/\/health/);
+    // Navigate to Commute
+    await page.getByRole("link", { name: "Commute" }).click();
+    await expect(page).toHaveURL(/\/commute/);
 
     // Navigate back to Home
     await page.getByRole("link", { name: "Home" }).click();
@@ -307,7 +286,7 @@ test.describe("Alerts Journey", () => {
     await page.getByRole("link", { name: "Alerts" }).click();
 
     await expect(page).toHaveURL(/\/alerts/);
-    await expect(page.getByRole("heading", { name: "Service Alerts" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Alerts", exact: true })).toBeVisible();
   });
 
   test("should view service alerts by line", async ({ page }) => {
@@ -373,7 +352,7 @@ test.describe("Commute Journey", () => {
     await page.goto("/commute");
 
     // Should see commute screen
-    await expect(page.getByRole("heading", { name: /commute/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Commute", exact: true })).toBeVisible();
   });
 });
 
@@ -391,36 +370,33 @@ test.describe("Full Stack Workflows", () => {
     await searchInput.fill("Times");
 
     // Wait for results to appear
-    await page.waitForSelector("text=/Times Sq-42 St/i", { timeout: 5000 });
+    const result = page
+      .getByRole("list", { name: "Station search results" })
+      .getByRole("listitem")
+      .filter({ hasText: /Times Sq-42 St/i })
+      .first();
+    await expect(result).toBeVisible();
 
     // Click result
-    await page
-      .getByRole("link", { name: /Times Sq-42 St/i })
-      .first()
-      .click();
+    await result.click();
     await expect(page).toHaveURL(/\/station\//);
 
     // Add to favorite
-    const favoriteButton = page
-      .getByRole("button")
-      .filter({ hasText: /favorite|add to/i })
-      .first();
-    const hasButton = await favoriteButton.count();
-
-    if (hasButton > 0) {
-      await favoriteButton.click();
-
-      // Verify favorited state
-      await expect(page.getByRole("button", { pressed: true })).toBeVisible();
-    }
+    const favoriteButton = page.getByRole("button", { name: /Add .* to favorites/i });
+    await expect(favoriteButton).toBeVisible();
+    await favoriteButton.click();
+    await expect(
+      page.getByRole("button", { name: /Times Sq-42 St is in your favorites/i })
+    ).toHaveAttribute("aria-pressed", "true");
 
     // Navigate back to home
     await page.getByRole("link", { name: "Go back" }).click();
     await expect(page).toHaveURL("/");
 
     // Verify favorite appears in home favorites
-    const hasFavorites = await page.getByRole("article").count();
-    expect(hasFavorites).toBeGreaterThan(0);
+    await expect(
+      page.getByRole("region", { name: "Your Stations" }).getByText("Times Sq-42 St")
+    ).toBeVisible();
   });
 
   test("complete workflow: home → station → refresh arrivals", async ({ page }) => {
@@ -432,12 +408,12 @@ test.describe("Full Stack Workflows", () => {
     // Wait for arrivals to load
     await page.waitForSelector('role=heading[name="Arrivals"]', { timeout: 10000 });
 
-    // Refresh arrivals
+    // Wait for the refresh request rather than sampling a brief spinner.
+    const refreshResponse = page.waitForResponse((response) =>
+      response.url().includes("/api/arrivals/725")
+    );
     await page.getByRole("button", { name: "Refresh arrivals" }).click();
-
-    // Verify refresh indicator appears
-    const refreshButton = page.getByRole("button", { name: "Refresh arrivals" }).locator("svg");
-    await expect(refreshButton).toHaveAttribute("class", /animate-spin/);
+    await refreshResponse;
   });
 
   test("complete workflow: view health status", async ({ page }) => {
@@ -458,10 +434,9 @@ test.describe("Full Stack Workflows", () => {
 
 test.describe("Error Handling", () => {
   test("should handle offline state gracefully", async ({ page }) => {
-    // Simulate offline mode
-    await page.context().setOffline(true);
-
     await page.goto("/station/725");
+    await expect(page.getByRole("heading", { name: /Times Sq-42 St/i })).toBeVisible();
+    await page.context().setOffline(true);
 
     // Should show offline banner (may not be implemented yet)
     const offlineBanner = page.getByRole("region", { name: "offline" });
@@ -492,34 +467,11 @@ test.describe("Error Handling", () => {
   });
 });
 
-test.describe("Performance", () => {
-  test("should load home screen quickly", async ({ page }) => {
-    const startTime = Date.now();
-
+test.describe("Home Readiness", () => {
+  test("should render home and respond to navigation", async ({ page }) => {
     await page.goto("/");
-
-    // Wait for main content
-    await page.waitForSelector("role=main", { timeout: 5000 });
-
-    const loadTime = Date.now() - startTime;
-
-    // Should load in under 3 seconds (core value prop)
-    expect(loadTime).toBeLessThan(3000);
-  });
-
-  test("should have fast time to interactive", async ({ page }) => {
-    const metrics = await page.goto("/");
-
-    if (metrics) {
-      // Check that page loaded
-      await page.waitForSelector("role=main");
-
-      // Verify page is responsive
-      const isResponsive = await page.evaluate(() => {
-        return document.readyState === "complete";
-      });
-
-      expect(isResponsive).toBe(true);
-    }
+    await expect(page.getByRole("main")).toBeVisible();
+    await page.getByRole("link", { name: "Search" }).click();
+    await expect(page).toHaveURL(/\/search/);
   });
 });

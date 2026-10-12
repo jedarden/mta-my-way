@@ -95,7 +95,7 @@ describe("securityHeaders middleware", () => {
 
     const header = res.headers.get("Permissions-Policy");
     expect(header).toBeTruthy();
-    expect(header).toContain("geolocation=()");
+    expect(header).toContain("geolocation=(self)");
     expect(header).toContain("camera=()");
     expect(header).toContain("microphone=()");
     expect(header).toContain("payment=()");

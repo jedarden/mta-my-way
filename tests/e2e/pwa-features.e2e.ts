@@ -12,196 +12,115 @@
  * - Background sync
  */
 
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
+
+async function waitForServiceWorker(page: Page): Promise<void> {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 15_000 })
+    .toBe(true);
+}
 
 test.describe("PWA Features", () => {
   test.describe("Service Worker Registration", () => {
     test("should register service worker on load", async ({ page }) => {
       await page.goto("/");
-
-      // Wait for service worker to register
-      await page.waitForTimeout(2000);
-
-      // Check if service worker is registered
-      const swRegistered = await page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return false;
-        const registration = await navigator.serviceWorker.getRegistration();
-        return !!registration;
+      const registration = await page.evaluate(async () => {
+        const worker = await navigator.serviceWorker.ready;
+        return { scope: worker.scope, scriptURL: worker.active?.scriptURL };
       });
-
-      // Service worker may not be available in dev mode
-      // In production builds, this should be true
-      if (process.env.CI === "true") {
-        expect(swRegistered).toBe(true);
-      } else {
-        // In dev mode, just check the test doesn't crash
-        expect(typeof swRegistered).toBe("boolean");
-      }
+      expect(registration.scope).toBe(new URL("/", page.url()).href);
+      expect(registration.scriptURL).toBe(new URL("/sw.js", page.url()).href);
     });
 
     test("should have active service worker", async ({ page }) => {
       await page.goto("/");
-
-      await page.waitForTimeout(2000);
-
-      const swActive = await page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return false;
-        const registration = await navigator.serviceWorker.getRegistration();
-        return registration?.active?.state === "activated";
-      });
-
-      if (process.env.CI === "true") {
-        expect(swActive).toBe(true);
-      } else {
-        // In dev mode, just check the test doesn't crash
-        expect(typeof swActive).toBe("boolean");
-      }
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const registration = await navigator.serviceWorker.ready;
+              return registration.active?.state;
+            }),
+          { timeout: 15_000 }
+        )
+        .toBe("activated");
     });
 
     test("should service worker have correct scope", async ({ page }) => {
       await page.goto("/");
-
-      await page.waitForTimeout(2000);
-
-      const swScope = await page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return null;
-        const registration = await navigator.serviceWorker.getRegistration();
-        return registration?.scope;
-      });
-
-      if (process.env.CI === "true") {
-        expect(swScope).toBeTruthy();
-      } else {
-        // In dev mode, just check the test doesn't crash
-        expect(swScope === null || typeof swScope === "string").toBe(true);
-      }
+      const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
+      expect(scope).toBe(new URL("/", page.url()).href);
     });
   });
 
   test.describe("Offline Functionality", () => {
     test("should load cached resources when offline", async ({ page }) => {
-      // First load online to cache resources
       await page.goto("/");
-
-      // Wait for service worker to cache
-      await page.waitForTimeout(3000);
-
-      // Go offline
+      await waitForServiceWorker(page);
       await page.context().setOffline(true);
-      await page.reload();
-
-      // Should still show main content (from cache)
-      await expect(page.getByRole("heading", { name: "Your Stations" })).toBeAttached();
-
-      // Restore online
-      await page.context().setOffline(false);
+      const response = await page.reload();
+      expect(response?.status()).toBe(200);
+      expect(response?.fromServiceWorker()).toBe(true);
+      await expect(page.getByRole("heading", { name: "Your Stations" })).toBeVisible();
     });
 
     test("should show offline banner when connection is lost", async ({ page }) => {
       await page.goto("/");
-
-      // Go offline after initial load
+      await expect(page.getByRole("heading", { name: "Your Stations" })).toBeVisible();
       await page.context().setOffline(true);
-
-      // Should show offline indicator
-      const offlineBanner = page.getByText(/offline|no connection/i);
-      const hasOffline = await offlineBanner.count();
-
-      if (hasOffline > 0) {
-        await expect(offlineBanner.first()).toBeVisible();
-      }
-
-      await page.context().setOffline(false);
+      await expect(
+        page.getByRole("alert").filter({ hasText: "You are offline" }).first()
+      ).toBeVisible();
     });
 
     test("should hide offline banner when connection is restored", async ({ page }) => {
       await page.goto("/");
-
-      // Go offline
+      await expect(page.getByRole("heading", { name: "Your Stations" })).toBeVisible();
       await page.context().setOffline(true);
-      await page.waitForTimeout(1000);
-
-      // Come back online
+      const offlineBanner = page.getByRole("alert").filter({ hasText: "You are offline" });
+      await expect(offlineBanner.first()).toBeVisible();
       await page.context().setOffline(false);
-      await page.reload();
-
-      // Offline banner should be gone
-      const offlineBanner = page.getByText(/offline|no connection/i).first();
-      const isVisible = await offlineBanner.isVisible().catch(() => false);
-
-      expect(isVisible).toBe(false);
+      await expect(offlineBanner).toHaveCount(0);
     });
 
     test("should cache key routes for offline access", async ({ page }) => {
       const routes = ["/", "/search", "/alerts", "/map", "/commute"];
-
-      for (const route of routes) {
-        // Load route to cache it
-        await page.goto(route);
-        await page.waitForTimeout(500);
-      }
-
-      // Go offline
+      await page.goto("/");
+      await waitForServiceWorker(page);
       await page.context().setOffline(true);
-
-      // Try to access cached routes
       for (const route of routes) {
-        await page.goto(route);
-
-        // Should not show connection errors for cached routes
-        const connectionError = page.getByText(/no internet|connection failed/i);
-        const hasError = await connectionError.count();
-
-        // Either shows content (cached) or doesn't show connection error
-        if (hasError > 0) {
-          // If there's an error, verify it's not a fatal one
-          const hasContent = await page.getByRole("main").count();
-          expect(hasContent).toBeGreaterThan(0);
-        }
+        const response = await page.goto(route);
+        expect(response?.status()).toBe(200);
+        expect(response?.fromServiceWorker()).toBe(true);
+        await expect(page.getByRole("main")).toBeVisible();
       }
-
-      await page.context().setOffline(false);
     });
   });
 
   test.describe("App Manifest", () => {
     test("should have valid web app manifest", async ({ page }) => {
       const response = await page.request.get("/manifest.webmanifest");
-
-      // In CI (production builds), the manifest should be available
-      if (process.env.CI === "true") {
-        expect(response.status()).toBe(200);
-
-        const manifest = await response.json();
-
-        // Should have required fields
-        expect(manifest).toHaveProperty("name");
-        expect(manifest).toHaveProperty("short_name");
-        expect(manifest).toHaveProperty("start_url");
-        expect(manifest).toHaveProperty("display");
-        expect(manifest).toHaveProperty("icons");
-      } else {
-        // In dev mode, the manifest may not be built yet
-        // Just check the request doesn't crash
-        expect(response.status()).toBeGreaterThanOrEqual(200);
-      }
+      expect(response.status()).toBe(200);
+      const manifest = await response.json();
+      expect(manifest).toHaveProperty("name");
+      expect(manifest).toHaveProperty("short_name");
+      expect(manifest).toHaveProperty("start_url");
+      expect(manifest).toHaveProperty("display");
+      expect(manifest).toHaveProperty("icons");
     });
 
     test("should have PWA display mode", async ({ page }) => {
       const response = await page.request.get("/manifest.webmanifest");
 
-      if (process.env.CI === "true") {
-        expect(response.status()).toBe(200);
-        const manifest = await response.json();
-        expect(manifest.display).toMatch(/standalone|fullscreen/);
-      } else {
-        // In dev mode, just check the request doesn't crash
-        expect(response.status()).toBeGreaterThanOrEqual(200);
-      }
+      expect(response.status()).toBe(200);
+      const manifest = await response.json();
+      expect(manifest.display).toMatch(/standalone|fullscreen/);
     });
 
-    test.skip(process.env.CI !== "true", "should have theme color", async ({ page }) => {
+    test("should have theme color", async ({ page }) => {
       const response = await page.request.get("/manifest.webmanifest");
+      expect(response.status()).toBe(200);
       const manifest = await response.json();
 
       expect(manifest).toHaveProperty("theme_color");
@@ -217,8 +136,9 @@ test.describe("PWA Features", () => {
       expect(themeColor).toBeTruthy();
     });
 
-    test.skip(process.env.CI !== "true", "should have app icons defined", async ({ page }) => {
+    test("should have app icons defined", async ({ page }) => {
       const response = await page.request.get("/manifest.webmanifest");
+      expect(response.status()).toBe(200);
       const manifest = await response.json();
 
       expect(Array.isArray(manifest.icons)).toBe(true);
@@ -231,111 +151,125 @@ test.describe("PWA Features", () => {
   });
 
   test.describe("Install Prompt", () => {
-    test("should not show install prompt on first visit", async ({ page }) => {
+    test("should install when the browser accepts the install prompt", async ({ page }) => {
       await page.goto("/");
-
-      // Wait a bit for any delayed prompts
-      await page.waitForTimeout(4000);
-
-      // Install prompt should not be visible for new users
-      const installPrompt = page.getByText(/Install.*Add to home/i);
-      const hasPrompt = await installPrompt.count();
-
-      // Note: Install prompt only appears after certain conditions are met
-      // This test just verifies it doesn't show immediately
-      expect(hasPrompt).toBe(0);
+      await expect(page.getByRole("heading", { name: "Your Stations" })).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            let prompted = false;
+            const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+              prompt: async () => {
+                prompted = true;
+                sessionStorage.setItem("install-prompt-called", "true");
+              },
+              userChoice: Promise.resolve({ outcome: "accepted" as const }),
+            });
+            window.dispatchEvent(event);
+            return event.defaultPrevented && !prompted;
+          })
+        )
+        .toBe(true);
+      const installPrompt = page.getByText("Install MTA My Way", { exact: true });
+      await expect(installPrompt).toBeVisible({ timeout: 5000 });
+      await page.getByRole("button", { name: "Install", exact: true }).click();
+      await expect(installPrompt).toBeHidden();
+      expect(await page.evaluate(() => sessionStorage.getItem("install-prompt-called"))).toBe(
+        "true"
+      );
     });
 
     test("should handle beforeinstallprompt event", async ({ page }) => {
-      // Listen for the event
-      let eventFired = false;
-
-      await page.addInitScript(() => {
-        window.addEventListener("beforeinstallprompt", () => {
-          (window as any).beforeInstallPromptFired = true;
-        });
-      });
-
       await page.goto("/");
+      await expect(page.getByRole("heading", { name: "Your Stations" })).toBeVisible();
 
-      // The event listener should be registered (may not fire depending on browser)
-      const listenerExists = await page.evaluate(() => {
-        return typeof (window as any).beforeInstallPromptFired !== "undefined";
-      });
+      await expect
+        .poll(async () =>
+          page.evaluate(() => {
+            const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+              prompt: async () => {},
+              userChoice: Promise.resolve({ outcome: "dismissed" as const }),
+            });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+          })
+        )
+        .toBe(true);
 
-      // The listener exists even if the event didn't fire
-      expect(listenerExists).toBe(true);
+      const installPrompt = page.getByText("Install MTA My Way", { exact: true });
+      await expect(installPrompt).toBeVisible({ timeout: 5000 });
+      await page.getByRole("button", { name: "Not now" }).click();
+      await expect(installPrompt).not.toBeVisible();
     });
   });
 
   test.describe("Update Prompt", () => {
-    test.skip(
-      process.env.CI !== "true",
-      "should check for service worker updates",
-      async ({ page }) => {
-        await page.goto("/");
-
-        // Wait for service worker registration
-        await page.waitForTimeout(2000);
-
-        // Service worker should be registered
-        const swRegistered = await page.evaluate(async () => {
-          if (!("serviceWorker" in navigator)) return false;
-          const registration = await navigator.serviceWorker.getRegistration();
-          return !!registration;
-        });
-
-        expect(swRegistered).toBe(true);
-      }
-    );
-
-    test("should handle update detection", async ({ page }) => {
+    test("should check for service worker updates", async ({ page }) => {
       await page.goto("/");
-
-      // The update check happens automatically via workbox
-      // We just verify the service worker is set up correctly
-      const hasUpdateLogic = await page.evaluate(() => {
-        // Check if update-related code is loaded
-        const scripts = Array.from(document.querySelectorAll("script"));
-        return scripts.some(
-          (s) => s.textContent?.includes("serviceWorker") || s.src.includes("sw")
-        );
+      const scope = await page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.update();
+        return registration.scope;
       });
+      expect(scope).toBe(new URL("/", page.url()).href);
+    });
 
-      // This test verifies the logic exists, not that it's functional
-      // In dev mode, service worker might not be registered
-      expect(hasUpdateLogic).toBe(true);
+    test("should not show an update prompt when no worker is waiting", async ({ page }) => {
+      await page.goto("/");
+      const waiting = await page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.update();
+        return registration.waiting;
+      });
+      expect(waiting).toBeNull();
+      await expect(page.getByText("Update available", { exact: true })).toBeHidden();
     });
   });
 
   test.describe("Background Sync", () => {
-    test("should support background sync for push subscriptions", async ({ page }) => {
-      await page.goto("/");
-
-      // Check if service worker supports sync
-      const syncSupported = await page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return false;
-        const registration = await navigator.serviceWorker.getRegistration();
-        return registration && "sync" in registration;
+    test("should retry a queued push operation after a background sync message", async ({
+      page,
+    }) => {
+      await page.goto("/settings");
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+      await page.route("**/api/push/unsubscribe", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: '{"success":true}',
+        });
+      });
+      await page.evaluate(() => {
+        localStorage.setItem(
+          "mta-pending-push-op",
+          JSON.stringify({ type: "unsubscribe", endpoint: "https://example.invalid/push" })
+        );
       });
 
-      // Sync API might not be available in all test environments
-      // This test just verifies the check doesn't crash
-      expect(typeof syncSupported).toBe("boolean");
+      const retryRequest = page.waitForRequest("**/api/push/unsubscribe");
+      await page.evaluate(() => {
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent("message", { data: { type: "RETRY_PUSH_SUBSCRIPTION" } })
+        );
+      });
+      expect((await retryRequest).method()).toBe("DELETE");
+      await expect
+        .poll(() => page.evaluate(() => localStorage.getItem("mta-pending-push-op")))
+        .toBeNull();
     });
 
-    test("should register sync tag for push subscription", async ({ page }) => {
-      // This test verifies that the sync registration logic is in place
-      await page.goto("/");
-
-      // Check for push subscription sync logic
-      const hasSyncLogic = await page.evaluate(() => {
-        return window.localStorage.getItem("mta-push-pending");
-      });
-
-      // The sync logic uses localStorage to queue operations
-      // We just verify the mechanism exists
-      expect(hasSyncLogic === null || typeof hasSyncLogic === "string").toBe(true);
+    test("should include the push retry handler in the service worker", async ({ page }) => {
+      const [workerResponse, pushResponse] = await Promise.all([
+        page.request.get("/sw.js"),
+        page.request.get("/sw-push.js"),
+      ]);
+      expect(workerResponse.status()).toBe(200);
+      expect(await workerResponse.text()).toContain("sw-push.js");
+      expect(pushResponse.status()).toBe(200);
+      const pushWorker = await pushResponse.text();
+      expect(pushWorker).toContain('addEventListener("sync"');
+      expect(pushWorker).toContain('event.tag === "push-subscription-sync"');
+      expect(pushWorker).toContain('type: "RETRY_PUSH_SUBSCRIPTION"');
     });
   });
 
@@ -407,11 +341,17 @@ test.describe("PWA Features", () => {
     test("should have theme color meta tag", async ({ page }) => {
       await page.goto("/");
 
-      const themeColor = page.locator('meta[name="theme-color"]');
-      await expect(themeColor).toBeAttached();
-
-      const content = await themeColor.getAttribute("content");
-      expect(content).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      const lightTheme = page.locator(
+        'meta[name="theme-color"][media="(prefers-color-scheme: light)"]'
+      );
+      const darkTheme = page.locator(
+        'meta[name="theme-color"][media="(prefers-color-scheme: dark)"]'
+      );
+      await expect(lightTheme).toHaveAttribute("content", /^#[0-9A-Fa-f]{6}$/);
+      await expect(darkTheme).toHaveAttribute("content", /^#[0-9A-Fa-f]{6}$/);
+      expect(await lightTheme.getAttribute("content")).not.toBe(
+        await darkTheme.getAttribute("content")
+      );
     });
 
     test("should have proper background color", async ({ page }) => {
@@ -451,44 +391,32 @@ test.describe("PWA Features", () => {
   });
 
   test.describe("Service Worker Message Handling", () => {
-    test("should handle SKIP_WAITING message", async ({ page }) => {
+    test("should include the SKIP_WAITING handler in the registered worker", async ({ page }) => {
       await page.goto("/");
-
-      // Wait for service worker
-      await page.waitForTimeout(2000);
-
-      // Send skip waiting message
-      const messageHandled = await page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return false;
-
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (!registration?.waiting) return false;
-
-        registration.waiting.postMessage({ type: "SKIP_WAITING" });
-        return true;
+      const workerURL = await page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.ready;
+        return registration.active?.scriptURL;
       });
-
-      // Message handling is tested - actual behavior depends on SW state
-      expect(typeof messageHandled).toBe("boolean");
+      expect(workerURL).toBe(new URL("/sw.js", page.url()).href);
+      const workerResponse = await page.request.get(workerURL!);
+      const pushResponse = await page.request.get("/sw-push.js");
+      expect(workerResponse.status()).toBe(200);
+      expect(await workerResponse.text()).toContain("sw-push.js");
+      expect(pushResponse.status()).toBe(200);
+      const pushScript = await pushResponse.text();
+      expect(pushScript).toContain('event.data.type === "SKIP_WAITING"');
+      expect(pushScript).toContain("self.skipWaiting()");
     });
   });
 
   test.describe("PWA Performance", () => {
-    test("should load quickly on repeat visit (from cache)", async ({ page }) => {
-      // First visit
-      const startTime1 = Date.now();
+    test("should serve a repeat visit from the service worker", async ({ page }) => {
       await page.goto("/");
-      await page.waitForSelector("role=main");
-      const loadTime1 = Date.now() - startTime1;
-
-      // Second visit (should be faster from cache)
-      await page.reload();
-      const startTime2 = Date.now();
-      await page.waitForSelector("role=main");
-      const loadTime2 = Date.now() - startTime2;
-
-      // Second load should be faster or similar (cached)
-      expect(loadTime2).toBeLessThanOrEqual(loadTime1 + 500);
+      await waitForServiceWorker(page);
+      const response = await page.reload();
+      expect(response?.status()).toBe(200);
+      expect(response?.fromServiceWorker()).toBe(true);
+      await expect(page.getByRole("main")).toBeVisible();
     });
 
     test("should have reasonable total bundle size", async ({ page }) => {
@@ -506,19 +434,9 @@ test.describe("PWA Features", () => {
   test.describe("PWA Security", () => {
     test("should use HTTPS for service worker scope", async ({ page }) => {
       await page.goto("/");
-
-      // Service workers require HTTPS or localhost
-      // This test verifies the app is set up correctly for SW
-      const swScope = await page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return null;
-        const registration = await navigator.serviceWorker.getRegistration();
-        return registration?.scope;
-      });
-
-      if (swScope) {
-        // Scope should be absolute URL
-        expect(swScope).toMatch(/^https?:\/\//);
-      }
+      const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
+      expect(scope).toBe(new URL("/", page.url()).href);
+      expect(new URL(scope).protocol).toMatch(/^https?:$/);
     });
   });
 });

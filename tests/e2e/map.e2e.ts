@@ -1,407 +1,309 @@
-/**
- * E2E tests for the Transit Map screen.
- *
- * Tests cover:
- * - Map loading and rendering
- * - Station interaction
- * - Train position display
- * - Line filtering
- * - Map refresh functionality
- * - Mobile touch interactions
- */
+/** Browser coverage for the interactive transit map. */
 
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
-test.describe("Map Screen", () => {
-  test.beforeEach(async ({ page }) => {
+const stations = [
+  {
+    id: "101",
+    name: "South Ferry",
+    lat: 40.702,
+    lon: -74.013,
+    lines: ["1"],
+    northStopId: "101N",
+    southStopId: "101S",
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
+  },
+  {
+    id: "102",
+    name: "Rector St",
+    lat: 40.708,
+    lon: -74.012,
+    lines: ["1"],
+    northStopId: "102N",
+    southStopId: "102S",
+    transfers: [],
+    ada: false,
+    borough: "manhattan",
+  },
+  {
+    id: "725",
+    name: "Times Sq-42 St",
+    lat: 40.755,
+    lon: -73.987,
+    lines: ["1", "A"],
+    northStopId: "725N",
+    southStopId: "725S",
+    transfers: [],
+    ada: true,
+    borough: "manhattan",
+  },
+];
+
+const routes = [
+  {
+    id: "1",
+    shortName: "1",
+    longName: "Broadway Local",
+    color: "#EE352E",
+    textColor: "#FFFFFF",
+    feedId: "gtfs",
+    division: "A",
+    stops: ["101", "102", "725"],
+    isExpress: false,
+  },
+  {
+    id: "A",
+    shortName: "A",
+    longName: "Eighth Avenue Express",
+    color: "#0039A6",
+    textColor: "#FFFFFF",
+    feedId: "gtfs-ace",
+    division: "B",
+    stops: ["725", "102"],
+    isExpress: true,
+  },
+];
+
+function lineDiagram(lineId: string) {
+  const stopIds = lineId === "1" ? ["101", "102", "725"] : ["725", "102"];
+  return {
+    routeId: lineId,
+    routeColor: lineId === "1" ? "#EE352E" : "#0039A6",
+    stops: stopIds.map((stopId, index) => ({
+      stopId,
+      stopName: stations.find((station) => station.id === stopId)?.name ?? stopId,
+      isTerminal: index === 0 || index === stopIds.length - 1,
+      isTransferStation: stopId === "725",
+    })),
+    trains:
+      lineId === "1"
+        ? [
+            {
+              tripId: "e2e-map-train",
+              routeId: "1",
+              direction: "N",
+              lastStopId: "102",
+              nextStopId: "725",
+              progress: 0.5,
+              destination: "Times Sq-42 St",
+              isAssigned: true,
+              isRerouted: false,
+              isExpress: false,
+            },
+          ]
+        : [],
+    computedAt: Math.floor(Date.now() / 1000),
+  };
+}
+
+async function mockMapData(
+  page: Page,
+  options: { stationsError?: boolean; positionsError?: boolean; stationGate?: Promise<void> } = {}
+) {
+  await page.route("**/api/stations", async (route) => {
+    await options.stationGate;
+    if (options.stationsError) {
+      await route.fulfill({ status: 400, json: { message: "Map stations unavailable" } });
+    } else {
+      await route.fulfill({ json: stations });
+    }
+  });
+  await page.route("**/api/routes", async (route) => {
+    await route.fulfill({ json: routes });
+  });
+  await page.route(/\/api\/positions\/(1|A)$/, async (route) => {
+    if (options.positionsError) {
+      await route.fulfill({ status: 404, json: { message: "Positions unavailable" } });
+    } else {
+      const lineId = new URL(route.request().url()).pathname.split("/").pop() ?? "1";
+      await route.fulfill({ json: lineDiagram(lineId) });
+    }
+  });
+}
+
+async function openMap(page: Page) {
+  await mockMapData(page);
+  await page.goto("/map");
+  await expect(
+    page.getByRole("group", { name: "Interactive transit map showing subway lines and stations" })
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "South Ferry" })).toBeVisible();
+}
+
+const viewport = (page: Page) =>
+  page
+    .getByRole("group", { name: "Interactive transit map showing subway lines and stations" })
+    .locator(":scope > g");
+
+test.describe("Transit map", () => {
+  test("loads the map with labelled station, route, and train markers", async ({ page }) => {
+    await openMap(page);
+
+    await expect(page.getByRole("heading", { level: 1, name: "Transit Map" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Rector St" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Times Sq-42 St (transfer station)" })
+    ).toBeVisible();
+    await expect(page.locator('path[aria-label="1 line"]')).toBeAttached();
+    await expect(page.locator('path[aria-label="A line"]')).toBeAttached();
+    await expect(
+      page.getByRole("button", { name: "Northbound 1 train to Times Sq-42 St" })
+    ).toBeVisible();
+  });
+
+  test("shows a loading placeholder until station data arrives", async ({ page }) => {
+    let releaseStations!: () => void;
+    const stationGate = new Promise<void>((resolve) => {
+      releaseStations = resolve;
+    });
+    await mockMapData(page, { stationGate });
+    try {
+      await page.goto("/map");
+      await expect(
+        page.getByRole("main", { name: "Main content" }).locator(".animate-pulse")
+      ).toBeVisible();
+    } finally {
+      releaseStations();
+    }
+    await expect(page.getByRole("button", { name: "South Ferry" })).toBeVisible();
+  });
+
+  test("opens and closes the selected station details", async ({ page }) => {
+    await openMap(page);
+    await page.getByRole("button", { name: "South Ferry" }).click();
+
+    const details = page.getByRole("dialog", { name: "South Ferry" });
+    await expect(details).toBeVisible();
+    await expect(details.getByText("ADA Accessible")).toBeVisible();
+    await expect(details.getByRole("link", { name: "View Full Station Details" })).toBeVisible();
+    await details.getByRole("button", { name: "Close" }).click();
+    await expect(details).toHaveCount(0);
+  });
+
+  test("opens the full station route from map details", async ({ page }) => {
+    await openMap(page);
+    await page.getByRole("button", { name: "South Ferry" }).click();
+    await page
+      .getByRole("dialog", { name: "South Ferry" })
+      .getByRole("link", { name: "View Full Station Details" })
+      .click();
+    await expect(page).toHaveURL(/\/station\/101$/);
+  });
+
+  test("filters route paths and clears the selected line", async ({ page }) => {
+    await openMap(page);
+    await page.getByRole("button", { name: "Show line filter" }).click();
+
+    const lineOne = page.getByRole("button", { name: "1", exact: true });
+    await expect(lineOne).toHaveAttribute("aria-pressed", "false");
+    await lineOne.click();
+    await expect(lineOne).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Hide line filter" })).toContainText("1");
+    await expect(page.locator('path[aria-label="1 line"]')).toBeAttached();
+    await expect(page.locator('path[aria-label="A line"]')).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Clear" }).click();
+    await expect(lineOne).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator('path[aria-label="A line"]')).toBeAttached();
+    await page.getByRole("button", { name: "Hide line filter" }).click();
+    await expect(lineOne).toHaveCount(0);
+  });
+
+  test("selects every line from the filter panel", async ({ page }) => {
+    await openMap(page);
+    await page.getByRole("button", { name: "Show line filter" }).click();
+    await page.getByRole("button", { name: "All", exact: true }).click();
+
+    await expect(page.getByRole("button", { name: "1", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await expect(page.getByRole("button", { name: "A", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await expect(page.getByRole("button", { name: "Hide line filter" })).toContainText("2");
+  });
+
+  test("refresh requests new positions for each route", async ({ page }) => {
+    const positionRequests: string[] = [];
+    page.on("request", (request) => {
+      if (/\/api\/positions\/(1|A)$/.test(new URL(request.url()).pathname)) {
+        positionRequests.push(new URL(request.url()).pathname);
+      }
+    });
+    await openMap(page);
+    await expect.poll(() => positionRequests.length).toBe(2);
+
+    await page.getByRole("button", { name: "Refresh train positions" }).click();
+    await expect.poll(() => positionRequests.length).toBe(4);
+    expect(positionRequests).toEqual([
+      "/api/positions/1",
+      "/api/positions/A",
+      "/api/positions/1",
+      "/api/positions/A",
+    ]);
+  });
+
+  test("keeps the static map when positions are unavailable", async ({ page }) => {
+    await mockMapData(page, { positionsError: true });
     await page.goto("/map");
+
+    await expect(page.getByRole("button", { name: "South Ferry" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Times Sq-42 St (transfer station)" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Northbound 1 train to Times Sq-42 St" })
+    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Refresh train positions" })).toBeVisible();
   });
 
-  test.describe("Map Loading", () => {
-    test("should load map successfully", async ({ page }) => {
-      // Should see map container
-      const mapContainer = page.locator("svg").first();
-      await expect(mapContainer).toBeVisible();
+  test("shows an error panel when station data cannot load", async ({ page }) => {
+    await mockMapData(page, { stationsError: true });
+    await page.goto("/map");
 
-      // Should see map header
-      await expect(page.locator('role=heading[name="Transit Map"]')).toBeVisible();
-    });
-
-    test("should show loading state initially", async ({ page }) => {
-      // Map skeleton should be visible while loading
-      const skeleton = page.locator('[aria-busy="true"]');
-      const hasSkeleton = await skeleton.count();
-
-      // Skeleton might be gone quickly, so we just verify the map loads
-      await page.waitForSelector("svg", { timeout: 5000 });
-    });
-
-    test("should display station markers on map", async ({ page }) => {
-      // Wait for map to load
-      await page.waitForSelector("svg", { timeout: 5000 });
-
-      // Should have station circles
-      const stationCircles = page.locator("circle").or(page.locator('[role="button"]'));
-      const count = await stationCircles.count();
-
-      expect(count).toBeGreaterThan(0);
-    });
+    await expect(page.getByRole("heading", { name: "Transit Map" })).toBeVisible();
+    await expect(page.getByRole("main", { name: "Main content" }).getByRole("alert")).toBeVisible();
+    await expect(page.getByRole("group", { name: /Interactive transit map/ })).toHaveCount(0);
   });
 
-  test.describe("Station Interaction", () => {
-    test("should open station details modal on station tap", async ({ page }) => {
-      await page.waitForSelector("svg", { timeout: 5000 });
+  test("keeps the loaded map visible when the browser goes offline", async ({ page }) => {
+    await openMap(page);
+    await page.context().setOffline(true);
 
-      // Find and tap a station marker
-      const stationMarker = page.locator("circle").first();
-      const hasMarker = await stationMarker.count();
-
-      if (hasMarker > 0) {
-        await stationMarker.click();
-
-        // Station details modal should appear
-        const modal = page.locator("role=dialog").or(page.locator('[role="dialog"]'));
-        const hasModal = await modal.count();
-
-        if (hasModal > 0) {
-          await expect(modal.first()).toBeVisible();
-        }
-      }
-    });
-
-    test("should close station details modal", async ({ page }) => {
-      await page.waitForSelector("svg", { timeout: 5000 });
-
-      // Try to find a close button or back button
-      const closeButton = page.locator(
-        'button[aria-label*="Close" i], button[aria-label*="Back" i]'
-      );
-      const hasClose = await closeButton.count();
-
-      if (hasClose > 0) {
-        await closeButton.first().click();
-      }
-    });
+    await expect(page.getByText("You are offline", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "South Ferry" })).toBeVisible();
   });
 
-  test.describe("Train Positions", () => {
-    test("should display train position indicators", async ({ page }) => {
-      await page.waitForSelector("svg", { timeout: 10000 });
+  test("zooms and resets with the map controls", async ({ page }) => {
+    await openMap(page);
+    await expect(viewport(page)).toHaveAttribute("transform", "translate(0, 0) scale(1)");
 
-      // Look for train indicators (could be dots, circles, or other markers)
-      const trainIndicators = page.locator(
-        '[class*="train" i], [data-train], circle[class*="active" i]'
-      );
-      const hasTrains = await trainIndicators.count();
-
-      // Trains may not be visible immediately or at all times
-      if (hasTrains > 0) {
-        await expect(trainIndicators.first()).toBeVisible();
-      }
-    });
-
-    test("should refresh train positions", async ({ page }) => {
-      await page.waitForSelector("svg", { timeout: 10000 });
-
-      // Find refresh button
-      const refreshButton = page
-        .locator('button[aria-label*="refresh" i]')
-        .or(page.locator('button:has-text("Refresh")'));
-      const hasRefresh = await refreshButton.count();
-
-      if (hasRefresh > 0) {
-        const initialContent = await page.content();
-
-        await refreshButton.first().click();
-
-        // Wait a moment for refresh
-        await page.waitForTimeout(2000);
-
-        // Content should still be loaded
-        await expect(page.locator("svg")).toBeVisible();
-      }
-    });
+    await page.getByRole("button", { name: "Zoom in" }).click();
+    await expect(viewport(page)).toHaveAttribute("transform", "translate(0, 0) scale(1.2)");
+    await page.getByRole("button", { name: "Zoom out" }).click();
+    await expect(viewport(page)).toHaveAttribute("transform", "translate(0, 0) scale(1)");
+    await page.getByRole("button", { name: "Zoom in" }).click();
+    await page.getByRole("button", { name: "Reset view" }).click();
+    await expect(viewport(page)).toHaveAttribute("transform", "translate(0, 0) scale(1)");
   });
 
-  test.describe("Line Filtering", () => {
-    test("should show filter button", async ({ page }) => {
-      const filterButton = page
-        .locator('button:has-text("Filter")')
-        .or(page.locator('button[aria-label*="filter" i]'));
-      await expect(filterButton).toBeVisible();
-    });
-
-    test("should open line filter panel", async ({ page }) => {
-      const filterButton = page
-        .locator('button:has-text("Filter")')
-        .or(page.locator('button[aria-label*="filter" i]'));
-
-      await filterButton.click();
-
-      // Should see filter panel with line buttons
-      const lineButtons = page.locator('button[aria-pressed="true"], button[aria-pressed="false"]');
-      await expect(lineButtons.first()).toBeVisible();
-    });
-
-    test("should filter by specific line", async ({ page }) => {
-      const filterButton = page
-        .locator('button:has-text("Filter")')
-        .or(page.locator('button[aria-label*="filter" i]'));
-
-      await filterButton.click();
-
-      // Find a line button (e.g., "1", "A", "F")
-      const lineButton = page
-        .locator("role=button")
-        .filter({ hasText: /^[1-9A-Z]$/ })
-        .first();
-      const hasLineButton = await lineButton.count();
-
-      if (hasLineButton > 0) {
-        await lineButton.click();
-
-        // Filter indicator should update
-        const filterCount = page
-          .getByRole("button", { name: /Filter\s*\d+/ })
-          .or(page.locator('[class*="badge"], [class*="count"]'));
-        const hasCount = await filterCount.count();
-
-        if (hasCount > 0) {
-          await expect(filterCount.first()).toBeVisible();
-        }
-      }
-    });
-
-    test("should clear all filters", async ({ page }) => {
-      const filterButton = page
-        .locator('button:has-text("Filter")')
-        .or(page.locator('button[aria-label*="filter" i]'));
-
-      await filterButton.click();
-
-      // Look for "Clear" or "All" button
-      const clearButton = page
-        .locator('button:has-text("Clear")')
-        .or(page.locator('button:has-text("All")'));
-      const hasClear = await clearButton.count();
-
-      if (hasClear > 0) {
-        await clearButton.first().click();
-
-        // Filters should be cleared
-        const filterCount = page.getByRole("button", { name: /Filter\s*\d+/ });
-        const hasCount = await filterCount.count();
-
-        if (hasCount > 0) {
-          // Count badge should be gone or show 0
-          expect(await filterCount.first().textContent()).not.toMatch(/\d+/);
-        }
-      }
-    });
-
-    test("should close filter panel", async ({ page }) => {
-      const filterButton = page
-        .locator('button:has-text("Filter")')
-        .or(page.locator('button[aria-label*="filter" i]'));
-
-      // Open filter
-      await filterButton.click();
-
-      // Close filter
-      await filterButton.click();
-
-      // Filter panel should be closed
-      const lineButtons = page.locator('[role="button"][aria-pressed]');
-      const hasPanel = await lineButtons.count();
-
-      // Panel might still be in DOM but not visible
-      if (hasPanel > 0) {
-        const isVisible = await lineButtons.first().isVisible();
-        expect(isVisible).toBe(false);
-      }
-    });
+  test("pans and resets from the keyboard", async ({ page }) => {
+    await openMap(page);
+    await page.getByRole("main", { name: "Main content" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(viewport(page)).toHaveAttribute("transform", "translate(-50, 0) scale(1)");
+    await page.keyboard.press("Home");
+    await expect(viewport(page)).toHaveAttribute("transform", "translate(0, 0) scale(1)");
+    await expect(page.getByText(/Arrow keys to navigate/)).toBeVisible();
   });
 
-  test.describe("Navigation", () => {
-    test("should navigate back to home", async ({ page }) => {
-      const backButton = page
-        .locator('a[aria-label*="back" i]')
-        .or(page.locator('button[aria-label*="back" i]'));
-
-      await backButton.click();
-
-      await expect(page).toHaveURL("/");
-    });
-
-    test("should navigate to station detail from map", async ({ page }) => {
-      await page.waitForSelector("svg", { timeout: 5000 });
-
-      // Try to find a clickable station
-      const station = page.locator("circle, [role='button']").first();
-      const hasStation = await station.count();
-
-      if (hasStation > 0) {
-        await station.click();
-
-        // Should either open modal or navigate to station detail
-        const url = page.url();
-        const hasStationRoute = /\/station\//.test(url) || url.includes("station");
-
-        // Either we navigated to station detail or a modal opened
-        const modal = page.locator('[role="dialog"]');
-        const hasModal = await modal.count();
-
-        expect(hasStationRoute || hasModal > 0).toBe(true);
-      }
-    });
-  });
-
-  test.describe("Error Handling", () => {
-    test("should handle offline state gracefully", async ({ page }) => {
-      // Simulate offline
-      await page.context().setOffline(true);
-
-      await page.goto("/map");
-
-      // Should show offline banner
-      const offlineBanner = page.locator("text=/offline|no connection/i");
-      const hasOffline = await offlineBanner.count();
-
-      if (hasOffline > 0) {
-        await expect(offlineBanner.first()).toBeVisible();
-      }
-
-      // Restore online
-      await page.context().setOffline(false);
-    });
-
-    test("should handle map load errors", async ({ page }) => {
-      // Navigate to map and intercept requests to simulate error
-      await page.route("**/*", (route) => {
-        // Let static assets through
-        if (route.request().resourceType() === "document") {
-          route.continue();
-        } else if (route.request().url().includes("/api/positions")) {
-          // Fail position requests
-          route.abort();
-        } else {
-          route.continue();
-        }
-      });
-
-      await page.goto("/map");
-
-      // Should show some content even if positions fail
-      await expect(page.locator("svg, role=main").first()).toBeAttached();
-    });
-  });
-
-  test.describe("Performance", () => {
-    test("should load map quickly", async ({ page }) => {
-      const startTime = Date.now();
-
-      await page.goto("/map");
-
-      // Wait for map to be interactive
-      await page.waitForSelector("svg", { timeout: 10000 });
-
-      const loadTime = Date.now() - startTime;
-
-      // Should load in under 5 seconds
-      expect(loadTime).toBeLessThan(5000);
-    });
-
-    test("should be responsive to user input", async ({ page }) => {
-      await page.waitForSelector("svg", { timeout: 10000 });
-
-      // Try interacting with the map
-      const mapContainer = page.locator("svg").first();
-
-      // Simulate touch/drag
-      await mapContainer.click({ position: { x: 100, y: 100 } });
-
-      // Map should still be responsive
-      await expect(mapContainer).toBeVisible();
-    });
-  });
-
-  test.describe("Accessibility", () => {
-    test("should have proper ARIA labels on map controls", async ({ page }) => {
-      // Filter button should have aria-label
-      const filterButton = page.locator(
-        'button[aria-label*="filter" i], button:has-text("Filter")'
-      );
-      await expect(filterButton).toBeAttached();
-
-      // Refresh button should have aria-label
-      const refreshButton = page.locator('button[aria-label*="refresh" i]');
-      await expect(refreshButton).toBeAttached();
-    });
-
-    test("should be keyboard navigable", async ({ page }) => {
-      await page.waitForSelector("svg", { timeout: 10000 });
-
-      // Tab to filter button
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Tab");
-
-      // Should have a focused button
-      const focused = await page.evaluate(() => document.activeElement?.tagName);
-      expect(focused).toBe("BUTTON");
-    });
-
-    test("should announce screen changes", async ({ page }) => {
-      const filterButton = page
-        .locator('button:has-text("Filter")')
-        .or(page.locator('button[aria-label*="filter" i]'));
-
-      await filterButton.click();
-
-      // Should have live region or updated content
-      const liveRegion = page.locator('[aria-live], [role="status"]');
-      await expect(liveRegion).toBeAttached();
-    });
-  });
-
-  test.describe("Full Stack Integration", () => {
-    test("should fetch positions from API", async ({ page }) => {
-      // Track API requests
-      const apiRequests: string[] = [];
-
-      page.on("request", (request) => {
-        if (request.url().includes("/api/positions")) {
-          apiRequests.push(request.url());
-        }
-      });
-
-      await page.goto("/map");
-
-      // Wait for map to load
-      await page.waitForSelector("svg", { timeout: 10000 });
-
-      // Should have made at least one position request
-      expect(apiRequests.length).toBeGreaterThan(0);
-    });
-
-    test("should auto-refresh positions", async ({ page }) => {
-      await page.goto("/map");
-
-      // Wait for initial load
-      await page.waitForSelector("svg", { timeout: 10000 });
-
-      // Track requests
-      let requestCount = 0;
-      page.on("request", (request) => {
-        if (request.url().includes("/api/positions")) {
-          requestCount++;
-        }
-      });
-
-      // Wait for auto-refresh (30 seconds typically, but we'll wait a shorter time)
-      await page.waitForTimeout(5000);
-
-      // Should have made initial requests
-      expect(requestCount).toBeGreaterThan(0);
-    });
+  test("returns home from the map header", async ({ page }) => {
+    await openMap(page);
+    await page.getByRole("link", { name: "Go back" }).click();
+    await expect(page).toHaveURL(/\/$/);
   });
 });
