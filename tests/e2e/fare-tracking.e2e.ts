@@ -502,18 +502,10 @@ test.describe("Fare Tracking", () => {
         }
       });
 
-      await expect
-        .poll(async () =>
-          page.evaluate(() => {
-            const data = localStorage.getItem("mta-fare");
-            if (!data) return null;
-            return JSON.parse(data).state?.tracking?.weeklyRides ?? null;
-          })
-        )
-        .toBe(8);
-
-      // Rehydrate the store from the updated persisted value.
-      await page.reload();
+      // Leave the live app before its in-memory state can persist over the
+      // fixture update, then re-open it from the updated storage value.
+      await page.goto("about:blank");
+      await page.goto("/");
 
       // Should show updated count
       const ridesText = await page
