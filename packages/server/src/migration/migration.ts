@@ -244,11 +244,13 @@ async function loadMigrations(customDir?: string): Promise<Migration[]> {
 
   try {
     const files = await readdir(dir);
-    const migrationFiles = files.filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+    const migrationFiles = files.filter(
+      (f) => (f.endsWith(".ts") || f.endsWith(".js")) && !f.endsWith(".test.ts")
+    );
 
     for (const file of migrationFiles) {
-      // Extract version number from filename (e.g., 001-add-users.ts)
-      const match = file.match(/^(\d+)-(.+)\.ts$/);
+      // Extract version number from filename (e.g., 001-add-users.ts/js)
+      const match = file.match(/^(\d+)-(.+)\.(?:ts|js)$/);
       if (!match) continue;
 
       const [, versionStr, name] = match as [string, string, string];
