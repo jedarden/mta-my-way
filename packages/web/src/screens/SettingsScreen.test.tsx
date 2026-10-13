@@ -3,6 +3,9 @@
  *
  * Covers the authentication/settings critical paths:
  * - Sync section renders for loading, signed-in, and signed-out auth states
+ * - Sign-in entry point discovers enabled OAuth providers (buttons, no
+ *   configuration, discovery failure)
+ * - OAuth failure returns surface as a dismissible alert (?authError=<code>)
  * - Profile name/email/fallback display and last-synced formatting
  * - Sign out success and failure (account error alert)
  * - Delete local data confirmation flow (confirm, cancel, sign-out failure)
@@ -11,9 +14,9 @@
  * - Push toggle dispatch and quiet hours controls
  */
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthProfile } from "../hooks/useAuth";
 import { clearLocalPreferences } from "../hooks/usePreferencesSync";
 import type { PushNotificationsState } from "../hooks/usePushNotifications";
@@ -56,12 +59,39 @@ function signInAs(overrides: Partial<AuthProfile> = {}): void {
   });
 }
 
-function renderScreen() {
+function renderScreen(initialEntry = "/settings") {
   return render(
-    <MemoryRouter initialEntries={["/settings"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <SettingsScreen />
     </MemoryRouter>
   );
+}
+
+/** Stub the provider-discovery endpoint the anonymous entry point calls. */
+function stubProvidersFetch(providers: unknown, ok = true): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok,
+      status: ok ? 200 : 404,
+      json: async () => providers,
+    })
+  );
+}
+
+const DEFAULT_PROVIDERS = {
+  providers: [
+    { providerId: "google", displayName: "Google" },
+    { providerId: "github", displayName: "GitHub" },
+  ],
+};
+
+/**
+ * Scope for sync-section queries: the Screen shell contributes its own link
+ * (skip link) and role="alert" (live announcer) that must not match here.
+ */
+function syncSection() {
+  return within(screen.getByRole("region", { name: "Sync" }));
 }
 
 describe("SettingsScreen", () => {
@@ -86,6 +116,11 @@ describe("SettingsScreen", () => {
       hasPendingChanges: false,
       manualSyncRequest: 0,
     });
+    stubProvidersFetch(DEFAULT_PROVIDERS);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("sync section auth states", () => {
@@ -98,16 +133,18 @@ describe("SettingsScreen", () => {
       expect(screen.queryByText("Not signed in")).not.toBeInTheDocument();
     });
 
-    it("shows the signed-out view with OAuth links", () => {
+    it("shows the sign-in entry point with one button per enabled provider", async () => {
       renderScreen();
 
-      expect(screen.getByText("Not signed in")).toBeInTheDocument();
+      expect(screen.getByText("Sign in to sync across devices")).toBeInTheDocument();
       expect(screen.getByText("Local only")).toBeInTheDocument();
       expect(
-        screen.getByText("Sign in to sync your favorites, commutes, and settings across devices.")
+        screen.getByText(
+          "Your favorites, commutes, and settings stay on this device until you sign in."
+        )
       ).toBeInTheDocument();
 
-      const google = screen.getByRole("link", { name: "Continue with Google" });
+      const google = await screen.findByRole("link", { name: "Continue with Google" });
       expect(google).toHaveAttribute("href", "/auth/google");
       const github = screen.getByRole("link", { name: "Continue with GitHub" });
       expect(github).toHaveAttribute("href", "/auth/github");
@@ -196,6 +233,121 @@ describe("SettingsScreen", () => {
     });
   });
 
+  describe("sign-in entry point provider discovery", () => {
+    it("checks for providers before showing buttons", () => {
+      stubProvidersFetch(new Promise(() => {}));
+
+      renderScreen();
+
+      expect(screen.getByText("Checking available sign-in options…")).toBeInTheDocument();
+      expect(syncSection().queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("shows only the providers the server reports as enabled", async () => {
+      stubProvidersFetch({ providers: [{ providerId: "github", displayName: "GitHub" }] });
+
+      renderScreen();
+
+      await screen.findByRole("link", { name: "Continue with GitHub" });
+      expect(screen.getByRole("link", { name: "Continue with GitHub" })).toHaveAttribute(
+        "href",
+        "/auth/github"
+      );
+      expect(screen.queryByRole("link", { name: /Google/ })).not.toBeInTheDocument();
+    });
+
+    it("explains when no provider is configured", async () => {
+      stubProvidersFetch({ providers: [] });
+
+      renderScreen();
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "Sign-in isn't available right now. Your preferences stay safely on this device."
+          )
+        ).toBeInTheDocument();
+      });
+      expect(screen.queryByRole("link", { name: /Continue with/ })).not.toBeInTheDocument();
+    });
+
+    it("degrades to the unavailable state when discovery fails", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+      renderScreen();
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "Sign-in isn't available right now. Your preferences stay safely on this device."
+          )
+        ).toBeInTheDocument();
+      });
+      // The rest of the screen still renders.
+      expect(screen.getByText("Appearance")).toBeInTheDocument();
+    });
+
+    it("treats an error response as no providers configured", async () => {
+      stubProvidersFetch({ error: "Not found" }, false);
+
+      renderScreen();
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "Sign-in isn't available right now. Your preferences stay safely on this device."
+          )
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("OAuth failure returns (?authError)", () => {
+    it("maps the denied code to a clear, dismissible alert", async () => {
+      renderScreen("/settings?authError=denied");
+
+      const alert = await syncSection().findByRole("alert");
+      expect(alert).toHaveTextContent(
+        "Sign-in was cancelled. You can try again whenever you're ready."
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+      expect(syncSection().queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.getByText("Sign in to sync across devices")).toBeInTheDocument();
+    });
+
+    it("maps the config code to the missing-configuration copy", () => {
+      renderScreen("/settings?authError=config");
+
+      expect(
+        screen.getByText("Sign-in isn't configured on the server yet. Please try again later.")
+      ).toBeInTheDocument();
+    });
+
+    it("maps the expired code to the retry copy", () => {
+      renderScreen("/settings?authError=expired");
+
+      expect(
+        screen.getByText("Your sign-in request expired before it finished. Please try again.")
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to a generic message for unknown codes", () => {
+      renderScreen("/settings?authError=something-else");
+
+      expect(
+        screen.getByText("We couldn't complete sign-in. Please try again.")
+      ).toBeInTheDocument();
+    });
+
+    it("shows no alert without the query parameter", () => {
+      renderScreen();
+
+      expect(syncSection().queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
   describe("sign out", () => {
     it("signs out and switches to the signed-out view on success", async () => {
       signInAs({ name: "Test Rider" });
@@ -211,7 +363,7 @@ describe("SettingsScreen", () => {
       });
 
       expect(signOut).toHaveBeenCalledTimes(1);
-      expect(screen.getByText("Not signed in")).toBeInTheDocument();
+      expect(screen.getByText("Sign in to sync across devices")).toBeInTheDocument();
       expect(
         screen.queryByText("We couldn't sign you out right now. Please try again.")
       ).not.toBeInTheDocument();

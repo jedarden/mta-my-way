@@ -1,10 +1,23 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Screen from "../components/layout/Screen";
 import { useAuth } from "../hooks/useAuth";
+import { useOAuthProviders } from "../hooks/useOAuthProviders";
 import { clearLocalPreferences } from "../hooks/usePreferencesSync";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useSettingsStore } from "../stores/settingsStore";
 import { usePreferencesSyncStore } from "../stores/syncStore";
+
+/**
+ * Copy for the short failure codes the server appends to /settings when an
+ * OAuth flow fails (`?authError=<code>`); the fallback covers unknown codes.
+ */
+const AUTH_ERROR_COPY: Record<string, string> = {
+  config: "Sign-in isn't configured on the server yet. Please try again later.",
+  expired: "Your sign-in request expired before it finished. Please try again.",
+  denied: "Sign-in was cancelled. You can try again whenever you're ready.",
+  failed: "We couldn't complete sign-in. Please try again.",
+};
 
 function formatLastSynced(timestamp: number | null): string {
   if (!timestamp) return "Not yet synced";
@@ -33,6 +46,12 @@ export default function SettingsScreen() {
   const requestSync = usePreferencesSyncStore((state) => state.requestSync);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const authErrorCode = searchParams.get("authError");
+  const [authErrorDismissed, setAuthErrorDismissed] = useState(false);
+  const { status: providerStatus, providers } = useOAuthProviders(
+    !auth.loading && !auth.authenticated
+  );
 
   const handleSignOut = async () => {
     const didSignOut = await signOut();
@@ -345,29 +364,59 @@ export default function SettingsScreen() {
                 <div>
                   <div className="flex items-center justify-between gap-3 mb-1">
                     <p className="font-medium text-text-primary dark:text-dark-text-primary">
-                      Not signed in
+                      Sign in to sync across devices
                     </p>
                     <span className="rounded-full bg-gray-100 px-2 py-1 text-12 font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
                       Local only
                     </span>
                   </div>
+                  {authErrorCode && !authErrorDismissed && (
+                    <div
+                      className="mb-3 rounded-md border border-mta-warning/40 bg-mta-warning/10 p-3"
+                      role="alert"
+                    >
+                      <p className="text-13 text-mta-warning dark:text-dark-warning">
+                        {AUTH_ERROR_COPY[authErrorCode] ?? AUTH_ERROR_COPY.failed}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setAuthErrorDismissed(true)}
+                        className="mt-2 text-13 font-medium text-mta-warning underline hover:no-underline dark:text-dark-warning"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
                   <p className="text-13 text-text-secondary dark:text-dark-text-secondary mb-3">
-                    Sign in to sync your favorites, commutes, and settings across devices.
+                    Your favorites, commutes, and settings stay on this device until you sign in.
                   </p>
-                  <div className="flex gap-2">
-                    <a
-                      href="/auth/google"
-                      className="flex-1 bg-white dark:bg-gray-800 text-text-primary dark:text-dark-text-primary px-4 py-2 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  {providerStatus === "loading" ? (
+                    <p
+                      className="text-13 text-text-secondary dark:text-dark-text-secondary"
+                      aria-live="polite"
                     >
-                      <span className="text-13 font-medium">Continue with Google</span>
-                    </a>
-                    <a
-                      href="/auth/github"
-                      className="flex-1 bg-gray-900 dark:bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      <span className="text-13 font-medium">Continue with GitHub</span>
-                    </a>
-                  </div>
+                      Checking available sign-in options…
+                    </p>
+                  ) : providerStatus === "unavailable" ? (
+                    <p className="text-13 text-text-secondary dark:text-dark-text-secondary">
+                      Sign-in isn't available right now. Your preferences stay safely on this
+                      device.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {providers.map((provider) => (
+                        <a
+                          key={provider.providerId}
+                          href={`/auth/${provider.providerId}`}
+                          className="flex-1 bg-white dark:bg-gray-800 text-text-primary dark:text-dark-text-primary px-4 py-2 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center"
+                        >
+                          <span className="text-13 font-medium">
+                            Continue with {provider.displayName}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {accountError && (

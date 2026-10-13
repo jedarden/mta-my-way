@@ -202,7 +202,10 @@ test.describe("Settings Screen", () => {
 
     test("should explain where local preferences are stored", async ({ page }) => {
       await expect(page.getByText("Local only", { exact: true })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Continue with Google" })).toBeVisible();
+      // The sign-in entry point renders regardless of how many providers the
+      // server has configured; individual provider buttons come from
+      // /api/auth/oauth/providers.
+      await expect(page.getByText("Sign in to sync across devices", { exact: true })).toBeVisible();
     });
   });
 

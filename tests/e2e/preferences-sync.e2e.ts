@@ -81,11 +81,24 @@ test("OAuth redirect loads, syncs, and preserves preferences after sign-out", as
     // browser test verifies our redirect and simulates its resulting session.
     await route.fulfill({ contentType: "text/html", body: "OAuth provider mock" });
   });
+  // The sign-in buttons render from the server's enabled-provider list; pin it
+  // so the flow does not depend on this environment's OAuth credentials.
+  await page.route("**/api/auth/oauth/providers", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        providers: [
+          { providerId: "google", displayName: "Google" },
+          { providerId: "github", displayName: "GitHub" },
+        ],
+      }),
+    });
+  });
 
   await page.goto("/settings");
 
   const googleSignIn = page.getByRole("link", { name: "Continue with Google" });
-  await expect(page.getByText("Not signed in", { exact: true })).toBeVisible();
+  await expect(page.getByText("Sign in to sync across devices", { exact: true })).toBeVisible();
   await expect(googleSignIn).toHaveAttribute("href", "/auth/google");
   const oauthRequest = page.waitForRequest("**/auth/google");
   await googleSignIn.click();
@@ -111,7 +124,7 @@ test("OAuth redirect loads, syncs, and preserves preferences after sign-out", as
   });
 
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByText("Not signed in", { exact: true })).toBeVisible();
+  await expect(page.getByText("Sign in to sync across devices", { exact: true })).toBeVisible();
   await page.reload();
 
   await expect
