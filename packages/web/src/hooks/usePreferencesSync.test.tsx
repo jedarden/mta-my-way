@@ -66,7 +66,7 @@ describe("usePreferencesSync", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps local-only items while letting server items win by id", () => {
+  it("keeps both copies of colliding items with deterministic local IDs", () => {
     const server = preferences({
       favorites: [
         {
@@ -76,6 +76,16 @@ describe("usePreferencesSync", () => {
           lines: ["1"],
           direction: "both",
           sortOrder: 0,
+        },
+      ],
+      commutes: [
+        {
+          id: "shared-commute",
+          name: "Account commute",
+          origin: { stationId: "127", stationName: "Times Sq-42 St" },
+          destination: { stationId: "635", stationName: "14 St" },
+          preferredLines: ["1"],
+          enableTransferSuggestions: true,
         },
       ],
       settings: { ...preferences().settings, theme: "dark" },
@@ -99,6 +109,16 @@ describe("usePreferencesSync", () => {
           sortOrder: 1,
         },
       ],
+      commutes: [
+        {
+          id: "shared-commute",
+          name: "Local commute",
+          origin: { stationId: "635", stationName: "14 St" },
+          destination: { stationId: "127", stationName: "Times Sq-42 St" },
+          preferredLines: ["A"],
+          enableTransferSuggestions: false,
+        },
+      ],
       settings: { ...preferences().settings, theme: "light" },
     });
 
@@ -106,9 +126,71 @@ describe("usePreferencesSync", () => {
 
     expect(merged.favorites).toMatchObject([
       { id: "shared", stationName: "Server station", lines: ["1"] },
+      { id: "local-shared", stationName: "Local copy", lines: ["2"] },
       { id: "local-only", stationName: "Local station" },
     ]);
+    expect(merged.commutes).toMatchObject([
+      { id: "shared-commute", name: "Account commute" },
+      { id: "local-shared-commute", name: "Local commute" },
+    ]);
     expect(merged.settings.theme).toBe("dark");
+  });
+
+  it("uploads local favorites and commutes during the first signed-in merge", async () => {
+    useFavoritesStore.setState({
+      favorites: [
+        {
+          id: "local-favorite",
+          stationId: "635",
+          stationName: "14 St",
+          lines: ["A"],
+          direction: "both",
+          sortOrder: 0,
+        },
+      ],
+      commutes: [
+        {
+          id: "local-commute",
+          name: "Work",
+          origin: { stationId: "635", stationName: "14 St" },
+          destination: { stationId: "127", stationName: "Times Sq-42 St" },
+          preferredLines: ["A"],
+          enableTransferSuggestions: true,
+        },
+      ],
+    });
+    const writes: UserPreferences[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === "/api/auth/session") {
+          return new Response(
+            JSON.stringify({
+              authenticated: true,
+              profile: { userId: "oauth:google:first-sign-in", provider: "google" },
+            })
+          );
+        }
+        if (url === "/api/preferences" && init?.method === "PUT") {
+          writes.push(JSON.parse(String(init.body)) as UserPreferences);
+        }
+        return new Response(JSON.stringify(preferences()));
+      })
+    );
+
+    renderHook(() => usePreferencesSync());
+
+    await waitFor(
+      () => {
+        expect(writes).toHaveLength(1);
+      },
+      { timeout: 2_000 }
+    );
+    expect(writes[0]).toMatchObject({
+      favorites: [expect.objectContaining({ id: "local-favorite" })],
+      commutes: [expect.objectContaining({ id: "local-commute" })],
+    });
   });
 
   it("loads server preferences after sign-in and syncs a subsequent favorite change", async () => {
@@ -216,5 +298,8 @@ describe("usePreferencesSync", () => {
       },
       { timeout: 2_000 }
     );
+    expect(useFavoritesStore.getState().favorites).toEqual([
+      expect.objectContaining({ stationName: "14 St" }),
+    ]);
   });
 });

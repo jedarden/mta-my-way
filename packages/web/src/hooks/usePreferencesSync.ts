@@ -4,7 +4,7 @@
  * is made until the browser has a valid session cookie.
  */
 
-import type { Commute, Favorite, UserPreferences } from "@mta-my-way/shared";
+import type { Commute, Favorite, FavoriteTapEvent, UserPreferences } from "@mta-my-way/shared";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useFavoritesStore } from "../stores/favoritesStore";
 import { useSettingsStore } from "../stores/settingsStore";
@@ -70,6 +70,20 @@ function clearQueuedPreferences(): void {
   }
 }
 
+/** Get a one-use CSRF token for preference writes. */
+async function fetchCsrfToken(): Promise<string | undefined> {
+  try {
+    const response = await fetch("/api/csrf-token");
+    if (!response.ok) return undefined;
+    const data: unknown = await response.json();
+    return isRecord(data) && typeof data.token === "string" ? data.token : undefined;
+  } catch {
+    // The server may still accept the browser's CSRF cookie; the write below
+    // remains the source of truth for whether synchronization succeeded.
+    return undefined;
+  }
+}
+
 function snapshotFromStores(
   pushSubscription: Record<string, unknown> | null = null
 ): PreferencesSnapshot {
@@ -95,31 +109,95 @@ function snapshotFromStores(
   };
 }
 
-/** Keep unmatched local entries and let the server win when identifiers match. */
-function mergeById<T extends { id: string }>(server: T[], local: T[]): T[] {
-  const serverIds = new Set(server.map((item) => item.id));
-  return [...server, ...local.filter((item) => !serverIds.has(item.id))];
+interface MergedItems<T> {
+  items: T[];
+  localIdMap: Map<string, string>;
 }
 
 /**
- * Merge a fetched server snapshot with current local data. The server owns
- * conflicting favorites, commutes, settings, and onboarding state; local-only
- * favorites and commutes are retained so a first sign-in can upload them.
+ * Keep both copies of every item. Account items retain their IDs and order;
+ * local-only items follow them. A local record whose ID collides with an
+ * account record receives the first available `local-<id>` ID, making the
+ * result stable without overwriting either copy.
+ */
+function mergeById<T extends { id: string }>(server: T[], local: T[]): MergedItems<T> {
+  const usedIds = new Set(server.map((item) => item.id));
+  const localIdMap = new Map<string, string>();
+  const items = [...server];
+
+  for (const item of local) {
+    let id = item.id;
+    if (usedIds.has(id)) {
+      const baseId = `local-${id}`;
+      id = baseId;
+      let suffix = 2;
+      while (usedIds.has(id)) {
+        id = `${baseId}-${suffix}`;
+        suffix += 1;
+      }
+      localIdMap.set(item.id, id);
+    }
+
+    usedIds.add(id);
+    items.push(id === item.id ? item : { ...item, id });
+  }
+
+  return { items, localIdMap };
+}
+
+function mergeTapHistory(
+  server: FavoriteTapEvent[],
+  local: FavoriteTapEvent[],
+  localFavoriteIds: Map<string, string>
+): FavoriteTapEvent[] {
+  const seen = new Set<string>();
+  const merged: FavoriteTapEvent[] = [];
+
+  const append = (event: FavoriteTapEvent, remapLocalId: boolean) => {
+    const normalized = {
+      ...event,
+      favoriteId: remapLocalId
+        ? (localFavoriteIds.get(event.favoriteId) ?? event.favoriteId)
+        : event.favoriteId,
+    };
+    const key = `${normalized.favoriteId}:${normalized.dayOfWeek}:${normalized.hour}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(normalized);
+  };
+
+  for (const event of server) append(event, false);
+  for (const event of local) append(event, true);
+
+  return merged;
+}
+
+/**
+ * Merge a fetched server snapshot with current local data. Account favorites
+ * and commutes are emitted first; local records are appended. ID collisions
+ * keep both records by giving the local record a deterministic ID. Account
+ * settings remain authoritative, while tap history and onboarding completion
+ * are additive.
  */
 export function mergeServerPreferences(
   server: PreferencesSnapshot,
   local: PreferencesSnapshot
 ): PreferencesSnapshot {
+  const favorites = mergeById<Favorite>(server.favorites, local.favorites);
+  const commutes = mergeById<Commute>(server.commutes, local.commutes);
+
   return {
     ...server,
-    favorites: mergeById<Favorite>(server.favorites, local.favorites).map((favorite, index) => ({
+    favorites: favorites.items.map((favorite, index) => ({
       ...favorite,
       sortOrder: index,
     })),
-    commutes: mergeById<Commute>(server.commutes, local.commutes),
+    commutes: commutes.items,
     settings: server.settings,
-    tapHistory: server.tapHistory,
-    onboardingComplete: server.onboardingComplete,
+    tapHistory: mergeTapHistory(server.tapHistory, local.tapHistory, favorites.localIdMap),
+    onboardingComplete: server.onboardingComplete || local.onboardingComplete,
+    pushSubscription: server.pushSubscription ?? local.pushSubscription,
+    schemaVersion: Math.max(server.schemaVersion, local.schemaVersion),
   };
 }
 
@@ -233,9 +311,13 @@ export function usePreferencesSync() {
       setSyncing();
 
       try {
+        const csrfToken = await fetchCsrfToken();
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+
         const response = await fetch("/api/preferences", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: signature,
         });
         if (!response.ok) {
