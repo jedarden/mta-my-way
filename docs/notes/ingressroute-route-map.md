@@ -5,6 +5,24 @@ mtamyway-7bd2a141) into the single authoritative reference for this umbrella.
 Covers: final IngressRoute rules table, service→deployment mappings,
 live-vs-manifest reconciliation, and the route-leakage verdict.
 
+> **⚠️ SUPERSEDED IN PART (2026-09-13) — read §16 first.** declarative-config
+> `d23c4a87` (2026-09-12) rewrote the IngressRoute: the stateful prefixes
+> (`/api/push/`, `/api/auth/`, `/api/preferences`, `/api/trips`,
+> `/api/journal/`, `/auth/`) are now routed **directly to
+> `mta-my-way-stateful:3001`** by six dedicated rules, and only the catch-all
+> reaches `mta-my-way-core`. Every pre-§16 statement in this document that
+> `mta-my-way-stateful` "appears in no rule", is "internal only", or that
+> stateful work flows "never through the ingress" is **historical record of the
+> pre-`d23c4a87` router, not current fact** — including the legacy
+> `mta-my-way:3000` rules 1–3 of §2/§15.1, which are gone from the router
+> entirely. Inline ⚠️ markers flag the major sites; §16 is authoritative for
+> the live topology, re-verified 2026-10-23 with the legacy backend and its
+> orphan Service/Deployment now gone (§17). The supersession is deliberate,
+> not drift:
+> `docs/notes/adr-001-core-only-stateful-routes-decision.md` (mtamyway-60cde06d)
+> ratifies router-level routing as the replacement for ADR-001's core→stateful
+> proxy.
+
 **Date:** 2026-09-02 (live state re-read during consolidation; §1–§2
 re-verified the same day under sub-child mtamyway-0b795445 and again
 2026-09-03 under sub-children mtamyway-90809e33 and mtamyway-007709be; §3
@@ -103,7 +121,12 @@ IngressRoute (`mta-my-way/mta-my-way`) and **exactly one** mta middleware
 
 ## 2. Final IngressRoute rules table
 
-There is exactly **one** IngressRoute — `mta-my-way/mta-my-way` — and no
+> **⚠️ Superseded 2026-09-13 — see §16.** This table records the
+> pre-`d23c4a87` router (four rules, legacy `mta-my-way:3000` targets). The
+> live router now has **seven** rules targeting `mta-my-way-stateful:3001`
+> directly for the six stateful prefixes; rules 1–3 below no longer exist.
+
+There is exactly **one** IngressRoute — `mta-my-way` — and no
 separate "stateful" IngressRoute exists. Searched: every live IngressRoute in
 apexalgo-iad (`get ingressroutes -A` filtered on "mta"), every
 `IngressRouteTCP/UDP` (none), the whole declarative-config tree (`grep -rnil
@@ -133,7 +156,14 @@ Single middleware in the namespace, attached only to rule 4:
 "no"}`, `customResponseHeaders: {X-Accel-Buffering: "no", Cache-Control:
 "no-cache"}` (live spec identical to `ingressroute.yaml`).
 
-`mta-my-way-stateful` (:3001) appears in **no** rule — internal only, by design.
+~~`mta-my-way-stateful` (:3001) appears in **no** rule — internal only, by
+design.~~
+**⚠️ False since 2026-09-12: `mta-my-way-stateful` is the target of six of the
+router's seven rules — see §16.**
+
+**⚠️ The following re-verification stamps (2026-09-03) describe the
+pre-`d23c4a87` router; their "zero drift" and "appears in no rule" verdicts are
+historical — see §16.**
 
 Re-verified under mtamyway-3b383d4a (2026-09-03 16:44 UTC, this split child) by
 enumerating **every** IngressRoute, IngressRouteTCP and IngressRouteUDP in the
@@ -264,6 +294,16 @@ Endpoints object is empty too — so the table's stateful "Live endpoints" cell
 reads 0/1 with the endpoint absent entirely, not merely not-ready. See §5 for
 what this does to the verdict's "internal tier exists" phrasing.
 
+> **⚠️ Superseded 2026-09-13 — the "Referenced by IngressRoute?" column is
+> historical.** `mta-my-way-stateful` is now referenced by six router rules
+> (§16); the legacy `mta-my-way` rules 1–3 this table's first row cites are
+> gone from the router entirely.
+>
+> **2026-10-23 (mtamyway-e2596689): the "ORPHAN — still live" first row is
+> historical too.** `service mta-my-way`, `deployment mta-my-way`, and
+> `endpoints mta-my-way` all return NotFound — the orphan Service/Deployment
+> are decommissioned and both split backends hold live endpoints (§17).
+
 | Service (live) | Port | Selector | Backing Deployment | Replicas desired/ready | Image | Live endpoints (ready/total) | Manifest in git? | Referenced by IngressRoute? |
 |---|---|---|---|---|---|---|---|---|
 | **ORPHAN — retired from git, still live** `mta-my-way` (legacy monolith) | 3000 | `app.kubernetes.io/name=mta-my-way` | `mta-my-way` (legacy monolith, scaled to zero) | 0 / 0 (all 7 ReplicaSets desired 0) | `ronaldraygun/mta-my-way:0.0.82` | **0 / 0 — DEAD since retire (~152+ days)** | **No** — deleted in the monolith retire (`8231717e` step 2 of 2, then re-added by re-adoption `bab2c396`, finally deleted by prune step `95850c44` — all 2026-08-30, verified in declarative-config history); live-only leftover ArgoCD cannot prune (§4 InvalidSpecError) | Yes — rules 1–3 (dead backend) |
@@ -280,6 +320,13 @@ retire commits, and because ArgoCD reconciliation for this app is stopped
 rules-table references in §2 rows 1–3 resolve to a real, explained object.
 
 ### Environment wiring (the internal-only stateful path)
+
+> **⚠️ Superseded 2026-09-13 — see §16.** "Internal-only" described the
+> pre-`d23c4a87` router. The env values below are still accurate and unchanged;
+> what changed is the routing: the six stateful prefixes now reach
+> `mta-my-way-stateful` through the ingress directly, and `STATEFUL_SERVICE_URL`
+> on the core survives only for `/api/health` subsystem reporting
+> (`docs/notes/adr-001-core-only-stateful-routes-decision.md` §4).
 
 | Deployment | Key env (manifest = live) | Meaning |
 |---|---|---|
@@ -362,6 +409,13 @@ ImagePullBackOff). One blocker diagnosis advanced from suspected to proven this
 read — see §6.
 
 ## 5. Route-leakage verdict
+
+> **⚠️ Superseded 2026-09-13 — see §16.** This verdict proves isolation against
+> the pre-`d23c4a87` router. Its central premise — "no public request can reach
+> `mta-my-way-stateful` through the router" — is false against the live router,
+> where six rules target `mta-my-way-stateful` directly. (The umbrella bead
+> built on this premise — "stateful internal-only" — was itself corrected by
+> `docs/notes/adr-001-core-only-stateful-routes-decision.md` §2.)
 
 **Verdict: no leakage of the stateful subsystem through the public host —
 PROVEN at the router-config/manifest level. Live HTTP confirmation BLOCKED,
@@ -704,6 +758,7 @@ reports. Its sections, in order:
   `ardenone-cluster`)
 - §2 — the final IngressRoute rules table, plus the rules-vs-app path mismatch
 - §3 — service → deployment mapping, including the internal-only stateful wiring
+  *(historical — routing half superseded, see §16)*
 - §4 — live-vs-manifest reconciliation (and the stopped ArgoCD reconciliation)
 - §5 — the route-leakage verdict
 - §6 — remaining blockers (why live verification is impossible today)
@@ -719,7 +774,9 @@ reports. Its sections, in order:
   correction (mtamyway-aab3d8ab)
 - §15 — 2026-09-04 rules reconciliation and stateful-isolation re-confirmation,
   plus a four-site `!CORE_ONLY` gate inventory (mtamyway-37ddf981, umbrella
-  mtamyway-622f4cd7)
+  mtamyway-622f4cd7) *(isolation verdict historical — see §16)*
+- §16 — **Ingress routes stateful paths directly; §2/§15.2/§15.4 superseded**
+  (2026-09-13, mtamyway-0cd48bf7) — the authoritative live topology
 
 Supersession, stated explicitly once more:
 `docs/ingressroute-validation-findings.md` and
@@ -1067,6 +1124,7 @@ stateful `…-5px8k`) without moving a cell. The env-wiring table holds on
 (core `CORE_ONLY=true` + `STATEFUL_SERVICE_URL=http://mta-my-way-stateful:3001`;
 stateful `PORT=3001` + `CORE_ONLY=false`). `mta-my-way-stateful` appears in
 **no** rule of any kind.
+*(⚠️ Superseded 2026-09-13 — see §16: it is now the target of six rules.)*
 
 **§4 reconciliation — no row moved.** IngressRoute/Middleware equality above;
 PVC `mta-my-way-data` re-read `sata`, RWO, 5Gi, `Bound`; SealedSecret
@@ -1123,6 +1181,13 @@ The §5 route-leakage verdict, the §2 rules table, the §3 mappings and the §6
 blocker set all re-verify fresh; nothing in this document requires a blocker.
 
 ## 15. Rules reconciliation and stateful isolation, 2026-09-04 (mtamyway-37ddf981)
+
+> **⚠️ Superseded 2026-09-13 — see §16.** Everything in this section was true
+> of the pre-`d23c4a87` router only. §15.2's "referenced by zero router rules"
+> verdict and §15.4's "never through the ingress" gate note are historical; the
+> live router now routes the stateful prefixes to `mta-my-way-stateful` directly.
+> The `!CORE_ONLY` gate inventory in §15.4 (four sites) remains an accurate
+> description of the application code.
 
 Recorded by child 3 of 5 of umbrella **mtamyway-622f4cd7** ("Validate public
 API health and route isolation") — a different umbrella from the
@@ -1237,6 +1302,10 @@ because core does not mount those routes at all. The designed path for
 stateful work remains core → `STATEFUL_SERVICE_URL`
 (`http://mta-my-way-stateful:3001`, `stateful-client.ts:31–32`) over
 cluster-internal DNS — never through the ingress.
+*(⚠️ Superseded 2026-09-13: the six stateful prefixes now flow **through the
+ingress** — rules 1–6 of §16 — and the core→`STATEFUL_SERVICE_URL` call survives
+only for `/api/health` subsystem reporting. Ratified as deliberate in
+`docs/notes/adr-001-core-only-stateful-routes-decision.md` §4.)*
 
 ### 15.5 Acceptance criteria roll-up (mtamyway-37ddf981)
 
@@ -1322,3 +1391,53 @@ prefixes.
   `CrashLoopBackOff`/`ImagePullBackOff` across three ReplicaSets — the router
   verdicts above are config-level and unaffected by pod readiness, but the
   endpoints are not actually answerable until that rollout recovers.
+
+## 17. Re-verification 2026-10-23 — legacy backend retired, orphan objects gone (mtamyway-e2596689)
+
+Read live 2026-10-23 (read-only `kubectl --server=http://traefik-apexalgo-iad:8001`,
+namespace `mta-my-way`) while verifying bead mtamyway-e2596689. That bead's
+premise — "IngressRoute rules still send `/push/`, `/auth/`,
+`/password-reset/` to the retired legacy `mta-my-way` service, 0 endpoints" —
+is stale: it restates the superseded
+`docs/api-health-route-isolation-report.md` banner, which describes the
+pre-`d23c4a87` four-rule router. The cluster's actual state:
+
+- **Router unchanged from §16.1.** IngressRoute `mta-my-way` has exactly seven
+  rules: the six stateful prefixes (`/api/push/`, `/api/auth/`,
+  `/api/preferences`, `/api/trips`, `/api/journal/`, `/auth/`) →
+  `mta-my-way-stateful:3001`, and the catch-all → `mta-my-way-core:3000`
+  behind the `mta-my-way-sse` middleware, TLS `letsencrypt`. **No rule targets
+  the legacy `mta-my-way` service.** The manifest
+  (`k8s/apexalgo-iad/mta-my-way/ingressroute.yaml` at declarative-config
+  `cfcc327d2`) and the live object agree rule-for-rule. Password reset has no
+  dedicated rule and needs none — it is served under the `/api/auth/` prefix.
+- **The legacy objects are decommissioned.** `service mta-my-way`,
+  `deployment mta-my-way`, and `endpoints mta-my-way` all return NotFound.
+  The §3/§13 "live-only orphan, ArgoCD cannot prune" rows are historical. The
+  managing Application `mta-my-way-ns-apexalgo-iad` on the ardenone-manager
+  ArgoCD (tracking `jedarden/declarative-config` `main`, path
+  `k8s/apexalgo-iad/mta-my-way`) reads **Synced / Healthy** with
+  `PruneLast=true`, consistent with an ArgoCD-driven prune of the formerly
+  git-tracked Service/Deployment; the exact prune date was not pinned.
+- **The §4 `InvalidSpecError` survives only on a stale local app object.** The
+  `argocd` namespace *inside apexalgo-iad* still holds a `mta-my-way`
+  Application carrying the dead-Rackspace-control-plane-URL
+  `InvalidSpecError`; that object is not the syncing instance (the
+  ardenone-manager app above is).
+- **Both remaining backends are live.** `endpoints/mta-my-way-core` holds 2
+  pod IPs on `:3000` (deployment 2/2, image `0.0.798`) and
+  `endpoints/mta-my-way-stateful` holds 1 on `:3001` (deployment 1/1,
+  `0.0.798`) — the §16.2 rollout caveat (ErrImagePull/CrashLoopBackOff) has
+  resolved.
+- **Every bead-named request path lands on a live backend.** Push
+  subscriptions, auth (password reset and sessions under `/api/auth/`), and
+  browser OAuth `/auth/` terminate at the stateful deployment; all other
+  traffic at the core.
+- **Public-entrypoint HTTP verification remains blocked on DNS** —
+  `mtamyway.com` is still unregistered (registration is bead
+  mtamyway-9ad0760f's deliverable; see §6). Verdicts here are config-level,
+  like every earlier pass.
+
+This closes the last cluster-side item of the route-isolation work: the dead
+legacy backend and its orphaned Service/Deployment no longer exist, and the
+router serves every public path from a live backend.
