@@ -134,6 +134,33 @@ function extractTripOwner(tripId: string): ResourceOwner {
 
 **Recommendation:** Implement proper user-scoped resource ownership with database lookups.
 
+> **Re-verified 2026-10-24:** resolved — ownership validation is
+> database-backed and wired on every resource-identifier route. Per-finding
+> status, verified against the code at HEAD (bead `mtamyway-ba6fceb5`):
+>
+> | Audit finding | Status | Enforcement (`packages/server/src/`) |
+> |---|---|---|
+> | Trips have no `userId` field | ✅ Closed | `trips.owner_id TEXT NOT NULL` + `idx_trips_owner_id` (`trip-tracking.ts`); `getTripById` returns `ownerId` |
+> | `extractTripOwner` is placeholder code | ✅ Closed | the function no longer exists anywhere in `src/` |
+> | Any `write`-scope key can access any trip by ID | ✅ Closed | `requireOwnershipOrAdmin("trips", { getOwnerId: <DB lookup> })` on `GET`/`PATCH …/notes`/`DELETE /api/trips/:tripId` — 401 unauthenticated, 403 owner mismatch, 404 passthrough for nonexistent IDs; handlers additionally re-scope the store write by `owner_id` as defense-in-depth (`updateTripNotes`/`deleteTrip`) |
+> | Subscription ownership is endpoint-based only | ✅ Closed | `push_subscriptions.owner_id TEXT NOT NULL` + index (`push/subscriptions.ts`); the middleware resolves the owner from the database (`getSubscriptionOwner(endpoint)`); `removeSubscription`, `updateSubscriptionFavorites`, `updateSubscriptionQuietHours` and `updateSubscriptionMorningScores` all scope their SQL by `owner_id` |
+>
+> The `/api/context/settings` surface was removed 2026-08 (`4bff02a9`);
+> its successor `PUT /api/preferences` derives the owner server-side from
+> the validated session (`getSessionUserId` requires
+> `authMethod === "session"`), so no client-supplied resource identifier
+> exists to validate. Journal reads are covered by the §2.2 note above.
+> Non-security quirk observed during re-verification: on the two push routes
+> with `adminBypass: true` the handler still scopes its store call by the
+> admin's own `keyId`, so an admin's cross-user unsubscribe/PATCH is a silent
+> no-op that reports `success: true` (the trip handlers pass `undefined` for
+> admins instead). That is a consistency gap in the admin branch, not a
+> per-user ownership failure — non-admin cross-user access 403s at the
+> middleware. Regression coverage pinning this to the real app:
+> `packages/server/src/integration/resource-ownership.test.ts` (cross-user
+> 403, owner-success, and unauthenticated 401 on every resource-identifier
+> write route).
+
 ### 3.2 Inconsistent Authorization Patterns
 
 **Pattern A: Middleware-based (Recommended)**
