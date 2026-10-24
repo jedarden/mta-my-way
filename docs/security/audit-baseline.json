@@ -1,0 +1,227 @@
+{
+  "asOf": "2026-10-24",
+  "totalCounts": {
+    "critical": 2,
+    "high": 17,
+    "moderate": 15,
+    "low": 2
+  },
+  "accepted": [
+    {
+      "name": "@lhci/cli",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "@lhci/utils",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "@opentelemetry/core",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/exporter-trace-otlp-grpc",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/exporter-trace-otlp-proto",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/instrumentation-http",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/otlp-exporter-base",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/otlp-grpc-exporter-base",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/otlp-transformer",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/propagator-b3",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/propagator-jaeger",
+      "severity": "high",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/resources",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/sdk-logs",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/sdk-metrics",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/sdk-trace-base",
+      "severity": "moderate",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@opentelemetry/sdk-trace-node",
+      "severity": "high",
+      "cluster": "otel",
+      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+    },
+    {
+      "name": "@puppeteer/browsers",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "severity": "moderate",
+      "cluster": "vitest",
+      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+    },
+    {
+      "name": "@vitest/mocker",
+      "severity": "moderate",
+      "cluster": "vitest",
+      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+    },
+    {
+      "name": "basic-ftp",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "chromium-bidi",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "external-editor",
+      "severity": "low",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "extract-zip",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "get-uri",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "happy-dom",
+      "severity": "high",
+      "cluster": "devtest",
+      "reason": "dev-only: happy-dom is the vitest DOM environment, protobufjs-cli is manual codegen over our own checked-in .proto files (advisories need attacker-crafted schema names)"
+    },
+    {
+      "name": "inquirer",
+      "severity": "low",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "lighthouse",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "pac-proxy-agent",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "protobufjs-cli",
+      "severity": "high",
+      "cluster": "devtest",
+      "reason": "dev-only: happy-dom is the vitest DOM environment, protobufjs-cli is manual codegen over our own checked-in .proto files (advisories need attacker-crafted schema names)"
+    },
+    {
+      "name": "proxy-agent",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "puppeteer-core",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "tinypool",
+      "severity": "critical",
+      "cluster": "vitest",
+      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+    },
+    {
+      "name": "tmp",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "uuid",
+      "severity": "moderate",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    },
+    {
+      "name": "vitest",
+      "severity": "critical",
+      "cluster": "vitest",
+      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+    },
+    {
+      "name": "zod",
+      "severity": "high",
+      "cluster": "lhci",
+      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+    }
+  ]
+}

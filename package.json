@@ -9,6 +9,7 @@
     "build": "npm run build --workspaces",
     "lint": "biome check . && eslint .",
     "lint:fix": "biome check --write . && eslint . --fix",
+    "audit:check": "node scripts/audit-snapshot.mjs",
     "format": "biome format --write .",
     "typecheck": "tsc --build",
     "test": "vitest run",
