@@ -17,5 +17,6 @@ if [ ! -x node_modules/.bin/tsc ] || [ ! -x node_modules/.bin/biome ] || [ ! -x 
   npm ci --prefer-offline --no-audit --no-fund
 fi
 
+npm audit --audit-level=critical
 npm run typecheck
 npm run lint

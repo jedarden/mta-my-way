@@ -1,6 +1,6 @@
 # Dependency vulnerability triage
 
-Owning bead: `mtamyway-e4815278`. Re-check procedure at the bottom; the
+Owning bead: `mtamyway-114c1ecf`. Re-check procedure at the bottom; the
 machine-readable accepted-findings baseline is
 [`docs/security/audit-baseline.json`](../security/audit-baseline.json), enforced
 by `npm run audit:check`.
@@ -48,6 +48,29 @@ against protobufjs 7.6.6), and a direct smoke of the csv-parse v7 sync API.
 3. **protobufjs 8 + regenerated proto code** (clears protobufjs-cli): regenerate
    `src/proto/compiled.js` with pbjs 2.7.x and bump runtime protobufjs to ^8 in
    one change; needs a feed-pollution smoke against live GTFS-RT data.
+
+## 2026-11-01 re-check and regression gate
+
+The targeted dependency updates in `mtamyway-114c1ecf` are:
+
+- `vitest`, `@vitest/coverage-v8`: workspace 3.2.7 → 4.1.11, clearing both critical
+  `vitest`/`tinypool` findings from every workspace.
+- `happy-dom`: 20.8.9 → 21.0.4, clearing its high and moderate advisories.
+- `@hono/node-server`: 1.19.17 → 2.1.5, clearing its current advisory while
+  retaining the Hono 4 peer range.
+
+The current audit after a clean `npm ci` is **52 findings (0 critical, 16 high,
+32 moderate, 4 low)**. The remaining findings are explicitly baselined in
+`docs/security/audit-baseline.json`: Lighthouse CI transitive tooling, the
+OpenTelemetry major-migration cluster, lint/build-only transitive packages, and
+the protobufjs CLI that cannot be upgraded independently of a protobufjs 8
+runtime/code-generation migration. The baseline records the rationale per
+package; no `TODO` or unreviewed entry is accepted.
+
+`scripts/definition-of-done.sh` now runs `npm audit --audit-level=critical`
+after install, so any future critical finding fails the repository gate even
+when lower-severity accepted findings remain. `npm run audit:check` continues to
+detect new or severity-changed findings against the reviewed baseline.
 
 ## Re-check procedure (monthly, and after any dependency change)
 

@@ -1,227 +1,323 @@
 {
-  "asOf": "2026-10-24",
+  "asOf": "2026-11-01",
   "totalCounts": {
-    "critical": 2,
-    "high": 17,
-    "moderate": 15,
-    "low": 2
+    "critical": 0,
+    "high": 16,
+    "moderate": 32,
+    "low": 4
   },
   "accepted": [
+    {
+      "name": "@eslint-community/eslint-utils",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only ESLint 9 toolchain; npm's only suggested fix is an unsupported downgrade to eslint 4, and no vulnerable lint package ships in the application"
+    },
+    {
+      "name": "@eslint/config-array",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only ESLint 9 toolchain; npm's only suggested fix is an unsupported downgrade to eslint 4, and no vulnerable lint package ships in the application"
+    },
+    {
+      "name": "@eslint/eslintrc",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only ESLint 9 toolchain; npm's only suggested fix is an unsupported downgrade to eslint 4, and no vulnerable lint package ships in the application"
+    },
     {
       "name": "@lhci/cli",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
       "name": "@lhci/utils",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; the current release inherits Lighthouse advisories and no compatible fixed @lhci/cli release is available"
     },
     {
       "name": "@opentelemetry/core",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/exporter-trace-otlp-grpc",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/exporter-trace-otlp-proto",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/instrumentation-http",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/otlp-exporter-base",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/otlp-grpc-exporter-base",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/otlp-transformer",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/propagator-b3",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/propagator-jaeger",
       "severity": "high",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; the malformed-header DoS is cleared by the OpenTelemetry JS major migration, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/resources",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/sdk-logs",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/sdk-metrics",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/sdk-trace-base",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@opentelemetry/sdk-trace-node",
       "severity": "high",
       "cluster": "otel",
-      "reason": "server telemetry export; every fix is an OpenTelemetry JS major migration (0.57->0.300.x, sdk 1.29->2.x, resources->3.x); tracked as the top follow-up in docs/notes/dependency-audit.md"
+      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
     },
     {
       "name": "@puppeteer/browsers",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
-      "name": "@vitest/coverage-v8",
-      "severity": "moderate",
-      "cluster": "vitest",
-      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+      "name": "@rollup/plugin-node-resolve",
+      "severity": "low",
+      "cluster": "build-tooling",
+      "reason": "dev-only Workbox/Vite build tooling; the current plugin inherits deepmerge and no application runtime code uses it"
     },
     {
-      "name": "@vitest/mocker",
+      "name": "@trickfilm400/rollup-plugin-off-main-thread",
       "severity": "moderate",
-      "cluster": "vitest",
-      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+      "cluster": "build-tooling",
+      "reason": "dev-only Workbox build tooling; the current Workbox release inherits ejs and no application runtime code uses it"
+    },
+    {
+      "name": "@typescript-eslint/eslint-plugin",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only TypeScript lint tooling; current typescript-eslint 8 is maintained and npm's available fix is an incompatible downgrade"
+    },
+    {
+      "name": "@typescript-eslint/parser",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only TypeScript lint tooling; current typescript-eslint 8 is maintained and npm's available fix is an incompatible downgrade"
+    },
+    {
+      "name": "@typescript-eslint/type-utils",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only TypeScript lint tooling; current typescript-eslint 8 is maintained and npm's available fix is an incompatible downgrade"
+    },
+    {
+      "name": "@typescript-eslint/typescript-estree",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only TypeScript lint tooling; current typescript-eslint 8 is maintained and npm's available fix is an incompatible downgrade"
+    },
+    {
+      "name": "@typescript-eslint/utils",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only TypeScript lint tooling; current typescript-eslint 8 is maintained and npm's available fix is an incompatible downgrade"
     },
     {
       "name": "basic-ftp",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
+    },
+    {
+      "name": "chrome-launcher",
+      "severity": "moderate",
+      "cluster": "lhci",
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
       "name": "chromium-bidi",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
+    },
+    {
+      "name": "deepmerge",
+      "severity": "low",
+      "cluster": "build-tooling",
+      "reason": "dev-only Workbox/Vite build tooling; the current plugin inherits deepmerge and no application runtime code uses it"
+    },
+    {
+      "name": "ejs",
+      "severity": "moderate",
+      "cluster": "build-tooling",
+      "reason": "dev-only Workbox build tooling; the current Workbox release inherits ejs through jake and no application runtime code uses it"
+    },
+    {
+      "name": "eslint",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only ESLint 9 toolchain; npm's only suggested fix is an unsupported downgrade to eslint 4, and no vulnerable lint package ships in the application"
     },
     {
       "name": "external-editor",
       "severity": "low",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
       "name": "extract-zip",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
+    },
+    {
+      "name": "filelist",
+      "severity": "moderate",
+      "cluster": "build-tooling",
+      "reason": "dev-only Workbox build tooling; the current Workbox release inherits filelist through jake and no application runtime code uses it"
     },
     {
       "name": "get-uri",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
-      "name": "happy-dom",
-      "severity": "high",
-      "cluster": "devtest",
-      "reason": "dev-only: happy-dom is the vitest DOM environment, protobufjs-cli is manual codegen over our own checked-in .proto files (advisories need attacker-crafted schema names)"
+      "name": "glob",
+      "severity": "moderate",
+      "cluster": "dev-tooling",
+      "reason": "transitive dev-only glob used by lint, test, codegen, and Lighthouse tooling; remaining vulnerable ranges have no compatible common upgrade without those tools' major migrations"
     },
     {
       "name": "inquirer",
       "severity": "low",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
+    },
+    {
+      "name": "jake",
+      "severity": "moderate",
+      "cluster": "build-tooling",
+      "reason": "dev-only Workbox build tooling; the current Workbox release inherits jake and no application runtime code uses it"
     },
     {
       "name": "lighthouse",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
+    },
+    {
+      "name": "minimatch",
+      "severity": "moderate",
+      "cluster": "dev-tooling",
+      "reason": "transitive dev-only glob matcher used by lint, test, codegen, and Lighthouse tooling; forcing minimatch 11 across incompatible consumers would be riskier than the non-runtime exposure"
     },
     {
       "name": "pac-proxy-agent",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
       "name": "protobufjs-cli",
       "severity": "high",
-      "cluster": "devtest",
-      "reason": "dev-only: happy-dom is the vitest DOM environment, protobufjs-cli is manual codegen over our own checked-in .proto files (advisories need attacker-crafted schema names)"
+      "cluster": "protobuf-codegen",
+      "reason": "dev-only manual code generation over checked-in first-party schemas; the fixed CLI requires protobufjs 8 and regenerated output, so it is tracked as a coordinated runtime/codegen migration"
     },
     {
       "name": "proxy-agent",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
       "name": "puppeteer-core",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
-      "name": "tinypool",
-      "severity": "critical",
-      "cluster": "vitest",
-      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+      "name": "rimraf",
+      "severity": "moderate",
+      "cluster": "lhci",
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
       "name": "tmp",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
+    },
+    {
+      "name": "typescript-eslint",
+      "severity": "moderate",
+      "cluster": "lint-tooling",
+      "reason": "dev-only TypeScript lint tooling; current typescript-eslint 8 is maintained and npm's available fix is an incompatible downgrade"
     },
     {
       "name": "uuid",
       "severity": "moderate",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "dev-only Lighthouse CI tooling; npm's suggested fix is a downgrade to @lhci/cli 0.1.0 from 2019, not a remediation, and nothing from this tree ships"
     },
     {
-      "name": "vitest",
-      "severity": "critical",
-      "cluster": "vitest",
-      "reason": "dev test-runner only; the tinypool/vitest RCE gadgets require executing an attacker-crafted vitest config, which does not happen in this repo"
+      "name": "workbox-build",
+      "severity": "moderate",
+      "cluster": "build-tooling",
+      "reason": "dev-only PWA build tooling; current Workbox 7.4.1 is the available release and its transitive advisories require an upstream dependency fix"
     },
     {
       "name": "zod",
       "severity": "high",
       "cluster": "lhci",
-      "reason": "devDependency lighthouse-CI tooling only, never shipped; npm\u2019s suggested fix is a downgrade to @lhci/cli@0.1.0 (2019), not a remediation"
+      "reason": "nested under dev-only chromium-bidi used by Lighthouse CI; the application's direct zod is fixed, while npm's suggested path downgrades @lhci/cli to 0.1.0"
     }
   ]
 }
