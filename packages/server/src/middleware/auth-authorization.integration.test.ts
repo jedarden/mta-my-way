@@ -414,7 +414,7 @@ describe("Authentication and authorization middleware chain", () => {
         headers: { Authorization: creds.authorizationHeader },
       });
       expect(res.status).toBe(200);
-      expect(res.headers.get("Cache-Control")).toContain("max-age=15");
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     });
 
     it("admits an admin role, which inherits user permissions", async () => {
