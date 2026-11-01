@@ -194,6 +194,7 @@ describe("Audit-flagged read endpoints enforce authorization", () => {
         headers: { Authorization: userA.authorizationHeader },
       });
       expect(owner.status).toBe(200);
+      expect(owner.headers.get("Cache-Control")).toBe("private, no-store");
 
       const cross = await app.request(`/api/trips/${tripId}`, {
         headers: { Authorization: userB.authorizationHeader },
@@ -231,6 +232,7 @@ describe("Audit-flagged read endpoints enforce authorization", () => {
         headers: { Authorization: userB.authorizationHeader },
       });
       expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 
       const body = (await res.json()) as { trips: { id: string }[]; count: number };
       expect(body.count).toBe(1);
@@ -261,6 +263,7 @@ describe("Audit-flagged read endpoints enforce authorization", () => {
         headers: { Authorization: userB.authorizationHeader },
       });
       expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 
       const body = (await res.json()) as { trips: { id: string }[]; count: number };
       expect(body.count).toBe(1);
@@ -293,6 +296,7 @@ describe("Audit-flagged read endpoints enforce authorization", () => {
         headers: { Authorization: userB.authorizationHeader },
       });
       expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 
       const body = (await res.json()) as {
         totalTrips: number;
@@ -325,6 +329,7 @@ describe("Audit-flagged read endpoints enforce authorization", () => {
         headers: { Authorization: userB.authorizationHeader },
       });
       expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 
       const body = (await res.json()) as {
         recentTrips: { id: string }[];

@@ -2246,7 +2246,7 @@ ${
           ownerId: auth?.role === "admin" ? undefined : auth?.keyId || "anonymous",
         });
 
-        c.header("Cache-Control", "public, max-age=15");
+        c.header("Cache-Control", "private, no-store");
         return c.json({
           trips,
           count: trips.length,
@@ -2291,7 +2291,7 @@ ${
           return c.json({ error: "Trip not found" }, 404);
         }
 
-        c.header("Cache-Control", "public, max-age=60");
+        c.header("Cache-Control", "private, no-store");
         return c.json(trip);
       }
     );
@@ -2403,7 +2403,7 @@ ${
           auth?.role === "admin" ? undefined : auth?.keyId || "anonymous"
         );
 
-        c.header("Cache-Control", "public, max-age=60");
+        c.header("Cache-Control", "private, no-store");
         return c.json(stats);
       }
     );
@@ -2436,7 +2436,7 @@ ${
         const ownerId = auth?.role === "admin" ? undefined : auth?.keyId || "anonymous";
         const trips = getTrips({ startDate, endDate, limit: 1000, ownerId });
 
-        c.header("Cache-Control", "public, max-age=30");
+        c.header("Cache-Control", "private, no-store");
         return c.json({
           startDate,
           endDate,
@@ -2480,7 +2480,7 @@ ${
             ? getTotalTripCount()
             : getTrips({ limit: 1000000, ownerId }).length;
 
-        c.header("Cache-Control", "public, max-age=30");
+        c.header("Cache-Control", "private, no-store");
         return c.json({
           recentTrips,
           stats,

@@ -67,6 +67,9 @@ requires an authenticated read-capable credential, rejects caller-supplied
 cross-user filters through `validateDataAccess`, and scopes its query to the
 authenticated owner. The single-trip route additionally checks the persisted
 trip owner before returning the resource.
+The five authenticated responses also use `Cache-Control: private, no-store`
+so a shared HTTP cache cannot reuse one user's trip or journal response for
+another user.
 
 | Endpoint | Method | Original risk | Current status | Closing evidence |
 |----------|--------|---------------|----------------|------------------|
