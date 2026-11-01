@@ -2,8 +2,8 @@
   "asOf": "2026-11-01",
   "totalCounts": {
     "critical": 0,
-    "high": 16,
-    "moderate": 32,
+    "high": 14,
+    "moderate": 31,
     "low": 4
   },
   "accepted": [
@@ -41,85 +41,73 @@
       "name": "@opentelemetry/core",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; the OpenTelemetry 2.x/0.218 migration clears the high Jaeger DoS, while the remaining moderate core finding comes from exporter 0.218's pinned 2.7.1 core and requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/exporter-trace-otlp-grpc",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to the compatible 0.218 line, but its pinned 2.7.1 core remains moderate and requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/exporter-trace-otlp-proto",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to the compatible 0.218 line, but its pinned 2.7.1 core remains moderate and requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/instrumentation-http",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to the compatible 0.218 line, but its pinned 2.7.1 core remains moderate and requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/otlp-exporter-base",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to the compatible 0.218 line, but its pinned 2.7.1 core remains moderate and requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/otlp-grpc-exporter-base",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to the compatible 0.218 line, but its pinned 2.7.1 core remains moderate and requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/otlp-transformer",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to the compatible 0.218 line, but its pinned 2.7.1 core remains moderate and requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/propagator-b3",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
-    },
-    {
-      "name": "@opentelemetry/propagator-jaeger",
-      "severity": "high",
-      "cluster": "otel",
-      "reason": "runtime server telemetry; the malformed-header DoS is cleared by the OpenTelemetry JS major migration, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded with the OpenTelemetry 2.x migration; remaining moderate core linkage requires the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/resources",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to 2.12, while exporter 0.218's pinned 2.7.1 resource/core pair remains moderate pending the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/sdk-logs",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded transitively to the 0.218 line, but its pinned 2.7.1 core remains moderate pending the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/sdk-metrics",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded transitively to the 0.218 line, but its pinned 2.7.1 core remains moderate pending the later 0.300/API 1.10 migration"
     },
     {
       "name": "@opentelemetry/sdk-trace-base",
       "severity": "moderate",
       "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
-    },
-    {
-      "name": "@opentelemetry/sdk-trace-node",
-      "severity": "high",
-      "cluster": "otel",
-      "reason": "runtime server telemetry; clearing this requires the OpenTelemetry JS major migration across exporters, SDK, and resources, tracked as a follow-up"
+      "reason": "runtime server telemetry; upgraded to 2.12, while exporter 0.218's pinned 2.7.1 trace base remains moderate pending the later 0.300/API 1.10 migration"
     },
     {
       "name": "@puppeteer/browsers",

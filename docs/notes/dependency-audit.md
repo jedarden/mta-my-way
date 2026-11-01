@@ -40,9 +40,9 @@ against protobufjs 7.6.6), and a direct smoke of the csv-parse v7 sync API.
 
 ### Follow-ups (proposals, not yet admitted work)
 
-1. **OpenTelemetry JS major migration** (clears 14 findings incl. the jaeger
-   propagator DoS): exporters 0.57 → 0.300.x, sdk-trace-node/resources/instrumentation
-   to the 2.x/3.x line. Largest single win left on the board.
+1. **Complete the OpenTelemetry JS migration** (clears the remaining moderate
+   core/resource findings): exporters 0.218 → 0.300.x and API 1.9 → 1.10,
+   after the 2.x/0.218 upgrade above.
 2. **vitest 5 migration** (clears 4 findings incl. both criticals): test-runner
    only, can be scheduled any time the full suite has a green baseline.
 3. **protobufjs 8 + regenerated proto code** (clears protobufjs-cli): regenerate
@@ -59,8 +59,9 @@ The targeted dependency updates in `mtamyway-114c1ecf` are:
 - `@hono/node-server`: 1.19.17 → 2.1.5, clearing its current advisory while
   retaining the Hono 4 peer range.
 
-The current audit after a clean `npm ci` is **52 findings (0 critical, 16 high,
-32 moderate, 4 low)**. The remaining findings are explicitly baselined in
+The initial post-remediation audit after a clean `npm ci` was **52 findings
+(0 critical, 16 high, 32 moderate, 4 low)**. The findings were explicitly
+baselined in
 `docs/security/audit-baseline.json`: Lighthouse CI transitive tooling, the
 OpenTelemetry major-migration cluster, lint/build-only transitive packages, and
 the protobufjs CLI that cannot be upgraded independently of a protobufjs 8
@@ -71,6 +72,34 @@ package; no `TODO` or unreviewed entry is accepted.
 after install, so any future critical finding fails the repository gate even
 when lower-severity accepted findings remain. `npm run audit:check` continues to
 detect new or severity-changed findings against the reviewed baseline.
+
+## 2026-11-01 runtime high-severity follow-up
+
+The current clean-install audit is **49 findings (0 critical, 14 high,
+31 moderate, 4 low)**. The two runtime OpenTelemetry high findings are now
+resolved by aligned package upgrades:
+
+- `@opentelemetry/exporter-trace-otlp-{grpc,proto}`, `instrumentation`, and
+  `instrumentation-http`: `0.57.2` → `0.218.0`.
+- `@opentelemetry/resources`, `sdk-trace-base`, and `sdk-trace-node`:
+  `1.30.1` → `2.12.0` (with the exporters' compatible `2.7.1` transitive line).
+- `@grpc/grpc-js` is a direct server dependency because the current exporter
+  API accepts gRPC `Metadata`; `OTEL_EXPORTER_OTLP_HEADERS` is preserved.
+
+This clears the high `@opentelemetry/propagator-jaeger` malformed-header DoS and
+the high `@opentelemetry/sdk-trace-node` dependency chain. The remaining high
+findings are development-only Lighthouse/Puppeteer tooling, the manual
+first-party-schema `protobufjs-cli`, and nested Lighthouse `zod`; they do not
+ship in the server or web runtime and remain individually baselined. The
+remaining OpenTelemetry findings are moderate and come from the exporters'
+currently pinned `2.7.1` core; the later `0.300`/API `1.10` migration is a
+separate compatibility step.
+
+The OpenTelemetry API migration also replaced the removed `Resource` class with
+`resourceFromAttributes`, moved span processors into the provider constructor,
+and maps gRPC headers through `Metadata`. `npm run typecheck` reports no errors
+in the changed server files; unrelated dirty worker test files still produce
+the pre-existing web-only type errors.
 
 ## Re-check procedure (monthly, and after any dependency change)
 

@@ -29,6 +29,7 @@
  *   OTEL_TRACES_SAMPLER_ARG: Sampler argument (default: 1.0)
  */
 
+import { Metadata } from "@grpc/grpc-js";
 import type { DiagLogLevel } from "@opentelemetry/api";
 import { DiagConsoleLogger, diag } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
@@ -36,7 +37,7 @@ import { OTLPTraceExporter as OTLPTraceExporterHTTP } from "@opentelemetry/expor
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { PinoInstrumentation } from "@opentelemetry/instrumentation-pino";
-import { Resource } from "@opentelemetry/resources";
+import { defaultResource, resourceFromAttributes } from "@opentelemetry/resources";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
@@ -76,8 +77,8 @@ export async function initOpenTelemetry(): Promise<void> {
 
   try {
     // Create resource with service attributes
-    const resource = Resource.default().merge(
-      new Resource({
+    const resource = defaultResource().merge(
+      resourceFromAttributes({
         [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
         [SemanticResourceAttributes.SERVICE_VERSION]: serviceVersion,
         [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || "development",
@@ -85,9 +86,6 @@ export async function initOpenTelemetry(): Promise<void> {
         "process.command": process.argv[1],
       })
     );
-
-    // Initialize tracer provider
-    tracerProvider = new NodeTracerProvider({ resource });
 
     // Configure exporter based on protocol (default to gRPC)
     const useHTTP = otlpEndpoint.startsWith("http://") || otlpEndpoint.startsWith("https://");
@@ -101,19 +99,22 @@ export async function initOpenTelemetry(): Promise<void> {
     } else {
       exporter = new OTLPTraceExporter({
         url: otlpEndpoint,
-        headers: parseHeaders(otlpHeaders),
+        metadata: parseGrpcMetadata(otlpHeaders),
       });
     }
 
     // Add batch span processor for efficient transmission
-    tracerProvider.addSpanProcessor(
-      new BatchSpanProcessor(exporter, {
-        maxQueueSize: 2048,
-        maxExportBatchSize: 512,
-        scheduledDelayMillis: 5000,
-        exportTimeoutMillis: 30000,
-      })
-    );
+    tracerProvider = new NodeTracerProvider({
+      resource,
+      spanProcessors: [
+        new BatchSpanProcessor(exporter, {
+          maxQueueSize: 2048,
+          maxExportBatchSize: 512,
+          scheduledDelayMillis: 5000,
+          exportTimeoutMillis: 30000,
+        }),
+      ],
+    });
 
     // Register the provider globally
     tracerProvider.register();
@@ -210,6 +211,19 @@ function parseHeaders(headersStr?: string): Record<string, string> {
   }
 
   return headers;
+}
+
+/**
+ * Convert OTEL_EXPORTER_OTLP_HEADERS to the metadata format used by gRPC.
+ */
+function parseGrpcMetadata(headersStr?: string): Metadata {
+  const metadata = new Metadata();
+
+  for (const [key, value] of Object.entries(parseHeaders(headersStr))) {
+    metadata.set(key, value);
+  }
+
+  return metadata;
 }
 
 /**
