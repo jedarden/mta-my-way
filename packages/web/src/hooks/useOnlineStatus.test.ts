@@ -8,6 +8,8 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOnlineStatus } from "./useOnlineStatus";
 
+type AddEventListenerCall = Parameters<Window["addEventListener"]>;
+
 describe("useOnlineStatus", () => {
   const originalNavigator = navigator.onLine;
   // Spies are created fresh in beforeEach: the shared setup file calls
@@ -91,7 +93,7 @@ describe("useOnlineStatus", () => {
 
       // Get the online event handler
       const onlineHandler = addEventListenerSpy.mock.calls.find(
-        (call) => call[0] === "online"
+        (call: AddEventListenerCall) => call[0] === "online"
       )?.[1] as EventListener;
 
       // Simulate online event - also update navigator.onLine
@@ -121,7 +123,7 @@ describe("useOnlineStatus", () => {
 
       // Get the offline event handler
       const offlineHandler = addEventListenerSpy.mock.calls.find(
-        (call) => call[0] === "offline"
+        (call: AddEventListenerCall) => call[0] === "offline"
       )?.[1] as EventListener;
 
       // Simulate offline event - also update navigator.onLine
@@ -142,10 +144,10 @@ describe("useOnlineStatus", () => {
       const { result } = renderHook(() => useOnlineStatus());
 
       const onlineHandler = addEventListenerSpy.mock.calls.find(
-        (call) => call[0] === "online"
+        (call: AddEventListenerCall) => call[0] === "online"
       )?.[1] as EventListener;
       const offlineHandler = addEventListenerSpy.mock.calls.find(
-        (call) => call[0] === "offline"
+        (call: AddEventListenerCall) => call[0] === "offline"
       )?.[1] as EventListener;
 
       // Start online
@@ -194,14 +196,14 @@ describe("useOnlineStatus", () => {
       const { rerender } = renderHook(() => useOnlineStatus());
 
       const initialOnlineHandler = addEventListenerSpy.mock.calls.find(
-        (call) => call[0] === "online"
+        (call: AddEventListenerCall) => call[0] === "online"
       )?.[1];
 
       // Rerender
       rerender();
 
       const updatedOnlineHandler = addEventListenerSpy.mock.calls
-        .filter((call) => call[0] === "online")
+        .filter((call: AddEventListenerCall) => call[0] === "online")
         .pop()?.[1];
 
       // The handler reference should remain the same (stable)

@@ -28,9 +28,11 @@ const baseTrip: TripRecord = {
 };
 
 interface Handlers {
-  onSave: ReturnType<typeof vi.fn>;
-  onDelete: ReturnType<typeof vi.fn>;
-  onClose: ReturnType<typeof vi.fn>;
+  onSave: ReturnType<
+    typeof vi.fn<(commuteId: string, recordId: string, updates: Partial<TripRecord>) => void>
+  >;
+  onDelete: ReturnType<typeof vi.fn<(commuteId: string, recordId: string) => void>>;
+  onClose: ReturnType<typeof vi.fn<() => void>>;
 }
 
 function renderEditor(trip: TripRecord = baseTrip): Handlers & { container: HTMLElement } {
