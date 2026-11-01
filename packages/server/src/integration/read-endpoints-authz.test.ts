@@ -5,10 +5,10 @@
  * The audit found GET /api/trips, GET /api/trips/:tripId,
  * GET /api/journal/stats, GET /api/journal/dates/:startDate/:endDate and
  * GET /api/journal/summary answering without authentication. The gap was
- * closed on 2026-04-10 (a01d1513) by wiring requirePermission /
- * requireOwnershipOrAdmin onto every read route and scoping handler
- * queries by owner; these tests pin that closure to the real app so the
- * read surface cannot silently regress to unauthenticated or cross-user
+ * closed by wiring requireResourceAccess + validateDataAccess onto every
+ * read route, retaining the RBAC/ownership checks where needed, and scoping
+ * handler queries by owner. These tests pin that closure to the real app so
+ * the read surface cannot silently regress to unauthenticated or cross-user
  * reads.
  */
 
@@ -135,6 +135,47 @@ describe("Audit-flagged read endpoints enforce authorization", () => {
     it("GET /api/journal/summary", async () => {
       const res = await app.request("/api/journal/summary");
       expect(res.status).toBe(401);
+    });
+  });
+
+  describe("user-scoped query filters are rejected", () => {
+    it("GET /api/trips rejects a caller-supplied userId", async () => {
+      const res = await app.request(`/api/trips?userId=${encodeURIComponent(userA.keyId)}`, {
+        headers: { Authorization: userB.authorizationHeader },
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("GET /api/trips/:tripId rejects a caller-supplied userId", async () => {
+      const res = await app.request(
+        `/api/trips/00000000-0000-4000-8000-000000000000?userId=${encodeURIComponent(userA.keyId)}`,
+        { headers: { Authorization: userB.authorizationHeader } }
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("GET /api/journal/stats rejects a caller-supplied userId", async () => {
+      const res = await app.request(
+        `/api/journal/stats?userId=${encodeURIComponent(userA.keyId)}`,
+        { headers: { Authorization: userB.authorizationHeader } }
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("GET /api/journal/dates/:startDate/:endDate rejects a caller-supplied userId", async () => {
+      const res = await app.request(
+        `/api/journal/dates/2026-04-06/2026-04-07?userId=${encodeURIComponent(userA.keyId)}`,
+        { headers: { Authorization: userB.authorizationHeader } }
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("GET /api/journal/summary rejects a caller-supplied userId", async () => {
+      const res = await app.request(
+        `/api/journal/summary?userId=${encodeURIComponent(userA.keyId)}`,
+        { headers: { Authorization: userB.authorizationHeader } }
+      );
+      expect(res.status).toBe(403);
     });
   });
 

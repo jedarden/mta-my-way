@@ -60,17 +60,29 @@ This audit reviews the authorization and access control implementation in the MT
 | `/api/auth/mfa/enable` | POST | `requireResourceAccess("admin", "update")` | ✅ Protected |
 | `/api/auth/mfa/disable` | POST | `requireResourceAccess("admin", "delete")` | ✅ Protected |
 
-### 2.2 Endpoints WITHOUT Authorization (CRITICAL GAPS)
+### 2.2 Endpoints Previously Flagged WITHOUT Authorization
 
-| Endpoint | Method | Risk Level | Issue |
-|----------|--------|-----------|-------|
-| `/api/trips` | GET | 🔴 HIGH | No authentication required - anyone can view all trips |
-| `/api/trips/:tripId` | GET | 🔴 HIGH | No authentication required - anyone can view specific trip |
-| `/api/journal/stats` | GET | 🔴 HIGH | No authentication required - exposes user statistics |
-| `/api/journal/dates/:startDate/:endDate` | GET | 🔴 HIGH | No authentication required - exposes trip history by date |
-| `/api/journal/summary` | GET | 🟡 MEDIUM | No authentication required - exposes recent trips and stats |
-| `/api/context` | GET | 🟡 MEDIUM | No authentication required - exposes context settings |
-| `/api/context/clear` | POST | 🟡 MEDIUM | No authorization - state modification without auth |
+The following findings from the 2026-04-09 audit are closed. Each read route
+requires an authenticated read-capable credential, rejects caller-supplied
+cross-user filters through `validateDataAccess`, and scopes its query to the
+authenticated owner. The single-trip route additionally checks the persisted
+trip owner before returning the resource.
+
+| Endpoint | Method | Original risk | Current status | Closing evidence |
+|----------|--------|---------------|----------------|------------------|
+| `/api/trips` | GET | 🔴 HIGH | ✅ Closed | `requireResourceAccess("trip", "read")` + `validateDataAccess("trip")`; handler scopes `ownerId` |
+| `/api/trips/:tripId` | GET | 🔴 HIGH | ✅ Closed | `requireResourceAccess("trip", "read")` + `validateDataAccess("trip")` + `requireOwnershipOrAdmin("trips")` |
+| `/api/journal/stats` | GET | 🔴 HIGH | ✅ Closed | `requireResourceAccess("journal", "read")` + `validateDataAccess("journal")`; owner-scoped stats |
+| `/api/journal/dates/:startDate/:endDate` | GET | 🔴 HIGH | ✅ Closed | `requireResourceAccess("journal", "read")` + `validateDataAccess("journal")`; owner-scoped trips |
+| `/api/journal/summary` | GET | 🟡 MEDIUM | ✅ Closed | `requireResourceAccess("journal", "read")` + `validateDataAccess("journal")`; owner-scoped trips and stats |
+
+The `/api/context` rows from the original audit are not active server routes:
+the feature was removed in 2026-08 by the resolution recorded in
+`mtamyway-2e3c2df3`. Other original audit observations remain listed below for
+their separate follow-up work.
+
+| Endpoint | Method | Risk level | Original observation |
+|----------|--------|------------|----------------------|
 | `/api/push/vapid-public-key` | GET | 🟢 LOW | Public by design - VAPID key needed for push |
 | `/api/auth/session` | GET | 🟢 LOW | Returns auth status - appropriate for public access |
 | `/api/auth/session/refresh` | POST | 🔴 HIGH | Requires auth but checks in handler, not middleware |
@@ -81,31 +93,32 @@ This audit reviews the authorization and access control implementation in the MT
 | `/api/auth/oauth/authorize/:providerId` | GET | 🟢 LOW | Initiates OAuth - no auth needed |
 | `/api/auth/oauth/callback/:providerId` | GET | 🟢 LOW | OAuth callback - validates state |
 
-> **Re-verification 2026-10-24 (§2.2/§3.3 unauthenticated read endpoints).**
-> The five flagged trip/journal read endpoints were already closed on
-> **2026-04-10** by commit `a01d1513` ("feat: enhance authorization checks
-> and access controls"), one day after this report was written; this table
-> was never updated and is stale. Current per-endpoint status, verified
-> against the code at HEAD (bead `mtamyway-9579fbbd`):
+> **Re-verification 2026-10-31 (§2.2/§3.3 unauthenticated read endpoints).**
+> The five flagged trip/journal read endpoints were already authenticated and
+> owner-scoped by the earlier remediation. This pass added the explicit
+> `requireResourceAccess` + `validateDataAccess` guard pair to every route and
+> refreshed the regression evidence. Current per-endpoint status, verified
+> against the code at HEAD (bead `mtamyway-909eb98a`):
 >
 > | Endpoint | Rating then | Status now | Enforcement (`packages/server/src/app.ts`) |
 > |---|---|---|---|
-> | `GET /api/trips` | 🔴 HIGH | ✅ Closed | `requirePermission("trips:read:own")`; handler scopes `ownerId` to the caller (admin role unscoped) |
-> | `GET /api/trips/:tripId` | 🔴 HIGH | ✅ Closed | `requireOwnershipOrAdmin("trips")` — 401 unauthenticated, 403 owner mismatch, 404 passthrough for nonexistent IDs |
-> | `GET /api/journal/stats` | 🔴 HIGH | ✅ Closed | `requirePermission("journals:read:own")`; stats computed from the caller's `ownerId` only (owner-scoped queries bypass the shared stats cache) |
-> | `GET /api/journal/dates/:startDate/:endDate` | 🔴 HIGH | ✅ Closed | `requirePermission("journals:read:own")`; handler filters results by `ownerId` |
-> | `GET /api/journal/summary` | 🟡 MEDIUM | ✅ Closed | `requirePermission("journals:read:own")`; recent trips and total count scoped by `ownerId` |
+> | `GET /api/trips` | 🔴 HIGH | ✅ Closed | `requireResourceAccess("trip", "read")` + `validateDataAccess("trip")`; handler scopes `ownerId` to the caller (admin role unscoped) |
+> | `GET /api/trips/:tripId` | 🔴 HIGH | ✅ Closed | `requireResourceAccess("trip", "read")` + `validateDataAccess("trip")` + `requireOwnershipOrAdmin("trips")` — 401 unauthenticated, 403 owner mismatch, 404 passthrough for nonexistent IDs |
+> | `GET /api/journal/stats` | 🔴 HIGH | ✅ Closed | `requireResourceAccess("journal", "read")` + `validateDataAccess("journal")`; stats computed from the caller's `ownerId` only |
+> | `GET /api/journal/dates/:startDate/:endDate` | 🔴 HIGH | ✅ Closed | `requireResourceAccess("journal", "read")` + `validateDataAccess("journal")`; handler filters results by `ownerId` |
+> | `GET /api/journal/summary` | 🟡 MEDIUM | ✅ Closed | `requireResourceAccess("journal", "read")` + `validateDataAccess("journal")`; recent trips and total count scoped by `ownerId` |
 >
 > Anonymous callers receive **401** on all five endpoints — authentication
 > runs before the existence check, so trip IDs cannot be probed
 > unauthenticated — and authenticated callers reading another user's data
 > receive **403** or an owner-filtered result. `requireSameOrigin()` guards
 > the state-changing methods on this surface; GET is exempt by design, so
-> the permission/ownership middleware (not same-origin) is the read-side
+> the resource/ownership middleware (not same-origin) is the read-side
 > control. The `/api/context` rows refer to endpoints removed in 2026-08
 > (`4bff02a9`, client-side-only context design). Regression coverage:
 > `packages/server/src/integration/read-endpoints-authz.test.ts` (real-app
-> anonymous-401 and cross-user cases) and
+> anonymous-401, caller-supplied userId rejection, owner-success, and
+> cross-user cases) and
 > `packages/server/src/middleware/auth-authorization.integration.test.ts`
 > (middleware semantics). The four "checks in handler"
 > `/api/auth/session|mfa` rows were not re-verified in this pass.

@@ -107,6 +107,7 @@ import {
   ssrfProtection,
   validateBody,
   validateContentType,
+  validateDataAccess,
   validateParams,
   validateQuery,
   validateRedirectUrl,
@@ -2217,41 +2218,49 @@ ${
     );
 
     /** Get trips from the journal with optional filters */
-    app.get("/api/trips", requirePermission("trips:read:own" as Permission), async (c) => {
-      const query = validateQuery(c, tripQuerySchema);
-      if (query instanceof Response) return query;
+    app.get(
+      "/api/trips",
+      requireResourceAccess("trip", "read"),
+      validateDataAccess("trip"),
+      requirePermission("trips:read:own" as Permission),
+      async (c) => {
+        const query = validateQuery(c, tripQuerySchema);
+        if (query instanceof Response) return query;
 
-      // Check if push database is available for trip tracking
-      if (!isPushDatabaseReady()) {
-        return c.json(
-          {
-            error: "Trip tracking temporarily unavailable",
-            degraded: true,
-          },
-          503
-        );
+        // Check if push database is available for trip tracking
+        if (!isPushDatabaseReady()) {
+          return c.json(
+            {
+              error: "Trip tracking temporarily unavailable",
+              degraded: true,
+            },
+            503
+          );
+        }
+
+        const auth = getRbacAuthContext(c);
+
+        // Non-admin users can only see their own trips
+        const trips = getTrips({
+          ...query,
+          ownerId: auth?.role === "admin" ? undefined : auth?.keyId || "anonymous",
+        });
+
+        c.header("Cache-Control", "public, max-age=15");
+        return c.json({
+          trips,
+          count: trips.length,
+          limit: query.limit ?? 50,
+          offset: query.offset ?? 0,
+        });
       }
-
-      const auth = getRbacAuthContext(c);
-
-      // Non-admin users can only see their own trips
-      const trips = getTrips({
-        ...query,
-        ownerId: auth?.role === "admin" ? undefined : auth?.keyId || "anonymous",
-      });
-
-      c.header("Cache-Control", "public, max-age=15");
-      return c.json({
-        trips,
-        count: trips.length,
-        limit: query.limit ?? 50,
-        offset: query.offset ?? 0,
-      });
-    });
+    );
 
     /** Get a single trip by ID */
     app.get(
       "/api/trips/:tripId",
+      requireResourceAccess("trip", "read"),
+      validateDataAccess("trip"),
       requireOwnershipOrAdmin("trips", {
         getOwnerId: (c) => {
           const tripId = c.req.param("tripId") ?? "";
@@ -2367,6 +2376,8 @@ ${
     /** Get commute statistics */
     app.get(
       "/api/journal/stats",
+      requireResourceAccess("journal", "read"),
+      validateDataAccess("journal"),
       requirePermission("journals:read:own" as Permission),
       async (c) => {
         const query = validateQuery(c, commuteIdQuerySchema);
@@ -2400,6 +2411,8 @@ ${
     /** Get trips for a specific date range */
     app.get(
       "/api/journal/dates/:startDate/:endDate",
+      requireResourceAccess("journal", "read"),
+      validateDataAccess("journal"),
       requirePermission("journals:read:own" as Permission),
       async (c) => {
         const params = validateParams(c, dateRangeParamsSchema);
@@ -2436,6 +2449,8 @@ ${
     /** Get journal summary (recent trips + stats) */
     app.get(
       "/api/journal/summary",
+      requireResourceAccess("journal", "read"),
+      validateDataAccess("journal"),
       requirePermission("journals:read:own" as Permission),
       async (c) => {
         // Validate that no unexpected query parameters are passed
